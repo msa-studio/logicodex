@@ -16,8 +16,8 @@ use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser as ClapParser, Subcommand};
 use codegen::{CodegenOptions, LlvmCompiler, MemoryIntegrityPlan, PhysicalMemoryAccessPlan};
 use lexer::{Lexer, Lexicon};
-use parser::Parser;
 use os::target::CompilationTarget;
+use parser::Parser;
 use semantic::Analyzer;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -77,7 +77,11 @@ enum Commands {
         emit_ir: bool,
         #[arg(long, help = "Stop after generating the native object file")]
         object_only: bool,
-        #[arg(short = 's', long, help = "Enable active runtime memory integrity self-attestation architecture with Golden Hash planning")]
+        #[arg(
+            short = 's',
+            long,
+            help = "Enable active runtime memory integrity self-attestation architecture with Golden Hash planning"
+        )]
         secure: bool,
         #[arg(long, default_value = "native", value_parser = ["native", "freestanding"], help = "Select native OS linkage or freestanding bare-metal object generation")]
         target: String,
@@ -103,7 +107,15 @@ fn main() -> Result<()> {
             println!("{LOGICODEX_LOGO}");
             Ok(())
         }
-        Some(Commands::Compile { file, output, dict, emit_ir, object_only, secure, target }) => compile(&file, output, &dict, emit_ir, object_only, secure, &target),
+        Some(Commands::Compile {
+            file,
+            output,
+            dict,
+            emit_ir,
+            object_only,
+            secure,
+            target,
+        }) => compile(&file, output, &dict, emit_ir, object_only, secure, &target),
         Some(Commands::Check { file, dict }) => {
             parse_and_analyze(&file, &dict)?;
             println!("{}: semantic validation succeeded", file.display());
@@ -119,35 +131,70 @@ fn main() -> Result<()> {
     }
 }
 
-fn compile(file: &Path, output: Option<PathBuf>, dict: &Path, emit_ir: bool, object_only: bool, secure: bool, target_name: &str) -> Result<()> {
+fn compile(
+    file: &Path,
+    output: Option<PathBuf>,
+    dict: &Path,
+    emit_ir: bool,
+    object_only: bool,
+    secure: bool,
+    target_name: &str,
+) -> Result<()> {
     ensure_ldx_source(file)?;
     let target = CompilationTarget::parse(target_name)?;
-    let program = parse_and_analyze(file, dict)?;
+    let program = parse_and_analyze_for_target(file, dict, target_name, secure)?;
     let output_path = output.unwrap_or_else(|| default_output(file, object_only));
-    let object_path = if object_only { output_path.clone() } else { output_path.with_extension("o") };
+    let object_path = if object_only {
+        output_path.clone()
+    } else {
+        output_path.with_extension("o")
+    };
 
-    let artifact = LlvmCompiler::compile_to_object(&program, &object_path, &CodegenOptions { module_name: module_name(file), emit_ir, secure, target })?;
-    if let Some(ir_path) = artifact.ir_path.as_ref() { println!("LLVM IR written to {}", ir_path.display()); }
+    let artifact = LlvmCompiler::compile_to_object(
+        &program,
+        &object_path,
+        &CodegenOptions {
+            module_name: module_name(file),
+            emit_ir,
+            secure,
+            target,
+        },
+    )?;
+    if let Some(ir_path) = artifact.ir_path.as_ref() {
+        println!("LLVM IR written to {}", ir_path.display());
+    }
 
     if object_only {
         println!("Object file written to {}", artifact.object_path.display());
-        if secure { write_security_attestation_plan(&output_path)?; }
-        if target.is_freestanding() { write_freestanding_plan(&output_path)?; }
+        if secure {
+            write_security_attestation_plan(&output_path)?;
+        }
+        if target.is_freestanding() {
+            write_freestanding_plan(&output_path)?;
+        }
         return Ok(());
     }
 
     if target.is_freestanding() {
-        println!("Freestanding object written to {}", artifact.object_path.display());
+        println!(
+            "Freestanding object written to {}",
+            artifact.object_path.display()
+        );
         write_freestanding_plan(&output_path)?;
-        if secure { write_security_attestation_plan(&output_path)?; }
+        if secure {
+            write_security_attestation_plan(&output_path)?;
+        }
         return Ok(());
     }
 
     let runtime_asm = output_path.with_extension("runtime.s");
-    fs::write(&runtime_asm, os::runtime_assembly()).with_context(|| format!("failed to write runtime assembly {}", runtime_asm.display()))?;
+    fs::write(&runtime_asm, os::runtime_assembly())
+        .with_context(|| format!("failed to write runtime assembly {}", runtime_asm.display()))?;
     link_executable(&artifact.object_path, &runtime_asm, &output_path)?;
     println!("Native executable written to {}", output_path.display());
-    if secure { write_security_attestation_plan(&output_path)?; }
+    if secure {
+        write_security_attestation_plan(&output_path)?;
+    }
     Ok(())
 }
 
@@ -159,8 +206,16 @@ fn write_security_attestation_plan(output_path: &Path) -> Result<()> {
         output_path.display(),
         MemoryIntegrityPlan::hardened_default()
     );
-    fs::write(&plan_path, content).with_context(|| format!("failed to write security attestation plan {}", plan_path.display()))?;
-    println!("Security attestation plan written to {}", plan_path.display());
+    fs::write(&plan_path, content).with_context(|| {
+        format!(
+            "failed to write security attestation plan {}",
+            plan_path.display()
+        )
+    })?;
+    println!(
+        "Security attestation plan written to {}",
+        plan_path.display()
+    );
     Ok(())
 }
 
@@ -173,28 +228,52 @@ fn write_freestanding_plan(output_path: &Path) -> Result<()> {
         output_path.display(),
         access_plan
     );
-    fs::write(&plan_path, content).with_context(|| format!("failed to write freestanding target plan {}", plan_path.display()))?;
-    println!("Freestanding target plan written to {}", plan_path.display());
+    fs::write(&plan_path, content).with_context(|| {
+        format!(
+            "failed to write freestanding target plan {}",
+            plan_path.display()
+        )
+    })?;
+    println!(
+        "Freestanding target plan written to {}",
+        plan_path.display()
+    );
     Ok(())
 }
 
 fn parse_and_analyze(file: &Path, dict: &Path) -> Result<ast::Program> {
+    parse_and_analyze_for_target(file, dict, "native", false)
+}
+
+fn parse_and_analyze_for_target(
+    file: &Path,
+    dict: &Path,
+    target_name: &str,
+    secure: bool,
+) -> Result<ast::Program> {
     ensure_ldx_source(file)?;
-    let source = fs::read_to_string(file).with_context(|| format!("failed to read Logicodex source file {}", file.display()))?;
-    let lexicon = Lexicon::from_path(dict).with_context(|| format!("failed to load dictionary {}", dict.display()))?;
+    let source = fs::read_to_string(file)
+        .with_context(|| format!("failed to read Logicodex source file {}", file.display()))?;
+    let lexicon = Lexicon::from_path(dict)
+        .with_context(|| format!("failed to load dictionary {}", dict.display()))?;
     let tokens = Lexer::new(&source, &lexicon).tokenize()?;
     let mut parser = Parser::new(tokens);
     let program = parser.parse()?;
-    Analyzer::analyze(&program)?;
+    Analyzer::analyze_for_target(&program, target_name, secure)?;
     Ok(program)
 }
 
 fn print_tokens(file: &Path, dict: &Path) -> Result<()> {
     ensure_ldx_source(file)?;
-    let source = fs::read_to_string(file).with_context(|| format!("failed to read Logicodex source file {}", file.display()))?;
-    let lexicon = Lexicon::from_path(dict).with_context(|| format!("failed to load dictionary {}", dict.display()))?;
+    let source = fs::read_to_string(file)
+        .with_context(|| format!("failed to read Logicodex source file {}", file.display()))?;
+    let lexicon = Lexicon::from_path(dict)
+        .with_context(|| format!("failed to load dictionary {}", dict.display()))?;
     for token in Lexer::new(&source, &lexicon).tokenize()? {
-        println!("{:?}\t{}\t{}:{}", token.kind, token.lexeme, token.line, token.column);
+        println!(
+            "{:?}\t{}\t{}:{}",
+            token.kind, token.lexeme, token.line, token.column
+        );
     }
     Ok(())
 }
@@ -203,12 +282,21 @@ fn ensure_ldx_source(file: &Path) -> Result<()> {
     if file.extension().and_then(|e| e.to_str()) == Some("ldx") {
         Ok(())
     } else {
-        anyhow::bail!("Logicodex source files must use the official .ldx extension: {}", file.display())
+        anyhow::bail!(
+            "Logicodex source files must use the official .ldx extension: {}",
+            file.display()
+        )
     }
 }
 
 fn default_output(file: &Path, object_only: bool) -> PathBuf {
-    let mut path = file.with_extension(if object_only { "o" } else if cfg!(target_os = "windows") { "exe" } else { "" });
+    let mut path = file.with_extension(if object_only {
+        "o"
+    } else if cfg!(target_os = "windows") {
+        "exe"
+    } else {
+        ""
+    });
     if !object_only && !cfg!(target_os = "windows") {
         let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("a.out");
         path.set_file_name(stem);
@@ -217,7 +305,10 @@ fn default_output(file: &Path, object_only: bool) -> PathBuf {
 }
 
 fn module_name(file: &Path) -> String {
-    file.file_stem().and_then(|s| s.to_str()).unwrap_or("logicodex_module").replace('-', "_")
+    file.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("logicodex_module")
+        .replace('-', "_")
 }
 
 fn link_executable(object_path: &Path, runtime_asm: &Path, output_path: &Path) -> Result<()> {
@@ -229,5 +320,9 @@ fn link_executable(object_path: &Path, runtime_asm: &Path, output_path: &Path) -
         .arg(output_path)
         .status()
         .with_context(|| format!("failed to invoke linker `{linker}`"))?;
-    if status.success() { Ok(()) } else { anyhow::bail!("linker `{linker}` failed with status {status}") }
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("linker `{linker}` failed with status {status}")
+    }
 }

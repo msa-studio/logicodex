@@ -1,11 +1,11 @@
 [package]
 name = "logicodex"
-version = "1.21-alpha"
+version = "1.21.0-alpha"
 edition = "2021"
 authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
-description = "Phase 1 bare-metal compiler for the Logicodex programming language"
+description = "v1.21-alpha compiler for the Logicodex programming language with executable grammar and provenance safety checks"
 license = "MIT OR Apache-2.0"
-repository = "https://example.invalid/logicodex"
+repository = "https://github.com/msa-studio/logicodex"
 readme = "README.md"
 
 [[bin]]
@@ -33,6 +33,6 @@ panic = "unwind"
 
 [package.metadata.logicodex]
 language_name = "Logicodex"
-phase = "Compiler Phase 1 - bare-metal"
+phase = "v1.21-alpha executable grammar and provenance integration"
 source_extension = "ldx"
 llvm_feature = "llvm17-0"

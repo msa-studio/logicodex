@@ -6,7 +6,9 @@
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
 use anyhow::{anyhow, Result};
-use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple};
+use inkwell::targets::{
+    CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
+};
 use inkwell::OptimizationLevel;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,7 +22,9 @@ impl CompilationTarget {
         match value {
             "native" => Ok(Self::Native),
             "freestanding" => Ok(Self::Freestanding),
-            other => Err(anyhow!("unsupported Logicodex target `{other}`; expected `native` or `freestanding`")),
+            other => Err(anyhow!(
+                "unsupported Logicodex target `{other}`; expected `native` or `freestanding`"
+            )),
         }
     }
 
@@ -64,7 +68,25 @@ pub fn build_target_machine(kind: OutputKind) -> Result<TargetMachine> {
         OutputKind::Object => CodeModel::Default,
         OutputKind::FreestandingObject => CodeModel::Kernel,
     };
-    let target = Target::from_triple(&triple).map_err(|e| anyhow!("failed to load LLVM target for {}: {e}", triple.as_str().to_string_lossy()))?;
-    target.create_target_machine(&triple, cpu, features, OptimizationLevel::Aggressive, reloc, code_model)
-        .ok_or_else(|| anyhow!("failed to create LLVM target machine for {}", triple.as_str().to_string_lossy()))
+    let target = Target::from_triple(&triple).map_err(|e| {
+        anyhow!(
+            "failed to load LLVM target for {}: {e}",
+            triple.as_str().to_string_lossy()
+        )
+    })?;
+    target
+        .create_target_machine(
+            &triple,
+            cpu,
+            features,
+            OptimizationLevel::Aggressive,
+            reloc,
+            code_model,
+        )
+        .ok_or_else(|| {
+            anyhow!(
+                "failed to create LLVM target machine for {}",
+                triple.as_str().to_string_lossy()
+            )
+        })
 }
