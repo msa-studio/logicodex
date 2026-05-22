@@ -62,6 +62,23 @@ Runtime memory attestation, Golden Hash planning, hard fail-stop behavior, and f
 | Freestanding support | Experimental target profile | Linker scripts, bootloader integration notes, hardware-region policies, and minimal examples are validated. |
 | Migration assistant | Conceptual roadmap | Translation output is reviewable, testable, and clearly marked as assisted migration rather than automatic proof of correctness. |
 
+## Milestone 6: Plan the Logicodex Global Token Registry as an Offline-First Objective
+
+The **Logicodex Global Token Registry** is a long-term ecosystem objective for the current logicodex v 1.21 alpha roadmap. The concept is to let future Logicodex installations discover expanded token dictionaries from a centrally maintained `global_map.json`, while still preserving deterministic compilation, reproducible builds, and local project control.
+
+This feature should not be implemented as automatic HTTP lookup inside `src/lexer.rs`. Network access during lexing would make compilation depend on server availability, registry state, network latency, and policy changes outside the source tree. The practical design should instead use an explicit registry-management command that runs before compilation, validates registry data, writes a local cache, and records a project-pinned lockfile. The compiler should then read only local, pinned token maps during normal compilation.
+
+| Registry objective | Current status | Practical acceptance signal |
+|---|---|---|
+| `global_map.json` registry format | Long-term objective | A versioned schema defines `identity`, canonical Malay token, aliases, namespace, stability, version-added metadata, checksum, and compatibility policy. |
+| Offline-first sync command | Long-term objective | A command such as `logicodex registry sync --version 1.21-alpha` fetches, validates, and caches registry data before compilation. |
+| Project lockfile | Long-term objective | A `logicodex.lock` or equivalent file pins registry version, checksum, and selected namespaces so repeated builds use the same token map. |
+| Immutable token policy | Long-term objective | Published token identities are append-only or version-gated; conflicting changes are rejected rather than silently replacing existing meaning. |
+| Audit and safety controls | Long-term objective | Registry updates produce an audit trail, reject malformed entries, and support checksum or signature verification before use. |
+| Enterprise or premium policy layer | Optional future objective | License-gated namespaces are handled outside the open compiler core and must not make standard language compilation dependent on a live network call. |
+
+The intended flow is therefore `registry sync -> schema/hash verification -> local cache and lockfile -> deterministic compiler read`. This keeps the global registry concept available for future ecosystem growth without weakening the stability of the current compiler pipeline.
+
 ## Tracking Notes
 
 The roadmap should be updated only when implementation evidence changes. Completed items should cite the files, tests, examples, or release assets that prove the claim. When an item remains a goal, the documentation should use terms such as **planned**, **prototype**, **experimental**, **research objective**, or **long-term objective** rather than implying production readiness.
