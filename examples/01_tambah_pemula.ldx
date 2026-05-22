@@ -1,0 +1,16 @@
+// =========================================================================
+// Project: Logicodex Language Engine (Phase 1 MVP Upgrade)
+// Version: v1.0.1-alpha (Internal Security & OS Freestanding Test)
+// Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
+// Copyright (c) 2026. All Rights Reserved.
+// Licensed under permissive dual-license: MIT & Apache License 2.0
+// =========================================================================
+MULA
+BINA x = 5
+BINA y = 10
+BINA total = x + y
+JIKA total > 12 MAKA
+    PAPAR 1
+JIKALAU_TIDAK
+    PAPAR 0
+TAMAT

@@ -1,0 +1,38 @@
+[package]
+name = "logicodex"
+version = "1.0.1-alpha"
+edition = "2021"
+authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
+description = "Phase 1 bare-metal compiler for the Logicodex programming language"
+license = "MIT OR Apache-2.0"
+repository = "https://example.invalid/logicodex"
+readme = "README.md"
+
+[[bin]]
+name = "logicodex"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+inkwell = { version = "0.4", features = ["llvm17-0"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+panic = "abort"
+strip = "symbols"
+
+[profile.dev]
+opt-level = 0
+panic = "unwind"
+
+[package.metadata.logicodex]
+language_name = "Logicodex"
+phase = "Compiler Phase 1 - bare-metal"
+source_extension = "ldx"
+llvm_feature = "llvm17-0"

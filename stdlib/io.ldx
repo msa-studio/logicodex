@@ -1,0 +1,18 @@
+// =========================================================================
+// Project: Logicodex Language Engine (Phase 1 MVP Upgrade)
+// Version: v1.0.1-alpha (Internal Security & OS Freestanding Test)
+// Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
+// Copyright (c) 2026. All Rights Reserved.
+// Licensed under permissive dual-license: MIT & Apache License 2.0
+// =========================================================================
+# Logicodex Phase 1 standard I/O contract
+#
+# The compiler lowers PAPAR/print statements to the intrinsic runtime symbol
+# `logicodex_print_i64`. The target layer supplies that symbol using either direct
+# Linux syscalls or the Win32 console subsystem. User programs do not import this
+# file directly in Phase 1; it documents the stable built-in ABI.
+
+MULA
+    # Built-in: PAPAR <integer-or-boolean-expression>
+    # Boolean values are rendered as 1 for BENAR/true and 0 for PALSU/false.
+TAMAT

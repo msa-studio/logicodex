@@ -1,0 +1,17 @@
+// =========================================================================
+// Project: Logicodex Language Engine (Phase 1 MVP Upgrade)
+// Version: v1.0.1-alpha (Internal Security & OS Freestanding Test)
+// Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
+// Copyright (c) 2026. All Rights Reserved.
+// Licensed under permissive dual-license: MIT & Apache License 2.0
+// =========================================================================
+{
+let x = 5
+let y = 10
+let total = x + y
+if total > 12 {
+    print 1
+} else {
+    print 0
+}
+}
