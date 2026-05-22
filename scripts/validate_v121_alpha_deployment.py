@@ -5,7 +5,7 @@ import sys
 root = Path(__file__).resolve().parents[1]
 expected_header = """// =========================================================================
 // Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Formal Specifications & Zero-Overhead Severity Model)
+// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
@@ -24,13 +24,13 @@ for path in header_files:
 
 checks = {
     "Cargo.toml": ["version = \"1.21-alpha\""],
-    "src/main.rs": ["version = \"1.21-alpha\"", "LOGICODEX COMPILER v1.21-alpha", "logicodex 1.21-alpha", "Formal Specifications & Zero-Overhead Severity Model"],
-    "README.md": ["v1.21-alpha Phase 2 Deployment Integration", "Undefined Behavior and Pointer Provenance model", "zero-overhead Critical/Medium/Low severity architecture"],
+    "src/main.rs": ["version = \"1.21-alpha\"", "LOGICODEX COMPILER v1.21-alpha", "logicodex 1.21-alpha", "Specification Baseline & Practical Severity Roadmap"],
+    "README.md": ["Practical Compiler Baseline", "Undefined Behavior and Pointer Provenance design note", "long-term engineering objectives"],
     "WHITE_PAPER.md": ["v1.21-alpha Specification Synchronization", "Undefined Behavior and Pointer Provenance specification", "Critical", "Medium", "Low"],
-    "ROADMAP.md": ["Issue #01 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul", "Issue #02 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul", "Layered error modeling (C/C++/Rust) integrated into specification", "Zero-overhead 3-tier severity mitigation architecture"],
+    "ROADMAP.md": ["Issue #01 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul", "Issue #02 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul", "Practical Error Severity Classification Baseline", "long-term fail-stop objective"],
     "REPOS_CONTEXT.md": ["# ❖ Logicodex Repository Context Document", "v1.21-alpha milestone", "spec/v1.21-alpha/UpdateIssue2-provenance.md"],
-    "spec/v1.21-alpha/UpdateIssue1-ebnf.md": ["# ❖ Logicodex Formal Grammar Specification (v1.21-alpha)", "StringLiteral    ::= '\"' [^\"\\\\]* '\"'", "HardwareToken    ::= \"KAWASAN_PERKAKAS\" | \"hw\"", "AddressToken     ::= \"ALAMAT\" | \"addr\""],
-    "spec/v1.21-alpha/UpdateIssue2-provenance.md": ["# ❖ Logicodex Undefined Behavior & Pointer Provenance Specification (v1.21-alpha)", "Linear Layer (C-Style Paradigms)", "Object-Oriented Layer (C++ Style Paradigms)", "Safety Layer (Rust-Style Paradigms)", "TIER 1: CRITICAL", "TIER 2: MEDIUM", "TIER 3: LOW"],
+    "spec/v1.21-alpha/UpdateIssue1-ebnf.md": ["# Logicodex Grammar Specification Baseline (v1.21-alpha)", "StringLiteral    ::= '\"' [^\"\\\\]* '\"'", "HardwareToken    ::= \"KAWASAN_PERKAKAS\" | \"hw\"", "AddressToken     ::= \"ALAMAT\" | \"addr\""],
+    "spec/v1.21-alpha/UpdateIssue2-provenance.md": ["# Logicodex Undefined Behavior and Pointer Provenance Design Baseline (v1.21-alpha)", "Linear Layer (C-Style Paradigms)", "Object-Oriented Layer (C++ Style Paradigms)", "Safety Layer (Rust-Style Paradigms)", "TIER 1: CRITICAL", "TIER 2: MEDIUM", "TIER 3: LOW"],
     "scripts/update_release_archives.sh": ["NAME=\"logicodex-v1.21-alpha\""],
 }
 for rel, markers in checks.items():

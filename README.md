@@ -1,7 +1,7 @@
 # Logicodex Language — v1.21-alpha
-## v1.21-alpha Phase 2 Deployment Integration
+## v1.21-alpha Practical Compiler Baseline
 
-The **v1.21-alpha** milestone synchronizes the formal language specification baseline with the Undefined Behavior and Pointer Provenance model. It adds a canonical four-layer EBNF grammar, a layered C/C++/Rust-derived memory-safety classification, and a zero-overhead Critical/Medium/Low severity architecture intended for direct LLVM IR lowering without runtime speed penalties.
+The **current logicodex v 1.21 alpha** milestone establishes a practical compiler-core baseline and a documented security research direction. It includes a four-layer grammar baseline, an Undefined Behavior and Pointer Provenance design note, and a Critical/Medium/Low severity taxonomy. The stronger security, freestanding, and measured-overhead goals are treated as **long-term engineering objectives** until they are implemented, benchmarked, and validated by repeatable tests.
 
 ```text
 =========================================================
@@ -12,16 +12,16 @@ The **v1.21-alpha** milestone synchronizes the formal language specification bas
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
              [ LOGICODEX COMPILER v1.21-alpha ]
-             [ DUAL-SYNTAX LLVM SYSTEMS LANGUAGE ]
+             [ PRACTICAL LLVM COMPILER BASELINE ]
 =========================================================
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 ```
 
 ## Executive Summary
 
-Logicodex is a dual-syntax, LLVM-backed systems programming language created by **Mohamad Supardi Abdul** (`mymsastudio@gmail.com`). It is designed to reduce the cognitive gap between readable human intent and native machine execution by allowing novice-oriented pseudocode and expert shorthand to compile through one deterministic compiler pipeline.
+Logicodex is a dual-syntax, LLVM-backed systems programming language created by **Mohamad Supardi Abdul** (`mymsastudio@gmail.com`). Its practical aim is to reduce the cognitive gap between readable human intent and native-oriented compiler output by allowing novice-oriented pseudocode and expert shorthand to flow through one deterministic frontend.
 
-The current **Phase 1** alpha delivers the verified working core compiler infrastructure: the `dict/core_map.json` dictionary loader, Lexer, Parser, AST construction, Semantic Analyzer, and LLVM-Inkwell backend path for native-oriented output. Roadmap capabilities including the **WebAssembly Target**, **Logicodex Migrator Engine**, and **Continuous Runtime Memory Attestation** are formally defined engineering specifications for **Phase 2/3** and should not be read as production-complete Phase 1 features.
+The current **Phase 1** alpha focuses on a working compiler core: the `dict/core_map.json` dictionary loader, lexer, parser, AST construction, semantic analyzer, and LLVM-Inkwell backend path for native-oriented object generation. Roadmap capabilities including the **WebAssembly target**, **Logicodex Migrator Engine**, continuous runtime memory attestation, and deeper freestanding support are **objectives to be built and validated over time**, not completed implementation claims in the current alpha.
 
 ## Compiler Pipeline
 
@@ -30,30 +30,32 @@ The current **Phase 1** alpha delivers the verified working core compiler infras
                                                               │
 [ Expert Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Abstract Syntax Tree ]
                                                               │
-[ Native Binary ] ◄── (LLVM Backend Optimization O3) ◄── [ LLVM IR Generation ]
+[ Native-Oriented Object Output ] ◄── (LLVM Backend) ◄── [ LLVM IR Generation ]
 ```
 
 The dictionary is consumed strictly during lexing. Surface forms such as `MULA`, `BEGIN`, and `{` normalize into canonical token identities such as `TokenKind::Start` before parsing begins. The parser therefore consumes a uniform token stream rather than performing macro rewriting or grammar-level dialect conversion.
 
-## Architectural Highlights
+## Current Capability Boundary
 
-| Area | v1.21-alpha Status | Engineering Direction |
+The project should be read as an **alpha compiler and specification prototype**. It is suitable for compiler-core experimentation, syntax design, semantic-analysis iteration, LLVM backend development, and documentation of future systems-programming goals. It should not yet be presented as a hardened production compiler, a complete freestanding operating-system toolchain, or a formally verified security platform.
+
+| Area | Current v1.21-alpha status | Practical next objective |
 |---|---|---|
 | Dual syntax | Implemented in the Phase 1 frontend through dictionary-aware tokenization. | Expand localized and domain-specific token families while preserving deterministic builds. |
-| Static semantics | Implemented for the Phase 1 core language. | Extend toward formal EBNF, type-system boundaries, pointer provenance, and UB catalog definitions. |
-| LLVM backend | Implemented through the Rust Inkwell path for core expressions and native object generation. | Mature target triples, ABI contracts, and linker policies. |
-| WebAssembly target | Architectural roadmap for Phase 2/3. | Add a Wasm target prototype, browser playground, and sandboxed package execution. |
-| Migrator Engine | Architectural roadmap for Phase 2/3. | Convert legacy source into readable Logicodex with explicit semantic review. |
-| Continuous runtime memory attestation | Architectural roadmap for Phase 2/3. | Convert the current security plan contract into concrete digest insertion, verifier stubs, and target-specific fail-stop mitigation. |
-| Freestanding support | Alpha target profile and plan generation. | Add linker scripts, bootloader examples, raw-pointer gates, and hardware-region policies. |
+| Static semantics | Implemented for the Phase 1 core language and selected safety checks. | Tighten type-system boundaries, diagnostics, pointer-provenance rules, and UB catalog coverage. |
+| LLVM backend | Implemented through the Rust Inkwell path for core expressions and native-oriented object generation. | Mature target triples, ABI contracts, linker policies, and executable examples. |
+| WebAssembly target | Long-term roadmap objective. | Build a small Wasm prototype after native examples and tests are stable. |
+| Migrator Engine | Long-term roadmap objective. | Start with assisted source translation experiments that require explicit human review. |
+| Runtime memory attestation | Long-term security research objective. | Convert the current plan contract into prototype digest insertion, verifier stubs, and target-specific fail-stop behavior. |
+| Freestanding support | Alpha target profile and plan generation. | Add linker scripts, bootloader examples, raw-pointer gates, and hardware-region policies before claiming full freestanding readiness. |
 
 ## Freestanding and Hosted Safety Boundary
 
-The `--target freestanding` profile is intended for OS-less integration contexts such as kernels, bootloaders, firmware, and hypervisors. Examples that write to physical addresses such as VGA text memory at `0xB8000` are valid only under freestanding execution or equivalent kernel-space mapping authority. Hosted operating systems such as Linux and Windows normally protect processes with virtual memory paging and ASLR, so direct physical address manipulation from user space should be expected to fail through page-fault defenses unless mediated by mechanisms such as `/dev/mem` or Ring-0 drivers.
+The `--target freestanding` profile is an **experimental direction** for OS-less integration contexts such as kernels, bootloaders, firmware, and hypervisors. Examples that write to physical addresses such as VGA text memory at `0xB8000` are valid only under freestanding execution or equivalent kernel-space mapping authority. Hosted operating systems such as Linux and Windows normally protect processes with virtual memory paging and ASLR, so direct physical address manipulation from user space should be expected to fail through page-fault defenses unless mediated by mechanisms such as `/dev/mem` or Ring-0 drivers.
 
 ## Security Roadmap Boundary
 
-The active self-defense model defines a fail-stop invariant for executable-code tampering. In hosted environments, hard self-destruction means process termination through native abort behavior. In freestanding environments, it means a target-specific termination primitive such as a CPU Triple Fault, `hlt` halt loop, or hardware watchdog reset. The Phase 1 tree documents this contract; Phase 2/3 work must implement the production verifier and mitigation runtime.
+The security model is currently best described as a **roadmap and design contract**. The desired long-term behavior is fail-stop handling for executable-code tampering, with hosted environments using normal process termination and freestanding environments using target-appropriate halt or reset mechanisms where such behavior is safe and explicitly configured. The current repository documents and prepares this direction; future milestones must implement verifier code, benchmark overhead, document threat models, and test target-specific mitigation behavior before stronger production security claims are made.
 
 ## Stable Rust 1.75 Build Compatibility
 
@@ -83,6 +85,16 @@ If a machine does not provide LLVM 15 development libraries, maintainers should 
 python3 scripts/validate_v121_executable_logic.py
 python3 scripts/validate_v121_alpha_deployment.py
 ```
+
+## Practical Roadmap Summary
+
+The next useful work is not to expand claims, but to improve proof. The project should prioritize a small set of native examples, reliable build instructions, stable diagnostics, and repeatable validation scripts. After that foundation is stable, the roadmap can safely move into WebAssembly, migration tooling, runtime attestation, and freestanding hardware experiments.
+
+| Horizon | Emphasis | Success signal |
+|---|---|---|
+| Short term | Stabilize compiler core and examples. | `cargo check`, release build, validators, and representative `.ldx` programs pass reproducibly. |
+| Medium term | Improve tooling and language boundaries. | Formatter, LSP diagnostics, stronger type rules, and documented unsafe capability gates exist. |
+| Long term | Research-grade systems and security features. | Wasm target, migration assistant, attestation prototype, freestanding examples, and measured overhead data are available. |
 
 ## Governance and Licensing
 

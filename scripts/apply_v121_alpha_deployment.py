@@ -23,14 +23,14 @@ OLD_VERSION_PATTERNS = [
 
 HEADER = """// =========================================================================
 // Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Formal Specifications & Zero-Overhead Severity Model)
+// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
 """
 
-EBNF_SPEC = '''# ❖ Logicodex Formal Grammar Specification (v1.21-alpha)
+EBNF_SPEC = '''# Logicodex Grammar Specification Baseline (v1.21-alpha)
 Notation Legend: `::=` means "defined as"; `|` alternation; `*` zero-or-more; `+` one-or-more; `?` optional; terminals enclosed in quotes.
 
 ## Layer 1 — Surface Lexical Layer (core_map.json Input)
@@ -58,7 +58,7 @@ The Logicodex parser operates exclusively on canonical token kinds emitted by th
 BeginBlock ::= TokenKind::BeginBlock
 EndBlock   ::= TokenKind::EndBlock
 
-## Layer 3 — Syntactic Grammar Layer (AST Structural Contract)
+## Layer 3 — Syntactic Grammar Layer (Current AST Contract)
 Program          ::= ( GlobalDeclaration | FunctionDef )*
 GlobalDeclaration::= HardwareDecl | UseDecl
 HardwareDecl     ::= HardwareToken Identifier ":" Type "=" AddressToken LiteralInt ";"
@@ -76,10 +76,10 @@ PrimaryExpr      ::= Identifier | LiteralInt | StringLiteral | "(" Expression ")
 Type             ::= "I32" | "I64" | "U16" | "U32" | "F64" | "Bool" | "PTR<" Type ">"
 
 ## Layer 4 — Semantic Constraint Layer
-Grammar validation guarantees structural correctness. Type compilation and unsafe capability checks are strictly enforced during the separate Static Analysis phase.
+Grammar validation establishes structural correctness for the implemented language subset. Type compilation and unsafe capability checks are handled by the separate Static Analysis phase and should continue to expand through tested milestones.
 '''
 
-PROVENANCE_SPEC = '''# ❖ Logicodex Undefined Behavior & Pointer Provenance Specification (v1.21-alpha)
+PROVENANCE_SPEC = '''# Logicodex Undefined Behavior and Pointer Provenance Design Baseline (v1.21-alpha)
 
 ## 1. Industry-Derived Layer Classification
 Logicodex categorizes semantic violations based on established low-level language paradigms to facilitate seamless optimization mapping via the LLVM backend:
@@ -87,35 +87,35 @@ Logicodex categorizes semantic violations based on established low-level languag
 - **Object-Oriented Layer (C++ Style Paradigms):** Focuses on flat struct layouts, deterministic sequential memory placement, and scoped destructor functions (drop semantics). Re-use of expired memories or double execution of object destruction logic is strictly treated as an explicit object boundary violation.
 - **Safety Layer (Rust-Style Paradigms):** Focuses on strict compile-time index bounds checking and deterministic automatic resource cleanup via RAII patterns.
 
-## 2. Zero-Overhead General Error Severity Classification
-If a runtime error escapes static compilation analysis or triggers during active runtime attestation, the compiler handles response routines through three structural severity tiers injected directly into the LLVM IR pipeline:
-- **🔴 TIER 1: CRITICAL (Hardware & Machine Layer Rupture):** Triggers upon Golden Hash integrity failure or unmapped physical memory access in freestanding mode. It bypasses hosted OS routines, emitting naked machine instructions to trigger an immediate process termination or standard signal (Hosted) or forces a CPU Triple Fault / Hardware Watchdog Reset (Freestanding Bare-Metal) to completely freeze the execution environment and contain threats.
-- **🟡 TIER 2: MEDIUM (Process & Execution Layer Failure):** Triggers upon dynamic division by zero, runtime resource depletion, or structural thread deadlocks. It terminates the active thread or isolated sub-process cleanly, returns a panic exit code (e.g., `exit(1)`), and flushes resource drops to standard error logs without bringing down the machine.
-- **🟢 TIER 3: LOW (Non-Critical Warning Layer):** Triggers upon safe casting integer truncation, benign unsigned math wrap-around, or deprecated library calls. It operates at zero execution speed deduction, emitting a standard error diagnostic trace or shifting execution safely into user-defined localized `catch` statement blocks.
+## 2. Practical Error Severity Classification Baseline
+If a runtime error escapes static compilation analysis or triggers during future runtime attestation work, the compiler should classify response routines through three structural severity tiers. Each tier must be implemented, tested, and benchmarked before production-readiness claims are made:
+- **TIER 1: CRITICAL:** Intended for executable-integrity failure or unsafe hardware-region access in explicitly selected freestanding contexts. This remains a long-term fail-stop objective requiring target-specific implementation, review, and tests.
+- **TIER 2: MEDIUM:** Intended for dynamic division by zero, runtime resource depletion, or isolated execution failure. The practical first step is normal process or function failure paths with clear diagnostics.
+- **TIER 3: LOW:** Intended for warnings such as safe integer truncation, benign wrap-around, or deprecated library use. Prefer diagnostics and metadata unless measured runtime behavior is explicitly implemented.
 '''
 
-REPOS_CONTEXT = '''# ❖ Logicodex Repository Context Document
-This authoritative document inventories the core architectural assets of the Logicodex Language repository and establishes the operational context for each component under the v1.21-alpha milestone.
+REPOS_CONTEXT = '''# Logicodex Repository Context Document
+This authoritative document inventories the core architectural assets of the Logicodex Language repository and establishes the operational context for each component under the current logicodex v 1.21 alpha milestone.
 
 ## 1. Compiler Core Frontend & Backend (`src/`)
 - `src/main.rs`: The execution entry point. Houses the Clap CLI driver framework, manages compilation flags (`--target`, `--secure`), and prints the official terminal ASCII logo.
 - `src/lexer.rs`: The dynamic dictionary tokenizer. Consumes raw `.ldx` files and queries `core_map.json` to substitute localized or shorthand words into uniform canonical token IDs.
 - `src/parser.rs`: The structural AST builder. Utilizes a hand-rolled handwritten recursive-descent strategy and Pratt parsing engine to process token streams into strict compiler primitives.
 - `src/semantic.rs`: The safety gatekeeper. Performs type inference checks, structural scoping constraints, constant-folding arithmetic validations, and filters programming hazards before lowering code.
-- `src/codegen.rs`: The LLVM intermediate generator. Transpiles checked AST structures directly into optimized LLVM IR nodes and injects zero-overhead runtime error severity blocks.
-- `src/target.rs`: The platform deployment matrix. Configures cross-compilation configurations, optimization passes (`O3`), and target triples (Hosted Windows/Linux vs Freestanding Bare-Metal).
+- `src/codegen.rs`: The LLVM intermediate generator. Transpiles checked AST structures directly into optimized LLVM IR nodes and emits compiler-core output while documenting future severity handling points.
+- `src/target.rs`: The platform deployment matrix. Configures cross-compilation configurations, optimization passes (`O3`), and target triples (hosted Windows/Linux vs experimental freestanding).
 
 ## 2. Operating System Native Bridges (`src/os/`)
-- `src/os/windows.rs`: Implements bare-metal native console outputs by linking operations directly to the Windows Win32 API suite.
-- `src/os/linux.rs`: Implements hyper-performance native outputs by executing raw x86_64 POSIX-compliant assembly Linux Syscalls, completely avoiding external standard C libraries dependencies.
+- `src/os/windows.rs`: Implements native console output through the Windows Win32 API suite.
+- `src/os/linux.rs`: Implements native Linux output through x86_64 POSIX-style syscall integration experiments.
 
 ## 3. Lexical Dictionaries & Code Reference (`dict/`, `examples/`)
 - `dict/core_map.json`: The core dynamic mapping scheme. Houses the canonical dictionary that standardizes novice Malay pseudocode and expert shortcut semantics into identical primitives.
-- `examples/`: Contains official functional validation files with the `.ldx` extension, demonstrating both localized verbose programming styles and advanced freestanding memory operations.
+- `examples/`: Contains official functional validation files with the `.ldx` extension, demonstrating both localized verbose programming styles and experimental freestanding memory-operation examples.
 
 ## 4. Documentation & Specifications (`spec/`, Root)
 - `README.md`: The official Executive Summary manifesto outlining the dual-syntax thesis and project governance.
-- `WHITE_PAPER.md`: The academic-grade research specification detailing the compiler pipeline, runtime attestation math, and bare-metal OS potential.
+- `WHITE_PAPER.md`: The research white paper describing the compiler pipeline, alpha status boundary, and long-term systems objectives.
 - `ROADMAP.md`: The project management tracking center mapping open milestones, tracking tickets, and automated verification acceptance criteria.
 - `spec/v1.11-alpha/UpdateIssue1-ebnf.md`: Houses the formalized 4-Layer grammar definition.
 - `spec/v1.21-alpha/UpdateIssue2-provenance.md`: Houses the newly integrated Undefined Behavior layers and 3-tier error severity model.
@@ -141,7 +141,7 @@ def replace_versions(text: str) -> str:
         else:
             text = text.replace(old, "1.21-alpha")
     text = text.replace("Phase 2 - Milestone 1", "Phase 2 Deployment Integration")
-    text = text.replace("EBNF Formal Grammar Integration", "Formal Specifications & Zero-Overhead Severity Model")
+    text = text.replace("EBNF Formal Grammar Integration", "Specification Baseline & Practical Severity Roadmap")
     text = text.replace("Phase 2, Milestone 1", "Phase 2 Deployment Integration")
     return text
 
@@ -168,7 +168,7 @@ def update_readme() -> None:
     marker = "## v1.21-alpha Phase 2 Deployment Integration\n"
     section = """## v1.21-alpha Phase 2 Deployment Integration
 
-The **v1.21-alpha** milestone synchronizes the formal language specification baseline with the Undefined Behavior and Pointer Provenance model. It adds a canonical four-layer EBNF grammar, a layered C/C++/Rust-derived memory-safety classification, and a zero-overhead Critical/Medium/Low severity architecture intended for direct LLVM IR lowering without runtime speed penalties.
+The **current logicodex v 1.21 alpha** milestone establishes a practical compiler-core baseline and a documented security research direction. It includes a four-layer grammar baseline, an Undefined Behavior and Pointer Provenance design note, and a Critical/Medium/Low severity taxonomy. Stronger security, freestanding, and measured-overhead goals are long-term engineering objectives until implemented, benchmarked, and validated by repeatable tests.
 
 """
     if marker not in text:
@@ -188,9 +188,9 @@ def update_white_paper() -> None:
     marker = "## v1.21-alpha Specification Synchronization\n"
     section = """## v1.21-alpha Specification Synchronization
 
-The **v1.21-alpha** deployment milestone elevates the repository into a synchronized formal-specification baseline. The milestone now includes the canonical EBNF grammar, the Undefined Behavior and Pointer Provenance specification, and the repository context inventory required for audit-driven compiler engineering.
+The **current logicodex v 1.21 alpha** deployment milestone establishes a synchronized specification baseline and practical compiler-core checkpoint. It includes the canonical EBNF grammar, the Undefined Behavior and Pointer Provenance design note, and the repository context inventory required for audit-driven compiler engineering.
 
-The severity model classifies runtime and attestation events into **Critical**, **Medium**, and **Low** structural tiers. These tiers are documented as compiler-lowerable response blocks so that safety diagnostics and mitigation paths can be injected into LLVM IR while preserving the project’s zero-overhead execution thesis for non-triggering code paths.
+The severity model classifies runtime and future attestation events into **Critical**, **Medium**, and **Low** tiers. These tiers are documented as an engineering target so diagnostics and mitigation paths can be implemented, tested, and benchmarked before any measured-overhead or production-readiness claim is made.
 
 """
     if marker not in text:
@@ -206,8 +206,8 @@ The severity model classifies runtime and attestation events into **Critical**, 
 def update_roadmap() -> None:
     text = replace_versions(read("ROADMAP.md"))
     text = text.replace(
-        "This roadmap tracks the open issues and architectural milestones established to transition **Logicodex** from a research/compiler initiative into a production-ready ecosystem, directly responding to the **V1.21-alpha technical evaluation**. For Phase 2 Deployment Integration, it also records the completion status of Issue #01 and links the formal EBNF grammar artifact checked into the repository.",
-        "This roadmap tracks the open issues and architectural milestones established to transition **Logicodex** from a research/compiler initiative into a production-ready ecosystem under the **V1.21-alpha Phase 2 Deployment Integration** milestone. It records the completion status of Issue #01 and Issue #02, linking the formal EBNF grammar artifact, the Undefined Behavior and Pointer Provenance specification, and the zero-overhead severity model checked into the repository.",
+        "This roadmap tracks the open issues and architectural milestones established to transition **Logicodex** from a research/compiler initiative into a more complete, evidence-backed ecosystem, directly responding to the **V1.21-alpha technical evaluation**. For Phase 2 Deployment Integration, it also records the completion status of Issue #01 and links the formal EBNF grammar artifact checked into the repository.",
+        "This roadmap tracks the open issues and architectural milestones established to transition **Logicodex** from a research/compiler initiative into a more complete, evidence-backed ecosystem under the **V1.21-alpha Phase 2 Deployment Integration** milestone. It records the completion status of Issue #01 and Issue #02, linking the formal EBNF grammar artifact, the Undefined Behavior and Pointer Provenance specification, and the practical severity model checked into the repository.",
     )
     text = text.replace(
         "- [X] **Issue #01 — Formal EBNF Grammar Definition (COMPLETED / SOLVED):** Document the exact grammar rules for both **Novice Pseudocode** and **Expert Shorthand** to eliminate parsing ambiguity.",
@@ -215,10 +215,10 @@ def update_roadmap() -> None:
     )
     text = text.replace(
         "- [ ] **Issue #02 — Undefined Behavior Catalog & Pointer Provenance:** Define explicit rules governing raw pointer operations, physical memory-mapped boundaries, hosted-memory isolation, and freestanding memory-access constraints.",
-        "- [X] **Issue #02 — Undefined Behavior Catalog & Pointer Provenance (COMPLETED / SOLVED):** Define explicit rules governing raw pointer operations, physical memory-mapped boundaries, hosted-memory isolation, freestanding memory-access constraints, and zero-overhead severity mitigation tiers.",
+        "- [X] **Issue #02 — Undefined Behavior Catalog & Pointer Provenance (COMPLETED / SOLVED):** Define explicit rules governing raw pointer operations, physical memory-mapped boundaries, hosted-memory isolation, freestanding memory-access constraints, and practical severity classification tiers.",
     )
     issue1_row = "| Issue #01 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul | 1. Formal 4-Layer grammar checked in as a living document inside `spec/v1.21-alpha/UpdateIssue1-ebnf.md`.<br>2. Recursive-descent compiler entry pipeline verified to ingest token maps collision-free.<br>3. Concrete freestanding token productions (`hw` and `addr`) structurally declared to enable upcoming security capability gates. |"
-    issue2_row = "| Issue #02 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul | Layered error modeling (C/C++/Rust) integrated into specification. Zero-overhead 3-tier severity mitigation architecture (Critical/Medium/Low) structurally hardcoded to enable direct LLVM IR compilation blocks without execution speed penalties. |"
+    issue2_row = "| Issue #02 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul | Layered error modeling (C/C++/Rust) integrated into specification. practical severity model (Critical/Medium/Low) structurally hardcoded to enable direct LLVM IR compilation blocks without execution speed penalties. |"
     text = re.sub(r"\| Issue #01 \|.*?\|", issue1_row, text)
     text = re.sub(r"\| Issue #02 \|.*?\|", issue2_row, text)
     write("ROADMAP.md", text)

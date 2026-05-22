@@ -10,7 +10,7 @@ Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
  | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
-                  [ COMPILER PHASE 1 - bare-metal ]
+                  [ COMPILER PHASE 1 - experimental freestanding ]
 =========================================================
 ```
 

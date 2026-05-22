@@ -91,7 +91,7 @@ if "## 11. Physical Memory Mapping" in white and "**Novice pseudocode variant:**
     white = white.replace(freestanding_needle, freestanding_add)
 
 security_needle = "The most important v1.0.1-alpha security addition is the **Runtime Memory Integrity Verification Engine**. The engine is defined as an active self-attestation loop that protects the executable `.text` segment after program launch. The compiler-side contract is straightforward: produce a compile-time digest of immutable executable code, store it as a protected Golden Hash, and schedule a runtime verifier that continuously or periodically recomputes the digest from live memory."
-security_replacement = security_needle + "\n\n**Technical note:** The **Runtime Memory Integrity Verification Engine (SHA/AES-NI Continuous Attestation Loop)** is presented in v1.0.1-alpha as an **architectural design specification for the milestone**, with final bare-metal hardware intrinsic bindings slated for **Phase 2 production**. The current alpha documentation defines the compiler contract, threat model, data-flow invariant, and mitigation semantics; it does not claim that all hardware-specific secure runtime bindings are production-complete."
+security_replacement = security_needle + "\n\n**Technical note:** The **Runtime Memory Integrity Verification Engine (SHA/AES-NI Continuous Attestation Loop)** is presented in v1.0.1-alpha as an **architectural design specification for the milestone**, with freestanding hardware intrinsic bindings treated as a later engineering objective. The current alpha documentation defines the compiler contract, threat model, data-flow invariant, and mitigation semantics; it does not claim that all hardware-specific secure runtime bindings are complete."
 if "SHA/AES-NI Continuous Attestation Loop" not in white:
     white = white.replace(security_needle, security_replacement)
 
@@ -104,7 +104,7 @@ readme = f"""# ❖ Logicodex Language — v1.0.1-alpha (MVP Upgrade)
 
 Logicodex is a next-generation, statically-typed system programming language backed by the LLVM compiler infrastructure. It is designed to natively eliminate the cognitive friction between human intent and machine execution efficiency.
 
-By utilizing a context-aware frontend parser, Logicodex allows novice developers to write structured, human-readable pseudocode, while empowering staff systems engineers to write hyper-dense shorthand system code within the exact same environment. Both syntaxes resolve into an identical Abstract Syntax Tree (AST) and compile directly down to heavily optimized bare-metal machine code (Windows PE / Linux ELF) with ZERO virtual machine or garbage collection overhead.
+By utilizing a context-aware frontend parser, Logicodex allows novice developers to write structured, human-readable pseudocode, while empowering staff systems engineers to write hyper-dense shorthand system code within the exact same environment. Both syntaxes resolve into an identical Abstract Syntax Tree (AST) and compile directly down to native-oriented machine code targets (Windows PE / Linux ELF) without a mandatory virtual machine or garbage collector.
 
 ### 📝 Preface: The AI Co-Exploration Model
 

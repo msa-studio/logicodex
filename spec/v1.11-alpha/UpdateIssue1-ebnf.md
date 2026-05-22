@@ -1,4 +1,4 @@
-# ❖ Logicodex Formal Grammar Specification (v1.11-alpha)
+# Logicodex Grammar Specification Baseline (v1.11-alpha)
 
 Notation Legend: `::=` means "defined as"; `|` alternation; `*` zero-or-more; `+` one-or-more; `?` optional; terminals enclosed in quotes.
 
@@ -56,4 +56,4 @@ Type             ::= "I32" | "I64" | "U16" | "U32" | "F64" | "Bool" | "PTR<" Typ
 
 ## Layer 4 — Semantic Constraint Layer
 
-Grammar validation guarantees structural correctness. Type compilation and unsafe capability checks (e.g., restricting raw hardware pointer addressing to freestanding configurations) are strictly enforced during the separate Static Analysis phase.
+Grammar validation establishes structural correctness for the implemented subset. Type compilation and unsafe capability checks should be handled during Static Analysis and expanded through tested milestones.

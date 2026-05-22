@@ -1,4 +1,4 @@
-# ❖ Logicodex Formal Grammar Specification (v1.21-alpha)
+# Logicodex Grammar Specification Baseline (v1.21-alpha)
 Notation Legend: `::=` means "defined as"; `|` alternation; `*` zero-or-more; `+` one-or-more; `?` optional; terminals enclosed in quotes.
 
 ## Layer 1 — Surface Lexical Layer (core_map.json Input)
@@ -26,7 +26,7 @@ The Logicodex parser operates exclusively on canonical token kinds emitted by th
 BeginBlock ::= TokenKind::BeginBlock
 EndBlock   ::= TokenKind::EndBlock
 
-## Layer 3 — Syntactic Grammar Layer (AST Structural Contract)
+## Layer 3 — Syntactic Grammar Layer (Current AST Contract)
 Program          ::= ( GlobalDeclaration | FunctionDef )*
 GlobalDeclaration::= HardwareDecl | UseDecl
 HardwareDecl     ::= HardwareToken Identifier ":" Type "=" AddressToken LiteralInt ";"
@@ -44,4 +44,4 @@ PrimaryExpr      ::= Identifier | LiteralInt | StringLiteral | "(" Expression ")
 Type             ::= "I32" | "I64" | "U16" | "U32" | "F64" | "Bool" | "PTR<" Type ">"
 
 ## Layer 4 — Semantic Constraint Layer
-Grammar validation guarantees structural correctness. Type compilation and unsafe capability checks are strictly enforced during the separate Static Analysis phase.
+Grammar validation establishes structural correctness for the implemented language subset. Type compilation and unsafe capability checks are handled by the separate Static Analysis phase and should continue to expand through tested milestones.

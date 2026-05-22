@@ -1,13 +1,27 @@
-# ❖ Logicodex Undefined Behavior & Pointer Provenance Specification (v1.21-alpha)
+# Logicodex Undefined Behavior and Pointer Provenance Design Baseline (v1.21-alpha)
+
+This document records the current design baseline for Undefined Behavior and Pointer Provenance in **current logicodex v 1.21 alpha**. It is intentionally written as a practical specification target rather than a claim that every long-term safety mechanism is already complete.
 
 ## 1. Industry-Derived Layer Classification
-Logicodex categorizes semantic violations based on established low-level language paradigms to facilitate seamless optimization mapping via the LLVM backend:
-- **Linear Layer (C-Style Paradigms):** Focuses on raw pointer arithmetic, memory-mapped offsets, and volatile I/O actions. Pointer offsets (e.g., `ptr + 5`) preserve Strict Provenance. Hardcoded literal casts via `addr` generate Hardware/Wild Provenance, forcing the optimizer to assume aliasing and bypass unsafe memory optimization drops.
-- **Object-Oriented Layer (C++ Style Paradigms):** Focuses on flat struct layouts, deterministic sequential memory placement, and scoped destructor functions (drop semantics). Re-use of expired memories or double execution of object destruction logic is strictly treated as an explicit object boundary violation.
-- **Safety Layer (Rust-Style Paradigms):** Focuses on strict compile-time index bounds checking and deterministic automatic resource cleanup via RAII patterns.
 
-## 2. Zero-Overhead General Error Severity Classification
-If a runtime error escapes static compilation analysis or triggers during active runtime attestation, the compiler handles response routines through three structural severity tiers injected directly into the LLVM IR pipeline:
-- **🔴 TIER 1: CRITICAL (Hardware & Machine Layer Rupture):** Triggers upon Golden Hash integrity failure or unmapped physical memory access in freestanding mode. It bypasses hosted OS routines, emitting naked machine instructions to trigger an immediate process termination or standard signal (Hosted) or forces a CPU Triple Fault / Hardware Watchdog Reset (Freestanding Bare-Metal) to completely freeze the execution environment and contain threats.
-- **🟡 TIER 2: MEDIUM (Process & Execution Layer Failure):** Triggers upon dynamic division by zero, runtime resource depletion, or structural thread deadlocks. It terminates the active thread or isolated sub-process cleanly, returns a panic exit code (e.g., `exit(1)`), and flushes resource drops to standard error logs without bringing down the machine.
-- **🟢 TIER 3: LOW (Non-Critical Warning Layer):** Triggers upon safe casting integer truncation, benign unsigned math wrap-around, or deprecated library calls. It operates at zero execution speed deduction, emitting a standard error diagnostic trace or shifting execution safely into user-defined localized `catch` statement blocks.
+Logicodex categorizes semantic violations using familiar low-level language concerns so future LLVM backend work can map checks and diagnostics into explicit compiler behavior.
+
+| Layer | Current purpose | Long-term objective |
+|---|---|---|
+| Linear layer | Describe raw pointer arithmetic, memory-mapped offsets, and volatile I/O boundaries. | Preserve provenance information precisely enough that optimization does not erase required hardware or aliasing constraints. |
+| Object-oriented layer | Describe flat struct layouts, deterministic placement, and scoped cleanup goals. | Detect object-boundary violations such as expired memory reuse or double cleanup once those features are implemented. |
+| Safety layer | Describe bounds checking, resource cleanup, and safer default behavior. | Expand compile-time and runtime checks while measuring overhead and documenting target-specific behavior. |
+
+## 2. Severity Classification Baseline
+
+The severity model is a roadmap for classifying responses, not a blanket claim of zero runtime cost. Each tier should be implemented, benchmarked, and tested before being described as ready for production use.
+
+| Tier | Description | Practical current framing |
+|---|---|---|
+| Tier 1: Critical | Intended for executable-integrity failure or unsafe hardware-region access in explicitly selected freestanding contexts. | Treat as a long-term fail-stop objective requiring target-specific implementation, review, and tests. |
+| Tier 2: Medium | Intended for dynamic division by zero, runtime resource depletion, or isolated execution failure. | Implement as normal process or function failure paths first, then improve cleanup behavior as the runtime matures. |
+| Tier 3: Low | Intended for warnings such as safe integer truncation, benign wrap-around, or deprecated library use. | Prefer diagnostics and metadata until a concrete runtime behavior is necessary and measured. |
+
+## 3. Documentation Rule
+
+Future documentation should distinguish **implemented compiler behavior**, **prototype behavior**, and **long-term objectives**. Stronger terms about verification, overhead, forced termination, or hardware readiness should be used only when the repository contains corresponding source implementation, tests, and build instructions.

@@ -43,9 +43,9 @@ white = white.replace("Ckt0", "crt0")
 abstract_scope = (
     "\n\n**Scope clarification:** In v1.0.1-alpha, **Phase 1** delivers the verified working core compiler infrastructure: "
     "the dictionary-aware lexer, recursive-descent parser, AST construction, semantic analyzer, and LLVM-Inkwell backend path. "
-    "The **WebAssembly Target**, **Logicodex Migrator Engine**, and **Continuous Runtime Memory Attestation** are formally defined architectural roadmap capabilities for **Phase 2/3**, not claims of production-complete implementation in the Phase 1 compiler."
+    "The **WebAssembly Target**, **Logicodex Migrator Engine**, and **Continuous Runtime Memory Attestation** are formally defined architectural roadmap capabilities for **Phase 2/3**, not claims of completed implementation in the Phase 1 compiler."
 )
-abstract_anchor = "The v1.0.1-alpha consolidation also extends the language beyond a simple Phase 1 compiler demonstration. It incorporates architectural planning for runtime memory self-attestation, active self-defense against executable-code tampering, freestanding target mode, raw physical memory access controls, cross-language migration, and open-source governance. The result is a language model intended for **education, AI-assisted generation, legacy migration, secure native tools, firmware, kernels, hypervisors, and high-assurance bare-metal computation**."
+abstract_anchor = "The v1.0.1-alpha consolidation also extends the language beyond a simple Phase 1 compiler demonstration by documenting architectural planning for runtime memory self-attestation, executable-code integrity checks, freestanding target mode, raw physical memory access controls, cross-language migration, and open-source governance. These areas are long-term objectives that require implementation evidence before being presented as completed capabilities."
 if abstract_scope.strip() not in white:
     white = white.replace(abstract_anchor, abstract_anchor + abstract_scope)
 
@@ -77,15 +77,15 @@ if vga_warning.strip() not in white:
 
 white = white.replace(
     "> **Security invariant:** A Logicodex binary compiled under the secure profile should treat modification of its executable `.text` segment as a catastrophic integrity failure and respond with immediate panic, sensitive-register clearing, and hard process self-destruction.",
-    "> **Security invariant:** A Logicodex binary compiled under the secure profile should treat modification of its executable `.text` segment as a catastrophic integrity failure and respond with immediate panic, sensitive-register clearing, and target-appropriate hard self-destruction."
+    "> **Long-term security objective:** A future Logicodex binary compiled under a hardened profile should be able to treat modification of its executable `.text` segment as an integrity failure and respond through documented, target-appropriate fail-stop behavior."
 )
 white = white.replace(
     "| Hard self-destruction | Abort the process or freestanding execution context. | Isolate the threat and preserve the integrity boundary. |",
     "| Hard self-destruction | Abort the hosted process or terminate the freestanding execution context through architecture-specific reset or halt behavior. | Isolate the threat and preserve the integrity boundary. |"
 )
 self_defense_note = (
-    "\n\nLogicodex distinguishes mitigation behavior by compilation target. In **hosted environments** such as Windows and Linux, Hard Self-Destruction means immediate process termination through native operating-system abort signals or equivalent fail-stop termination. "
-    "In **freestanding environments** such as operating-system kernels, firmware, hypervisors, and bare-metal targets, there may be no host process to abort. In those contexts, Hard Self-Destruction means intentionally forcing a CPU Triple Fault where appropriate, entering an assembly `hlt` halt loop, or invoking a hardware watchdog system reset. "
+    "\n\nLogicodex distinguishes mitigation behavior by compilation target. In **hosted environments** such as Windows and Linux, Target-appropriate fail-stop behavior means immediate process termination through native operating-system abort signals or equivalent fail-stop termination. "
+    "In **freestanding environments** such as operating-system kernels, firmware, hypervisors, and freestanding targets, there may be no host process to abort. In those contexts, Target-appropriate fail-stop behavior may mean a CPU Triple Fault where appropriate, an assembly `hlt` halt loop, or a hardware watchdog reset after explicit target review. "
     "The compiler specification therefore defines the invariant as fail-stop behavior, while the backend and runtime bridge choose the concrete mechanism according to target capabilities."
 )
 self_defense_anchor = "This model is intentionally strict because the threat signal is direct code-integrity failure. In ordinary software, a crash is undesirable. In high-assurance runtime defense, continuing after verified code tampering may be worse than termination. The semantic layer contributes to safety by enforcing identifier and structural correctness today, while the roadmap extends it toward bounds-aware memory access, restricted raw pointer capabilities, deterministic ownership, and RAII-style scope cleanup."
@@ -122,7 +122,7 @@ readme = f"""# Logicodex Language — v1.0.1-alpha
 
 Logicodex is a dual-syntax, LLVM-backed systems programming language created by **Mohamad Supardi Abdul** (`mymsastudio@gmail.com`). It is designed to reduce the cognitive gap between readable human intent and native machine execution by allowing novice-oriented pseudocode and expert shorthand to compile through one deterministic compiler pipeline.
 
-The current **Phase 1** alpha delivers the verified working core compiler infrastructure: the `dict/core_map.json` dictionary loader, Lexer, Parser, AST construction, Semantic Analyzer, and LLVM-Inkwell backend path for native-oriented output. Roadmap capabilities including the **WebAssembly Target**, **Logicodex Migrator Engine**, and **Continuous Runtime Memory Attestation** are formally defined engineering specifications for **Phase 2/3** and should not be read as production-complete Phase 1 features.
+The current **Phase 1** alpha delivers the verified working core compiler infrastructure: the `dict/core_map.json` dictionary loader, Lexer, Parser, AST construction, Semantic Analyzer, and LLVM-Inkwell backend path for native-oriented output. Roadmap capabilities including the **WebAssembly Target**, **Logicodex Migrator Engine**, and **Continuous Runtime Memory Attestation** are formally defined engineering specifications for **Phase 2/3** and should not be read as completed Phase 1 features.
 
 ## Compiler Pipeline
 
@@ -148,7 +148,7 @@ The `--target freestanding` profile is intended for OS-less integration contexts
 
 ## Security Roadmap Boundary
 
-The active self-defense model defines a fail-stop invariant for executable-code tampering. In hosted environments, hard self-destruction means process termination through native abort behavior. In freestanding environments, it means a target-specific termination primitive such as a CPU Triple Fault, `hlt` halt loop, or hardware watchdog reset. The Phase 1 tree documents this contract; Phase 2/3 work must implement the production verifier and mitigation runtime.
+The active self-defense model defines a fail-stop invariant for executable-code tampering. In hosted environments, target-appropriate fail-stop behavior means process termination through native abort behavior. In freestanding environments, it means a target-specific termination primitive such as a CPU Triple Fault, `hlt` halt loop, or hardware watchdog reset. The Phase 1 tree documents this direction; Phase 2/3 work must implement verifier and mitigation runtime prototypes before stronger claims are made.
 
 ## Governance and Licensing
 
@@ -182,7 +182,7 @@ LEXER.write_text(lexer)
 main = MAIN.read_text()
 main = main.replace(
     "A mismatch represents suspected process injection, fileless malware tampering, or unauthorized runtime patching, and must trigger immediate panic termination, sensitive-register clearing, and hard process self-destruction.",
-    "A mismatch represents suspected process injection, fileless malware tampering, or unauthorized runtime patching, and must trigger immediate panic termination, sensitive-register clearing, and target-appropriate hard self-destruction. Hosted targets translate this to native process abort behavior; freestanding targets translate it to a CPU Triple Fault where appropriate, an assembly hlt halt loop, or a hardware watchdog reset."
+    "A mismatch represents suspected process injection, fileless malware tampering, or unauthorized runtime patching, and must trigger immediate panic termination, sensitive-register clearing, and target-appropriate fail-stop behavior. Hosted targets translate this to native process abort behavior; freestanding targets translate it to a CPU Triple Fault where appropriate, an assembly hlt halt loop, or a hardware watchdog reset."
 )
 main = main.replace(
     "The planned `*int` raw pointer representation is reserved for memory-mapped I/O, including VGA text memory at `0xB8000` and serial UART ports such as `0x3F8`, under explicit backend safety gates.",
