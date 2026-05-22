@@ -1,6 +1,6 @@
 // =========================================================================
-// Project: Logicodex Language Engine (Phase 1 MVP Upgrade)
-// Version: v1.0.1-alpha (Internal Security & OS Freestanding Test)
+// Project: Logicodex Language Engine (Phase 2 - Milestone 1)
+// Version: v1.11-alpha (EBNF Formal Grammar Integration)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0

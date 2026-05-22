@@ -1,4 +1,4 @@
-# Logicodex Language — v1.0.1-alpha
+# Logicodex Language — v1.11-alpha
 ```text
 =========================================================
   _                 _               _                 
@@ -7,7 +7,7 @@
  | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
-             [ LOGICODEX COMPILER v1.0.1-alpha ]
+             [ LOGICODEX COMPILER v1.11-alpha ]
              [ DUAL-SYNTAX LLVM SYSTEMS LANGUAGE ]
 =========================================================
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
@@ -33,7 +33,7 @@ The dictionary is consumed strictly during lexing. Surface forms such as `MULA`,
 
 ## Architectural Highlights
 
-| Area | v1.0.1-alpha Status | Engineering Direction |
+| Area | v1.11-alpha Status | Engineering Direction |
 |---|---|---|
 | Dual syntax | Implemented in the Phase 1 frontend through dictionary-aware tokenization. | Expand localized and domain-specific token families while preserving deterministic builds. |
 | Static semantics | Implemented for the Phase 1 core language. | Extend toward formal EBNF, type-system boundaries, pointer provenance, and UB catalog definitions. |

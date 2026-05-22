@@ -17,7 +17,7 @@ Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 **Repository:** `logicodex`  
 **Compiler executable:** `logicodex`  
 **Official source extension:** `.ldx`  
-**Version:** 1.0.1-alpha
+**Version:** 1.11-alpha
 **Security Profile:** Internal Security & OS Freestanding Test
 
 ## Overview
@@ -60,6 +60,6 @@ Set `LOGICODEX_LINKER` to override the linker used by the compiler.
 The compiler lowers `PAPAR` and `print` to `logicodex_print_i64`. The Linux bridge writes through native syscall-oriented assembly, while the Windows bridge is structured around Win32 console output. This keeps Phase 1 free from a mandatory virtual machine or garbage collector.
 
 
-## Peer-Review Alignment Notes for v1.0.1-alpha
+## Peer-Review Alignment Notes for v1.11-alpha
 
 The Phase 1 compiler implements the verified core path: dictionary loading, lexing, parsing, AST construction, semantic analysis, and LLVM-Inkwell backend generation. WebAssembly targeting, the Logicodex Migrator Engine, and Continuous Runtime Memory Attestation are Phase 2/3 roadmap specifications. The dictionary is consumed during lexing only; parser behavior is based on canonical `TokenKind` values rather than macro rewriting. Freestanding memory examples such as `0xB8000` are OS-less or kernel-authority examples and are not valid hosted user-space memory operations under Linux or Windows without explicit kernel-space mapping.

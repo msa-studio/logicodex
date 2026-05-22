@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-NAME="logicodex-v1.0.1-alpha"
+NAME="logicodex-v1.11-alpha"
 OUT_DIR="/home/ubuntu"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT

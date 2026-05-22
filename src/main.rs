@@ -1,6 +1,6 @@
 // =========================================================================
-// Project: Logicodex Language Engine (Phase 1 MVP Upgrade)
-// Version: v1.0.1-alpha (Internal Security & OS Freestanding Test)
+// Project: Logicodex Language Engine (Phase 2 - Milestone 1)
+// Version: v1.11-alpha (EBNF Formal Grammar Integration)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
@@ -30,7 +30,7 @@ const LOGICODEX_LOGO: &str = r#"================================================
  | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
-             [ LOGICODEX COMPILER v1.0.1-alpha ]
+             [ LOGICODEX COMPILER v1.11-alpha ]
              [ SECURITY ENHANCED - BARE-METAL  ]
 =========================================================
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)"#;
@@ -42,17 +42,17 @@ const LOGICODEX_LONG_VERSION: &str = r#"========================================
  | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
-             [ LOGICODEX COMPILER v1.0.1-alpha ]
+             [ LOGICODEX COMPILER v1.11-alpha ]
              [ SECURITY ENHANCED - BARE-METAL  ]
 =========================================================
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
-logicodex 1.0.1-alpha
-Security Profile: Internal Security & OS Freestanding Test"#;
+logicodex 1.11-alpha
+Security Profile: EBNF Formal Grammar Integration"#;
 
 #[derive(Debug, ClapParser)]
 #[command(
     name = "logicodex",
-    version = "1.0.1-alpha",
+    version = "1.11-alpha",
     long_version = LOGICODEX_LONG_VERSION,
     about = "Native compiler for the Logicodex programming language by Mohamad Supardi Abdul",
     before_help = LOGICODEX_LOGO
@@ -155,7 +155,7 @@ fn write_security_attestation_plan(output_path: &Path) -> Result<()> {
     let mut plan_path = output_path.to_path_buf();
     plan_path.set_extension("security.md");
     let content = format!(
-        "# Logicodex Runtime Memory Integrity Verification Plan\n\nTarget artifact: `{}`\n\nSecurity profile: v1.0.1-alpha Internal Security & OS Freestanding Test.\n\nThe `--secure` compilation path records the active self-defense contract for the target program. The hardened backend is designed to calculate a cryptographic Golden Hash over the immutable `.text` segment, embed that hash in protected data, and launch a lightweight runtime self-attestation loop that repeatedly compares live executable memory against the Golden Hash. The implementation contract reserves CPU SHA/AES-NI acceleration through LLVM intrinsic lowering where supported. A mismatch represents suspected process injection, fileless malware tampering, or unauthorized runtime patching, and must trigger immediate panic termination, sensitive-register clearing, and target-appropriate hard self-destruction. Hosted targets translate this to native process abort behavior; freestanding targets translate it to a CPU Triple Fault where appropriate, an assembly hlt halt loop, or a hardware watchdog reset.\n\nMemory integrity plan: `{:?}`\n",
+        "# Logicodex Runtime Memory Integrity Verification Plan\n\nTarget artifact: `{}`\n\nSecurity profile: v1.11-alpha EBNF Formal Grammar Integration.\n\nThe `--secure` compilation path records the active self-defense contract for the target program. The hardened backend is designed to calculate a cryptographic Golden Hash over the immutable `.text` segment, embed that hash in protected data, and launch a lightweight runtime self-attestation loop that repeatedly compares live executable memory against the Golden Hash. The implementation contract reserves CPU SHA/AES-NI acceleration through LLVM intrinsic lowering where supported. A mismatch represents suspected process injection, fileless malware tampering, or unauthorized runtime patching, and must trigger immediate panic termination, sensitive-register clearing, and target-appropriate hard self-destruction. Hosted targets translate this to native process abort behavior; freestanding targets translate it to a CPU Triple Fault where appropriate, an assembly hlt halt loop, or a hardware watchdog reset.\n\nMemory integrity plan: `{:?}`\n",
         output_path.display(),
         MemoryIntegrityPlan::hardened_default()
     );
@@ -169,7 +169,7 @@ fn write_freestanding_plan(output_path: &Path) -> Result<()> {
     plan_path.set_extension("freestanding.md");
     let access_plan = PhysicalMemoryAccessPlan::freestanding_default();
     let content = format!(
-        "# Logicodex Freestanding Target Plan\n\nTarget artifact: `{}`\n\nCompilation profile: v1.0.1-alpha Internal Security & OS Freestanding Test.\n\nThe `--target freestanding` path bypasses operating-system runtime linkage and emits a raw object suitable for bootloader, kernel, hypervisor, or firmware integration. The backend selects a freestanding LLVM target triple, static relocation, kernel code model, and `_start` entry symbol. Platform startup objects such as Linux crt0 or Windows subsystem entry points are intentionally excluded.\n\nPhysical memory access plan: `{:?}`\n\nThe planned `*int` raw pointer representation is reserved for memory-mapped I/O, including VGA text memory at `0xB8000` and serial UART ports such as `0x3F8`, under explicit backend safety gates. This is a freestanding or kernel-authority operation: hosted Linux or Windows processes with virtual memory paging and ASLR cannot directly manipulate physical addresses without kernel-space mapping such as `/dev/mem` or Ring-0 driver mediation.\n",
+        "# Logicodex Freestanding Target Plan\n\nTarget artifact: `{}`\n\nCompilation profile: v1.11-alpha EBNF Formal Grammar Integration.\n\nThe `--target freestanding` path bypasses operating-system runtime linkage and emits a raw object suitable for bootloader, kernel, hypervisor, or firmware integration. The backend selects a freestanding LLVM target triple, static relocation, kernel code model, and `_start` entry symbol. Platform startup objects such as Linux crt0 or Windows subsystem entry points are intentionally excluded.\n\nPhysical memory access plan: `{:?}`\n\nThe planned `*int` raw pointer representation is reserved for memory-mapped I/O, including VGA text memory at `0xB8000` and serial UART ports such as `0x3F8`, under explicit backend safety gates. This is a freestanding or kernel-authority operation: hosted Linux or Windows processes with virtual memory paging and ASLR cannot directly manipulate physical addresses without kernel-space mapping such as `/dev/mem` or Ring-0 driver mediation.\n",
         output_path.display(),
         access_plan
     );
