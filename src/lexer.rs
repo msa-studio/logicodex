@@ -66,6 +66,10 @@ struct DictionaryToken {
     lexemes: Vec<String>,
 }
 
+// core_map.json is consumed strictly in this lexer layer. Surface lexemes such as
+// `MULA`, `BEGIN`, or `{` are normalized into canonical TokenKind values before
+// Parser::new receives the token stream. This is token-level normalization, not
+// parser-side macro rewriting or grammar desugaring.
 #[derive(Debug, Clone)]
 pub struct Lexicon {
     lexeme_to_kind: HashMap<String, TokenKind>,

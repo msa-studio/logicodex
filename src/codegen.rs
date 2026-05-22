@@ -32,7 +32,7 @@ impl MemoryIntegrityPlan {
             golden_hash_symbol: "__logicodex_golden_text_hash",
             text_segment_symbol: "__logicodex_text_segment_bounds",
             uses_sha_aes_intrinsics: true,
-            panic_strategy: "clear_sensitive_registers_and_abort_process",
+            panic_strategy: "clear_sensitive_registers_and_target_specific_fail_stop",
         }
     }
 }

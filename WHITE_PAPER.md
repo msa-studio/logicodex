@@ -20,7 +20,7 @@ Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 **Official Contact:** `mymsastudio@gmail.com`  
 **Version:** v1.0.1-alpha consolidated white paper  
 **Date:** May 2026  
-**Document Status:** Consolidated academic-grade alpha architecture, security, interoperability, and governance paper.
+**Document Status:** Architectural Manifesto and Engineering Roadmap Specification.
 
 ---
 
@@ -34,11 +34,15 @@ The central architectural thesis of Logicodex is that **human accessibility and 
 
 The v1.0.1-alpha consolidation also extends the language beyond a simple Phase 1 compiler demonstration. It incorporates architectural planning for runtime memory self-attestation, active self-defense against executable-code tampering, freestanding target mode, raw physical memory access controls, cross-language migration, and open-source governance. The result is a language model intended for **education, AI-assisted generation, legacy migration, secure native tools, firmware, kernels, hypervisors, and high-assurance bare-metal computation**.
 
+**Scope clarification:** In v1.0.1-alpha, **Phase 1 delivers the verified working core compiler infrastructure**: the dictionary-aware lexer, recursive-descent parser, AST construction, semantic analyzer, and LLVM-Inkwell backend path. The **WebAssembly Target**, **Logicodex Migrator Engine**, and **Continuous Runtime Memory Attestation** are formally defined architectural roadmap capabilities for **Phase 2/3**, not claims of production-complete implementation in the Phase 1 compiler.
+
 ---
 
 ## 2. Project Lineage and AI Co-Exploration Paradigm
 
 Earlier research drafts used the working name **Logica** to describe the same core idea: readable structured pseudocode and expert shorthand should compile into one canonical systems-language representation. This consolidated paper standardizes the project identity as **Logicodex** and merges the earlier Logica architectural material with the Logicodex Phase 1, v1.0.0, v1.0.0-alpha, and v1.0.1-alpha security-oriented documentation. All future official white-paper references should use the **Logicodex** name.
+
+For status precision, this introduction separates implemented Phase 1 infrastructure from roadmap architecture. The current compiler tree demonstrates that **Phase 1 delivers the verified working core compiler infrastructure** through the verified core path: `dict/core_map.json` loading, tokenization, parsing, AST construction, semantic analysis, and LLVM-Inkwell-oriented backend generation. The WebAssembly Target, Logicodex Migrator Engine, and Continuous Runtime Memory Attestation remain explicit Phase 2/3 roadmap specifications so contributors can design toward them without assuming that the alpha compiler already implements their full production semantics.
 
 Logicodex was conceived through a collaborative engineering paradigm between **human systems architecture** and **Advanced Artificial Intelligence (AI)**. In this model, human architecture defines the language's strategic boundaries: static semantics, native compilation, open governance, trademark discipline, security direction, and systems-level credibility. AI-assisted exploration accelerates friction discovery, compares language ergonomics, drafts syntax families, reasons over documentation, and pressure-tests the bridge between novice-friendly source and expert-grade machine behavior.
 
@@ -124,6 +128,8 @@ Logicodex replaces that rigidity with a **dynamic dictionary mapping infrastruct
 ```
 
 This design supports localization, education, AI-assisted generation, domain-specific vocabulary, and professional shorthand without fragmenting the language. The dictionary is not a macro processor. Macro systems rewrite text, while Logicodex's dictionary maps human-facing expressions into compiler-facing primitives before parsing. Once lexing finishes, the parser receives canonical token identities, and the semantic analyzer does not need to know whether the user wrote a novice-oriented word or an expert symbol.
+
+**Lexer/parser boundary clarification:** `core_map.json` is utilized strictly by the **Lexer** during tokenization. In other words, **core_map.json is utilized strictly by the Lexer** before parsing begins. A source character such as `{` and a source word such as `MULA` are matched as text lexemes before the Parser is invoked, then emitted as the same canonical `TokenKind::Start` primitive. This is token-level normalization, not a grammatical macro rewrite and not parser-side syntax desugaring. The Parser consumes only the normalized token stream and therefore never needs to know whether a block began through novice, English-verbose, or expert shorthand spelling.
 
 | Surface Form | User Context | Canonical Meaning | Runtime Difference |
 |---|---|---|---|
@@ -416,6 +422,8 @@ In this profile, the backend emits an object intended for later integration by a
 
 A concrete freestanding example is the classic VGA text buffer write at physical address `0xB8000`. The example below writes raw ASCII character bytes and attribute bytes directly to screen memory. It is intentionally documented as a freestanding, capability-gated operation rather than ordinary hosted application behavior.
 
+> **Engineering warning:** This memory-mapped I/O operation is strictly valid under **Freestanding (OS-less)** execution targets. When running under hosted operating systems such as Linux or Windows with virtual memory paging and ASLR active, direct physical address manipulation without kernel-space memory mapping, such as `/dev/mem` access or Ring-0 driver mediation, will be rejected by the operating system page-fault defense.
+
 **Novice pseudocode variant:**
 
 ```logicodex
@@ -505,7 +513,7 @@ Mathematically, let `T_compile` be the immutable byte sequence of the executable
 
 The v1.0.1-alpha source tree prepares this model through secure compilation options, memory-integrity planning, secure CLI plumbing, and generated attestation plan files. A future hardened implementation can use CPU cryptographic instruction support where available to minimize attestation overhead. Intel documents SHA and AES intrinsic families for hardware-accelerated cryptographic operations on supported processors.[5]
 
-> **Security invariant:** A Logicodex binary compiled under the secure profile should treat modification of its executable `.text` segment as a catastrophic integrity failure and respond with immediate panic, sensitive-register clearing, and hard process self-destruction.
+> **Security invariant:** A Logicodex binary compiled under the secure profile should treat modification of its executable `.text` segment as a catastrophic integrity failure and respond with immediate panic, sensitive-register clearing, and target-appropriate hard self-destruction.
 
 A passive integrity check that merely logs tampering is insufficient for adversarial systems. Logicodex defines self-defense as a three-stage mitigation sequence.
 
@@ -513,7 +521,11 @@ A passive integrity check that merely logs tampering is insufficient for adversa
 |---|---|---|
 | Panic | Stop normal execution immediately. | Prevent attacker-controlled code continuation. |
 | Register clearing | Zero sensitive volatile state. | Reduce leakage of secrets or cryptographic material. |
-| Hard self-destruction | Abort the process or freestanding execution context. | Isolate the threat and preserve the integrity boundary. |
+| Hard self-destruction | Abort the hosted process or terminate the freestanding execution context through architecture-specific reset or halt behavior. | Isolate the threat and preserve the integrity boundary. |
+
+
+
+Logicodex distinguishes mitigation behavior by compilation target. In **hosted environments** such as Windows and Linux, Hard Self-Destruction means immediate process termination through native operating-system abort signals or equivalent fail-stop termination. In **freestanding environments** such as operating-system kernels, firmware, hypervisors, and bare-metal targets, there may be no host process to abort. In those contexts, Hard Self-Destruction means intentionally forcing a CPU Triple Fault where appropriate, entering an assembly `hlt` halt loop, or invoking a hardware watchdog system reset. The compiler specification therefore defines the invariant as fail-stop behavior, while the backend and runtime bridge choose the concrete mechanism according to target capabilities.
 
 This model is intentionally strict because the threat signal is direct code-integrity failure. In ordinary software, a crash is undesirable. In high-assurance runtime defense, continuing after verified code tampering may be worse than termination. The semantic layer contributes to safety by enforcing identifier and structural correctness today, while the roadmap extends it toward bounds-aware memory access, restricted raw pointer capabilities, deterministic ownership, and RAII-style scope cleanup.
 
@@ -564,11 +576,15 @@ Logicodex is positioned for AI-era software development because its surface synt
 | Phase | Name | Primary Deliverable | Strategic Outcome |
 |---|---|---|---|
 | Phase 1 | Core Compiler and Multi-Platform Validation | Lexer, parser, AST, semantic analyzer, LLVM IR backend, Linux and Windows examples. | Demonstrates that dual syntax can compile into native artifacts. |
-| Phase 2 | Package Manager and FFI Bridges | Package registry, C ABI binding generator, platform standard libraries. | Makes Logicodex usable with real operating systems and existing libraries. |
-| Phase 3 | Local Small Language Model Integration | Compiler-assisted AI repair, intent-to-Logicodex generation, semantic feedback loop. | Turns the compiler into an AI-aware teaching and development environment. |
-| Phase 4 | Global WebAssembly Ecosystem | Wasm target, browser playground, sandboxed package execution, educational cloud. | Brings Logicodex to web-native learning and portable deployment. |
+| Phase 2 | Package Manager, FFI Bridges, and Wasm Target Prototype | Package registry, C ABI binding generator, platform standard libraries, and initial WebAssembly target integration. | Makes Logicodex usable with real operating systems, existing libraries, and portable sandbox targets. |
+| Phase 3 | Migrator, Continuous Attestation, and Local Small Language Model Integration | Logicodex Migrator Engine drafts, concrete runtime memory-attestation implementation, compiler-assisted AI repair, intent-to-Logicodex generation, and semantic feedback loops. | Turns the compiler into an AI-aware modernization, teaching, and high-assurance development environment. |
+| Phase 4 | Global WebAssembly Ecosystem | Browser playground, sandboxed package execution, educational cloud, and mature Wasm distribution workflows. | Brings Logicodex to web-native learning and portable deployment after the Phase 2/3 target groundwork. |
 | Security Track | Runtime Self-Attestation | Concrete digest emission, verifier stubs, panic mitigation, and hardware acceleration where available. | Moves Logicodex toward high-assurance native execution. |
 | Freestanding Track | Bare-Metal Integration | Raw pointer semantics, linker scripts, bootloader examples, and physical-memory policies. | Enables kernels, hypervisors, and firmware experiments. |
+
+
+
+**Specification roadmap note:** The formal definitions for the following critical items are currently under draft for the next milestone release to prevent unsafe-by-omission assumptions: the complete EBNF grammar specification; the nominal and structural type-system boundaries; and the pointer provenance plus Undefined Behavior (UB) catalog required for systems optimization. Until these documents are published, roadmap examples involving raw pointers, FFI lowering, and freestanding hardware regions should be treated as architectural contracts rather than unrestricted implementation permission.
 
 The immediate engineering milestones are to replace plan-file generation with actual secure backend insertion, implement cryptographic digest construction at final link time, add target-specific runtime verifier stubs, define a precise raw pointer type system, introduce linker-script examples for bootable freestanding artifacts, strengthen diagnostics, and formalize deterministic resource cleanup.
 
