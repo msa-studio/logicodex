@@ -73,9 +73,19 @@ Logicodex addresses this crisis through **progressive disclosure of complexity**
 
 ---
 
-## 4. Architectural Objectives
+## 4. Compiler Frontend and Architecture
 
 Logicodex is organized as a deterministic ahead-of-time compiler pipeline with a deliberately flexible frontend. The pipeline begins with official `.ldx` source files and a dynamic dictionary. It then performs lexing, parsing, semantic analysis, LLVM-oriented IR generation, object emission, and platform-specific linking or freestanding object generation.
+
+The following diagram summarizes the core dual-syntax compiler pipeline. Both novice and expert `.ldx` inputs enter the same dictionary-aware lexer, collapse into a unified token stream and AST, and then lower through LLVM IR generation toward optimized native binaries.
+
+```text
+[ Novice Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Unified Token Stream ]
+                                                              │
+[ Expert Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Abstract Syntax Tree ]
+                                                              │
+[ Native Binary ] ◄── (LLVM Backend Optimization O3) ◄── [ LLVM IR Generation ]
+```
 
 | Compiler Stage | Responsibility | Logicodex-Specific Contribution |
 |---|---|---|
@@ -404,6 +414,55 @@ logicodex compile --target freestanding examples/01_tambah_pakar.ldx --object-on
 
 In this profile, the backend emits an object intended for later integration by a bootloader, kernel linker script, hypervisor build, or firmware image generator. The compiler does not claim to provide a complete bootable image at this stage. It provides the **layout framework** required for operating-system development: target selection, entry-symbol control, runtime bypass, and physical-memory access documentation.
 
+A concrete freestanding example is the classic VGA text buffer write at physical address `0xB8000`. The example below writes raw ASCII character bytes and attribute bytes directly to screen memory. It is intentionally documented as a freestanding, capability-gated operation rather than ordinary hosted application behavior.
+
+**Novice pseudocode variant:**
+
+```logicodex
+MULA PROGRAM tulis_vga
+
+GUNA JENIS U16
+GUNA JENIS PTR<U16>
+
+TANDA KAWASAN_PERKAKAS VGA_TEXT SEBAGAI PTR<U16> = ALAMAT 0xB8000
+
+FUNGSI mula_sistem() -> I32
+MULA
+    # 0x074C = ASCII 'L' with light-gray-on-black text attribute 0x07.
+    TULIS_VOLATIL(VGA_TEXT + 0, 0x074C)
+    TULIS_VOLATIL(VGA_TEXT + 1, 0x076F)
+    TULIS_VOLATIL(VGA_TEXT + 2, 0x0767)
+    TULIS_VOLATIL(VGA_TEXT + 3, 0x0769)
+    TULIS_VOLATIL(VGA_TEXT + 4, 0x0763)
+    PULANG 0
+TAMAT
+
+TAMAT PROGRAM
+```
+
+**Expert shorthand variant:**
+
+```logicodex
+program vga_write {
+    use U16;
+    use PTR<U16>;
+
+    hw VGA_TEXT: PTR<U16> = addr 0xB8000;
+
+    fn _start() -> I32 {
+        // 0x074C = ASCII 'L' with light-gray-on-black text attribute 0x07.
+        vstore(VGA_TEXT + 0, 0x074C);
+        vstore(VGA_TEXT + 1, 0x076F);
+        vstore(VGA_TEXT + 2, 0x0767);
+        vstore(VGA_TEXT + 3, 0x0769);
+        vstore(VGA_TEXT + 4, 0x0763);
+        return 0;
+    }
+}
+```
+
+The novice and expert forms compile toward the same conceptual volatile stores. On x86 text-mode targets, each `U16` cell combines an ASCII byte and a color attribute byte, while other target families would bind equivalent display or serial-output hardware through target-specific capability declarations.
+
 ---
 
 ## 11. Physical Memory Mapping and Raw Pointer Architecture
@@ -431,6 +490,8 @@ The example expresses a direct write to a hardware-visible memory location. Such
 ## 12. Runtime Memory Self-Attestation and Active Self-Defense
 
 The most important v1.0.1-alpha security addition is the **Runtime Memory Integrity Verification Engine**. The engine is defined as an active self-attestation loop that protects the executable `.text` segment after program launch. The compiler-side contract is straightforward: produce a compile-time digest of immutable executable code, store it as a protected Golden Hash, and schedule a runtime verifier that continuously or periodically recomputes the digest from live memory.
+
+**Technical note:** The **Runtime Memory Integrity Verification Engine (SHA/AES-NI Continuous Attestation Loop)** is presented in v1.0.1-alpha as an **architectural design specification for the milestone**, with final bare-metal hardware intrinsic bindings slated for **Phase 2 production**. The current alpha documentation defines the compiler contract, threat model, data-flow invariant, and mitigation semantics; it does not claim that all hardware-specific secure runtime bindings are production-complete.
 
 Mathematically, let `T_compile` be the immutable byte sequence of the executable text region at compile or link finalization time, and let `H` be a cryptographic hash function. The compiler records `G = H(T_compile)`. At runtime, the verifier reads the current executable memory bytes `T_runtime` and computes `R = H(T_runtime)`. The integrity invariant is `R == G`. If the invariant fails, the runtime must assume memory tampering until proven otherwise.
 

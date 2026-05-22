@@ -24,6 +24,16 @@ Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 
 Logicodex is a native programming language compiler implemented in Rust. The Phase 1 MVP demonstrates a dual-syntax frontend in which novice-oriented pseudocode and expert shorthand are normalized through `dict/core_map.json` into the same compiler token identities. Once lexing is complete, both source styles produce the same AST, pass through the same semantic analyzer, and are lowered to LLVM machine code.
 
+## Compiler Frontend and Architecture
+
+```text
+[ Novice Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Unified Token Stream ]
+                                                              │
+[ Expert Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Abstract Syntax Tree ]
+                                                              │
+[ Native Binary ] ◄── (LLVM Backend Optimization O3) ◄── [ LLVM IR Generation ]
+```
+
 ## Build Requirements
 
 | Dependency | Purpose |
