@@ -1,6 +1,6 @@
 # ❖ Logicodex Phase 2 Execution Roadmap
 
-This roadmap tracks the open issues and architectural milestones established to transition **Logicodex** from a research/compiler initiative into a production-ready ecosystem, directly responding to the **V1.11-alpha technical evaluation**. For Phase 2, Milestone 1, it also records the completion status of Issue #01 and links the formal EBNF grammar artifact checked into the repository.
+This roadmap tracks the open issues and architectural milestones established to transition **Logicodex** from a research/compiler initiative into a production-ready ecosystem under the **V1.21-alpha Phase 2 Deployment Integration** milestone. It records the completion status of Issue #01 and Issue #02, linking the formal EBNF grammar artifact, the Undefined Behavior and Pointer Provenance specification, and the zero-overhead severity model checked into the repository.
 
 > **Roadmap principle:** Phase 2 must reduce execution risk by formalizing the language specification, enforcing canonical project conventions, and validating deployment targets through measurable tooling and benchmark work.
 
@@ -13,7 +13,7 @@ This roadmap tracks the open issues and architectural milestones established to 
 ## 🎯 Milestone 1: Formal Language Specification (High Priority)
 
 - [X] **Issue #01 — Formal EBNF Grammar Definition (COMPLETED / SOLVED):** Document the exact grammar rules for both **Novice Pseudocode** and **Expert Shorthand** to eliminate parsing ambiguity.
-- [ ] **Issue #02 — Undefined Behavior Catalog & Pointer Provenance:** Define explicit rules governing raw pointer operations, physical memory-mapped boundaries, hosted-memory isolation, and freestanding memory-access constraints.
+- [X] **Issue #02 — Undefined Behavior Catalog & Pointer Provenance (COMPLETED / SOLVED):** Define explicit rules governing raw pointer operations, physical memory-mapped boundaries, hosted-memory isolation, freestanding memory-access constraints, and zero-overhead severity mitigation tiers.
 - [ ] **Issue #03 — Nominal Type System & Type Inference Boundaries:** Formalize rules for variable implicit annotations, nominal typing, strict type-checking invariants, and the boundaries between inference, explicit declaration, and unsafe operations.
 
 ## 🛠️ Milestone 2: Tooling & Canonical Convention Enforcement
@@ -32,8 +32,8 @@ This roadmap converts the evaluator’s recommendations into explicit project-ma
 
 | Issue | Status | Owner | Acceptance Signal |
 |---|---|---|---|
-| Issue #01 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul (MSA Studio) | 1. Formal 4-Layer grammar checked in as a living document inside `spec/v1.11-alpha/UpdateIssue1-ebnf.md`.<br>2. Recursive-descent compiler entry pipeline verified to ingest token maps collision-free.<br>3. Concrete freestanding token productions (`hw` and `addr`) structurally declared to enable upcoming security capability gates. |
-| Issue #02 | Open | TBD | A UB and pointer-provenance catalog defines allowed, unsafe, and forbidden memory behaviors. |
+| Issue #01 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul | 1. Formal 4-Layer grammar checked in as a living document inside `spec/v1.21-alpha/UpdateIssue1-ebnf.md`.<br>2. Recursive-descent compiler entry pipeline verified to ingest token maps collision-free.<br>3. Concrete freestanding token productions (`hw` and `addr`) structurally declared to enable upcoming security capability gates. | Mohamad Supardi Abdul (MSA Studio) | 1. Formal 4-Layer grammar checked in as a living document inside `spec/v1.21-alpha/UpdateIssue1-ebnf.md`.<br>2. Recursive-descent compiler entry pipeline verified to ingest token maps collision-free.<br>3. Concrete freestanding token productions (`hw` and `addr`) structurally declared to enable upcoming security capability gates. |
+| Issue #02 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul | Layered error modeling (C/C++/Rust) integrated into specification. Zero-overhead 3-tier severity mitigation architecture (Critical/Medium/Low) structurally hardcoded to enable direct LLVM IR compilation blocks without execution speed penalties. | TBD | A UB and pointer-provenance catalog defines allowed, unsafe, and forbidden memory behaviors. |
 | Issue #03 | Open | TBD | Type rules distinguish inference, nominal declarations, casts, and compiler-enforced invariants. |
 | Issue #04 | Open | TBD | `ldx-fmt` can format representative Logicodex examples into one canonical style. |
 | Issue #05 | Open | TBD | LSP diagnostics, completion, and syntax feedback work in at least one supported editor. |

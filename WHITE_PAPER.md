@@ -6,7 +6,7 @@
  | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
-             [ LOGICODEX COMPILER v1.11-alpha ]
+             [ LOGICODEX COMPILER v1.21-alpha ]
              [ DUAL-SYNTAX LLVM SYSTEMS LANGUAGE ]
 =========================================================
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
@@ -18,11 +18,17 @@ Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 
 **Author:** Mohamad Supardi Abdul  
 **Official Contact:** `mymsastudio@gmail.com`  
-**Version:** v1.11-alpha consolidated white paper  
+**Version:** v1.21-alpha consolidated white paper  
 **Date:** May 2026  
 **Document Status:** Architectural Manifesto and Engineering Roadmap Specification.
 
 ---
+
+## v1.21-alpha Specification Synchronization
+
+The **v1.21-alpha** deployment milestone elevates the repository into a synchronized formal-specification baseline. The milestone now includes the canonical EBNF grammar, the Undefined Behavior and Pointer Provenance specification, and the repository context inventory required for audit-driven compiler engineering.
+
+The severity model classifies runtime and attestation events into **Critical**, **Medium**, and **Low** structural tiers. These tiers are documented as compiler-lowerable response blocks so that safety diagnostics and mitigation paths can be injected into LLVM IR while preserving the project’s zero-overhead execution thesis for non-triggering code paths.
 
 ## 1. Abstract
 
@@ -32,15 +38,15 @@ Modern software engineering is trapped inside a widening architectural contradic
 
 The central architectural thesis of Logicodex is that **human accessibility and machine efficiency should be orthogonal design dimensions**. Syntax should adapt to the user's cognitive level, localization preference, educational context, and AI-generation style, while semantics and code generation remain deterministic, analyzable, and close to the machine. Logicodex therefore avoids defining itself around a mandatory virtual machine, bytecode interpreter, tracing garbage collector, or hidden dynamic object model. Its roadmap instead points toward native Windows PE, Linux ELF, WebAssembly, freestanding object, embedded, and future bare-metal targets through a disciplined LLVM-oriented backend.[1] [2]
 
-The v1.11-alpha consolidation also extends the language beyond a simple Phase 1 compiler demonstration. It incorporates architectural planning for runtime memory self-attestation, active self-defense against executable-code tampering, freestanding target mode, raw physical memory access controls, cross-language migration, and open-source governance. The result is a language model intended for **education, AI-assisted generation, legacy migration, secure native tools, firmware, kernels, hypervisors, and high-assurance bare-metal computation**.
+The v1.21-alpha consolidation also extends the language beyond a simple Phase 1 compiler demonstration. It incorporates architectural planning for runtime memory self-attestation, active self-defense against executable-code tampering, freestanding target mode, raw physical memory access controls, cross-language migration, and open-source governance. The result is a language model intended for **education, AI-assisted generation, legacy migration, secure native tools, firmware, kernels, hypervisors, and high-assurance bare-metal computation**.
 
-**Scope clarification:** In v1.11-alpha, **Phase 1 delivers the verified working core compiler infrastructure**: the dictionary-aware lexer, recursive-descent parser, AST construction, semantic analyzer, and LLVM-Inkwell backend path. The **WebAssembly Target**, **Logicodex Migrator Engine**, and **Continuous Runtime Memory Attestation** are formally defined architectural roadmap capabilities for **Phase 2/3**, not claims of production-complete implementation in the Phase 1 compiler.
+**Scope clarification:** In v1.21-alpha, **Phase 1 delivers the verified working core compiler infrastructure**: the dictionary-aware lexer, recursive-descent parser, AST construction, semantic analyzer, and LLVM-Inkwell backend path. The **WebAssembly Target**, **Logicodex Migrator Engine**, and **Continuous Runtime Memory Attestation** are formally defined architectural roadmap capabilities for **Phase 2/3**, not claims of production-complete implementation in the Phase 1 compiler.
 
 ---
 
 ## 2. Project Lineage and AI Co-Exploration Paradigm
 
-Earlier research drafts used the working name **Logica** to describe the same core idea: readable structured pseudocode and expert shorthand should compile into one canonical systems-language representation. This consolidated paper standardizes the project identity as **Logicodex** and merges the earlier Logica architectural material with the Logicodex Phase 1, v1.0.0, v1.0.0-alpha, and v1.11-alpha security-oriented documentation. All future official white-paper references should use the **Logicodex** name.
+Earlier research drafts used the working name **Logica** to describe the same core idea: readable structured pseudocode and expert shorthand should compile into one canonical systems-language representation. This consolidated paper standardizes the project identity as **Logicodex** and merges the earlier Logica architectural material with the Logicodex Phase 1, v1.0.0, v1.0.0-alpha, and v1.21-alpha security-oriented documentation. All future official white-paper references should use the **Logicodex** name.
 
 For status precision, this introduction separates implemented Phase 1 infrastructure from roadmap architecture. The current compiler tree demonstrates that **Phase 1 delivers the verified working core compiler infrastructure** through the verified core path: `dict/core_map.json` loading, tokenization, parsing, AST construction, semantic analysis, and LLVM-Inkwell-oriented backend generation. The WebAssembly Target, Logicodex Migrator Engine, and Continuous Runtime Memory Attestation remain explicit Phase 2/3 roadmap specifications so contributors can design toward them without assuming that the alpha compiler already implements their full production semantics.
 
@@ -412,7 +418,7 @@ Logicodex's operating-system bridge exists to make native execution concrete. In
 
 Hosted applications inherit substantial assumptions from the operating system: process startup, stack layout, standard library availability, dynamic loader behavior, filesystem access, and termination semantics. Freestanding programs cannot assume these services. C and C++ standards distinguish hosted and freestanding implementation environments, and systems developers commonly use freestanding modes to construct kernels or firmware.[4]
 
-Logicodex v1.11-alpha mirrors this distinction through an explicit compiler target parameter:
+Logicodex v1.21-alpha mirrors this distinction through an explicit compiler target parameter:
 
 ```bash
 logicodex compile --target freestanding examples/01_tambah_pakar.ldx --object-only
@@ -497,9 +503,9 @@ The example expresses a direct write to a hardware-visible memory location. Such
 
 ## 12. Runtime Memory Self-Attestation and Active Self-Defense
 
-The most important v1.11-alpha security addition is the **Runtime Memory Integrity Verification Engine**. The engine is defined as an active self-attestation loop that protects the executable `.text` segment after program launch. The compiler-side contract is straightforward: produce a compile-time digest of immutable executable code, store it as a protected Golden Hash, and schedule a runtime verifier that continuously or periodically recomputes the digest from live memory.
+The most important v1.21-alpha security addition is the **Runtime Memory Integrity Verification Engine**. The engine is defined as an active self-attestation loop that protects the executable `.text` segment after program launch. The compiler-side contract is straightforward: produce a compile-time digest of immutable executable code, store it as a protected Golden Hash, and schedule a runtime verifier that continuously or periodically recomputes the digest from live memory.
 
-**Technical note:** The **Runtime Memory Integrity Verification Engine (SHA/AES-NI Continuous Attestation Loop)** is presented in v1.11-alpha as an **architectural design specification for the milestone**, with final bare-metal hardware intrinsic bindings slated for **Phase 2 production**. The current alpha documentation defines the compiler contract, threat model, data-flow invariant, and mitigation semantics; it does not claim that all hardware-specific secure runtime bindings are production-complete.
+**Technical note:** The **Runtime Memory Integrity Verification Engine (SHA/AES-NI Continuous Attestation Loop)** is presented in v1.21-alpha as an **architectural design specification for the milestone**, with final bare-metal hardware intrinsic bindings slated for **Phase 2 production**. The current alpha documentation defines the compiler contract, threat model, data-flow invariant, and mitigation semantics; it does not claim that all hardware-specific secure runtime bindings are production-complete.
 
 Mathematically, let `T_compile` be the immutable byte sequence of the executable text region at compile or link finalization time, and let `H` be a cryptographic hash function. The compiler records `G = H(T_compile)`. At runtime, the verifier reads the current executable memory bytes `T_runtime` and computes `R = H(T_runtime)`. The integrity invariant is `R == G`. If the invariant fails, the runtime must assume memory tampering until proven otherwise.
 
@@ -511,7 +517,7 @@ Mathematically, let `T_compile` be the immutable byte sequence of the executable
 | `R` | Live runtime hash. |
 | `R != G` | Evidence of runtime code tampering, injection, or patching. |
 
-The v1.11-alpha source tree prepares this model through secure compilation options, memory-integrity planning, secure CLI plumbing, and generated attestation plan files. A future hardened implementation can use CPU cryptographic instruction support where available to minimize attestation overhead. Intel documents SHA and AES intrinsic families for hardware-accelerated cryptographic operations on supported processors.[5]
+The v1.21-alpha source tree prepares this model through secure compilation options, memory-integrity planning, secure CLI plumbing, and generated attestation plan files. A future hardened implementation can use CPU cryptographic instruction support where available to minimize attestation overhead. Intel documents SHA and AES intrinsic families for hardware-accelerated cryptographic operations on supported processors.[5]
 
 > **Security invariant:** A Logicodex binary compiled under the secure profile should treat modification of its executable `.text` segment as a catastrophic integrity failure and respond with immediate panic, sensitive-register clearing, and target-appropriate hard self-destruction.
 

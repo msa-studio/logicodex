@@ -1,6 +1,6 @@
 [package]
 name = "logicodex"
-version = "1.11-alpha"
+version = "1.21-alpha"
 edition = "2021"
 authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
 description = "Phase 1 bare-metal compiler for the Logicodex programming language"
