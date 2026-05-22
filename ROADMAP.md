@@ -65,3 +65,13 @@ Runtime memory attestation, Golden Hash planning, hard fail-stop behavior, and f
 ## Tracking Notes
 
 The roadmap should be updated only when implementation evidence changes. Completed items should cite the files, tests, examples, or release assets that prove the claim. When an item remains a goal, the documentation should use terms such as **planned**, **prototype**, **experimental**, **research objective**, or **long-term objective** rather than implying production readiness.
+
+## Completed Vocabulary Milestone: Dictionary Vocabulary Expansion
+
+The current logicodex v 1.21 alpha repository now includes a three-tier token vocabulary expansion in `dict/core_map.json`. This milestone is complete at the dictionary and lexer-recognition level after logical/static verification. The next practical milestones are to decide which of the new vocabulary families should become executable language features, then add parser, semantic-analysis, code-generation, examples, and tests for those features one at a time.
+
+| Vocabulary family | Current status | Future implementation requirement |
+|---|---|---|
+| Program structure, bindings, conditionals, routines, and core types | Available in the dictionary and compatible with the lexer map | Keep examples synchronized with parser behavior. |
+| Mutability, loops, FFI, C interop, resources, string type marker, and bitwise markers | Available as token vocabulary | Add parser and semantic rules before claiming executable feature support. |
+| Hardware/address vocabulary | Available as token vocabulary and design direction | Add explicit target gates, provenance rules, and freestanding examples before claiming runtime support. |

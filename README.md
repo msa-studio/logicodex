@@ -103,3 +103,15 @@ Logicodex is distributed under permissive dual licensing through **MIT License**
 ## Collaboration
 
 Contributors interested in compiler engineering, LLVM optimization, operating-system targets, formal specification, documentation, or AI-assisted migration are invited to coordinate with **MSA Studio** through `mymsastudio@gmail.com`.
+
+## v1.21-alpha Three-Tier Token Dictionary Expansion
+
+The current logicodex v 1.21 alpha dictionary now records a practical three-tier token vocabulary for the requested program-structure, binding, control-flow, FFI vocabulary, resource vocabulary, type-family, hardware vocabulary, and bitwise-operator families. Each requested `TOKEN_*` entry in `dict/core_map.json` has a stable universal identifier, one structured Malay canonical spelling, and the requested expert shorthand plus English pseudocode aliases.
+
+This is a **dictionary-level capability upgrade**. It improves lexical coverage and documentation consistency, but it does not by itself claim that every related parser, semantic-analysis, code-generation, FFI, RAII, or freestanding runtime behavior is complete. Those executable behaviors remain roadmap items until they have implementation evidence and repeatable tests.
+
+| Capability boundary | Current status | Practical note |
+|---|---|---|
+| Dual syntax and token families | Expanded at dictionary and lexer-recognition level | The token vocabulary is broader and logically verified. |
+| Loop, FFI, resource, and bitwise vocabulary | Tokenized as vocabulary support | Parser and semantic behavior should be added through future focused milestones. |
+| Embedded and freestanding vocabulary | Dictionary support plus existing address/hardware concepts | Hardware behavior still requires explicit target gates, examples, and validation. |

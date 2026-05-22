@@ -27,3 +27,7 @@ This authoritative document inventories the core architectural assets of the Log
 ## Practical Messaging Policy
 
 Repository documentation should describe implemented compiler behavior as implemented, prototype behavior as experimental, and broader security or freestanding ambitions as long-term objectives. This keeps the project credible while preserving the full research direction for future milestones.
+
+## Maintainer Context: Three-Tier Token Dictionary Expansion
+
+The current logicodex v 1.21 alpha dictionary now includes the requested three-tier token records for program structure, bindings, control flow, FFI vocabulary, resource vocabulary, type families, bitwise operators, and hardware/address vocabulary. Treat this as a vocabulary and lexer-recognition update. New executable behavior should still be introduced through parser, semantic, backend, and validation milestones.

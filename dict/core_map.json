@@ -1,6 +1,6 @@
 // =========================================================================
 // Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Formal Specifications & Zero-Overhead Severity Model)
+// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
@@ -8,45 +8,613 @@
 {
   "version": "1.21-alpha",
   "language": "Logicodex",
-  "description": "Canonical v1.21-alpha dictionary mapping novice pseudocode and expert shorthand lexemes into unified compiler token identities.",
+  "description": "Canonical v1.21-alpha dictionary mapping structured Malay pseudocode, expert shorthand, and English pseudocode lexemes into unified compiler token identities.",
+  "TOKEN_START": {
+    "canonical": "MULA",
+    "aliases": [
+      "{",
+      "START"
+    ],
+    "identity": "START",
+    "description": "Begin a program or block."
+  },
+  "TOKEN_END": {
+    "canonical": "TAMAT",
+    "aliases": [
+      "}",
+      "END"
+    ],
+    "identity": "END",
+    "description": "End a program or block."
+  },
+  "TOKEN_LET": {
+    "canonical": "BINA",
+    "aliases": [
+      "let",
+      "CREATE"
+    ],
+    "identity": "LET",
+    "description": "Create an immutable typed or inferred binding."
+  },
+  "TOKEN_MUT": {
+    "canonical": "MUTASI",
+    "aliases": [
+      "mut",
+      "MUTABLE"
+    ],
+    "identity": "MUT",
+    "description": "Vocabulary marker for future mutable binding support."
+  },
+  "TOKEN_HW": {
+    "canonical": "PERKAKASAN",
+    "aliases": [
+      "hw",
+      "HARDWARE"
+    ],
+    "identity": "HW",
+    "description": "Vocabulary marker for hardware or freestanding-region declarations."
+  },
+  "TOKEN_ADDR": {
+    "canonical": "ALAMAT",
+    "aliases": [
+      "addr",
+      "ADDRESS"
+    ],
+    "identity": "ADDR",
+    "description": "Address literal or address-shaped value marker."
+  },
+  "TOKEN_IF": {
+    "canonical": "JIKA",
+    "aliases": [
+      "if",
+      "IF"
+    ],
+    "identity": "IF",
+    "description": "Begin a conditional branch."
+  },
+  "TOKEN_THEN": {
+    "canonical": "MAKA",
+    "aliases": [
+      "then",
+      "THEN"
+    ],
+    "identity": "THEN",
+    "description": "Separate a novice condition from its branch body."
+  },
+  "TOKEN_ELSE": {
+    "canonical": "MELAINKAN",
+    "aliases": [
+      "else",
+      "ELSE"
+    ],
+    "identity": "ELSE",
+    "description": "Begin an alternative branch."
+  },
+  "TOKEN_WHILE": {
+    "canonical": "SELAGI",
+    "aliases": [
+      "while",
+      "WHILE"
+    ],
+    "identity": "WHILE",
+    "description": "Vocabulary marker for future while-loop parsing support."
+  },
+  "TOKEN_LOOP_BREAK": {
+    "canonical": "HENTI",
+    "aliases": [
+      "break",
+      "BREAK"
+    ],
+    "identity": "LOOP_BREAK",
+    "description": "Vocabulary marker for future loop-break control flow."
+  },
+  "TOKEN_LOOP_CONTINUE": {
+    "canonical": "TERUS",
+    "aliases": [
+      "continue",
+      "CONTINUE"
+    ],
+    "identity": "LOOP_CONTINUE",
+    "description": "Vocabulary marker for future loop-continue control flow."
+  },
+  "TOKEN_FN": {
+    "canonical": "FUNGSI",
+    "aliases": [
+      "fn",
+      "FUNCTION"
+    ],
+    "identity": "FN",
+    "description": "Begin a function definition."
+  },
+  "TOKEN_RETURN": {
+    "canonical": "PULANG",
+    "aliases": [
+      "return",
+      "RETURN"
+    ],
+    "identity": "RETURN",
+    "description": "Return a value from a function body."
+  },
+  "TOKEN_FFI": {
+    "canonical": "PAUTAN",
+    "aliases": [
+      "ffi",
+      "FOREIGN_INTERFACE"
+    ],
+    "identity": "FFI",
+    "description": "Vocabulary marker for future foreign-function interface declarations."
+  },
+  "TOKEN_C_INTEROP": {
+    "canonical": "C_LUAR",
+    "aliases": [
+      "c",
+      "C_LEGACY"
+    ],
+    "identity": "C_INTEROP",
+    "description": "Vocabulary marker for future C ABI interop declarations."
+  },
+  "TOKEN_RESOURCE": {
+    "canonical": "SUMBER",
+    "aliases": [
+      "resource",
+      "RESOURCE"
+    ],
+    "identity": "RESOURCE",
+    "description": "Vocabulary marker for future resource-scope declarations."
+  },
+  "TOKEN_DROP": {
+    "canonical": "LEPAS",
+    "aliases": [
+      "drop",
+      "DROP"
+    ],
+    "identity": "DROP",
+    "description": "Vocabulary marker for future explicit resource-release operations."
+  },
+  "TOKEN_I32": {
+    "canonical": "I32",
+    "aliases": [
+      "i32",
+      "INT32"
+    ],
+    "identity": "I32",
+    "description": "Signed 32-bit integer type."
+  },
+  "TOKEN_U32": {
+    "canonical": "U32",
+    "aliases": [
+      "u32",
+      "UINT32"
+    ],
+    "identity": "U32",
+    "description": "Unsigned 32-bit integer type."
+  },
+  "TOKEN_STR": {
+    "canonical": "TEKS",
+    "aliases": [
+      "str",
+      "STRING"
+    ],
+    "identity": "STR",
+    "description": "String type marker for future typed string declarations."
+  },
+  "TOKEN_BIT_AND": {
+    "canonical": "DAN_BIT",
+    "aliases": [
+      "&",
+      "BIT_AND"
+    ],
+    "identity": "BIT_AND",
+    "description": "Bitwise AND vocabulary marker."
+  },
+  "TOKEN_BIT_OR": {
+    "canonical": "ATAU_BIT",
+    "aliases": [
+      "|",
+      "BIT_OR"
+    ],
+    "identity": "BIT_OR",
+    "description": "Bitwise OR vocabulary marker."
+  },
   "tokens": [
-    { "identity": "START", "lexemes": ["MULA", "BEGIN", "{"], "description": "Begin a program or block." },
-    { "identity": "END", "lexemes": ["TAMAT", "END", "}"], "description": "End a program or block." },
-    { "identity": "LET", "lexemes": ["BINA", "let"], "description": "Create an immutable typed or inferred binding." },
-    { "identity": "IF", "lexemes": ["JIKA", "if"], "description": "Begin a conditional branch." },
-    { "identity": "THEN", "lexemes": ["MAKA", "then"], "description": "Separate a novice condition from its branch body." },
-    { "identity": "ELSE", "lexemes": ["JIKALAU_TIDAK", "else"], "description": "Begin the alternative branch." },
-    { "identity": "PRINT", "lexemes": ["PAPAR", "print"], "description": "Print an integer, boolean, string length, or address-shaped value." },
-    { "identity": "HW", "lexemes": ["KAWASAN_PERKAKAS", "hw"], "description": "Declare a provenance-bearing hardware memory region." },
-    { "identity": "ADDR", "lexemes": ["ALAMAT", "addr"], "description": "Introduce an address literal that requires provenance under strict targets." },
-    { "identity": "USE", "lexemes": ["GUNA", "use"], "description": "Import a standard or platform module contract." },
-    { "identity": "FN", "lexemes": ["FUNGSI", "fn"], "description": "Begin a function definition." },
-    { "identity": "RETURN", "lexemes": ["PULANG", "return"], "description": "Return a value from a function body." },
-    { "identity": "TRUE", "lexemes": ["BENAR", "true"], "description": "Boolean true literal." },
-    { "identity": "FALSE", "lexemes": ["SALAH", "PALSU", "false"], "description": "Boolean false literal." },
-    { "identity": "I32", "lexemes": ["I32"], "description": "Signed 32-bit integer type." },
-    { "identity": "I64", "lexemes": ["I64"], "description": "Signed 64-bit integer type." },
-    { "identity": "U16", "lexemes": ["U16"], "description": "Unsigned 16-bit integer type." },
-    { "identity": "U32", "lexemes": ["U32"], "description": "Unsigned 32-bit integer type." },
-    { "identity": "F64", "lexemes": ["F64"], "description": "64-bit floating-point type marker." },
-    { "identity": "BOOL", "lexemes": ["Bool", "BOOL"], "description": "Boolean type marker." },
-    { "identity": "PTR", "lexemes": ["PTR", "ptr"], "description": "Pointer type constructor." },
-    { "identity": "ASSIGN", "lexemes": ["="], "description": "Assignment delimiter in a binding or declaration." },
-    { "identity": "PLUS", "lexemes": ["+"], "description": "Numeric addition operator." },
-    { "identity": "MINUS", "lexemes": ["-"], "description": "Numeric subtraction operator." },
-    { "identity": "STAR", "lexemes": ["*"], "description": "Numeric multiplication operator." },
-    { "identity": "SLASH", "lexemes": ["/"], "description": "Numeric division operator; constant zero is rejected statically." },
-    { "identity": "GREATER", "lexemes": [">"] , "description": "Greater-than comparison." },
-    { "identity": "GREATER_EQUAL", "lexemes": [">="], "description": "Greater-than-or-equal comparison." },
-    { "identity": "LESS", "lexemes": ["<"], "description": "Less-than comparison." },
-    { "identity": "LESS_EQUAL", "lexemes": ["<="], "description": "Less-than-or-equal comparison." },
-    { "identity": "EQUAL_EQUAL", "lexemes": ["=="], "description": "Equality comparison." },
-    { "identity": "BANG_EQUAL", "lexemes": ["!="], "description": "Inequality comparison." },
-    { "identity": "LEFT_PAREN", "lexemes": ["("], "description": "Open grouped expression or parameter list." },
-    { "identity": "RIGHT_PAREN", "lexemes": [")"], "description": "Close grouped expression or parameter list." },
-    { "identity": "COLON", "lexemes": [":"], "description": "Type annotation delimiter." },
-    { "identity": "SEMICOLON", "lexemes": [";"], "description": "Statement separator." },
-    { "identity": "COMMA", "lexemes": [","], "description": "Parameter separator." },
-    { "identity": "ARROW", "lexemes": ["->"], "description": "Function return type delimiter." }
+    {
+      "identity": "START",
+      "lexemes": [
+        "MULA",
+        "{",
+        "START",
+        "BEGIN"
+      ],
+      "description": "Begin a program or block."
+    },
+    {
+      "identity": "END",
+      "lexemes": [
+        "TAMAT",
+        "}",
+        "END"
+      ],
+      "description": "End a program or block."
+    },
+    {
+      "identity": "LET",
+      "lexemes": [
+        "BINA",
+        "let",
+        "CREATE"
+      ],
+      "description": "Create an immutable typed or inferred binding."
+    },
+    {
+      "identity": "MUT",
+      "lexemes": [
+        "MUTASI",
+        "mut",
+        "MUTABLE"
+      ],
+      "description": "Vocabulary marker for future mutable binding support."
+    },
+    {
+      "identity": "IF",
+      "lexemes": [
+        "JIKA",
+        "if",
+        "IF"
+      ],
+      "description": "Begin a conditional branch."
+    },
+    {
+      "identity": "THEN",
+      "lexemes": [
+        "MAKA",
+        "then",
+        "THEN"
+      ],
+      "description": "Separate a novice condition from its branch body."
+    },
+    {
+      "identity": "ELSE",
+      "lexemes": [
+        "MELAINKAN",
+        "else",
+        "ELSE",
+        "JIKALAU_TIDAK"
+      ],
+      "description": "Begin an alternative branch."
+    },
+    {
+      "identity": "WHILE",
+      "lexemes": [
+        "SELAGI",
+        "while",
+        "WHILE"
+      ],
+      "description": "Vocabulary marker for future while-loop parsing support."
+    },
+    {
+      "identity": "LOOP_BREAK",
+      "lexemes": [
+        "HENTI",
+        "break",
+        "BREAK"
+      ],
+      "description": "Vocabulary marker for future loop-break control flow."
+    },
+    {
+      "identity": "LOOP_CONTINUE",
+      "lexemes": [
+        "TERUS",
+        "continue",
+        "CONTINUE"
+      ],
+      "description": "Vocabulary marker for future loop-continue control flow."
+    },
+    {
+      "identity": "PRINT",
+      "lexemes": [
+        "PAPAR",
+        "print"
+      ],
+      "description": "Print an integer, boolean, string length, or address-shaped value."
+    },
+    {
+      "identity": "HW",
+      "lexemes": [
+        "PERKAKASAN",
+        "hw",
+        "HARDWARE",
+        "KAWASAN_PERKAKAS"
+      ],
+      "description": "Vocabulary marker for hardware or freestanding-region declarations."
+    },
+    {
+      "identity": "ADDR",
+      "lexemes": [
+        "ALAMAT",
+        "addr",
+        "ADDRESS"
+      ],
+      "description": "Address literal or address-shaped value marker."
+    },
+    {
+      "identity": "USE",
+      "lexemes": [
+        "GUNA",
+        "use"
+      ],
+      "description": "Import a standard or platform module contract."
+    },
+    {
+      "identity": "FN",
+      "lexemes": [
+        "FUNGSI",
+        "fn",
+        "FUNCTION"
+      ],
+      "description": "Begin a function definition."
+    },
+    {
+      "identity": "RETURN",
+      "lexemes": [
+        "PULANG",
+        "return",
+        "RETURN"
+      ],
+      "description": "Return a value from a function body."
+    },
+    {
+      "identity": "FFI",
+      "lexemes": [
+        "PAUTAN",
+        "ffi",
+        "FOREIGN_INTERFACE"
+      ],
+      "description": "Vocabulary marker for future foreign-function interface declarations."
+    },
+    {
+      "identity": "C_INTEROP",
+      "lexemes": [
+        "C_LUAR",
+        "c",
+        "C_LEGACY"
+      ],
+      "description": "Vocabulary marker for future C ABI interop declarations."
+    },
+    {
+      "identity": "RESOURCE",
+      "lexemes": [
+        "SUMBER",
+        "resource",
+        "RESOURCE"
+      ],
+      "description": "Vocabulary marker for future resource-scope declarations."
+    },
+    {
+      "identity": "DROP",
+      "lexemes": [
+        "LEPAS",
+        "drop",
+        "DROP"
+      ],
+      "description": "Vocabulary marker for future explicit resource-release operations."
+    },
+    {
+      "identity": "TRUE",
+      "lexemes": [
+        "BENAR",
+        "true"
+      ],
+      "description": "Boolean true literal."
+    },
+    {
+      "identity": "FALSE",
+      "lexemes": [
+        "SALAH",
+        "PALSU",
+        "false"
+      ],
+      "description": "Boolean false literal."
+    },
+    {
+      "identity": "I32",
+      "lexemes": [
+        "I32",
+        "i32",
+        "INT32"
+      ],
+      "description": "Signed 32-bit integer type."
+    },
+    {
+      "identity": "I64",
+      "lexemes": [
+        "I64"
+      ],
+      "description": "Signed 64-bit integer type."
+    },
+    {
+      "identity": "U16",
+      "lexemes": [
+        "U16"
+      ],
+      "description": "Unsigned 16-bit integer type."
+    },
+    {
+      "identity": "U32",
+      "lexemes": [
+        "U32",
+        "u32",
+        "UINT32"
+      ],
+      "description": "Unsigned 32-bit integer type."
+    },
+    {
+      "identity": "STR",
+      "lexemes": [
+        "TEKS",
+        "str",
+        "STRING"
+      ],
+      "description": "String type marker for future typed string declarations."
+    },
+    {
+      "identity": "F64",
+      "lexemes": [
+        "F64"
+      ],
+      "description": "64-bit floating-point type marker."
+    },
+    {
+      "identity": "BOOL",
+      "lexemes": [
+        "Bool",
+        "BOOL"
+      ],
+      "description": "Boolean type marker."
+    },
+    {
+      "identity": "PTR",
+      "lexemes": [
+        "PTR",
+        "ptr"
+      ],
+      "description": "Pointer type constructor."
+    },
+    {
+      "identity": "ASSIGN",
+      "lexemes": [
+        "="
+      ],
+      "description": "Assignment delimiter in a binding or declaration."
+    },
+    {
+      "identity": "PLUS",
+      "lexemes": [
+        "+"
+      ],
+      "description": "Numeric addition operator."
+    },
+    {
+      "identity": "MINUS",
+      "lexemes": [
+        "-"
+      ],
+      "description": "Numeric subtraction operator."
+    },
+    {
+      "identity": "STAR",
+      "lexemes": [
+        "*"
+      ],
+      "description": "Numeric multiplication operator."
+    },
+    {
+      "identity": "SLASH",
+      "lexemes": [
+        "/"
+      ],
+      "description": "Numeric division operator; constant zero is rejected statically."
+    },
+    {
+      "identity": "BIT_AND",
+      "lexemes": [
+        "DAN_BIT",
+        "&",
+        "BIT_AND"
+      ],
+      "description": "Bitwise AND vocabulary marker."
+    },
+    {
+      "identity": "BIT_OR",
+      "lexemes": [
+        "ATAU_BIT",
+        "|",
+        "BIT_OR"
+      ],
+      "description": "Bitwise OR vocabulary marker."
+    },
+    {
+      "identity": "GREATER",
+      "lexemes": [
+        ">"
+      ],
+      "description": "Greater-than comparison."
+    },
+    {
+      "identity": "GREATER_EQUAL",
+      "lexemes": [
+        ">="
+      ],
+      "description": "Greater-than-or-equal comparison."
+    },
+    {
+      "identity": "LESS",
+      "lexemes": [
+        "<"
+      ],
+      "description": "Less-than comparison."
+    },
+    {
+      "identity": "LESS_EQUAL",
+      "lexemes": [
+        "<="
+      ],
+      "description": "Less-than-or-equal comparison."
+    },
+    {
+      "identity": "EQUAL_EQUAL",
+      "lexemes": [
+        "=="
+      ],
+      "description": "Equality comparison."
+    },
+    {
+      "identity": "BANG_EQUAL",
+      "lexemes": [
+        "!="
+      ],
+      "description": "Inequality comparison."
+    },
+    {
+      "identity": "LEFT_PAREN",
+      "lexemes": [
+        "("
+      ],
+      "description": "Open grouped expression or parameter list."
+    },
+    {
+      "identity": "RIGHT_PAREN",
+      "lexemes": [
+        ")"
+      ],
+      "description": "Close grouped expression or parameter list."
+    },
+    {
+      "identity": "COLON",
+      "lexemes": [
+        ":"
+      ],
+      "description": "Type annotation delimiter."
+    },
+    {
+      "identity": "SEMICOLON",
+      "lexemes": [
+        ";"
+      ],
+      "description": "Statement separator."
+    },
+    {
+      "identity": "COMMA",
+      "lexemes": [
+        ","
+      ],
+      "description": "Parameter separator."
+    },
+    {
+      "identity": "ARROW",
+      "lexemes": [
+        "->"
+      ],
+      "description": "Function return type delimiter."
+    }
   ]
 }
