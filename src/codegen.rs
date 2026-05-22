@@ -83,47 +83,56 @@ impl<'ctx> LlvmCompiler<'ctx> {
         object_path: &Path,
         options: &CodegenOptions,
     ) -> Result<CodegenArtifact> {
-        let context = Context::create();
-        let mut compiler = Self::new(&context, &options.module_name);
-        compiler.emit_program(program, options.target)?;
-        if options.secure {
-            eprintln!("Logicodex secure compilation path active: runtime memory integrity verification metadata, Golden Hash planning, and SHA/AES-NI accelerated attestation hooks are requested for final linkage.");
-        }
-        compiler
-            .module
-            .verify()
-            .map_err(|e| anyhow!("LLVM module verification failed: {e}"))?;
-
-        let output_kind = if options.target.is_freestanding() {
-            OutputKind::FreestandingObject
-        } else {
-            OutputKind::Object
-        };
-        let target_machine = build_target_machine(output_kind)?;
-        target_machine
-            .write_to_file(
-                &compiler.module,
-                inkwell::targets::FileType::Object,
-                object_path,
-            )
-            .map_err(|e| anyhow!("failed to emit object file {}: {e}", object_path.display()))?;
-
-        let ir_path = if options.emit_ir {
-            let mut ir_path = object_path.to_path_buf();
-            ir_path.set_extension("ll");
+        fn compile_with_context<'ctx>(
+            context: &'ctx Context,
+            program: &Program,
+            object_path: &Path,
+            options: &CodegenOptions,
+        ) -> Result<CodegenArtifact> {
+            let mut compiler = LlvmCompiler::new(context, &options.module_name);
+            compiler.emit_program(program, options.target)?;
+            if options.secure {
+                eprintln!("Logicodex secure compilation path active: runtime memory integrity verification metadata, Golden Hash planning, and SHA/AES-NI accelerated attestation hooks are requested for final linkage.");
+            }
             compiler
                 .module
-                .print_to_file(&ir_path)
-                .map_err(|e| anyhow!("failed to write LLVM IR {}: {e}", ir_path.display()))?;
-            Some(ir_path)
-        } else {
-            None
-        };
+                .verify()
+                .map_err(|e| anyhow!("LLVM module verification failed: {e}"))?;
 
-        Ok(CodegenArtifact {
-            object_path: object_path.to_path_buf(),
-            ir_path,
-        })
+            let output_kind = if options.target.is_freestanding() {
+                OutputKind::FreestandingObject
+            } else {
+                OutputKind::Object
+            };
+            let target_machine = build_target_machine(output_kind)?;
+            target_machine
+                .write_to_file(
+                    &compiler.module,
+                    inkwell::targets::FileType::Object,
+                    object_path,
+                )
+                .map_err(|e| anyhow!("failed to emit object file {}: {e}", object_path.display()))?;
+
+            let ir_path = if options.emit_ir {
+                let mut ir_path = object_path.to_path_buf();
+                ir_path.set_extension("ll");
+                compiler
+                    .module
+                    .print_to_file(&ir_path)
+                    .map_err(|e| anyhow!("failed to write LLVM IR {}: {e}", ir_path.display()))?;
+                Some(ir_path)
+            } else {
+                None
+            };
+
+            Ok(CodegenArtifact {
+                object_path: object_path.to_path_buf(),
+                ir_path,
+            })
+        }
+
+        let context = Context::create();
+        compile_with_context(&context, program, object_path, options)
     }
 
     fn new(context: &'ctx Context, module_name: &str) -> Self {

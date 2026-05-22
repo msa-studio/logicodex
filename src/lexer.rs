@@ -387,7 +387,7 @@ impl<'a> Lexer<'a> {
     }
 }
 
-fn default_aliases() -> [(&'static str, TokenKind); 57] {
+fn default_aliases() -> [(&'static str, TokenKind); 56] {
     [
         ("MULA", TokenKind::Start),
         ("BEGIN", TokenKind::Start),

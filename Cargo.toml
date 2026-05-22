@@ -14,8 +14,9 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0"
-clap = { version = "4.5", features = ["derive"] }
-inkwell = { version = "0.4", features = ["llvm17-0"] }
+clap = { version = "=4.4.18", features = ["derive"] }
+clap_lex = "=0.6.0"
+inkwell = { version = "0.4.0", features = ["llvm15-0"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
@@ -35,4 +36,6 @@ panic = "unwind"
 language_name = "Logicodex"
 phase = "v1.21-alpha executable grammar and provenance integration"
 source_extension = "ldx"
-llvm_feature = "llvm17-0"
+public_release_label = "v1.21-alpha"
+rust_channel = "1.75.0"
+llvm_feature = "llvm15-0"

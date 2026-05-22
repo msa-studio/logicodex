@@ -1175,19 +1175,19 @@ Logicodex is a native programming language compiler implemented in Rust. Its Pha
 
 ## 2. Environment Setup
 
-Logicodex uses Rust and LLVM. Rust can be installed through `rustup`, the official Rust toolchain installer, and LLVM must be installed with development libraries that match the `inkwell` feature configured in `Cargo.toml`.[1] [2] The supplied `Cargo.toml` selects `inkwell` with the `llvm17-0` feature, so a production build should use LLVM 17 development packages.[3]
+Logicodex uses Rust and LLVM. Rust can be installed through `rustup`, the official Rust toolchain installer, and LLVM must be installed with development libraries that match the `inkwell` feature configured in `Cargo.toml`.[1] [2] The supplied `Cargo.toml` selects `inkwell` with the `llvm15-0` feature, so a production build should use LLVM 15 development packages. The manifest also pins Rust Edition 2021, `clap = 4.4.18`, and `clap_lex = 0.6.0` to preserve Cargo 1.75 resolver compatibility.[3]
 
 | Platform | Required Tools | Example Installation |
 |---|---|---|
-| Ubuntu/Debian Linux | Rust, Cargo, LLVM 17, Clang or GCC linker | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs  sh` then install LLVM 17 packages from your distribution or LLVM APT repository. |
-| Windows | Rust MSVC toolchain, LLVM 17, Visual Studio Build Tools or Clang | Install Rust from `rustup.rs`, install LLVM 17 from the LLVM release installer, and ensure `LLVM_SYS_170_PREFIX` points to the LLVM installation if auto-detection fails. |
-| macOS for development inspection | Rust, LLVM 17, Clang | The Phase 1 runtime targets Linux and Windows; macOS can still inspect tokens, parse, and emit LLVM object code when LLVM is configured. |
+| Ubuntu/Debian Linux | Rust, Cargo, LLVM 15, Clang or GCC linker | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs  sh` then install LLVM 15 packages from your distribution or LLVM APT repository. |
+| Windows | Rust MSVC toolchain, LLVM 15, Visual Studio Build Tools or Clang | Install Rust from `rustup.rs`, install LLVM 15 from the LLVM release installer, and ensure `LLVM_SYS_150_PREFIX` points to the LLVM installation if auto-detection fails. |
+| macOS for development inspection | Rust, LLVM 15, Clang | The Phase 1 runtime targets Linux and Windows; macOS can still inspect tokens, parse, and emit LLVM object code when LLVM is configured. |
 
 For Linux systems using the official LLVM APT packages, the typical setup is similar to the following. Adjust package names if your distribution exposes a different LLVM package series.
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential curl git clang lld llvm-17 llvm-17-dev libpolly-17-dev
+sudo apt-get install -y build-essential curl git clang-15 lld-15 llvm-15 llvm-15-dev llvm-15-tools llvm-15-runtime libclang-15-dev liblld-15-dev
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
 rustup default stable
@@ -1199,7 +1199,7 @@ For Windows PowerShell, a representative setup is as follows.
 winget install Rustlang.Rustup
 winget install LLVM.LLVM
 winget install Microsoft.VisualStudio.2022.BuildTools
-$env:LLVM_SYS_170_PREFIX = "C:\Program Files\LLVM"
+$env:LLVM_SYS_150_PREFIX = "C:\Program Files\LLVM"
 ```
 
 ## 3. Building the Compiler

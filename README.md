@@ -55,6 +55,35 @@ The `--target freestanding` profile is intended for OS-less integration contexts
 
 The active self-defense model defines a fail-stop invariant for executable-code tampering. In hosted environments, hard self-destruction means process termination through native abort behavior. In freestanding environments, it means a target-specific termination primitive such as a CPU Triple Fault, `hlt` halt loop, or hardware watchdog reset. The Phase 1 tree documents this contract; Phase 2/3 work must implement the production verifier and mitigation runtime.
 
+## Stable Rust 1.75 Build Compatibility
+
+The **v1.21-alpha** repository is pinned to Rust Edition 2021 and is intended to resolve and compile under stable Rust **1.75.0 through 1.78.0** without requiring Edition 2024 dependency features. The repository-level `rust-toolchain.toml` pins the canonical validation channel to `1.75.0`; newer stable toolchains in the supported range may be used after confirming that the generated `Cargo.lock` remains compatible with the same dependency floor.
+
+| Component | Compatibility setting | Reason |
+|---|---|---|
+| Rust edition | `edition = "2021"` | Prevents accidental adoption of Edition 2024-only dependency features. |
+| Cargo validation channel | `rust-toolchain.toml` channel `1.75.0` | Establishes the lowest supported stable toolchain for reproducible builds. |
+| CLI dependency | `clap = "=4.4.18"` with `clap_lex = "=0.6.0"` | Prevents Cargo 1.75 from resolving newer clap lines that can pull Edition 2024-only `clap_lex` manifests. |
+| LLVM binding | `inkwell = "0.4.0"` with feature `llvm15-0` | Aligns the backend with LLVM 15 development libraries available through common stable Linux package repositories. |
+
+A clean native build should be performed with LLVM 15 development libraries installed, then Cargo should regenerate `Cargo.lock` from the pinned manifest constraints:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y llvm-15-dev llvm-15-tools llvm-15-runtime clang-15 lld-15 libclang-15-dev liblld-15-dev
+cargo clean
+cargo update
+cargo check
+cargo build --release
+```
+
+If a machine does not provide LLVM 15 development libraries, maintainers should still run the executable-logic validator to confirm that the v1.21-alpha compiler-core implementation, grammar specifications, and release metadata remain synchronized:
+
+```bash
+python3 scripts/validate_v121_executable_logic.py
+python3 scripts/validate_v121_alpha_deployment.py
+```
+
 ## Governance and Licensing
 
 Logicodex is distributed under permissive dual licensing through **MIT License** and **Apache License 2.0**. The name **Logicodex**, **Logicodex Language**, and official branding assets remain protected project identifiers to preserve ecosystem clarity and avoid misleading forks.

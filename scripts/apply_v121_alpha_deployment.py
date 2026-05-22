@@ -224,6 +224,23 @@ def update_roadmap() -> None:
     write("ROADMAP.md", text)
 
 
+def update_cargo_compatibility() -> None:
+    """Preserve the stable Rust 1.75 / Edition 2021 dependency floor on rerun."""
+    cargo = read("Cargo.toml")
+    cargo = re.sub(r'edition = "[^"]+"', 'edition = "2021"', cargo, count=1)
+    cargo = re.sub(r'clap = \{ version = "[^"]+", features = \["derive"\] \}', 'clap = { version = "=4.4.18", features = ["derive"] }', cargo)
+    if 'clap_lex = "=0.6.0"' not in cargo:
+        cargo = cargo.replace('clap = { version = "=4.4.18", features = ["derive"] }\n', 'clap = { version = "=4.4.18", features = ["derive"] }\nclap_lex = "=0.6.0"\n')
+    cargo = re.sub(r'inkwell = \{ version = "[^"]+", features = \["llvm[0-9]+-0"\] \}', 'inkwell = { version = "0.4.0", features = ["llvm15-0"] }', cargo)
+    if 'public_release_label = "v1.21-alpha"' not in cargo:
+        cargo = cargo.replace('source_extension = "ldx"\n', 'source_extension = "ldx"\npublic_release_label = "v1.21-alpha"\n')
+    if 'rust_channel = "1.75.0"' not in cargo:
+        cargo = cargo.replace('public_release_label = "v1.21-alpha"\n', 'public_release_label = "v1.21-alpha"\nrust_channel = "1.75.0"\n')
+    cargo = re.sub(r'llvm_feature = "[^"]+"', 'llvm_feature = "llvm15-0"', cargo)
+    write("Cargo.toml", cargo)
+    write("rust-toolchain.toml", '[toolchain]\nchannel = "1.75.0"\n')
+
+
 def update_release_script() -> None:
     rel = "scripts/update_release_archives.sh"
     text = replace_versions(read(rel))
@@ -243,6 +260,7 @@ def main() -> None:
 
     for rel in ["Cargo.toml", "NOTICE", "MANUAL.md"]:
         update_text_file(rel)
+    update_cargo_compatibility()
     update_readme()
     update_white_paper()
     update_roadmap()
