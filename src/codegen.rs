@@ -180,6 +180,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     fn emit_stmt(&mut self, stmt: &Stmt) -> Result<()> {
         match stmt {
             Stmt::Use { .. } => Ok(()),
+            Stmt::HardwareZone { body } => self.emit_block(body),
             Stmt::HardwareDecl { name, address, .. } => {
                 let current_fn = self.current_function()?;
                 let alloca = self.create_entry_alloca(current_fn, name);

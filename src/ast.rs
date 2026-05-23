@@ -28,6 +28,9 @@ pub enum Stmt {
         ty: Type,
         address: Expr,
     },
+    HardwareZone {
+        body: Vec<Stmt>,
+    },
     Function {
         name: String,
         params: Vec<Param>,

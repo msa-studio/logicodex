@@ -68,6 +68,9 @@ impl Parser {
         if self.matches(TokenKind::Hardware) {
             return self.hardware_declaration();
         }
+        if self.matches(TokenKind::HwZone) {
+            return self.hardware_zone_block();
+        }
         if self.matches(TokenKind::Fn) {
             return self.function_definition();
         }
@@ -81,6 +84,11 @@ impl Parser {
             .clone();
         self.consume(TokenKind::Semicolon, "; after use declaration")?;
         Ok(Stmt::Use { module })
+    }
+
+    fn hardware_zone_block(&mut self) -> Result<Stmt, ParseError> {
+        let body = self.block()?;
+        Ok(Stmt::HardwareZone { body })
     }
 
     fn hardware_declaration(&mut self) -> Result<Stmt, ParseError> {

@@ -1,10 +1,3 @@
-// =========================================================================
-// Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
-// Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
-// Copyright (c) 2026. All Rights Reserved.
-// Licensed under permissive dual-license: MIT & Apache License 2.0
-// =========================================================================
 {
   "version": "1.21-alpha",
   "language": "Logicodex",
@@ -326,6 +319,14 @@
         "KAWASAN_PERKAKAS"
       ],
       "description": "Vocabulary marker for hardware or freestanding-region declarations."
+    },
+    {
+      "identity": "HW_ZONE",
+      "lexemes": [
+        "ZON_PERKAKASAN",
+        "hw_unsafe",
+        "HW_ZONE"
+      ]
     },
     {
       "identity": "ADDR",

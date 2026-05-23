@@ -68,6 +68,8 @@ pub enum SemanticError {
     InvalidPointerInitializer { name: String },
     #[error("bare address literal is rejected under {policy:?} target policy; declare a hardware region first")]
     BareAddressRejected { policy: SeverityPolicy },
+    #[error("KRITIKAL: General Error Tahap 1 - Percubaan Mutasi Perkakasan Tanpa Kebenaran Skop Zon Selamat.")]
+    HardwareMutationOutsideZone,
     #[error("return statement is outside a function")]
     ReturnOutsideFunction,
     #[error("function `{name}` returns {expected} but returned expression has type {actual}")]
@@ -85,6 +87,7 @@ pub struct Analyzer {
     hardware_addresses: HashSet<i64>,
     functions: HashMap<String, (Vec<Type>, Option<Type>)>,
     current_function: Option<(String, Option<Type>)>,
+    hw_zone_depth: u32,
     policy: SeverityPolicy,
 }
 
@@ -136,6 +139,12 @@ impl Analyzer {
     fn statement(&mut self, stmt: &Stmt) -> Result<(), SemanticError> {
         match stmt {
             Stmt::Use { .. } => Ok(()),
+            Stmt::HardwareZone { body } => {
+                self.hw_zone_depth += 1;
+                let result = self.scoped_block(body);
+                self.hw_zone_depth -= 1;
+                result
+            }
             Stmt::HardwareDecl { name, ty, address } => {
                 if self.hardware_regions.contains_key(name) {
                     return Err(SemanticError::DuplicateHardwareRegion(name.clone()));
@@ -231,6 +240,9 @@ impl Analyzer {
         value: &Expr,
     ) -> Result<(), SemanticError> {
         if declared.is_pointer() {
+            if matches!(value, Expr::AddressOfLiteral(_)) && self.hw_zone_depth == 0 {
+                return Err(SemanticError::HardwareMutationOutsideZone);
+            }
             match value {
                 Expr::AddressOfLiteral(addr)
                     if self.hardware_addresses.contains(addr)
@@ -272,6 +284,9 @@ impl Analyzer {
             Expr::StringLiteral(_) => Ok(Type::String),
             Expr::Variable(name) => self.resolve(name),
             Expr::AddressOfLiteral(addr) => {
+                if self.hw_zone_depth == 0 {
+                    return Err(SemanticError::HardwareMutationOutsideZone);
+                }
                 if self.policy != SeverityPolicy::Desktop && !self.hardware_addresses.contains(addr)
                 {
                     return Err(SemanticError::MissingProvenance(*addr));

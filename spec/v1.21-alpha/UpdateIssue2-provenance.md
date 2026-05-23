@@ -25,3 +25,11 @@ The severity model is a roadmap for classifying responses, not a blanket claim o
 ## 3. Documentation Rule
 
 Future documentation should distinguish **implemented compiler behavior**, **prototype behavior**, and **long-term objectives**. Stronger terms about verification, overhead, forced termination, or hardware readiness should be used only when the repository contains corresponding source implementation, tests, and build instructions.
+
+## Generic Hardware I/O Capability Gating
+
+Logicodex v1.21-alpha now treats raw hardware-address manipulation as a capability that must be made explicit in source code. The Pemula form `ZON_PERKAKASAN { ... }` and the Expert form `hw_unsafe { ... }` create a lexical hardware I/O zone. Within this zone, the existing address-literal and hardware-region provenance checks may be evaluated for pointer bindings and hardware declarations. Outside this zone, a raw address literal used as a pointer value is rejected during semantic analysis with the Level 1 critical diagnostic:
+
+> KRITIKAL: General Error Tahap 1 - Percubaan Mutasi Perkakasan Tanpa Kebenaran Skop Zon Selamat.
+
+This is a practical baseline gate, not a complete hardware-memory model. Volatile LLVM lowering, dynamic device manifests, register-width validation, and hardware mutex coordination remain deferred roadmap work.

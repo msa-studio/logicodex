@@ -17,7 +17,7 @@ The first priority is to keep the current compiler pipeline reproducible. This m
 | Issue | Status | Owner | Practical acceptance signal |
 |---|---|---|---|
 | Issue #01 — Grammar baseline | Completed for v1.21-alpha baseline | Mohamad Supardi Abdul | The grammar document matches lexer/parser behavior for the currently implemented language subset. |
-| Issue #02 — UB and provenance design note | Completed as specification baseline | Mohamad Supardi Abdul | The document clearly identifies intended safety boundaries without claiming all long-term runtime behavior is already implemented. |
+| Issue #02 — UB and provenance design note | Baseline hardware-zone gate implemented and logically verified | Mohamad Supardi Abdul | The specification now records `ZON_PERKAKASAN` / `hw_unsafe` lexical gating, and the semantic analyzer rejects raw address pointer bindings outside that safe zone while leaving deeper hardware I/O work for later milestones. |
 | Issue #03 — Native example suite | Open | TBD | A small set of `.ldx` programs compiles through the documented pipeline and has expected-output checks. |
 | Issue #04 — CI-oriented validation | Open | TBD | `cargo check`, release build, and validation scripts can be run from a clean checkout with documented dependencies. |
 

@@ -47,6 +47,7 @@ IfToken          ::= "JIKA" | "if"
 ThenToken        ::= "MAKA" | "then"
 ElseToken        ::= "JIKALAU_TIDAK" | "else"
 HardwareToken    ::= "KAWASAN_PERKAKAS" | "hw"
+HardwareZoneToken::= "ZON_PERKAKASAN" | "hw_unsafe"
 AddressToken     ::= "ALAMAT" | "addr"
 ReturnToken      ::= "PULANG" | "return"
 AssignOp         ::= "="
@@ -60,8 +61,9 @@ EndBlock   ::= TokenKind::EndBlock
 
 ## Layer 3 — Syntactic Grammar Layer (Current AST Contract)
 Program          ::= ( GlobalDeclaration | FunctionDef )*
-GlobalDeclaration::= HardwareDecl | UseDecl
+GlobalDeclaration::= HardwareDecl | UseDecl | HardwareZone
 HardwareDecl     ::= HardwareToken Identifier ":" Type "=" AddressToken LiteralInt ";"
+HardwareZone     ::= HardwareZoneToken Block
 UseDecl          ::= "use" Identifier ";"
 FunctionDef      ::= "fn" Identifier "(" ParamList? ")" ("->" Type)? Block
 Block            ::= BeginBlockToken Statement* EndBlockToken
@@ -92,6 +94,9 @@ If a runtime error escapes static compilation analysis or triggers during future
 - **TIER 1: CRITICAL:** Intended for executable-integrity failure or unsafe hardware-region access in explicitly selected freestanding contexts. This remains a long-term fail-stop objective requiring target-specific implementation, review, and tests.
 - **TIER 2: MEDIUM:** Intended for dynamic division by zero, runtime resource depletion, or isolated execution failure. The practical first step is normal process or function failure paths with clear diagnostics.
 - **TIER 3: LOW:** Intended for warnings such as safe integer truncation, benign wrap-around, or deprecated library use. Prefer diagnostics and metadata unless measured runtime behavior is explicitly implemented.
+
+## 3. Generic Hardware I/O Capability Gating
+Raw hardware-address manipulation must be explicitly scoped through `ZON_PERKAKASAN { ... }` or `hw_unsafe { ... }`. Outside this lexical zone, semantic analysis rejects raw address pointer bindings with the Level 1 diagnostic: `KRITIKAL: General Error Tahap 1 - Percubaan Mutasi Perkakasan Tanpa Kebenaran Skop Zon Selamat.` This remains a practical baseline gate; volatile lowering, dynamic device manifests, and hardware mutex coordination remain deferred roadmap work.
 '''
 
 REPOS_CONTEXT = '''# Logicodex Repository Context Document
@@ -207,7 +212,7 @@ def update_roadmap() -> None:
     text = replace_versions(read("ROADMAP.md"))
     text = text.replace(
         "This roadmap tracks the open issues and architectural milestones established to transition **Logicodex** from a research/compiler initiative into a more complete, evidence-backed ecosystem, directly responding to the **V1.21-alpha technical evaluation**. For Phase 2 Deployment Integration, it also records the completion status of Issue #01 and links the formal EBNF grammar artifact checked into the repository.",
-        "This roadmap tracks the open issues and architectural milestones established to transition **Logicodex** from a research/compiler initiative into a more complete, evidence-backed ecosystem under the **V1.21-alpha Phase 2 Deployment Integration** milestone. It records the completion status of Issue #01 and Issue #02, linking the formal EBNF grammar artifact, the Undefined Behavior and Pointer Provenance specification, and the practical severity model checked into the repository.",
+        "This roadmap tracks the open issues and architectural milestones established to transition **Logicodex** from a research/compiler initiative into a more complete, evidence-backed ecosystem under the **V1.21-alpha Phase 2 Deployment Integration** milestone. It records Issue #01 as complete and Issue #02 as an incremental provenance and hardware-zone implementation track, linking the formal EBNF grammar artifact, the Undefined Behavior and Pointer Provenance specification, and the practical severity model checked into the repository.",
     )
     text = text.replace(
         "- [X] **Issue #01 — Formal EBNF Grammar Definition (COMPLETED / SOLVED):** Document the exact grammar rules for both **Novice Pseudocode** and **Expert Shorthand** to eliminate parsing ambiguity.",
@@ -215,10 +220,10 @@ def update_roadmap() -> None:
     )
     text = text.replace(
         "- [ ] **Issue #02 — Undefined Behavior Catalog & Pointer Provenance:** Define explicit rules governing raw pointer operations, physical memory-mapped boundaries, hosted-memory isolation, and freestanding memory-access constraints.",
-        "- [X] **Issue #02 — Undefined Behavior Catalog & Pointer Provenance (COMPLETED / SOLVED):** Define explicit rules governing raw pointer operations, physical memory-mapped boundaries, hosted-memory isolation, freestanding memory-access constraints, and practical severity classification tiers.",
+        "- [~] **Issue #02 — Undefined Behavior Catalog & Pointer Provenance (IN PROGRESS):** Define explicit rules governing raw pointer operations, physical memory-mapped boundaries, hosted-memory isolation, freestanding memory-access constraints, hardware-zone lexical gates, and practical severity classification tiers.",
     )
     issue1_row = "| Issue #01 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul | 1. Formal 4-Layer grammar checked in as a living document inside `spec/v1.21-alpha/UpdateIssue1-ebnf.md`.<br>2. Recursive-descent compiler entry pipeline verified to ingest token maps collision-free.<br>3. Concrete freestanding token productions (`hw` and `addr`) structurally declared to enable upcoming security capability gates. |"
-    issue2_row = "| Issue #02 | [X] COMPLETED / SOLVED | Mohamad Supardi Abdul | Layered error modeling (C/C++/Rust) integrated into specification. practical severity model (Critical/Medium/Low) structurally hardcoded to enable direct LLVM IR compilation blocks without execution speed penalties. |"
+    issue2_row = "| Issue #02 | [~] IN PROGRESS - generic hardware scope gate implemented | Mohamad Supardi Abdul | Layered error modeling and practical severity tiers are documented, and raw hardware address pointer bindings are now gated behind `ZON_PERKAKASAN` / `hw_unsafe` lexical zones. Volatile lowering, device manifests, and hardware mutex coordination remain deferred implementation work. |"
     text = re.sub(r"\| Issue #01 \|.*?\|", issue1_row, text)
     text = re.sub(r"\| Issue #02 \|.*?\|", issue2_row, text)
     write("ROADMAP.md", text)
