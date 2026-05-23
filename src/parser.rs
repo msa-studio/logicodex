@@ -43,11 +43,11 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Program, ParseError> {
-        self.consume_optional_semicolons();
+        self.consume_layout_separators();
         let wrapped = self.matches(TokenKind::Start);
         let mut statements = Vec::new();
         while !self.is_at_end() && !self.check(TokenKind::End) {
-            self.consume_optional_semicolons();
+            self.consume_layout_separators();
             if self.check(TokenKind::End) || self.is_at_end() {
                 break;
             }
@@ -56,7 +56,7 @@ impl Parser {
         if wrapped {
             self.consume(TokenKind::End, "program terminator TAMAT or }")?;
         }
-        self.consume_optional_semicolons();
+        self.consume_trailing_layout();
         self.consume(TokenKind::Eof, "end of file")?;
         Ok(Program::new(statements))
     }
@@ -147,23 +147,26 @@ impl Parser {
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
         let stmt = if self.matches(TokenKind::Let) {
-            self.let_statement()?
+            let beginner = Self::is_beginner_statement_keyword(&self.previous().lexeme);
+            self.let_statement(beginner)?
         } else if self.matches(TokenKind::Print) {
-            self.print_statement()?
+            let beginner = Self::is_beginner_statement_keyword(&self.previous().lexeme);
+            self.print_statement(beginner)?
         } else if self.matches(TokenKind::Return) {
-            self.return_statement()?
+            let beginner = Self::is_beginner_statement_keyword(&self.previous().lexeme);
+            self.return_statement(beginner)?
         } else if self.matches(TokenKind::If) {
             self.if_statement()?
         } else {
             let value = self.expression()?;
-            self.consume(TokenKind::Semicolon, "; after expression")?;
+            self.consume_statement_terminator("; after expression", false)?;
             Stmt::ExprStmt { value }
         };
-        self.consume_optional_semicolons();
+        self.consume_layout_separators();
         Ok(stmt)
     }
 
-    fn let_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn let_statement(&mut self, beginner: bool) -> Result<Stmt, ParseError> {
         let name = self
             .consume(TokenKind::Identifier, "variable name")?
             .lexeme
@@ -175,7 +178,7 @@ impl Parser {
         };
         self.consume(TokenKind::Assign, "=")?;
         let value = self.expression()?;
-        self.consume(TokenKind::Semicolon, "; after let statement")?;
+        self.consume_statement_terminator("; after let statement", beginner)?;
         Ok(Stmt::Let {
             name,
             declared_type,
@@ -183,23 +186,26 @@ impl Parser {
         })
     }
 
-    fn print_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn print_statement(&mut self, beginner: bool) -> Result<Stmt, ParseError> {
         let value = self.expression()?;
-        self.consume(TokenKind::Semicolon, "; after print statement")?;
+        self.consume_statement_terminator("; after print statement", beginner)?;
         Ok(Stmt::Print { value })
     }
 
-    fn return_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn return_statement(&mut self, beginner: bool) -> Result<Stmt, ParseError> {
         let value = self.expression()?;
-        self.consume(TokenKind::Semicolon, "; after return statement")?;
+        self.consume_statement_terminator("; after return statement", beginner)?;
         Ok(Stmt::Return { value })
     }
 
     fn if_statement(&mut self) -> Result<Stmt, ParseError> {
         let condition = self.expression()?;
         self.matches(TokenKind::Then);
+        self.consume_newlines();
         let then_branch = self.block()?;
+        self.consume_newlines();
         let else_branch = if self.matches(TokenKind::Else) {
+            self.consume_newlines();
             self.block()?
         } else {
             Vec::new()
@@ -213,9 +219,10 @@ impl Parser {
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
         self.consume(TokenKind::Start, "block start MULA or {")?;
+        self.consume_layout_separators();
         let mut statements = Vec::new();
         while !self.is_at_end() && !self.check(TokenKind::End) {
-            self.consume_optional_semicolons();
+            self.consume_layout_separators();
             if self.check(TokenKind::End) || self.is_at_end() {
                 break;
             }
@@ -395,8 +402,54 @@ impl Parser {
             })
     }
 
+    fn consume_layout_separators(&mut self) {
+        loop {
+            let before = self.current;
+            self.consume_optional_semicolons();
+            while self.matches(TokenKind::Newline) {}
+            if self.current == before {
+                break;
+            }
+        }
+    }
+
     fn consume_optional_semicolons(&mut self) {
         while self.matches(TokenKind::Semicolon) {}
+    }
+
+    fn consume_newlines(&mut self) {
+        while self.matches(TokenKind::Newline) {}
+    }
+
+    fn consume_trailing_layout(&mut self) {
+        self.consume_layout_separators();
+    }
+
+    fn consume_statement_terminator(
+        &mut self,
+        expected: &str,
+        allow_newline: bool,
+    ) -> Result<(), ParseError> {
+        if self.matches(TokenKind::Semicolon) {
+            self.consume_layout_separators();
+            return Ok(());
+        }
+        if allow_newline
+            && (self.matches(TokenKind::Newline)
+                || self.check(TokenKind::End)
+                || self.check(TokenKind::Else)
+                || self.check(TokenKind::Eof))
+        {
+            self.consume_layout_separators();
+            return Ok(());
+        }
+        self.consume(TokenKind::Semicolon, expected)?;
+        self.consume_layout_separators();
+        Ok(())
+    }
+
+    fn is_beginner_statement_keyword(lexeme: &str) -> bool {
+        matches!(lexeme, "BINA" | "CREATE" | "PAPAR" | "PULANG")
     }
 
     fn matches(&mut self, kind: TokenKind) -> bool {
@@ -422,7 +475,7 @@ impl Parser {
     }
 
     fn check(&self, kind: TokenKind) -> bool {
-        !self.is_at_end() && self.peek().kind == kind
+        self.peek().kind == kind
     }
     fn advance(&mut self) -> &Token {
         if !self.is_at_end() {
@@ -438,5 +491,42 @@ impl Parser {
     }
     fn previous(&self) -> &Token {
         &self.tokens[self.current - 1]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Parser;
+    use crate::lexer::{Lexer, Lexicon};
+    use std::path::Path;
+
+    fn parse_source(source: &str) -> Result<(), String> {
+        let lexicon =
+            Lexicon::from_path(Path::new("dict/core_map.json")).map_err(|e| e.to_string())?;
+        let tokens = Lexer::new(source, &lexicon)
+            .tokenize()
+            .map_err(|e| e.to_string())?;
+        Parser::new(tokens)
+            .parse()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
+    #[test]
+    fn accepts_beginner_newline_separators_and_trailing_eof_layout() {
+        let source = "MULA\nBINA x = 1\nPAPAR x\nTAMAT\n\n\t  \r\n";
+        assert!(parse_source(source).is_ok(), "{:?}", parse_source(source));
+    }
+
+    #[test]
+    fn accepts_if_then_block_start_on_following_line() {
+        let source = "MULA\nBINA x = 1\nJIKA x > 0 MAKA\nMULA\nPAPAR x\nTAMAT\nMELAINKAN\nMULA\nPAPAR 0\nTAMAT\nTAMAT\n";
+        assert!(parse_source(source).is_ok(), "{:?}", parse_source(source));
+    }
+
+    #[test]
+    fn keeps_expert_let_semicolon_mandatory() {
+        let source = "{\nlet x = 1\n}\n";
+        assert!(parse_source(source).is_err());
     }
 }

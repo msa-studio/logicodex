@@ -66,6 +66,7 @@ pub enum TokenKind {
     StringLiteral,
     Identifier,
     Integer,
+    Newline,
     Eof,
 }
 
@@ -275,11 +276,26 @@ impl<'a> Lexer<'a> {
         while !self.is_at_end() {
             let ch = self.peek();
             match ch {
-                ' ' | '\r' | '\t' => {
+                ' ' | '\t' => {
                     self.advance();
                 }
+                '\r' => {
+                    let line = self.line;
+                    let column = self.column;
+                    self.advance();
+                    if !self.is_at_end() && self.peek() == '\n' {
+                        self.advance_line();
+                    } else {
+                        self.line += 1;
+                        self.column = 1;
+                    }
+                    tokens.push(Token::new(TokenKind::Newline, "\n", line, column));
+                }
                 '\n' => {
+                    let line = self.line;
+                    let column = self.column;
                     self.advance_line();
+                    tokens.push(Token::new(TokenKind::Newline, "\n", line, column));
                 }
                 '#' => {
                     self.skip_comment();
