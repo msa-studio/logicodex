@@ -86,6 +86,17 @@ python3 scripts/validate_v121_executable_logic.py
 python3 scripts/validate_v121_alpha_deployment.py
 ```
 
+## Documentation Map
+
+The current documentation set now separates language grammar, environment setup, and roadmap boundaries so maintainers can validate each concern independently.
+
+| Document | Purpose |
+|---|---|
+| `GrammarandDictionary.md` | Explains the current grammar surface, token dictionary, canonical expert mode, Malay aliases, pseudocode aliases, semicolon policy, hardware-zone boundary policy, and executable examples generated from `dict/core_map.json`. |
+| `ENVIRONMENT_SETUP.md` | Records the confirmed WSL2/Linux baseline for building and validating **current logicodex v 1.21 alpha** with LLVM 15-oriented dependencies. |
+| `MANUAL.md` | Provides concise compiler usage, build commands, and frontend architecture notes. |
+| `v121_execution_design.md` | Captures the executable-logic and provenance design track for the v1.21-alpha milestone. |
+
 ## Practical Roadmap Summary
 
 The next useful work is not to expand claims, but to improve proof. The project should prioritize a small set of native examples, reliable build instructions, stable diagnostics, and repeatable validation scripts. After that foundation is stable, the roadmap can safely move into WebAssembly, migration tooling, runtime attestation, and freestanding hardware experiments.

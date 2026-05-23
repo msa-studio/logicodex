@@ -39,21 +39,22 @@ Logicodex is a native programming language compiler implemented in Rust. The Pha
 | Dependency | Purpose |
 |---|---|
 | Rust and Cargo | Build the compiler executable. |
-| LLVM 17 development libraries | Required by the configured `inkwell` backend feature. |
+| LLVM 15 development libraries | Required by the configured `inkwell = 0.4.0` backend feature `llvm15-0`. |
 | C-compatible linker | Links generated object files and the platform runtime bridge. |
 
 ## Build and Use
 
 ```bash
 cd logicodex
-cargo build --release
-./target/release/logicodex logo
-./target/release/logicodex tokens examples/01_tambah_pemula.ldx
-./target/release/logicodex check examples/01_tambah_pemula.ldx
-./target/release/logicodex compile examples/01_tambah_pemula.ldx --emit-ir -o ./tambah_pemula
+python3 scripts/validate_v121_executable_logic.py
+cargo test --target x86_64-unknown-linux-gnu
+RUSTFLAGS='-D warnings' cargo build --target x86_64-unknown-linux-gnu
+./target/x86_64-unknown-linux-gnu/debug/logicodex logo
+./target/x86_64-unknown-linux-gnu/debug/logicodex tokens examples/01_tambah_pemula.ldx
+./target/x86_64-unknown-linux-gnu/debug/logicodex check examples/01_tambah_pemula.ldx
 ```
 
-Set `LOGICODEX_LINKER` to override the linker used by the compiler.
+Set `LOGICODEX_LINKER` to override the linker used by the compiler. For machine setup details, use `ENVIRONMENT_SETUP.md`; for grammar, dictionary, aliases, and executable examples, use `GrammarandDictionary.md`.
 
 ## Runtime Bridge
 
