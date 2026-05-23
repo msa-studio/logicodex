@@ -1,0 +1,25 @@
+MULA
+BINA seed: I64 = 21;
+BINA scale: I64 = 2;
+BINA limit: I64 = 50;
+BINA total: I64 = seed * scale;
+PAPAR total;
+FUNGSI clamp(value: I64, max: I64) -> I64 MULA
+JIKA value > max MAKA
+MULA
+PULANG max;
+TAMAT
+MELAINKAN
+MULA
+PULANG value;
+TAMAT
+TAMAT
+JIKA total >= limit MAKA
+MULA
+PAPAR limit;
+TAMAT
+MELAINKAN
+MULA
+PAPAR total;
+TAMAT
+TAMAT

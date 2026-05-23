@@ -1,0 +1,394 @@
+{
+  "schema_version": "2",
+  "version": "1.21-alpha",
+  "language": "Logicodex",
+  "description": "Schema v2 dictionary: expert mode is the compiler reference surface, primary_ms is the first official Malay human alias, and aliases are pseudocode or compatibility spellings.",
+  "policy": {
+    "reference_mode": "expert",
+    "primary_human_language": "ms",
+    "alias_order_rule": "expert_then_primary_ms_then_aliases",
+    "beginner_statement_policy": "BINA, PAPAR, and PULANG may be newline-terminated outside critical syntax; expert and critical syntax remain semicolon-terminated.",
+    "critical_boundary_policy": "Memory, raw address, pointer, and hardware I/O syntax require explicit block and statement boundaries."
+  },
+  "tokens": {
+    "START": {
+      "expert": "{",
+      "primary_ms": "MULA",
+      "aliases": [
+        "START",
+        "BEGIN"
+      ],
+      "description": "Begin a program or block."
+    },
+    "END": {
+      "expert": "}",
+      "primary_ms": "TAMAT",
+      "aliases": [
+        "END"
+      ],
+      "description": "End a program or block."
+    },
+    "LET": {
+      "expert": "let",
+      "primary_ms": "BINA",
+      "aliases": [
+        "CREATE"
+      ],
+      "description": "Create an immutable typed or inferred binding.",
+      "beginner_line_terminated": true
+    },
+    "MUT": {
+      "expert": "mut",
+      "primary_ms": "MUTASI",
+      "aliases": [
+        "MUTABLE"
+      ],
+      "description": "Vocabulary marker for future mutable binding support."
+    },
+    "IF": {
+      "expert": "if",
+      "primary_ms": "JIKA",
+      "aliases": [
+        "IF"
+      ],
+      "description": "Begin a conditional branch."
+    },
+    "THEN": {
+      "expert": "then",
+      "primary_ms": "MAKA",
+      "aliases": [
+        "THEN"
+      ],
+      "description": "Separate a novice condition from its branch body."
+    },
+    "ELSE": {
+      "expert": "else",
+      "primary_ms": "MELAINKAN",
+      "aliases": [
+        "ELSE",
+        "JIKALAU_TIDAK"
+      ],
+      "description": "Begin an alternative branch."
+    },
+    "WHILE": {
+      "expert": "while",
+      "primary_ms": "SELAGI",
+      "aliases": [
+        "WHILE"
+      ],
+      "description": "Vocabulary marker for future while-loop parsing support."
+    },
+    "LOOP_BREAK": {
+      "expert": "break",
+      "primary_ms": "HENTI",
+      "aliases": [
+        "BREAK"
+      ],
+      "description": "Vocabulary marker for future loop-break control flow."
+    },
+    "LOOP_CONTINUE": {
+      "expert": "continue",
+      "primary_ms": "TERUS",
+      "aliases": [
+        "CONTINUE"
+      ],
+      "description": "Vocabulary marker for future loop-continue control flow."
+    },
+    "PRINT": {
+      "expert": "print",
+      "primary_ms": "PAPAR",
+      "aliases": [
+        "PRINT"
+      ],
+      "description": "Print an integer, boolean, string length, or address-shaped value.",
+      "beginner_line_terminated": true
+    },
+    "HW": {
+      "expert": "hw",
+      "primary_ms": "PERKAKASAN",
+      "aliases": [
+        "HARDWARE",
+        "KAWASAN_PERKAKAS"
+      ],
+      "description": "Vocabulary marker for hardware or freestanding-region declarations.",
+      "critical_policy": {
+        "requires_explicit_terminator": true
+      }
+    },
+    "HW_ZONE": {
+      "expert": "hw_unsafe",
+      "primary_ms": "ZON_PERKAKASAN",
+      "aliases": [
+        "HW_ZONE"
+      ],
+      "description": "Open a lexical hardware I/O zone where raw address provenance is explicitly permitted.",
+      "critical_policy": {
+        "requires_explicit_block": true,
+        "requires_explicit_terminator_inside": true
+      }
+    },
+    "ADDR": {
+      "expert": "addr",
+      "primary_ms": "ALAMAT",
+      "aliases": [
+        "ADDRESS"
+      ],
+      "description": "Address literal or address-shaped value marker.",
+      "critical_policy": {
+        "requires_explicit_terminator": true
+      }
+    },
+    "USE": {
+      "expert": "use",
+      "primary_ms": "GUNA",
+      "aliases": [
+        "USE"
+      ],
+      "description": "Import a standard or platform module contract."
+    },
+    "FN": {
+      "expert": "fn",
+      "primary_ms": "FUNGSI",
+      "aliases": [
+        "FUNCTION"
+      ],
+      "description": "Begin a function definition."
+    },
+    "RETURN": {
+      "expert": "return",
+      "primary_ms": "PULANG",
+      "aliases": [
+        "RETURN"
+      ],
+      "description": "Return a value from a function body.",
+      "beginner_line_terminated": true
+    },
+    "FFI": {
+      "expert": "ffi",
+      "primary_ms": "PAUTAN",
+      "aliases": [
+        "FOREIGN_INTERFACE"
+      ],
+      "description": "Vocabulary marker for future foreign-function interface declarations."
+    },
+    "C_INTEROP": {
+      "expert": "c",
+      "primary_ms": "C_LUAR",
+      "aliases": [
+        "C_LEGACY"
+      ],
+      "description": "Vocabulary marker for future C ABI interop declarations."
+    },
+    "RESOURCE": {
+      "expert": "resource",
+      "primary_ms": "SUMBER",
+      "aliases": [
+        "RESOURCE"
+      ],
+      "description": "Vocabulary marker for future resource-scope declarations."
+    },
+    "DROP": {
+      "expert": "drop",
+      "primary_ms": "LEPAS",
+      "aliases": [
+        "DROP"
+      ],
+      "description": "Vocabulary marker for future explicit resource-release operations."
+    },
+    "TRUE": {
+      "expert": "true",
+      "primary_ms": "BENAR",
+      "aliases": [
+        "TRUE"
+      ],
+      "description": "Boolean true literal."
+    },
+    "FALSE": {
+      "expert": "false",
+      "primary_ms": "SALAH",
+      "aliases": [
+        "PALSU",
+        "FALSE"
+      ],
+      "description": "Boolean false literal."
+    },
+    "I32": {
+      "expert": "i32",
+      "primary_ms": "I32",
+      "aliases": [
+        "INT32"
+      ],
+      "description": "Signed 32-bit integer type."
+    },
+    "I64": {
+      "expert": "I64",
+      "primary_ms": "I64",
+      "aliases": [],
+      "description": "Signed 64-bit integer type."
+    },
+    "U16": {
+      "expert": "U16",
+      "primary_ms": "U16",
+      "aliases": [],
+      "description": "Unsigned 16-bit integer type."
+    },
+    "U32": {
+      "expert": "u32",
+      "primary_ms": "U32",
+      "aliases": [
+        "UINT32"
+      ],
+      "description": "Unsigned 32-bit integer type."
+    },
+    "STR": {
+      "expert": "str",
+      "primary_ms": "TEKS",
+      "aliases": [
+        "STRING"
+      ],
+      "description": "String type marker for future typed string declarations."
+    },
+    "F64": {
+      "expert": "F64",
+      "primary_ms": "F64",
+      "aliases": [],
+      "description": "64-bit floating-point type marker."
+    },
+    "BOOL": {
+      "expert": "Bool",
+      "primary_ms": "BOOL",
+      "aliases": [],
+      "description": "Boolean type marker."
+    },
+    "PTR": {
+      "expert": "ptr",
+      "primary_ms": "PTR",
+      "aliases": [],
+      "description": "Pointer type constructor.",
+      "critical_policy": {
+        "requires_explicit_terminator": true
+      }
+    },
+    "ASSIGN": {
+      "expert": "=",
+      "primary_ms": "=",
+      "aliases": [],
+      "description": "Assignment delimiter in a binding or declaration."
+    },
+    "PLUS": {
+      "expert": "+",
+      "primary_ms": "+",
+      "aliases": [],
+      "description": "Numeric addition operator."
+    },
+    "MINUS": {
+      "expert": "-",
+      "primary_ms": "-",
+      "aliases": [],
+      "description": "Numeric subtraction operator."
+    },
+    "STAR": {
+      "expert": "*",
+      "primary_ms": "*",
+      "aliases": [],
+      "description": "Numeric multiplication operator."
+    },
+    "SLASH": {
+      "expert": "/",
+      "primary_ms": "/",
+      "aliases": [],
+      "description": "Numeric division operator; constant zero is rejected statically."
+    },
+    "BIT_AND": {
+      "expert": "&",
+      "primary_ms": "DAN_BIT",
+      "aliases": [
+        "BIT_AND"
+      ],
+      "description": "Bitwise AND vocabulary marker.",
+      "critical_policy": {
+        "requires_explicit_terminator": true
+      }
+    },
+    "BIT_OR": {
+      "expert": "|",
+      "primary_ms": "ATAU_BIT",
+      "aliases": [
+        "BIT_OR"
+      ],
+      "description": "Bitwise OR vocabulary marker."
+    },
+    "GREATER": {
+      "expert": ">",
+      "primary_ms": ">",
+      "aliases": [],
+      "description": "Greater-than comparison."
+    },
+    "GREATER_EQUAL": {
+      "expert": ">=",
+      "primary_ms": ">=",
+      "aliases": [],
+      "description": "Greater-than-or-equal comparison."
+    },
+    "LESS": {
+      "expert": "<",
+      "primary_ms": "<",
+      "aliases": [],
+      "description": "Less-than comparison."
+    },
+    "LESS_EQUAL": {
+      "expert": "<=",
+      "primary_ms": "<=",
+      "aliases": [],
+      "description": "Less-than-or-equal comparison."
+    },
+    "EQUAL_EQUAL": {
+      "expert": "==",
+      "primary_ms": "==",
+      "aliases": [],
+      "description": "Equality comparison."
+    },
+    "BANG_EQUAL": {
+      "expert": "!=",
+      "primary_ms": "!=",
+      "aliases": [],
+      "description": "Inequality comparison."
+    },
+    "LEFT_PAREN": {
+      "expert": "(",
+      "primary_ms": "(",
+      "aliases": [],
+      "description": "Open grouped expression or parameter list."
+    },
+    "RIGHT_PAREN": {
+      "expert": ")",
+      "primary_ms": ")",
+      "aliases": [],
+      "description": "Close grouped expression or parameter list."
+    },
+    "COLON": {
+      "expert": ":",
+      "primary_ms": ":",
+      "aliases": [],
+      "description": "Type annotation delimiter."
+    },
+    "SEMICOLON": {
+      "expert": ";",
+      "primary_ms": ";",
+      "aliases": [],
+      "description": "Statement separator; mandatory for expert and critical syntax."
+    },
+    "COMMA": {
+      "expert": ",",
+      "primary_ms": ",",
+      "aliases": [],
+      "description": "Parameter separator."
+    },
+    "ARROW": {
+      "expert": "->",
+      "primary_ms": "->",
+      "aliases": [],
+      "description": "Function return type delimiter."
+    }
+  }
+}

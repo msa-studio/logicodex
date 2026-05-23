@@ -95,6 +95,7 @@ The current documentation set now separates language grammar, environment setup,
 | `GrammarandDictionary.md` | Explains the current grammar surface, token dictionary, canonical expert mode, Malay aliases, pseudocode aliases, semicolon policy, hardware-zone boundary policy, and executable examples generated from `dict/core_map.json`. |
 | `ENVIRONMENT_SETUP.md` | Records the confirmed WSL2/Linux baseline for building and validating **current logicodex v 1.21 alpha** with LLVM 15-oriented dependencies. |
 | `MANUAL.md` | Provides concise compiler usage, build commands, and frontend architecture notes. |
+| `docs/VS_CODE_EXTENSION.md` | Explains how to run the Logicodex VS Code Side View MVP for best-effort pseudo Melayu/English to canonical expert preview without changing Rust. |
 | `v121_execution_design.md` | Captures the executable-logic and provenance design track for the v1.21-alpha milestone. |
 
 ## Practical Roadmap Summary

@@ -1,0 +1,65 @@
+{
+  "Logicodex Malay Program": {
+    "prefix": "ldx-mula",
+    "description": "Pseudo Melayu Logicodex program block.",
+    "body": [
+      "MULA",
+      "BINA ${1:nama}: I64 = ${2:0};",
+      "PAPAR ${1:nama};",
+      "TAMAT"
+    ]
+  },
+  "Logicodex English Program": {
+    "prefix": "ldx-start",
+    "description": "Pseudo English Logicodex program block.",
+    "body": [
+      "START",
+      "CREATE ${1:name}: I64 = ${2:0};",
+      "DISPLAY ${1:name};",
+      "END"
+    ]
+  },
+  "Logicodex Canonical Expert Program": {
+    "prefix": "ldx-expert",
+    "description": "Canonical expert Logicodex program block.",
+    "body": [
+      "{",
+      "let ${1:name}: I64 = ${2:0};",
+      "print ${1:name};",
+      "}"
+    ]
+  },
+  "Logicodex Function": {
+    "prefix": "ldx-fn",
+    "description": "Function with I64 parameter and return.",
+    "body": [
+      "FUNGSI ${1:name}(${2:value}: I64) -> I64 MULA",
+      "PULANG ${2:value};",
+      "TAMAT"
+    ]
+  },
+  "Logicodex If Else Malay": {
+    "prefix": "ldx-if",
+    "description": "Malay if/else block.",
+    "body": [
+      "JIKA ${1:condition} MAKA",
+      "MULA",
+      "${2:PAPAR value;}",
+      "TAMAT",
+      "MELAINKAN",
+      "MULA",
+      "${3:PAPAR other;}",
+      "TAMAT"
+    ]
+  },
+  "Logicodex Hardware Zone": {
+    "prefix": "ldx-hw",
+    "description": "Explicit hardware unsafe zone skeleton.",
+    "body": [
+      "ZON_PERKAKASAN MULA",
+      "BINA ${1:port}: PTR = ALAMAT(${2:4096});",
+      "PAPAR ${1:port};",
+      "TAMAT"
+    ]
+  }
+}

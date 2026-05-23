@@ -1,0 +1,98 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Logicodex",
+  "scopeName": "source.logicodex",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#booleans"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.logicodex",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.logicodex",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.logicodex",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.logicodex",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.logicodex",
+          "match": "\\b(if|then|else|return|fn|hw_unsafe|let|print|JIKA|MAKA|MELAINKAN|PULANG|FUNGSI|ZON_PERKAKASAN|BINA|PAPAR|IF|THEN|ELSE|RETURN|FUNCTION|CREATE|DISPLAY|START|BEGIN|END|MULA|TAMAT)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.logicodex",
+          "match": "\\b(I64|I32|i32|U16|U32|u32|F64|Bool|BOOL|str|TEKS|STRING|ptr|PTR|addr|ALAMAT|ADDRESS)\\b"
+        }
+      ]
+    },
+    "booleans": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.logicodex",
+          "match": "\\b(true|false|BENAR|SALAH|PALSU|TRUE|FALSE)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.integer.logicodex",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.logicodex",
+          "match": "(->|==|!=|>=|<=|=|\\+|-|\\*|/|>|<|:|;|,)"
+        }
+      ]
+    }
+  }
+}

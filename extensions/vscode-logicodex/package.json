@@ -1,0 +1,123 @@
+{
+  "name": "logicodex-side-view",
+  "displayName": "Logicodex Side View",
+  "description": "Best-effort Logicodex pseudo Melayu/English to canonical expert side-view preview for current logicodex v 1.21 alpha.",
+  "version": "0.1.0",
+  "publisher": "msa-studio",
+  "license": "MIT OR Apache-2.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "logicodex",
+    "malay",
+    "pseudocode",
+    "side-view"
+  ],
+  "activationEvents": [
+    "onLanguage:logicodex",
+    "onCommand:logicodexSideView.openPreview",
+    "onCommand:logicodexSideView.refreshPreview"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "logicodex",
+        "aliases": [
+          "Logicodex",
+          "logicodex"
+        ],
+        "extensions": [
+          ".ldx"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "logicodex",
+        "scopeName": "source.logicodex",
+        "path": "./syntaxes/logicodex.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "logicodex",
+        "path": "./snippets/logicodex.code-snippets"
+      }
+    ],
+    "commands": [
+      {
+        "command": "logicodexSideView.openPreview",
+        "title": "Logicodex: Open Expert Side View",
+        "category": "Logicodex"
+      },
+      {
+        "command": "logicodexSideView.refreshPreview",
+        "title": "Logicodex: Refresh Expert Side View",
+        "category": "Logicodex"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "logicodexSideView.openPreview",
+          "when": "resourceExtname == .ldx",
+          "group": "navigation@50"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "logicodexSideView.openPreview",
+          "when": "editorLangId == logicodex"
+        },
+        {
+          "command": "logicodexSideView.refreshPreview",
+          "when": "editorLangId == logicodex"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Logicodex Side View",
+      "properties": {
+        "logicodexSideView.debounceMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 50,
+          "maximum": 5000,
+          "description": "Delay in milliseconds before refreshing the best-effort expert preview after document edits."
+        },
+        "logicodexSideView.showLineNumbers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show line numbers in the side-view preview."
+        },
+        "logicodexSideView.insertMissingBeginnerSemicolons": {
+          "type": "boolean",
+          "default": true,
+          "description": "For preview only, append semicolons to newline-terminated beginner statements such as BINA, PAPAR, and PULANG when they are outside critical syntax."
+        },
+        "logicodexSideView.dictionaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to a core_map.json file. If empty, the extension tries the workspace dict/core_map.json and then uses the bundled snapshot."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package:tar": "npm run compile && node ./scripts/package-tar.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.5"
+  }
+}
