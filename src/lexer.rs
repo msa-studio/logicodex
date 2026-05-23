@@ -231,10 +231,10 @@ impl Lexicon {
             }
         }
         for (lexeme, kind) in default_aliases() {
-            if lexeme.chars().all(|c| !c.is_alphanumeric() && c != '_') || lexeme == "->" {
+            if lexeme.chars().all(|c| !c.is_alphanumeric() && c != '_') || *lexeme == "->" {
                 symbolic_lexemes.push(lexeme.to_string());
             }
-            lexeme_to_kind.entry(lexeme.to_string()).or_insert(kind);
+            lexeme_to_kind.entry(lexeme.to_string()).or_insert(*kind);
         }
         symbolic_lexemes.sort_by_key(|s| std::cmp::Reverse(s.len()));
         symbolic_lexemes.dedup();

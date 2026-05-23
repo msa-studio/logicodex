@@ -110,6 +110,7 @@ impl Type {
         matches!(self, Type::Pointer(_))
     }
 
+    #[allow(dead_code)]
     pub fn storage_width_bits(&self) -> u32 {
         match self {
             Type::I32 | Type::U32 => 32,

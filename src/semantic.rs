@@ -98,6 +98,7 @@ impl Default for SeverityPolicy {
 }
 
 impl Analyzer {
+    #[allow(dead_code)]
     pub fn analyze(program: &Program) -> Result<(), SemanticError> {
         Self::analyze_with_policy(program, SeverityPolicy::Desktop)
     }
