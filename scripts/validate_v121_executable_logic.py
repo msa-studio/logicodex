@@ -49,6 +49,7 @@ CHECKS: list[tuple[str, Path, list[str]]] = [
             "pub struct Lexicon",
             "pub fn from_path",
             "default_aliases",
+            "TokenDictionary::V2",
         ],
     ),
     (
@@ -180,7 +181,36 @@ def strip_json_comments(text: str) -> str:
 def validate_dictionary() -> None:
     raw = read(ROOT / "dict" / "core_map.json")
     data = json.loads(strip_json_comments(raw))
-    token_names = {entry.get("identity") for entry in data.get("tokens", [])}
+    tokens = data.get("tokens", {})
+    if isinstance(tokens, dict):
+        token_names = set(tokens)
+        policy = data.get("policy", {})
+        required_policy = {
+            "reference_mode": "expert",
+            "primary_human_language": "ms",
+            "alias_order_rule": "expert_then_primary_ms_then_aliases",
+        }
+        for key, expected in required_policy.items():
+            if policy.get(key) != expected:
+                raise AssertionError(f"core_map.json policy {key} must be {expected!r}")
+        for name, entry in tokens.items():
+            if not entry.get("expert"):
+                raise AssertionError(f"core_map.json token {name} missing expert reference lexeme")
+            if not entry.get("primary_ms"):
+                raise AssertionError(f"core_map.json token {name} missing primary_ms Malay alias")
+        for name in ["LET", "PRINT", "RETURN"]:
+            if tokens.get(name, {}).get("beginner_line_terminated") is not True:
+                raise AssertionError(f"core_map.json token {name} must mark beginner_line_terminated")
+        for name in ["HW", "HW_ZONE", "ADDR", "PTR"]:
+            critical = tokens.get(name, {}).get("critical_policy", {})
+            if not any(critical.get(key) is True for key in [
+                "requires_explicit_block",
+                "requires_explicit_terminator",
+                "requires_explicit_terminator_inside",
+            ]):
+                raise AssertionError(f"core_map.json token {name} must require explicit critical boundary")
+    else:
+        token_names = {entry.get("identity") for entry in tokens}
     missing = sorted(DICT_REQUIRED - token_names)
     if missing:
         raise AssertionError(f"core_map.json missing tokens: {', '.join(missing)}")

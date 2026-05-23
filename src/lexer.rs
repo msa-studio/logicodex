@@ -91,11 +91,26 @@ impl Token {
 
 #[derive(Debug, Deserialize)]
 struct CoreMap {
-    tokens: Vec<DictionaryToken>,
+    tokens: TokenDictionary,
 }
 
 #[derive(Debug, Deserialize)]
-struct DictionaryToken {
+#[serde(untagged)]
+enum TokenDictionary {
+    V2(HashMap<String, DictionaryTokenV2>),
+    V1(Vec<DictionaryTokenV1>),
+}
+
+#[derive(Debug, Deserialize)]
+struct DictionaryTokenV2 {
+    expert: String,
+    primary_ms: String,
+    #[serde(default)]
+    aliases: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DictionaryTokenV1 {
     identity: String,
     lexemes: Vec<String>,
 }
@@ -222,13 +237,34 @@ impl Lexicon {
         let mut lexeme_to_kind = HashMap::new();
         let mut symbolic_lexemes = Vec::new();
 
-        for entry in map.tokens {
-            let kind = TokenKind::try_from(entry.identity.as_str())?;
-            for lexeme in entry.lexemes {
-                if lexeme.chars().all(|c| !c.is_alphanumeric() && c != '_') || lexeme == "->" {
-                    symbolic_lexemes.push(lexeme.clone());
+        match map.tokens {
+            TokenDictionary::V2(entries) => {
+                for (identity, entry) in entries {
+                    let kind = TokenKind::try_from(identity.as_str())?;
+                    let mut lexemes = vec![entry.expert, entry.primary_ms];
+                    lexemes.extend(entry.aliases);
+                    for lexeme in lexemes {
+                        Self::register_lexeme(
+                            &mut lexeme_to_kind,
+                            &mut symbolic_lexemes,
+                            lexeme,
+                            kind,
+                        );
+                    }
                 }
-                lexeme_to_kind.insert(lexeme, kind);
+            }
+            TokenDictionary::V1(entries) => {
+                for entry in entries {
+                    let kind = TokenKind::try_from(entry.identity.as_str())?;
+                    for lexeme in entry.lexemes {
+                        Self::register_lexeme(
+                            &mut lexeme_to_kind,
+                            &mut symbolic_lexemes,
+                            lexeme,
+                            kind,
+                        );
+                    }
+                }
             }
         }
         for (lexeme, kind) in default_aliases() {
@@ -243,6 +279,18 @@ impl Lexicon {
             lexeme_to_kind,
             symbolic_lexemes,
         })
+    }
+
+    fn register_lexeme(
+        lexeme_to_kind: &mut HashMap<String, TokenKind>,
+        symbolic_lexemes: &mut Vec<String>,
+        lexeme: String,
+        kind: TokenKind,
+    ) {
+        if lexeme.chars().all(|c| !c.is_alphanumeric() && c != '_') || lexeme == "->" {
+            symbolic_lexemes.push(lexeme.clone());
+        }
+        lexeme_to_kind.insert(lexeme, kind);
     }
 
     fn keyword(&self, text: &str) -> Option<TokenKind> {

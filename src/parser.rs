@@ -35,11 +35,16 @@ pub enum ParseError {
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
+    critical_depth: usize,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, current: 0 }
+        Self {
+            tokens,
+            current: 0,
+            critical_depth: 0,
+        }
     }
 
     pub fn parse(&mut self) -> Result<Program, ParseError> {
@@ -87,8 +92,10 @@ impl Parser {
     }
 
     fn hardware_zone_block(&mut self) -> Result<Stmt, ParseError> {
-        let body = self.block()?;
-        Ok(Stmt::HardwareZone { body })
+        self.critical_depth += 1;
+        let body = self.block();
+        self.critical_depth -= 1;
+        Ok(Stmt::HardwareZone { body: body? })
     }
 
     fn hardware_declaration(&mut self) -> Result<Stmt, ParseError> {
@@ -147,13 +154,13 @@ impl Parser {
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
         let stmt = if self.matches(TokenKind::Let) {
-            let beginner = Self::is_beginner_statement_keyword(&self.previous().lexeme);
+            let beginner = self.allows_beginner_line_terminator(&self.previous().lexeme);
             self.let_statement(beginner)?
         } else if self.matches(TokenKind::Print) {
-            let beginner = Self::is_beginner_statement_keyword(&self.previous().lexeme);
+            let beginner = self.allows_beginner_line_terminator(&self.previous().lexeme);
             self.print_statement(beginner)?
         } else if self.matches(TokenKind::Return) {
-            let beginner = Self::is_beginner_statement_keyword(&self.previous().lexeme);
+            let beginner = self.allows_beginner_line_terminator(&self.previous().lexeme);
             self.return_statement(beginner)?
         } else if self.matches(TokenKind::If) {
             self.if_statement()?
@@ -448,8 +455,8 @@ impl Parser {
         Ok(())
     }
 
-    fn is_beginner_statement_keyword(lexeme: &str) -> bool {
-        matches!(lexeme, "BINA" | "CREATE" | "PAPAR" | "PULANG")
+    fn allows_beginner_line_terminator(&self, lexeme: &str) -> bool {
+        self.critical_depth == 0 && matches!(lexeme, "BINA" | "CREATE" | "PAPAR" | "PULANG")
     }
 
     fn matches(&mut self, kind: TokenKind) -> bool {
@@ -528,5 +535,31 @@ mod tests {
     fn keeps_expert_let_semicolon_mandatory() {
         let source = "{\nlet x = 1\n}\n";
         assert!(parse_source(source).is_err());
+    }
+
+    #[test]
+    fn keeps_critical_hardware_zone_statements_semicolon_mandatory() {
+        let source = "MULA\nZON_PERKAKASAN MULA\nBINA port: I32 = addr 65280\nTAMAT\nTAMAT\n";
+        assert!(parse_source(source).is_err());
+
+        let strict_source =
+            "MULA\nZON_PERKAKASAN MULA\nBINA port: I32 = addr 65280;\nPAPAR port;\nTAMAT\nTAMAT\n";
+        assert!(
+            parse_source(strict_source).is_ok(),
+            "{:?}",
+            parse_source(strict_source)
+        );
+    }
+
+    #[test]
+    fn accepts_duplicate_blank_lines_crlf_and_extra_semicolons() {
+        let source = "MULA\r\n\r\n;;\r\nBINA x = 1\r\n\r\nPAPAR x\r\n;;\r\nTAMAT\r\n\r\n";
+        assert!(parse_source(source).is_ok(), "{:?}", parse_source(source));
+    }
+
+    #[test]
+    fn accepts_else_block_start_after_blank_line() {
+        let source = "MULA\nBINA x = 0\nJIKA x > 1 MAKA\nMULA\nPAPAR x\nTAMAT\nMELAINKAN\n\nMULA\nPAPAR 0\nTAMAT\nTAMAT\n";
+        assert!(parse_source(source).is_ok(), "{:?}", parse_source(source));
     }
 }

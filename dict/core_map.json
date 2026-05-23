@@ -1,621 +1,394 @@
 {
+  "schema_version": "2",
   "version": "1.21-alpha",
   "language": "Logicodex",
-  "description": "Canonical v1.21-alpha dictionary mapping structured Malay pseudocode, expert shorthand, and English pseudocode lexemes into unified compiler token identities.",
-  "TOKEN_START": {
-    "canonical": "MULA",
-    "aliases": [
-      "{",
-      "START"
-    ],
-    "identity": "START",
-    "description": "Begin a program or block."
+  "description": "Schema v2 dictionary: expert mode is the compiler reference surface, primary_ms is the first official Malay human alias, and aliases are pseudocode or compatibility spellings.",
+  "policy": {
+    "reference_mode": "expert",
+    "primary_human_language": "ms",
+    "alias_order_rule": "expert_then_primary_ms_then_aliases",
+    "beginner_statement_policy": "BINA, PAPAR, and PULANG may be newline-terminated outside critical syntax; expert and critical syntax remain semicolon-terminated.",
+    "critical_boundary_policy": "Memory, raw address, pointer, and hardware I/O syntax require explicit block and statement boundaries."
   },
-  "TOKEN_END": {
-    "canonical": "TAMAT",
-    "aliases": [
-      "}",
-      "END"
-    ],
-    "identity": "END",
-    "description": "End a program or block."
-  },
-  "TOKEN_LET": {
-    "canonical": "BINA",
-    "aliases": [
-      "let",
-      "CREATE"
-    ],
-    "identity": "LET",
-    "description": "Create an immutable typed or inferred binding."
-  },
-  "TOKEN_MUT": {
-    "canonical": "MUTASI",
-    "aliases": [
-      "mut",
-      "MUTABLE"
-    ],
-    "identity": "MUT",
-    "description": "Vocabulary marker for future mutable binding support."
-  },
-  "TOKEN_HW": {
-    "canonical": "PERKAKASAN",
-    "aliases": [
-      "hw",
-      "HARDWARE"
-    ],
-    "identity": "HW",
-    "description": "Vocabulary marker for hardware or freestanding-region declarations."
-  },
-  "TOKEN_ADDR": {
-    "canonical": "ALAMAT",
-    "aliases": [
-      "addr",
-      "ADDRESS"
-    ],
-    "identity": "ADDR",
-    "description": "Address literal or address-shaped value marker."
-  },
-  "TOKEN_IF": {
-    "canonical": "JIKA",
-    "aliases": [
-      "if",
-      "IF"
-    ],
-    "identity": "IF",
-    "description": "Begin a conditional branch."
-  },
-  "TOKEN_THEN": {
-    "canonical": "MAKA",
-    "aliases": [
-      "then",
-      "THEN"
-    ],
-    "identity": "THEN",
-    "description": "Separate a novice condition from its branch body."
-  },
-  "TOKEN_ELSE": {
-    "canonical": "MELAINKAN",
-    "aliases": [
-      "else",
-      "ELSE"
-    ],
-    "identity": "ELSE",
-    "description": "Begin an alternative branch."
-  },
-  "TOKEN_WHILE": {
-    "canonical": "SELAGI",
-    "aliases": [
-      "while",
-      "WHILE"
-    ],
-    "identity": "WHILE",
-    "description": "Vocabulary marker for future while-loop parsing support."
-  },
-  "TOKEN_LOOP_BREAK": {
-    "canonical": "HENTI",
-    "aliases": [
-      "break",
-      "BREAK"
-    ],
-    "identity": "LOOP_BREAK",
-    "description": "Vocabulary marker for future loop-break control flow."
-  },
-  "TOKEN_LOOP_CONTINUE": {
-    "canonical": "TERUS",
-    "aliases": [
-      "continue",
-      "CONTINUE"
-    ],
-    "identity": "LOOP_CONTINUE",
-    "description": "Vocabulary marker for future loop-continue control flow."
-  },
-  "TOKEN_FN": {
-    "canonical": "FUNGSI",
-    "aliases": [
-      "fn",
-      "FUNCTION"
-    ],
-    "identity": "FN",
-    "description": "Begin a function definition."
-  },
-  "TOKEN_RETURN": {
-    "canonical": "PULANG",
-    "aliases": [
-      "return",
-      "RETURN"
-    ],
-    "identity": "RETURN",
-    "description": "Return a value from a function body."
-  },
-  "TOKEN_FFI": {
-    "canonical": "PAUTAN",
-    "aliases": [
-      "ffi",
-      "FOREIGN_INTERFACE"
-    ],
-    "identity": "FFI",
-    "description": "Vocabulary marker for future foreign-function interface declarations."
-  },
-  "TOKEN_C_INTEROP": {
-    "canonical": "C_LUAR",
-    "aliases": [
-      "c",
-      "C_LEGACY"
-    ],
-    "identity": "C_INTEROP",
-    "description": "Vocabulary marker for future C ABI interop declarations."
-  },
-  "TOKEN_RESOURCE": {
-    "canonical": "SUMBER",
-    "aliases": [
-      "resource",
-      "RESOURCE"
-    ],
-    "identity": "RESOURCE",
-    "description": "Vocabulary marker for future resource-scope declarations."
-  },
-  "TOKEN_DROP": {
-    "canonical": "LEPAS",
-    "aliases": [
-      "drop",
-      "DROP"
-    ],
-    "identity": "DROP",
-    "description": "Vocabulary marker for future explicit resource-release operations."
-  },
-  "TOKEN_I32": {
-    "canonical": "I32",
-    "aliases": [
-      "i32",
-      "INT32"
-    ],
-    "identity": "I32",
-    "description": "Signed 32-bit integer type."
-  },
-  "TOKEN_U32": {
-    "canonical": "U32",
-    "aliases": [
-      "u32",
-      "UINT32"
-    ],
-    "identity": "U32",
-    "description": "Unsigned 32-bit integer type."
-  },
-  "TOKEN_STR": {
-    "canonical": "TEKS",
-    "aliases": [
-      "str",
-      "STRING"
-    ],
-    "identity": "STR",
-    "description": "String type marker for future typed string declarations."
-  },
-  "TOKEN_BIT_AND": {
-    "canonical": "DAN_BIT",
-    "aliases": [
-      "&",
-      "BIT_AND"
-    ],
-    "identity": "BIT_AND",
-    "description": "Bitwise AND vocabulary marker."
-  },
-  "TOKEN_BIT_OR": {
-    "canonical": "ATAU_BIT",
-    "aliases": [
-      "|",
-      "BIT_OR"
-    ],
-    "identity": "BIT_OR",
-    "description": "Bitwise OR vocabulary marker."
-  },
-  "tokens": [
-    {
-      "identity": "START",
-      "lexemes": [
-        "MULA",
-        "{",
+  "tokens": {
+    "START": {
+      "expert": "{",
+      "primary_ms": "MULA",
+      "aliases": [
         "START",
         "BEGIN"
       ],
       "description": "Begin a program or block."
     },
-    {
-      "identity": "END",
-      "lexemes": [
-        "TAMAT",
-        "}",
+    "END": {
+      "expert": "}",
+      "primary_ms": "TAMAT",
+      "aliases": [
         "END"
       ],
       "description": "End a program or block."
     },
-    {
-      "identity": "LET",
-      "lexemes": [
-        "BINA",
-        "let",
+    "LET": {
+      "expert": "let",
+      "primary_ms": "BINA",
+      "aliases": [
         "CREATE"
       ],
-      "description": "Create an immutable typed or inferred binding."
+      "description": "Create an immutable typed or inferred binding.",
+      "beginner_line_terminated": true
     },
-    {
-      "identity": "MUT",
-      "lexemes": [
-        "MUTASI",
-        "mut",
+    "MUT": {
+      "expert": "mut",
+      "primary_ms": "MUTASI",
+      "aliases": [
         "MUTABLE"
       ],
       "description": "Vocabulary marker for future mutable binding support."
     },
-    {
-      "identity": "IF",
-      "lexemes": [
-        "JIKA",
-        "if",
+    "IF": {
+      "expert": "if",
+      "primary_ms": "JIKA",
+      "aliases": [
         "IF"
       ],
       "description": "Begin a conditional branch."
     },
-    {
-      "identity": "THEN",
-      "lexemes": [
-        "MAKA",
-        "then",
+    "THEN": {
+      "expert": "then",
+      "primary_ms": "MAKA",
+      "aliases": [
         "THEN"
       ],
       "description": "Separate a novice condition from its branch body."
     },
-    {
-      "identity": "ELSE",
-      "lexemes": [
-        "MELAINKAN",
-        "else",
+    "ELSE": {
+      "expert": "else",
+      "primary_ms": "MELAINKAN",
+      "aliases": [
         "ELSE",
         "JIKALAU_TIDAK"
       ],
       "description": "Begin an alternative branch."
     },
-    {
-      "identity": "WHILE",
-      "lexemes": [
-        "SELAGI",
-        "while",
+    "WHILE": {
+      "expert": "while",
+      "primary_ms": "SELAGI",
+      "aliases": [
         "WHILE"
       ],
       "description": "Vocabulary marker for future while-loop parsing support."
     },
-    {
-      "identity": "LOOP_BREAK",
-      "lexemes": [
-        "HENTI",
-        "break",
+    "LOOP_BREAK": {
+      "expert": "break",
+      "primary_ms": "HENTI",
+      "aliases": [
         "BREAK"
       ],
       "description": "Vocabulary marker for future loop-break control flow."
     },
-    {
-      "identity": "LOOP_CONTINUE",
-      "lexemes": [
-        "TERUS",
-        "continue",
+    "LOOP_CONTINUE": {
+      "expert": "continue",
+      "primary_ms": "TERUS",
+      "aliases": [
         "CONTINUE"
       ],
       "description": "Vocabulary marker for future loop-continue control flow."
     },
-    {
-      "identity": "PRINT",
-      "lexemes": [
-        "PAPAR",
-        "print"
+    "PRINT": {
+      "expert": "print",
+      "primary_ms": "PAPAR",
+      "aliases": [
+        "PRINT"
       ],
-      "description": "Print an integer, boolean, string length, or address-shaped value."
+      "description": "Print an integer, boolean, string length, or address-shaped value.",
+      "beginner_line_terminated": true
     },
-    {
-      "identity": "HW",
-      "lexemes": [
-        "PERKAKASAN",
-        "hw",
+    "HW": {
+      "expert": "hw",
+      "primary_ms": "PERKAKASAN",
+      "aliases": [
         "HARDWARE",
         "KAWASAN_PERKAKAS"
       ],
-      "description": "Vocabulary marker for hardware or freestanding-region declarations."
+      "description": "Vocabulary marker for hardware or freestanding-region declarations.",
+      "critical_policy": {
+        "requires_explicit_terminator": true
+      }
     },
-    {
-      "identity": "HW_ZONE",
-      "lexemes": [
-        "ZON_PERKAKASAN",
-        "hw_unsafe",
+    "HW_ZONE": {
+      "expert": "hw_unsafe",
+      "primary_ms": "ZON_PERKAKASAN",
+      "aliases": [
         "HW_ZONE"
-      ]
+      ],
+      "description": "Open a lexical hardware I/O zone where raw address provenance is explicitly permitted.",
+      "critical_policy": {
+        "requires_explicit_block": true,
+        "requires_explicit_terminator_inside": true
+      }
     },
-    {
-      "identity": "ADDR",
-      "lexemes": [
-        "ALAMAT",
-        "addr",
+    "ADDR": {
+      "expert": "addr",
+      "primary_ms": "ALAMAT",
+      "aliases": [
         "ADDRESS"
       ],
-      "description": "Address literal or address-shaped value marker."
+      "description": "Address literal or address-shaped value marker.",
+      "critical_policy": {
+        "requires_explicit_terminator": true
+      }
     },
-    {
-      "identity": "USE",
-      "lexemes": [
-        "GUNA",
-        "use"
+    "USE": {
+      "expert": "use",
+      "primary_ms": "GUNA",
+      "aliases": [
+        "USE"
       ],
       "description": "Import a standard or platform module contract."
     },
-    {
-      "identity": "FN",
-      "lexemes": [
-        "FUNGSI",
-        "fn",
+    "FN": {
+      "expert": "fn",
+      "primary_ms": "FUNGSI",
+      "aliases": [
         "FUNCTION"
       ],
       "description": "Begin a function definition."
     },
-    {
-      "identity": "RETURN",
-      "lexemes": [
-        "PULANG",
-        "return",
+    "RETURN": {
+      "expert": "return",
+      "primary_ms": "PULANG",
+      "aliases": [
         "RETURN"
       ],
-      "description": "Return a value from a function body."
+      "description": "Return a value from a function body.",
+      "beginner_line_terminated": true
     },
-    {
-      "identity": "FFI",
-      "lexemes": [
-        "PAUTAN",
-        "ffi",
+    "FFI": {
+      "expert": "ffi",
+      "primary_ms": "PAUTAN",
+      "aliases": [
         "FOREIGN_INTERFACE"
       ],
       "description": "Vocabulary marker for future foreign-function interface declarations."
     },
-    {
-      "identity": "C_INTEROP",
-      "lexemes": [
-        "C_LUAR",
-        "c",
+    "C_INTEROP": {
+      "expert": "c",
+      "primary_ms": "C_LUAR",
+      "aliases": [
         "C_LEGACY"
       ],
       "description": "Vocabulary marker for future C ABI interop declarations."
     },
-    {
-      "identity": "RESOURCE",
-      "lexemes": [
-        "SUMBER",
-        "resource",
+    "RESOURCE": {
+      "expert": "resource",
+      "primary_ms": "SUMBER",
+      "aliases": [
         "RESOURCE"
       ],
       "description": "Vocabulary marker for future resource-scope declarations."
     },
-    {
-      "identity": "DROP",
-      "lexemes": [
-        "LEPAS",
-        "drop",
+    "DROP": {
+      "expert": "drop",
+      "primary_ms": "LEPAS",
+      "aliases": [
         "DROP"
       ],
       "description": "Vocabulary marker for future explicit resource-release operations."
     },
-    {
-      "identity": "TRUE",
-      "lexemes": [
-        "BENAR",
-        "true"
+    "TRUE": {
+      "expert": "true",
+      "primary_ms": "BENAR",
+      "aliases": [
+        "TRUE"
       ],
       "description": "Boolean true literal."
     },
-    {
-      "identity": "FALSE",
-      "lexemes": [
-        "SALAH",
+    "FALSE": {
+      "expert": "false",
+      "primary_ms": "SALAH",
+      "aliases": [
         "PALSU",
-        "false"
+        "FALSE"
       ],
       "description": "Boolean false literal."
     },
-    {
-      "identity": "I32",
-      "lexemes": [
-        "I32",
-        "i32",
+    "I32": {
+      "expert": "i32",
+      "primary_ms": "I32",
+      "aliases": [
         "INT32"
       ],
       "description": "Signed 32-bit integer type."
     },
-    {
-      "identity": "I64",
-      "lexemes": [
-        "I64"
-      ],
+    "I64": {
+      "expert": "I64",
+      "primary_ms": "I64",
+      "aliases": [],
       "description": "Signed 64-bit integer type."
     },
-    {
-      "identity": "U16",
-      "lexemes": [
-        "U16"
-      ],
+    "U16": {
+      "expert": "U16",
+      "primary_ms": "U16",
+      "aliases": [],
       "description": "Unsigned 16-bit integer type."
     },
-    {
-      "identity": "U32",
-      "lexemes": [
-        "U32",
-        "u32",
+    "U32": {
+      "expert": "u32",
+      "primary_ms": "U32",
+      "aliases": [
         "UINT32"
       ],
       "description": "Unsigned 32-bit integer type."
     },
-    {
-      "identity": "STR",
-      "lexemes": [
-        "TEKS",
-        "str",
+    "STR": {
+      "expert": "str",
+      "primary_ms": "TEKS",
+      "aliases": [
         "STRING"
       ],
       "description": "String type marker for future typed string declarations."
     },
-    {
-      "identity": "F64",
-      "lexemes": [
-        "F64"
-      ],
+    "F64": {
+      "expert": "F64",
+      "primary_ms": "F64",
+      "aliases": [],
       "description": "64-bit floating-point type marker."
     },
-    {
-      "identity": "BOOL",
-      "lexemes": [
-        "Bool",
-        "BOOL"
-      ],
+    "BOOL": {
+      "expert": "Bool",
+      "primary_ms": "BOOL",
+      "aliases": [],
       "description": "Boolean type marker."
     },
-    {
-      "identity": "PTR",
-      "lexemes": [
-        "PTR",
-        "ptr"
-      ],
-      "description": "Pointer type constructor."
+    "PTR": {
+      "expert": "ptr",
+      "primary_ms": "PTR",
+      "aliases": [],
+      "description": "Pointer type constructor.",
+      "critical_policy": {
+        "requires_explicit_terminator": true
+      }
     },
-    {
-      "identity": "ASSIGN",
-      "lexemes": [
-        "="
-      ],
+    "ASSIGN": {
+      "expert": "=",
+      "primary_ms": "=",
+      "aliases": [],
       "description": "Assignment delimiter in a binding or declaration."
     },
-    {
-      "identity": "PLUS",
-      "lexemes": [
-        "+"
-      ],
+    "PLUS": {
+      "expert": "+",
+      "primary_ms": "+",
+      "aliases": [],
       "description": "Numeric addition operator."
     },
-    {
-      "identity": "MINUS",
-      "lexemes": [
-        "-"
-      ],
+    "MINUS": {
+      "expert": "-",
+      "primary_ms": "-",
+      "aliases": [],
       "description": "Numeric subtraction operator."
     },
-    {
-      "identity": "STAR",
-      "lexemes": [
-        "*"
-      ],
+    "STAR": {
+      "expert": "*",
+      "primary_ms": "*",
+      "aliases": [],
       "description": "Numeric multiplication operator."
     },
-    {
-      "identity": "SLASH",
-      "lexemes": [
-        "/"
-      ],
+    "SLASH": {
+      "expert": "/",
+      "primary_ms": "/",
+      "aliases": [],
       "description": "Numeric division operator; constant zero is rejected statically."
     },
-    {
-      "identity": "BIT_AND",
-      "lexemes": [
-        "DAN_BIT",
-        "&",
+    "BIT_AND": {
+      "expert": "&",
+      "primary_ms": "DAN_BIT",
+      "aliases": [
         "BIT_AND"
       ],
-      "description": "Bitwise AND vocabulary marker."
+      "description": "Bitwise AND vocabulary marker.",
+      "critical_policy": {
+        "requires_explicit_terminator": true
+      }
     },
-    {
-      "identity": "BIT_OR",
-      "lexemes": [
-        "ATAU_BIT",
-        "|",
+    "BIT_OR": {
+      "expert": "|",
+      "primary_ms": "ATAU_BIT",
+      "aliases": [
         "BIT_OR"
       ],
       "description": "Bitwise OR vocabulary marker."
     },
-    {
-      "identity": "GREATER",
-      "lexemes": [
-        ">"
-      ],
+    "GREATER": {
+      "expert": ">",
+      "primary_ms": ">",
+      "aliases": [],
       "description": "Greater-than comparison."
     },
-    {
-      "identity": "GREATER_EQUAL",
-      "lexemes": [
-        ">="
-      ],
+    "GREATER_EQUAL": {
+      "expert": ">=",
+      "primary_ms": ">=",
+      "aliases": [],
       "description": "Greater-than-or-equal comparison."
     },
-    {
-      "identity": "LESS",
-      "lexemes": [
-        "<"
-      ],
+    "LESS": {
+      "expert": "<",
+      "primary_ms": "<",
+      "aliases": [],
       "description": "Less-than comparison."
     },
-    {
-      "identity": "LESS_EQUAL",
-      "lexemes": [
-        "<="
-      ],
+    "LESS_EQUAL": {
+      "expert": "<=",
+      "primary_ms": "<=",
+      "aliases": [],
       "description": "Less-than-or-equal comparison."
     },
-    {
-      "identity": "EQUAL_EQUAL",
-      "lexemes": [
-        "=="
-      ],
+    "EQUAL_EQUAL": {
+      "expert": "==",
+      "primary_ms": "==",
+      "aliases": [],
       "description": "Equality comparison."
     },
-    {
-      "identity": "BANG_EQUAL",
-      "lexemes": [
-        "!="
-      ],
+    "BANG_EQUAL": {
+      "expert": "!=",
+      "primary_ms": "!=",
+      "aliases": [],
       "description": "Inequality comparison."
     },
-    {
-      "identity": "LEFT_PAREN",
-      "lexemes": [
-        "("
-      ],
+    "LEFT_PAREN": {
+      "expert": "(",
+      "primary_ms": "(",
+      "aliases": [],
       "description": "Open grouped expression or parameter list."
     },
-    {
-      "identity": "RIGHT_PAREN",
-      "lexemes": [
-        ")"
-      ],
+    "RIGHT_PAREN": {
+      "expert": ")",
+      "primary_ms": ")",
+      "aliases": [],
       "description": "Close grouped expression or parameter list."
     },
-    {
-      "identity": "COLON",
-      "lexemes": [
-        ":"
-      ],
+    "COLON": {
+      "expert": ":",
+      "primary_ms": ":",
+      "aliases": [],
       "description": "Type annotation delimiter."
     },
-    {
-      "identity": "SEMICOLON",
-      "lexemes": [
-        ";"
-      ],
-      "description": "Statement separator."
+    "SEMICOLON": {
+      "expert": ";",
+      "primary_ms": ";",
+      "aliases": [],
+      "description": "Statement separator; mandatory for expert and critical syntax."
     },
-    {
-      "identity": "COMMA",
-      "lexemes": [
-        ","
-      ],
+    "COMMA": {
+      "expert": ",",
+      "primary_ms": ",",
+      "aliases": [],
       "description": "Parameter separator."
     },
-    {
-      "identity": "ARROW",
-      "lexemes": [
-        "->"
-      ],
+    "ARROW": {
+      "expert": "->",
+      "primary_ms": "->",
+      "aliases": [],
       "description": "Function return type delimiter."
     }
-  ]
+  }
 }
