@@ -62,7 +62,32 @@ Runtime memory attestation, Golden Hash planning, hard fail-stop behavior, and f
 | Freestanding support | Experimental target profile | Linker scripts, bootloader integration notes, hardware-region policies, and minimal examples are validated. |
 | Migration assistant | Conceptual roadmap | Translation output is reviewable, testable, and clearly marked as assisted migration rather than automatic proof of correctness. |
 
-## Milestone 6: Plan the Logicodex Global Token Registry as an Offline-First Objective
+## Milestone 6: Prepare the Logicodex v2.0 Pointer Provenance Research Track
+
+The **5-Level Pointer Provenance Engine** is a proposed Logicodex v2.0 contributor track. It should be treated as a staged research and engineering objective, not as a completed v1.21-alpha guarantee. The current logicodex v 1.21 alpha baseline already documents ownership, provenance, and unsafe-boundary intent, but each additional level needs parser support, semantic-analysis rules, diagnostics, examples, and validation evidence before it is described as an implemented security feature.
+
+The practical goal is to turn pointer provenance into a contributor-friendly roadmap that can be implemented incrementally in `src/lexer.rs`, `src/parser.rs`, `src/semantic.rs`, and `src/codegen.rs`. Strong security language should be reserved for behavior that has executable tests and target-specific evidence. Until then, the roadmap should describe these items as intended mitigations, design constraints, or long-term compiler-analysis objectives.
+
+| Proposed provenance level | Roadmap status | Practical acceptance signal |
+|---|---|---|
+| Level 1 — Strict linear provenance | Current design baseline | Lexical ownership and drop semantics are documented, parser/semantic behavior is covered by examples, and regressions are checked by validation fixtures. |
+| Level 2 — Strict sub-bounded provenance | Long-term v2.0 objective | Aggregate fields, slices, and array sub-ranges have explicit bounds metadata; diagnostics reject proven out-of-range sub-object access without claiming broad vulnerability elimination. |
+| Level 3 — Hardware view-only provenance | Long-term v2.0 objective | `hw addr`-style physical-address vocabulary is gated by target profile and read-only attributes, with examples showing safe peripheral-read patterns. |
+| Level 4 — Hardware mutex-isolated provenance | Long-term v2.0 objective | Mutable hardware access requires explicit synchronization policy, atomic capability, or unique access proof before code generation accepts the operation. |
+| Level 5 — Wild or untrusted provenance | Current design direction | FFI inputs, raw pointers, and integer-to-pointer casts remain isolated behind explicit syntax, diagnostics, and unsafe-boundary documentation. |
+
+Contributor work should start with specification and diagnostics before LLVM optimization metadata. Attribute syntax such as `#[bounded]`, `#[read_only]`, or future Malay aliases should first be represented in the lexer and parser, then enforced in `src/semantic.rs`, and only later mapped to LLVM metadata such as alias-analysis or type-based alias-analysis hints in `src/codegen.rs`. Metadata should be treated as an optimization aid, not the sole enforcement layer, because the compiler's semantic checks must carry the primary safety contract.
+
+| Contribution area | First practical task | Evidence required before stronger claims |
+|---|---|---|
+| Lexer and parser attributes | Parse bounded/read-only annotations without changing existing program behavior. | Syntax fixtures and parser snapshots show accepted and rejected forms. |
+| Semantic enforcement | Track sub-object bounds and unsafe provenance categories in a conservative analysis pass. | Negative tests prove invalid flows are rejected with clear diagnostics. |
+| Hardware access gates | Require explicit target/profile selection before hardware-address tokens become meaningful. | Hosted builds reject hardware-only constructs unless the correct profile is selected. |
+| Code generation metadata | Emit LLVM metadata only after semantic acceptance. | IR snapshots show metadata placement, and tests confirm source-level checks still work without relying on optimizer behavior. |
+
+This v2.0 track should remain open to contributors, but each implementation step must preserve deterministic builds and avoid claiming production-grade memory-security guarantees until the compiler has measured, repeatable evidence.
+
+## Milestone 7: Plan the Logicodex Global Token Registry as an Offline-First Objective
 
 The **Logicodex Global Token Registry** is a long-term ecosystem objective for the current logicodex v 1.21 alpha roadmap. The concept is to let future Logicodex installations discover expanded token dictionaries from a centrally maintained `global_map.json`, while still preserving deterministic compilation, reproducible builds, and local project control.
 
