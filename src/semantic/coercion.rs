@@ -304,11 +304,10 @@ impl<'a> CoercionEngine<'a> {
 mod tests {
     use super::*;
 
-    fn setup() -> (TypeRegistry, CoercionEngine<'static>) {
-        // Note: This is a test helper. In real usage, the registry
-        // would outlive the engine via proper lifetime management.
-        let registry = TypeRegistry::new();
-        let engine = CoercionEngine::new(&registry);
+    fn setup() -> (&'static TypeRegistry, CoercionEngine<'static>) {
+        let registry: &'static TypeRegistry =
+            Box::leak(Box::new(TypeRegistry::new()));
+        let engine = CoercionEngine::new(registry);
         (registry, engine)
     }
 
@@ -381,10 +380,9 @@ mod tests {
 
     #[test]
     fn string_to_c_string_ptr() {
-        let mut reg = TypeRegistry::new();
-        let engine = CoercionEngine::new(&reg);
+        let (reg, engine) = setup();
         let ids = reg.primitive_ids();
-        let c_string = reg.c_const_char_ptr();
+        let c_string = reg.const_char_ptr();
 
         // String → *const I8 (for FFI)
         let result = engine.can_coerce(ids.string, c_string);

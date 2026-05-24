@@ -105,7 +105,7 @@ fn infer_integer_literal_default_is_i64() {
 
     assert_eq!(
         checker.infer_default_type(&expr),
-        Type::I64,
+        Some(Type::I64),
         "Untyped integer literal should default to I64"
     );
 }
@@ -119,7 +119,7 @@ fn infer_float_literal_default_is_f64() {
 
     assert_eq!(
         checker.infer_default_type(&expr),
-        Type::F64,
+        Some(Type::F64),
         "Untyped float literal should default to F64"
     );
 }
@@ -133,7 +133,7 @@ fn infer_string_literal_default_is_string() {
 
     assert_eq!(
         checker.infer_default_type(&expr),
-        Type::String,
+        Some(Type::String),
         "Untyped string literal should default to String"
     );
 }
@@ -147,7 +147,7 @@ fn infer_boolean_literal_default_is_bool() {
 
     assert_eq!(
         checker.infer_default_type(&expr),
-        Type::Bool,
+        Some(Type::Bool),
         "Untyped boolean literal should default to Bool"
     );
 }
@@ -165,7 +165,7 @@ fn infer_binary_op_with_integers_is_i64() {
 
     assert_eq!(
         checker.infer_default_type(&expr),
-        Type::I64,
+        Some(Type::I64),
         "Binary op on integers should default to I64"
     );
 }
@@ -183,7 +183,7 @@ fn infer_binary_op_with_float_and_int_is_f64() {
 
     assert_eq!(
         checker.infer_default_type(&expr),
-        Type::F64,
+        Some(Type::F64),
         "Binary op with float should default to F64"
     );
 }
@@ -285,6 +285,24 @@ fn incompatible_error_is_bilingual() {
         ms.contains("aktif"),
         "Error should mention variable 'aktif'"
     );
+}
+
+#[test]
+fn infer_unbound_variable_returns_none() {
+    // BINA x = y → cannot infer y's type without symbol table
+    let registry = TypeRegistry::new();
+    let checker = TypeChecker::new(&registry);
+    let expr = Expr::Variable("y".to_string());
+    assert_eq!(checker.infer_default_type(&expr), None);
+}
+
+#[test]
+fn infer_call_returns_none() {
+    // BINA x = foo() → cannot infer without function signature
+    let registry = TypeRegistry::new();
+    let checker = TypeChecker::new(&registry);
+    let expr = Expr::Call("foo".to_string(), vec![]);
+    assert_eq!(checker.infer_default_type(&expr), None);
 }
 
 #[test]
