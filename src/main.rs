@@ -7,10 +7,17 @@
 // =========================================================================
 mod ast;
 mod codegen;
+mod codegen_contract;
+mod ffi;
+mod hir;
+mod layout;
 mod lexer;
 mod os;
 mod parser;
 mod semantic;
+mod semantic_gate;
+mod span;
+mod types;
 
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser as ClapParser, Subcommand};
@@ -92,6 +99,17 @@ enum Commands {
         #[arg(long, default_value = "dict/core_map.json")]
         dict: PathBuf,
     },
+    #[command(
+        name = "v130-check",
+        hide = true,
+        about = "Run dormant v1.30 subsystem validation after the stable v1.21 semantic check"
+    )]
+    V130Check {
+        #[arg(value_name = "FILE")]
+        file: PathBuf,
+        #[arg(long, default_value = "dict/core_map.json")]
+        dict: PathBuf,
+    },
     Tokens {
         #[arg(value_name = "FILE")]
         file: PathBuf,
@@ -121,6 +139,7 @@ fn main() -> Result<()> {
             println!("{}: semantic validation succeeded", file.display());
             Ok(())
         }
+        Some(Commands::V130Check { file, dict }) => v130_check(&file, &dict),
         Some(Commands::Tokens { file, dict }) => print_tokens(&file, &dict),
         None => {
             println!("{LOGICODEX_LOGO}\n");
@@ -243,6 +262,110 @@ fn write_freestanding_plan(output_path: &Path) -> Result<()> {
 
 fn parse_and_analyze(file: &Path, dict: &Path) -> Result<ast::Program> {
     parse_and_analyze_for_target(file, dict, "native", false)
+}
+
+fn v130_check(file: &Path, dict: &Path) -> Result<()> {
+    parse_and_analyze(file, dict)?;
+    run_v130_subsystem_self_check()?;
+    println!(
+        "{}: v1.21 semantic validation and dormant v1.30 subsystem check succeeded",
+        file.display()
+    );
+    Ok(())
+}
+
+fn run_v130_subsystem_self_check() -> Result<()> {
+    let mut types = types::TypeRegistry::new();
+    let ids = types.primitive_ids();
+    let pointer_to_i64 = types.intern(types::TypeKind::Pointer {
+        pointee: ids.i64_,
+        mutability: types::Mutability::Immutable,
+    });
+
+    {
+        let layout_engine = layout::LayoutEngine {
+            types: &types,
+            target: layout::TargetLayout::default(),
+        };
+        layout_engine
+            .compute_struct_layout(layout::LayoutRequest {
+                name: "V130Probe".to_string(),
+                fields: vec![
+                    layout::LayoutFieldRequest {
+                        name: "tag".to_string(),
+                        ty: ids.u8_,
+                        span: span::Span::unknown(),
+                    },
+                    layout::LayoutFieldRequest {
+                        name: "payload".to_string(),
+                        ty: pointer_to_i64,
+                        span: span::Span::unknown(),
+                    },
+                ],
+                attributes: Vec::new(),
+                span: span::Span::unknown(),
+            })
+            .map_err(|diagnostic| anyhow::anyhow!(format_v130_diagnostic(&diagnostic)))?;
+    }
+
+    let mut symbols = hir::SymbolTable::default();
+    let module_ast = hir::ModuleAst {
+        items: vec![span::Spanned {
+            node: hir::ItemAst::Function(hir::FunctionAst {
+                name: "main".to_string(),
+                params: Vec::new(),
+                return_type: Some(hir::TypeAst::Unit),
+                body: hir::BlockAst {
+                    statements: vec![span::Spanned {
+                        node: hir::StmtAst::Loop {
+                            body: hir::BlockAst {
+                                statements: vec![span::Spanned {
+                                    node: hir::StmtAst::Break,
+                                    span: span::Span::unknown(),
+                                }],
+                            },
+                        },
+                        span: span::Span::unknown(),
+                    }],
+                },
+                is_unsafe: false,
+            }),
+            span: span::Span::unknown(),
+        }],
+    };
+    let mut lowering = hir::LoweringContext {
+        symbols: &mut symbols,
+        diagnostics: Vec::new(),
+    };
+    let hir_module = lowering
+        .lower_module(module_ast)
+        .map_err(|diagnostics| anyhow::anyhow!(format_v130_diagnostics(&diagnostics)))?;
+
+    let mut semantic = semantic_gate::SemanticContext {
+        types,
+        symbols: hir::SymbolTable::default(),
+        callables: ffi::CallableRegistry::default(),
+        diagnostics: Vec::new(),
+        loop_depth: 0,
+        safety_context: ffi::SafetyContext::Safe,
+    };
+    semantic
+        .check_module(&hir_module)
+        .map_err(|diagnostics| anyhow::anyhow!(format_v130_diagnostics(&diagnostics)))?;
+
+    Ok(())
+}
+
+fn format_v130_diagnostics(diagnostics: &[span::Diagnostic]) -> String {
+    diagnostics
+        .iter()
+        .map(format_v130_diagnostic)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_v130_diagnostic(diagnostic: &span::Diagnostic) -> String {
+    format!("{} / {}", diagnostic.message_ms, diagnostic.message_en)
 }
 
 fn parse_and_analyze_for_target(

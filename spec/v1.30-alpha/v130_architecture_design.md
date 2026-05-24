@@ -799,17 +799,28 @@ pub trait CodegenBackend {
 
 ## 11. Phased Implementation Roadmap
 
-The roadmap should preserve the current v1.21-alpha split implementation and avoid mixing too many semantic layers in one commit. The following sequence keeps compiler integrity measurable.
+The roadmap should preserve the current v1.21-alpha compiler boundary and avoid mixing too many semantic layers in one commit. The v1.30 work should continue as a staged activation plan: dormant compile-only modules first, standalone unit tests second, opt-in developer pipeline third, and default compiler behavior last. A sprint is not considered complete merely because code compiles; it must also prove that the existing v1.21 examples, validators, and object-compilation smoke tests still pass.
 
-| Phase | Scope | Acceptance signal |
+| Micro-sprint | Main objective | Primary files | Change boundary | Acceptance signal |
+|---|---|---|---|---|
+| v1.30-S0 | Stabilize the dormant skeleton and remove reachable panics before activation. | `src/types.rs`, `src/layout.rs`, `src/ffi.rs`, `src/hir.rs`, `src/semantic_gate.rs` | Replace `todo!` in public methods with deterministic implementations or `Result`-based diagnostics while keeping modules disconnected from the default CLI path. | `cargo fmt`, `cargo check`, `cargo test`, and all v1.21 smoke examples pass with no behavior change. |
+| v1.30-S1 | Implement the primitive `TypeRegistry` foundation. | `src/types.rs`, `tests/v130_type_registry_test.rs` | Implement deterministic primitive `TypeId` allocation, `intern`, `get`, and equivalence checks. Do not call the registry from active `semantic.rs` yet. | Unit tests prove stable IDs for primitives, deduplication of equivalent kinds, pointer interning, and unknown/never handling. |
+| v1.30-S2 | Implement layout calculation as a standalone subsystem. | `src/layout.rs`, `tests/v130_layout_test.rs` | Compute primitive sizes, natural alignment, optional packed layout, and field offsets from `TypeRegistry`. Do not enable parser-level struct execution yet. | Tests show `Struct { x: I64, y: I64 }` has size 16 and alignment 8 on the default target, plus negative tests for unknown field types. |
+| v1.30-S3 | Implement FFI signature registry and safety gate as a standalone subsystem. | `src/ffi.rs`, `tests/v130_ffi_gate_test.rs` | Add callable registration, lookup, argument-count validation, variadic policy checks, and unsafe-context enforcement. Keep real external calls disabled by default. | Tests verify external calls outside unsafe context emit bilingual diagnostics, while safe metadata-only validation succeeds. |
+| v1.30-S4 | Add lossless HIR lowering for the current executable subset. | `src/hir.rs`, optional `tests/v130_hir_lowering_test.rs` | Lower only constructs already supported by v1.21 examples first. Preserve spans and symbol/local IDs, but avoid switching default codegen to HIR. | A developer-only test can lower existing examples into valid HIR without changing the normal AST-to-codegen pipeline. |
+| v1.30-S5 | Introduce an opt-in semantic gate pipeline. | `src/semantic_gate.rs`, `src/main.rs`, integration tests | Add a non-default developer flag or test-only entry point for HIR plus semantic-gate validation. Default v1.21 CLI behavior remains unchanged. | Existing CLI output is unchanged by default; opt-in gate tests catch loop-control, FFI, and basic type misuse with bilingual diagnostics. |
+| v1.30-S6 | Build a codegen adapter and parity harness before backend migration. | `src/codegen_contract.rs`, `src/codegen.rs`, tests | Define an adapter boundary that proves HIR-backed codegen can produce equivalent object output for a minimal subset. Do not remove AST codegen in the same change. | Native and host object-smoke tests pass for both the legacy path and opt-in HIR path for selected examples. |
+| v1.30-S7 | Gradually activate systems features behind explicit gates. | Parser, semantic gate, layout, FFI, codegen | Enable structs, field access, extern declarations, and FFI only after their registry, layout, semantic, and backend contracts are fully tested. | Minimal struct and explicit extern examples compile to object files only when the corresponding feature gate is enabled. |
+
+The original five-sprint plan is therefore refined into an activation-safe sequence. Type and layout work remain early, but active semantic integration is delayed until the standalone subsystems are tested. HIR lowering is also split from codegen migration, because switching codegen from AST to HIR in one step would make regressions harder to isolate.
+
+| Original plan area | Refined handling | Reason |
 |---|---|---|
-| v1.30-A | Add dormant skeleton modules and documentation for `Span`, `TypeId`, `TypeRegistry`, `StructLayout`, `CallableSignature`, and HIR contracts. | Rust code compiles with no behavioral change; documentation states the boundary clearly. |
-| v1.30-B | Attach spans to AST nodes and parse errors. | Parser diagnostics identify source ranges and remain bilingual. |
-| v1.30-C | Introduce HIR lowering for the current executable subset. | Existing v1.21 executable examples compile through AST-to-HIR-to-codegen without regression. |
-| v1.30-D | Activate TypeRegistry for primitives and function signatures. | Type checking uses `TypeId`; regression tests cover primitive equivalence and mismatch diagnostics. |
-| v1.30-E | Implement StructLayout for declaration-only structs. | Unit tests verify size, alignment, and field offsets without enabling unsafe field access prematurely. |
-| v1.30-F | Add extern signatures and unsafe block validation. | External calls outside unsafe blocks fail semantically with bilingual diagnostics. |
-| v1.30-G | Connect validated layout and FFI metadata to LLVM codegen. | Minimal native example links against an explicitly configured external symbol. |
+| Type and registry | Keep as Sprint S1 after S0 panic-removal. | The registry is a dependency for layout, FFI, HIR typing, and semantic validation. |
+| HIR lowering | Move after standalone type, layout, and FFI tests; start with lossless lowering only. | The first HIR milestone should prove representation correctness before it becomes the compiler execution path. |
+| Layout and memory | Implement as a standalone subsystem before parser-level struct activation. | Layout mistakes must be caught before backend field access or GEP generation is introduced. |
+| FFI and gatekeeping | Implement metadata and unsafe checks before real external call codegen. | Boundary-crossing calls should fail semantically before codegen can emit unsafe calls. |
+| LLVM codegen integration | Split into adapter/parity and later activation. | Backend migration should be reversible and measurable against the existing v1.21 path. |
 
 ## 12. Non-Goals for the First v1.30 Skeleton Commit
 
