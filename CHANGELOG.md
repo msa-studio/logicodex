@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #23] — 2026-05-24 — Ketuk 1: Core Memory Model (Slice, Buffer, Ownership & Provenance)
+
+### Added
+- **AST** (`src/ast.rs`): `Type::Slice { element }`, `Type::Buffer { element }`, `Expr::Index { base, index }`
+  - `is_slice()`, `is_buffer()`, `is_contiguous()`, `element_type()` helpers
+- **Lexer** (`src/lexer.rs`): `LeftBracket`, `RightBracket`, `Buffer` tokens
+- **Parser** (`src/parser.rs`): `[]T` slice type, `Buffer<T>` buffer type, `buf[index]` indexing
+- **Semantic** (`src/semantic.rs`): Buffer provenance + ownership tracking
+  - `BufferOverflow { name, index, capacity }` — compile-time bounds check
+  - `UseAfterMove { name }` — ownership violation detection
+  - `ElementTypeMismatch { elem, expected, actual }`
+  - `validate_buffer_index()`, `register_buffer()`, `mark_moved()`, `is_moved()`
+- **Native Library** (`lib/core/memori.ldx`): `panjang`, `kapasiti`, `kosongkan`, `salin`, `isi`, `sub`
+- **Tests**: `tests/core_memory_model.rs` (17 assertions)
+- **Validator**: `scripts/validate_core_memory.py` (7 checks)
+
+### Validation
+- v1.21: 9/9 | Sprint 1.1: 32/32 | Sprint 1.2: 20/20 | Sprint 2: 34/34 | Sprint 2.5: 25/25 | Sprint 3: 28/28 | Demo: 11/11 | **K1 Core Memory: 17/17 ✅**
+
 ## [Merged via PR #22] — 2026-05-24 — Audio Engine: Hardware-Safe Audio Guards with Function Pointers
 
 ### Added
