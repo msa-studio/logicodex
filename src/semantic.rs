@@ -115,6 +115,15 @@ pub enum SemanticError {
     HandleNotOpen { name: String },
     #[error("KRITIKAL: Operasi `{operation` ditolak untuk handle `{name}` — kebenaran tidak mencukupi / CRITICAL: Operation `{operation}` denied for handle `{name}` — insufficient permission")]
     HandlePermissionDenied { name: String, operation: String },
+    // ─── v1.30.1-alpha: Threading Foundation ───
+    #[error("KRITIKAL: Kotak `{name}` tidak wujud — mesti diisytiharkan sebelum digunakan / CRITICAL: Kotak `{name}` does not exist — must be declared before use")]
+    KotakNotFound { name: String },
+    #[error("KRITIKAL: Pintu dari `{from}` ke `{to}` tidak sah — Kotak penerima tidak wujud / CRITICAL: Pintu from `{from}` to `{to}` is invalid — receiving Kotak does not exist")]
+    InvalidPintuTopology { from: String, to: String },
+    #[error("KRITIKAL: Kotak `{name}` sudah diisytiharkan / CRITICAL: Kotak `{name}` is already declared")]
+    DuplicateKotak { name: String },
+    #[error("KRITIKAL: `lahirkan` hanya boleh digunakan dengan nama Kotak / CRITICAL: `lahirkan` can only be used with a Kotak name")]
+    SpawnNonKotak,
 }
 
 #[derive(Debug, Default)]
@@ -137,6 +146,11 @@ pub struct Analyzer {
     handle_registry: HashMap<String, (Type, bool)>,
     /// Tracks handle permissions: variable name → mode (Read/Write/ReadWrite)
     handle_permissions: HashMap<String, String>,
+    // v1.30.1-alpha: Threading Foundation — Kotak & Pintu topology
+    /// Registered Kotak names
+    kotak_registry: HashSet<String>,
+    /// Registered Pintu: (from, to, message_type)
+    pintu_registry: Vec<(String, String, String)>,
 }
 
 impl Default for SeverityPolicy {
@@ -170,6 +184,8 @@ impl Analyzer {
             buffer_registry: HashMap::new(),
             handle_registry: HashMap::new(),
             handle_permissions: HashMap::new(),
+            kotak_registry: HashSet::new(),
+            pintu_registry: Vec::new(),
             ..Self::default()
         };
         analyzer.block(&program.statements)
@@ -401,6 +417,24 @@ impl Analyzer {
                 } else {
                     Ok(())
                 }
+            }
+            Stmt::Kotak { name, body } => {
+                // v1.30.1-alpha: Register Kotak in topology
+                if self.kotak_registry.contains(name) {
+                    return Err(SemanticError::DuplicateKotak { name: name.clone() });
+                }
+                self.kotak_registry.insert(name.clone());
+                // Validate Kotak body
+                self.scopes.push(HashMap::new());
+                let result = self.block(body);
+                self.scopes.pop();
+                // Collect Pintu declarations within this Kotak
+                for stmt in body {
+                    if let Stmt::Let { declared_type: Some(Type::Pintu { from, to, message_type }), .. } = stmt {
+                        self.pintu_registry.push((from.clone(), to.clone(), message_type.clone()));
+                    }
+                }
+                result
             }
             Stmt::Match { value, arms } => {
                 let val_ty = self.expression(value)?;
@@ -648,6 +682,45 @@ impl Analyzer {
                     "close" | "tutup" => Ok(Type::Opaque { name: "Unit".to_string() }),
                     _ => Ok(Type::Opaque { name: "Unknown".to_string() }),
                 }
+            }
+            // v1.30.1-alpha: Threading expressions
+            Expr::Spawn { kotak_name, args } => {
+                if !self.kotak_registry.contains(kotak_name) {
+                    return Err(SemanticError::KotakNotFound { name: kotak_name.clone() });
+                }
+                for arg in args { self.expression(arg)?; }
+                Ok(Type::Opaque { name: "ThreadHandle".to_string() })
+            }
+            Expr::Hantar { pintu_name, value } => {
+                // Validate Pintu exists in registry
+                let found = self.pintu_registry.iter().any(|(f, t, _)| {
+                    f == pintu_name || t == pintu_name
+                });
+                if !found {
+                    // Check if it's a variable with Pintu type
+                    let _ = self.resolve(pintu_name); // Will error if not defined
+                }
+                self.expression(value)?;
+                Ok(Type::Opaque { name: "Unit".to_string() })
+            }
+            Expr::Terima { pintu_name } => {
+                // Return the message type of the Pintu
+                if let Some((_, _, msg_type)) = self.pintu_registry.iter().find(|(_, t, _)| t == pintu_name) {
+                    Ok(Type::Opaque { name: msg_type.clone() })
+                } else {
+                    // Fallback: check variable type
+                    if let Ok(ty) = self.resolve(pintu_name) {
+                        Ok(ty)
+                    } else {
+                        Err(SemanticError::UndefinedVariable(pintu_name.clone()))
+                    }
+                }
+            }
+            Expr::Tunggu { kotak_name } => {
+                if !self.kotak_registry.contains(kotak_name) {
+                    return Err(SemanticError::KotakNotFound { name: kotak_name.clone() });
+                }
+                Ok(Type::Opaque { name: "Unit".to_string() })
             }
             Expr::Call { callee, args } => {
                 // Sprint 2.5: Function/struct constructor call
