@@ -102,6 +102,13 @@ pub enum Expr {
     StringLiteral(String),
     Variable(String),
     AddressOfLiteral(i64),
+    /// Function or struct constructor call: `Name(arg1, arg2, ...)`
+    /// Used for both regular function calls (e.g., `InitWindow(800, 600, "Hi")`)
+    /// and struct constructors (e.g., `Color(255, 0, 0, 255)`).
+    Call {
+        callee: Box<Expr>, // usually Expr::Variable(name)
+        args: Vec<Expr>,
+    },
     Binary {
         left: Box<Expr>,
         op: BinaryOp,
