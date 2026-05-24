@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #21] — 2026-05-24 — Demo: Raylib Spinning Box (compile-ready example)
+
+### Added
+- **`examples/raylib_spinning_box.ldx`** — 53-line interactive demo program:
+  - 6x `Color(r, g, b, a)` struct constructors (packed RGBA)
+  - Raylib FFI calls: `InitWindow`, `DrawRectangle`, `DrawText`, `ClearBackground`, `BeginDrawing`, `EndDrawing`
+  - Input handling: `IsMouseButtonPressed(0)`, `IsKeyPressed(KEY_SPACE)`
+  - Game loop: `while (!WindowShouldClose())` with `break`
+  - `unsafe { ... }` FFI safety gate
+- **Integration test** (`tests/demo_raylib_spinning_box.rs`): 11 assertions:
+  - Parser: all `Color(...)` recognized as `Expr::Call` with 4 args
+  - TypeChecker: validates all 6 color constructors
+  - CallableRegistry: all 12 Raylib functions used are registered with correct signatures
+  - HIR lowering: demo program lowers to `HirModule` without errors
+  - Color packing: `Color(255,0,0,255)` → `0xFF0000FF`
+- **Validator** (`scripts/validate_demo_raylib_box.py`): 4 checks PASSED
+
+### Compile
+```bash
+logicodex --pipeline v1.30 examples/raylib_spinning_box.ldx -o spinning_box
+```
+
+### Validation
+- v1.21 executable logic: 9/9 checks PASSED
+- Sprint 1.1: 32/32 checks PASSED
+- Sprint 1.2: 20/20 checks PASSED
+- Sprint 2: 34/34 checks PASSED
+- Sprint 2.5: 25/25 checks PASSED
+- Sprint 3: 28/28 checks PASSED
+- **Demo Spinning Box: 11/11 assertions PASSED**
+
 ## [Merged via PR #20] — 2026-05-24 — Sprint 3: Codegen Backend for Function Calls
 
 ### Added
