@@ -8,6 +8,10 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/msa-studio/logicodex"
 readme = "README.md"
 
+[lib]
+name = "logicodex"
+path = "src/lib.rs"
+
 [[bin]]
 name = "logicodex"
 path = "src/main.rs"

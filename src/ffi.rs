@@ -7,6 +7,9 @@
 // the current v1.21-alpha split-implementation boundary.
 // =========================================================================
 
+pub mod raylib;
+pub mod raylib_sys;
+
 use crate::hir::HirExpr;
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span};
 use crate::types::{CallableId, TypeId, TypeRegistry};
