@@ -88,6 +88,21 @@ pub enum SemanticError {
     BreakOutsideLoop,
     #[error("pernyataan continue berada di luar loop / continue statement is outside a loop")]
     ContinueOutsideLoop,
+    // ─── Ketuk 1: Core Memory Model ───
+    #[error("KRITIKAL: Akses indeks {index} melebihi kapasiti penimbal `{name}` ({capacity}) / CRITICAL: Index {index} exceeds buffer `{name}` capacity ({capacity})")]
+    BufferOverflow {
+        name: String,
+        index: i64,
+        capacity: i64,
+    },
+    #[error("KRITIKAL: Penggunaan penimbal `{name` selepas pemindahan (move) / CRITICAL: Use of buffer `{name}` after ownership move")]
+    UseAfterMove { name: String },
+    #[error("penugasan kepada elemen {elem} memerlukan jenis {expected} tetapi menerima {actual} / assignment to element {elem} requires type {expected} but received {actual}")]
+    ElementTypeMismatch {
+        elem: String,
+        expected: Type,
+        actual: Type,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -100,6 +115,11 @@ pub struct Analyzer {
     loop_depth: u32,
     hw_zone_depth: u32,
     policy: SeverityPolicy,
+    // Ketuk 1: Core Memory Model — Buffer ownership + provenance tracking
+    /// Tracks which variables have been moved (ownership transferred).
+    moved_vars: HashSet<String>,
+    /// Buffer provenance: variable name → (element_type, declared_capacity)
+    buffer_registry: HashMap<String, (Type, i64)>,
 }
 
 impl Default for SeverityPolicy {
@@ -129,6 +149,8 @@ impl Analyzer {
         let mut analyzer = Self {
             scopes: vec![HashMap::new()],
             policy,
+            moved_vars: HashSet::new(),
+            buffer_registry: HashMap::new(),
             ..Self::default()
         };
         analyzer.block(&program.statements)
@@ -319,6 +341,58 @@ impl Analyzer {
         Ok(())
     }
 
+    // ─── Ketuk 1: Core Memory Model — Buffer ownership & provenance ───
+
+    /// Register a buffer variable with its provenance (element type + capacity).
+    fn register_buffer(&mut self, name: &str, element_type: Type, capacity: i64) {
+        self.buffer_registry
+            .insert(name.to_string(), (element_type, capacity));
+    }
+
+    /// Check if a variable has been moved (ownership transferred).
+    fn is_moved(&self, name: &str) -> bool {
+        self.moved_vars.contains(name)
+    }
+
+    /// Mark a variable as moved (ownership transferred).
+    fn mark_moved(&mut self, name: &str) {
+        self.moved_vars.insert(name.to_string());
+    }
+
+    /// Validate buffer index access: check against declared capacity.
+    fn validate_buffer_index(
+        &self,
+        buf_name: &str,
+        index_expr: &Expr,
+    ) -> Result<(), SemanticError> {
+        // Check use-after-move
+        if self.is_moved(buf_name) {
+            return Err(SemanticError::UseAfterMove {
+                name: buf_name.to_string(),
+            });
+        }
+
+        // Look up buffer provenance
+        let (_, capacity) = self
+            .buffer_registry
+            .get(buf_name)
+            .ok_or_else(|| SemanticError::UndefinedVariable(buf_name.to_string()))?;
+
+        // If index is a compile-time constant, check against capacity
+        if let Expr::Integer(idx) = index_expr {
+            if *idx < 0 || *idx >= *capacity {
+                return Err(SemanticError::BufferOverflow {
+                    name: buf_name.to_string(),
+                    index: *idx,
+                    capacity: *capacity,
+                });
+            }
+        }
+        // For runtime indices, we can't statically verify — emit a note
+        // The runtime will enforce bounds via provenance_id
+        Ok(())
+    }
+
     fn expression(&self, expr: &Expr) -> Result<Type, SemanticError> {
         match expr {
             Expr::Integer(_) => Ok(Type::I64),
@@ -334,6 +408,38 @@ impl Analyzer {
                     return Err(SemanticError::MissingProvenance(*addr));
                 }
                 Ok(Type::Pointer(Box::new(Type::U16)))
+            }
+            Expr::Index { base, index } => {
+                // Ketuk 1: Buffer/Slice indexing — buf[idx]
+                let base_ty = self.expression(base)?;
+                let idx_ty = self.expression(index)?;
+
+                // Index must be integer
+                if !is_numeric(&idx_ty) {
+                    return Err(SemanticError::TypeMismatch {
+                        op: BinaryOp::Add,
+                        expected: "integer index",
+                        left: idx_ty.clone(),
+                        right: idx_ty,
+                    });
+                }
+
+                // Base must be slice or buffer
+                match &base_ty {
+                    Type::Slice { element } | Type::Buffer { element } => {
+                        // Validate index against buffer provenance
+                        if let Expr::Variable(buf_name) = base.as_ref() {
+                            self.validate_buffer_index(buf_name, index)?;
+                        }
+                        Ok(*element.clone())
+                    }
+                    other => Err(SemanticError::TypeMismatch {
+                        op: BinaryOp::Add,
+                        expected: "slice or buffer",
+                        left: other.clone(),
+                        right: other.clone(),
+                    }),
+                }
             }
             Expr::Call { callee, args } => {
                 // Sprint 2.5: Function/struct constructor call

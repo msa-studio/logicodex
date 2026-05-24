@@ -1,0 +1,65 @@
+// =========================================================================
+// Logicodex v1.30 — Ketuk 1: Core Memory Model (lib/core/memori.ldx)
+//
+// Primitif memori asas yang selamat untuk penggunaan bare-metal.
+// TIADA alokasi heap — semua primitif menggunakan static allocation
+// atau stack-based fixed-size buffers.
+//
+// Provenance tracking: setiap Buffer<T> dijejaki oleh compiler
+// untuk elak buffer overflow dan use-after-move.
+// =========================================================================
+
+// ─── Panjang ───
+// Mengembalikan bilangan elemen dalam slice atau buffer.
+// Overhead: zero (inline — compiler menggantikan dengan field `len`)
+function panjang(s: []i64) -> i64 {
+    return s.length   // compiler intrinsic
+}
+
+// ─── Kapasiti ───
+// Mengembalikan kapasiti maksimum buffer (saiz fizikal memori).
+// Untuk slice, ini sama dengan panjang.
+function kapasiti(b: Buffer<i64>) -> i64 {
+    return b.capacity   // compiler intrinsic
+}
+
+// ─── Kosongkan ───
+// Mengosongkan kandungan buffer (set semua elemen kepada 0).
+// Fungsi ini menggantikan `memset` dengan type safety.
+function kosongkan(b: *mut Buffer<i64>) {
+    let mut i = 0
+    while (i < b.capacity) {
+        b[i] = 0
+        i = i + 1
+    }
+}
+
+// ─── Salin ───
+// Menyalin elemen dari sumber ke destinasi.
+// Panjang mestilah sama atau destinasi lebih besar.
+function salin(dst: *mut Buffer<f32>, src: []f32) {
+    let mut i = 0
+    let n = panjang(src)
+    while (i < n) {
+        dst[i] = src[i]
+        i = i + 1
+    }
+}
+
+// ─── Isi ───
+// Mengisi keseluruhan buffer dengan nilai tetap.
+function isi(b: *mut Buffer<f32>, nilai: f32) {
+    let mut i = 0
+    let n = b.capacity
+    while (i < n) {
+        b[i] = nilai
+        i = i + 1
+    }
+}
+
+// ─── Sub ───
+// Membuat slice daripada sub-julat buffer [mula..akhir).
+// Julat mestilah sah: 0 <= mula < akhir <= kapasiti
+function sub(b: Buffer<f32>, mula: i32, akhir: i32) -> []f32 {
+    return b[mula..akhir]   // compiler intrinsic
+}

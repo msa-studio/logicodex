@@ -457,6 +457,19 @@ impl Parser {
             self.consume(TokenKind::Greater, "> after pointer type")?;
             return Ok(Type::Pointer(Box::new(inner)));
         }
+        // Ketuk 1: Core Memory Model — Slice syntax: []T
+        if self.matches(TokenKind::LeftBracket) {
+            self.consume(TokenKind::RightBracket, "']' after '[' in slice type")?;
+            let element = self.parse_type()?;
+            return Ok(Type::Slice { element: Box::new(element) });
+        }
+        // Ketuk 1: Core Memory Model — Buffer syntax: Buffer<T>
+        if self.matches(TokenKind::Buffer) {
+            self.consume(TokenKind::Less, "'<' after 'Buffer'")?;
+            let element = self.parse_type()?;
+            self.consume(TokenKind::Greater, "'>' after Buffer element type")?;
+            return Ok(Type::Buffer { element: Box::new(element) });
+        }
         let t = self.peek();
         Err(ParseError::Expected {
             expected: "type".to_string(),
@@ -658,6 +671,16 @@ impl Parser {
                 return Ok(Expr::Call {
                     callee: Box::new(Expr::Variable(name)),
                     args,
+                });
+            }
+            // Ketuk 1: Check if followed by '[' → buffer/slice indexing
+            if self.check(TokenKind::LeftBracket) {
+                self.advance(); // consume '['
+                let index = self.expression()?;
+                self.consume(TokenKind::RightBracket, "']' selepas indeks")?;
+                return Ok(Expr::Index {
+                    base: Box::new(Expr::Variable(name)),
+                    index: Box::new(index),
                 });
             }
             return Ok(Expr::Variable(name));

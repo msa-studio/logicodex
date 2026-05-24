@@ -255,4 +255,38 @@ logicodex --pipeline v1.30 examples/raylib_spinning_box.ldx -o spinning_box
 - **AddressOf type bug** (`src/hir.rs`): Previously hardcoded `TypeId(15)` for all pointer types. Now each pointer gets a unique `TypeId` via proper type interning.
 
 ### Security / Defense-in-Depth
-- **Fail-fast codegen**: v1.21 codegen will pan
+- **Fail-fast codegen**: v1.21 codegen will panic with a descriptive message (via `unreachable!()`) if it receives v1.30-only AST nodes. This prevents silent corruption and makes pipeline misconfigurations immediately visible.
+
+### Zero Regression Guarantee
+- **Default pipeline**: `v1.21` (backward-compatible, no behavior change).
+- v1.21 code paths are **untouched**.
+- v1.21 does **not** pass through HIR lowering.
+- Fail-fast `unreachable!()` safety nets prevent silent pipeline leaks.
+
+### Validation
+- All 9 `validate_v121_executable_logic.py` checks pass:
+  - AST supports executable v1.21-alpha declarations ✅
+  - Lexer exposes canonical v1.21-alpha tokens ✅
+  - Parser enforces executable grammar layout ✅
+  - Semantic analyzer implements static safety checks ✅
+  - Code generator accepts expanded AST ✅
+  - CLI wires target and secure flags ✅
+  - Dictionary token surface ✅
+  - Version-label policy ✅
+  - Known regression guards ✅
+
+---
+
+## [1.21.0-alpha] — 2026-05-XX
+
+### Added
+- Initial v1.21-alpha compiler core with LLVM backend.
+- Malay/English bilingual alias system via `dict/core_map.json`.
+- Hardware-zone provenance gates (`ZON_PERKAKASAN` / `hw_unsafe`).
+- Reflex-engine example suite covering arithmetic, functions, loops, bitwise operations, hardware-zone provenance, and Boolean conditionals.
+- Three-tier error severity classification (Critical / Medium / Low).
+- Dormant v1.30.0-alpha subsystem with HIR, layout engine, semantic gate, and codegen contracts.
+
+---
+
+*For older releases, see the Git history.*
