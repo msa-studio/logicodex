@@ -577,6 +577,10 @@ impl Parser {
             self.consume(TokenKind::Greater, "'>' after Result type")?;
             return Ok(Type::Result { ok: Box::new(ok), err: Box::new(err) });
         }
+        // Ketuk 3: File Handle ABI — Opaque types
+        if self.matches(TokenKind::FileHandle) {
+            return Ok(Type::Opaque { name: "FileHandle".to_string() });
+        }
         let t = self.peek();
         Err(ParseError::Expected {
             expected: "type".to_string(),
@@ -801,6 +805,26 @@ impl Parser {
                 return Ok(Expr::Index {
                     base: Box::new(Expr::Variable(name)),
                     index: Box::new(index),
+                });
+            }
+            // Ketuk 3: Check if followed by '.' → method call on opaque type
+            // h.read(1024), h.close(), h.seek(0)
+            if self.check(TokenKind::Dot) {
+                self.advance(); // consume '.'
+                let method = self.consume(TokenKind::Identifier, "method name after '.'")?.lexeme.clone();
+                self.consume(TokenKind::LeftParen, "'(' after method name")?;
+                let mut args = Vec::new();
+                if !self.check(TokenKind::RightParen) {
+                    loop {
+                        args.push(self.expression()?);
+                        if !self.matches(TokenKind::Comma) { break; }
+                    }
+                }
+                self.consume(TokenKind::RightParen, "')' after method args")?;
+                return Ok(Expr::MethodCall {
+                    object: name,
+                    method,
+                    args,
                 });
             }
             return Ok(Expr::Variable(name));

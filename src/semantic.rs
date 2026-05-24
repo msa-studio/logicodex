@@ -110,6 +110,11 @@ pub enum SemanticError {
     MatchOnNonResult { ty: Type },
     #[error("KRITIKAL: `match` tidak lengkap — perlu menangani `{missing}` / CRITICAL: `match` is non-exhaustive — must handle `{missing}`")]
     NonExhaustiveMatch { missing: String },
+    // ─── Ketuk 3: File Handle ABI ───
+    #[error("KRITIKAL: Handle fail `{name}` belum dibuka / CRITICAL: File handle `{name}` has not been opened")]
+    HandleNotOpen { name: String },
+    #[error("KRITIKAL: Operasi `{operation` ditolak untuk handle `{name}` — kebenaran tidak mencukupi / CRITICAL: Operation `{operation}` denied for handle `{name}` — insufficient permission")]
+    HandlePermissionDenied { name: String, operation: String },
 }
 
 #[derive(Debug, Default)]
@@ -127,6 +132,11 @@ pub struct Analyzer {
     moved_vars: HashSet<String>,
     /// Buffer provenance: variable name → (element_type, declared_capacity)
     buffer_registry: HashMap<String, (Type, i64)>,
+    // Ketuk 3: File Handle ABI — Handle lifecycle tracking
+    /// Tracks open file handles: variable name → (handle_type, is_open)
+    handle_registry: HashMap<String, (Type, bool)>,
+    /// Tracks handle permissions: variable name → mode (Read/Write/ReadWrite)
+    handle_permissions: HashMap<String, String>,
 }
 
 impl Default for SeverityPolicy {
@@ -158,6 +168,8 @@ impl Analyzer {
             policy,
             moved_vars: HashSet::new(),
             buffer_registry: HashMap::new(),
+            handle_registry: HashMap::new(),
+            handle_permissions: HashMap::new(),
             ..Self::default()
         };
         analyzer.block(&program.statements)
@@ -248,6 +260,25 @@ impl Analyzer {
                     // For now, capacity is not declared in type — runtime will enforce
                     // Future: Buffer<f32, 1024> syntax for compile-time capacity
                     self.register_buffer(name, *element.clone(), 0);
+                }
+                // Ketuk 3: Register FileHandle types in handle_registry
+                if let Type::Opaque { name: type_name } = &ty {
+                    if type_name == "FileHandle" {
+                        // Detect mode from value — default to ReadWrite if not clear
+                        let mode = match value {
+                            Expr::Call { callee, args } => {
+                                if let Expr::Variable(fn_name) = callee.as_ref() {
+                                    if fn_name == "open" && args.len() >= 2 {
+                                        if let Expr::Variable(mode) = &args[1] {
+                                            mode.clone()
+                                        } else { "ReadWrite".to_string() }
+                                    } else { "ReadWrite".to_string() }
+                                } else { "ReadWrite".to_string() }
+                            }
+                            _ => "ReadWrite".to_string(),
+                        };
+                        self.register_handle(name, &mode);
+                    }
                 }
                 // BUGFIX #4: Detect ownership move — let buf2 = buf
                 if let Expr::Variable(src_name) = value {
@@ -460,6 +491,29 @@ impl Analyzer {
     }
 
     /// Validate buffer index access: check against declared capacity.
+    // ─── Ketuk 3: File Handle ABI ───
+
+    fn register_handle(&mut self, name: &str, mode: &str) {
+        self.handle_registry.insert(name.to_string(), (Type::Opaque { name: "FileHandle".to_string() }, true));
+        self.handle_permissions.insert(name.to_string(), mode.to_string());
+    }
+
+    fn close_handle(&mut self, name: &str) {
+        if let Some((_, open)) = self.handle_registry.get_mut(name) {
+            *open = false;
+        }
+    }
+
+    fn is_handle_open(&self, name: &str) -> bool {
+        self.handle_registry.get(name).map(|(_, open)| *open).unwrap_or(false)
+    }
+
+    fn check_handle_permission(&self, name: &str, required: &str) -> bool {
+        self.handle_permissions.get(name).map(|mode| {
+            mode == "ReadWrite" || mode == required
+        }).unwrap_or(false)
+    }
+
     fn validate_buffer_index(
         &self,
         buf_name: &str,
@@ -550,6 +604,49 @@ impl Analyzer {
                         left: other.clone(),
                         right: other.clone(),
                     }),
+                }
+            }
+            Expr::MethodCall { object, method, args } => {
+                // Ketuk 3: File Handle ABI — method call on opaque type
+                // Validate handle is open
+                if !self.is_handle_open(object) {
+                    return Err(SemanticError::HandleNotOpen {
+                        name: object.clone(),
+                    });
+                }
+                // Validate permission for read/write operations
+                match method.as_str() {
+                    "read" | "Read" | "baca" => {
+                        if !self.check_handle_permission(object, "Read") {
+                            return Err(SemanticError::HandlePermissionDenied {
+                                name: object.clone(),
+                                operation: "read".to_string(),
+                            });
+                        }
+                    }
+                    "write" | "Write" | "tulis" => {
+                        if !self.check_handle_permission(object, "Write") {
+                            return Err(SemanticError::HandlePermissionDenied {
+                                name: object.clone(),
+                                operation: "write".to_string(),
+                            });
+                        }
+                    }
+                    "close" | "Close" | "tutup" => {
+                        self.close_handle(object);
+                    }
+                    _ => {}
+                }
+                // Validate arguments
+                for arg in args {
+                    self.expression(arg)?;
+                }
+                // Return Result type for read/write operations
+                match method.as_str() {
+                    "read" | "baca" => Ok(Type::Result { ok: Box::new(Type::Slice { element: Box::new(Type::U32) }), err: Box::new(Type::Opaque { name: "IoError".to_string() }) }),
+                    "write" | "tulis" => Ok(Type::Result { ok: Box::new(Type::I64), err: Box::new(Type::Opaque { name: "IoError".to_string() }) }),
+                    "close" | "tutup" => Ok(Type::Opaque { name: "Unit".to_string() }),
+                    _ => Ok(Type::Opaque { name: "Unknown".to_string() }),
                 }
             }
             Expr::Call { callee, args } => {
