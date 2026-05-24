@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #24] — 2026-05-24 — Fix: 5 Critical Bugs in Buffer Overflow & Use-After-Move
+
+### Fixed
+- **BUG #1 CRITICAL**: `Stmt::Let` tak register buffer ke `buffer_registry` → `register_buffer()` call semasa Let process `Buffer<T>`
+- **BUG #2 CRITICAL**: Parser tak support `buf[index] = value` → `peek_index_assignment()` + `index_assignment_statement()`
+- **BUG #2b CRITICAL**: `Stmt::Assign` tak handled dalam semantic analyzer → Full Assign handling dengan Index target validation + provenance check
+- **BUG #3 HIGH**: `moved_vars` tak clear bila scope keluar → `scoped_block()` cleanup `moved_vars` + `buffer_registry`
+- **BUG #4 MEDIUM**: `mark_moved` tak pernah dipanggil → Let detect ownership transfer (`let buf2 = buf`)
+- **BUG #5 LOW**: Error misleading untuk unregistered buffer → `NotABuffer` error variant (Malay + English)
+
+### Added
+- `Buffer<f32, 1024>` capacity syntax dalam parser
+- `tests/buffer_provenance_bugfixes.rs` — 9 assertions
+- `scripts/validate_buffer_bugfixes.py` — 9 checks
+
+### Validation
+- v1.21: 9/9 | Sprint 1.1: 32/32 | Sprint 1.2: 20/20 | Sprint 2: 34/34 | Sprint 2.5: 25/25 | Sprint 3: 28/28 | Demo: 11/11 | K1: 17/17 | **Bug Fixes: 9/9 ✅**
+
 ## [Merged via PR #23] — 2026-05-24 — Ketuk 1: Core Memory Model (Slice, Buffer, Ownership & Provenance)
 
 ### Added
