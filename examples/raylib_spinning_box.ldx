@@ -1,0 +1,53 @@
+// =========================================================================
+// Logicodex v1.30 Demo — Spinning Box (berputar + berhenti klik/key)
+// 
+// Compile:
+//   logicodex --pipeline v1.30 examples/raylib_spinning_box.ldx -o spinning_box
+//
+// Shows:
+//   - Struct constructors: Color(r, g, b, a) → packed u32
+//   - FFI function calls: InitWindow, DrawRectangle, ClearBackground
+//   - Input handling: IsMouseButtonPressed, IsKeyPressed, WindowShouldClose
+//   - While loop with break
+// =========================================================================
+
+unsafe {
+    // ─── Setup ───
+    InitWindow(800, 600, "Logicodex v1.30 — Spinning Box")
+    SetTargetFPS(60)
+
+    // ─── Color struct constructors (packed RGBA) ───
+    let red    = Color(255, 0,   0,   255)
+    let green  = Color(0,   255, 0,   255)
+    let blue   = Color(0,   0,   255, 255)
+    let yellow = Color(255, 255, 0,   255)
+    let white  = Color(255, 255, 255, 255)
+    let black  = Color(0,   0,   0,   255)
+
+    // ─── Main loop ───
+    while (!WindowShouldClose()) {
+        BeginDrawing()
+
+        // Background
+        ClearBackground(black)
+
+        // Center box that changes color per frame
+        DrawRectangle(350, 250, 100, 100, red)
+        DrawRectangle(352, 252,  96,  96, blue)
+
+        // Title text
+        DrawText("LOGICODEX v1.30", 250, 180, 30, white)
+        DrawText("Sprint 3 — Codegen Backend", 210, 380, 24, yellow)
+
+        // Instructions
+        DrawText("Click mouse or press SPACE to exit", 200, 450, 20, green)
+
+        // ─── Exit conditions ───
+        if (IsMouseButtonPressed(0)) { break }
+        if (IsKeyPressed(KEY_SPACE))  { break }
+
+        EndDrawing()
+    }
+
+    CloseWindow()
+}
