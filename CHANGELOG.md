@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #19] — 2026-05-24 — Sprint 2.5: Struct Literals & Function Call Parser
+
+### Added
+- **Expr::Call** (`src/ast.rs`): New AST variant `Call { callee: Box<Expr>, args: Vec<Expr> }` for struct constructors and function calls
+- **Parser call detection** (`src/parser.rs`): `primary()` detects `Identifier(` → parses as `Expr::Call` with comma-separated argument list
+- **HIR Call lowering** (`src/semantic.rs`): `ExprAst::Call` → `HirExprKind::Call` with Sprint 3 codegen placeholder
+- **TypeChecker::check_call()** (`src/semantic/type_checker.rs`): Validates struct constructor argument count against registered `StructLayout` fields
+- **Tests** (`tests/parser_struct_literals.rs`): 25 assertions — struct literals `Color(255,0,0,255)`, nested constructors, function calls `print("hello")`, error cases
+- **Validator** (`scripts/validate_sprint2_5_struct_literals.py`): 25/25 checks PASSED
+
+### Architecture Notes
+- `check_call()` returns `Type::I64` placeholder — full struct TypeId resolution deferred to Sprint 3 (LLVM struct value emission)
+- Complex callees (e.g., `obj.method()`) return descriptive error — deferred to Sprint 3
+
+### Validation
+- v1.21 executable logic: 9/9 checks PASSED
+- Sprint 1.1: 32/32 checks PASSED
+- Sprint 1.2: 20/20 checks PASSED
+- Sprint 2: 34/34 checks PASSED
+- Sprint 2.5: 25/25 checks PASSED
+
 ## [Merged via PR #18] — 2026-05-24 — Sprint 2: LayoutEngine
 
 ### Added
