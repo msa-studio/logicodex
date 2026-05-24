@@ -24,7 +24,7 @@ use clap::{CommandFactory, Parser as ClapParser, Subcommand};
 use codegen::{CodegenOptions, LlvmCompiler, MemoryIntegrityPlan, PhysicalMemoryAccessPlan};
 use lexer::{Lexer, Lexicon};
 use os::target::CompilationTarget;
-use parser::Parser;
+use parser::{CompilerPipeline, Parser};
 use semantic::Analyzer;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -92,12 +92,16 @@ enum Commands {
         secure: bool,
         #[arg(long, default_value = "native", value_parser = ["native", "host", "freestanding"], help = "Select host/native OS linkage or experimental freestanding object generation")]
         target: String,
+        #[arg(long, default_value = "v1.21", help = "Select compiler pipeline: v1.21 (stable) or v1.30 (experimental)")]
+        pipeline: String,
     },
     Check {
         #[arg(value_name = "FILE")]
         file: PathBuf,
         #[arg(long, default_value = "dict/core_map.json")]
         dict: PathBuf,
+        #[arg(long, default_value = "v1.21", help = "Select compiler pipeline: v1.21 (stable) or v1.30 (experimental)")]
+        pipeline: String,
     },
     #[command(
         name = "v130-check",
@@ -133,9 +137,14 @@ fn main() -> Result<()> {
             object_only,
             secure,
             target,
-        }) => compile(&file, output, &dict, emit_ir, object_only, secure, &target),
-        Some(Commands::Check { file, dict }) => {
-            parse_and_analyze(&file, &dict)?;
+            pipeline,
+        }) => {
+            let pipeline = pipeline.parse::<CompilerPipeline>()?;
+            compile(&file, output, &dict, emit_ir, object_only, secure, &target, pipeline)
+        }
+        Some(Commands::Check { file, dict, pipeline }) => {
+            let pipeline = pipeline.parse::<CompilerPipeline>()?;
+            parse_and_analyze(&file, &dict, pipeline)?;
             println!("{}: semantic validation succeeded", file.display());
             Ok(())
         }
@@ -158,10 +167,11 @@ fn compile(
     object_only: bool,
     secure: bool,
     target_name: &str,
+    pipeline: CompilerPipeline,
 ) -> Result<()> {
     ensure_ldx_source(file)?;
     let target = CompilationTarget::parse(target_name)?;
-    let program = parse_and_analyze_for_target(file, dict, target_name, secure)?;
+    let program = parse_and_analyze_for_target(file, dict, target_name, secure, pipeline)?;
     let output_path = output.unwrap_or_else(|| default_output(file, object_only));
     let object_path = if object_only {
         output_path.clone()
@@ -260,12 +270,12 @@ fn write_freestanding_plan(output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn parse_and_analyze(file: &Path, dict: &Path) -> Result<ast::Program> {
-    parse_and_analyze_for_target(file, dict, "native", false)
+fn parse_and_analyze(file: &Path, dict: &Path, pipeline: CompilerPipeline) -> Result<ast::Program> {
+    parse_and_analyze_for_target(file, dict, "native", false, pipeline)
 }
 
 fn v130_check(file: &Path, dict: &Path) -> Result<()> {
-    parse_and_analyze(file, dict)?;
+    parse_and_analyze(file, dict, CompilerPipeline::V121)?;
     run_v130_subsystem_self_check()?;
     println!(
         "{}: v1.21 semantic validation and dormant v1.30.0-alpha subsystem check succeeded",
@@ -333,8 +343,10 @@ fn run_v130_subsystem_self_check() -> Result<()> {
             span: span::Span::unknown(),
         }],
     };
+    let mut types = types::TypeRegistry::new();
     let mut lowering = hir::LoweringContext {
         symbols: &mut symbols,
+        types: &mut types,
         diagnostics: Vec::new(),
     };
     let hir_module = lowering
@@ -373,6 +385,7 @@ fn parse_and_analyze_for_target(
     dict: &Path,
     target_name: &str,
     secure: bool,
+    pipeline: CompilerPipeline,
 ) -> Result<ast::Program> {
     ensure_ldx_source(file)?;
     let source = fs::read_to_string(file)
@@ -380,7 +393,7 @@ fn parse_and_analyze_for_target(
     let lexicon = Lexicon::from_path(dict)
         .with_context(|| format!("failed to load dictionary {}", dict.display()))?;
     let tokens = Lexer::new(&source, &lexicon).tokenize()?;
-    let mut parser = Parser::new(tokens);
+    let mut parser = Parser::new(tokens).with_pipeline(pipeline);
     let program = parser.parse()?;
     Analyzer::analyze_for_target(&program, target_name, secure)?;
     Ok(program)

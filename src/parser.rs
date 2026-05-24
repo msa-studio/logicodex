@@ -5,9 +5,35 @@
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
-use crate::ast::{BinaryOp, Expr, Param, Program, Stmt, Type};
+use crate::ast::{BinaryOp, ExternFnDecl, Expr, Param, Program, Stmt, Type};
 use crate::lexer::{Token, TokenKind};
 use thiserror::Error;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompilerPipeline {
+    V121,
+    V130,
+}
+
+impl Default for CompilerPipeline {
+    fn default() -> Self {
+        CompilerPipeline::V121
+    }
+}
+
+impl std::str::FromStr for CompilerPipeline {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "v1.21" | "V121" | "121" => Ok(CompilerPipeline::V121),
+            "v1.30" | "V130" | "130" => Ok(CompilerPipeline::V130),
+            _ => Err(format!(
+                "pipeline pipeline tidak dikenali: {s} / unrecognized pipeline: {s}. Expected: v1.21 or v1.30"
+            )),
+        }
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum ParseError {
@@ -42,6 +68,7 @@ pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
     critical_depth: usize,
+    pipeline: CompilerPipeline,
 }
 
 impl Parser {
@@ -50,7 +77,13 @@ impl Parser {
             tokens,
             current: 0,
             critical_depth: 0,
+            pipeline: CompilerPipeline::default(),
         }
+    }
+
+    pub fn with_pipeline(mut self, pipeline: CompilerPipeline) -> Self {
+        self.pipeline = pipeline;
+        self
     }
 
     pub fn parse(&mut self) -> Result<Program, ParseError> {
@@ -85,14 +118,136 @@ impl Parser {
         if self.matches(TokenKind::Fn) {
             return self.function_definition();
         }
-        if self.check(TokenKind::Struct)
-            || self.check(TokenKind::Enum)
-            || self.check(TokenKind::Unsafe)
-            || self.check(TokenKind::Extern)
-        {
-            return self.unimplemented_feature();
+        if self.check(TokenKind::Struct) {
+            return match self.pipeline {
+                CompilerPipeline::V121 => self.unimplemented_feature(),
+                CompilerPipeline::V130 => self.struct_declaration(),
+            };
+        }
+        if self.check(TokenKind::Enum) {
+            return match self.pipeline {
+                CompilerPipeline::V121 => self.unimplemented_feature(),
+                CompilerPipeline::V130 => self.enum_declaration(),
+            };
+        }
+        if self.check(TokenKind::Unsafe) {
+            return match self.pipeline {
+                CompilerPipeline::V121 => self.unimplemented_feature(),
+                CompilerPipeline::V130 => self.unsafe_block(),
+            };
+        }
+        if self.check(TokenKind::Extern) {
+            return match self.pipeline {
+                CompilerPipeline::V121 => self.unimplemented_feature(),
+                CompilerPipeline::V130 => self.extern_block(),
+            };
         }
         self.statement()
+    }
+
+    fn struct_declaration(&mut self) -> Result<Stmt, ParseError> {
+        self.advance(); // consume 'struct'
+        let name = self
+            .consume(TokenKind::Identifier, "struct name")?
+            .lexeme
+            .clone();
+        self.consume(TokenKind::Start, "block start MULA or {")?;
+        let mut fields = Vec::new();
+        while !self.check(TokenKind::End) && !self.is_at_end() {
+            let field_name = self
+                .consume(TokenKind::Identifier, "field name")?
+                .lexeme
+                .clone();
+            self.consume(TokenKind::Colon, ": after field name")?;
+            let ty = self.parse_type()?;
+            fields.push(Param {
+                name: field_name,
+                ty,
+            });
+            self.consume_statement_terminator("; after field declaration", false)?;
+        }
+        self.consume(TokenKind::End, "block end TAMAT or }")?;
+        Ok(Stmt::StructDecl { name, fields })
+    }
+
+    fn enum_declaration(&mut self) -> Result<Stmt, ParseError> {
+        self.advance(); // consume 'enum'
+        let name = self
+            .consume(TokenKind::Identifier, "enum name")?
+            .lexeme
+            .clone();
+        self.consume(TokenKind::Start, "block start MULA or {")?;
+        let mut variants = Vec::new();
+        while !self.check(TokenKind::End) && !self.is_at_end() {
+            let variant = self
+                .consume(TokenKind::Identifier, "variant name")?
+                .lexeme
+                .clone();
+            variants.push(variant);
+            self.consume_statement_terminator("; after variant", false)?;
+        }
+        self.consume(TokenKind::End, "block end TAMAT or }")?;
+        Ok(Stmt::EnumDecl { name, variants })
+    }
+
+    fn unsafe_block(&mut self) -> Result<Stmt, ParseError> {
+        self.advance(); // consume 'unsafe'
+        let body = self.block()?;
+        Ok(Stmt::UnsafeBlock { body })
+    }
+
+    fn extern_block(&mut self) -> Result<Stmt, ParseError> {
+        self.advance(); // consume 'extern'
+        let abi = if self.matches(TokenKind::StringLiteral) {
+            self.previous().lexeme.clone()
+        } else {
+            "C".to_string()
+        };
+        self.consume(TokenKind::Fn, "fn after extern")?;
+        let mut functions = Vec::new();
+        // Parse at least one extern function
+        loop {
+            let name = self
+                .consume(TokenKind::Identifier, "function name")?
+                .lexeme
+                .clone();
+            self.consume(TokenKind::LeftParen, "( after function name")?;
+            let mut params = Vec::new();
+            if !self.check(TokenKind::RightParen) {
+                loop {
+                    let param_name = self
+                        .consume(TokenKind::Identifier, "parameter name")?
+                        .lexeme
+                        .clone();
+                    self.consume(TokenKind::Colon, ": after parameter name")?;
+                    let ty = self.parse_type()?;
+                    params.push(Param {
+                        name: param_name,
+                        ty,
+                    });
+                    if !self.matches(TokenKind::Comma) {
+                        break;
+                    }
+                }
+            }
+            self.consume(TokenKind::RightParen, ") after parameter list")?;
+            let return_type = if self.matches(TokenKind::Arrow) {
+                Some(self.parse_type()?)
+            } else {
+                None
+            };
+            self.consume_statement_terminator("; after extern function declaration", false)?;
+            functions.push(ExternFnDecl {
+                name,
+                params,
+                return_type,
+            });
+            if !self.check(TokenKind::Fn) {
+                break;
+            }
+            self.advance(); // consume 'fn'
+        }
+        Ok(Stmt::ExternBlock { abi, functions })
     }
 
     fn use_declaration(&mut self) -> Result<Stmt, ParseError> {

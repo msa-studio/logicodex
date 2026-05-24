@@ -87,6 +87,29 @@ python3 scripts/validate_v121_executable_logic.py
 python3 scripts/validate_v121_alpha_deployment.py
 ```
 
+## Version-Gated Compiler Pipeline (Edition Routing)
+
+Logicodex now implements **Edition Routing** — a version-gated pipeline architecture that allows experimental v1.30 constructs to be developed without destabilizing the v1.21-alpha baseline.
+
+```bash
+# Default: stable v1.21 pipeline (traps struct/enum/unsafe/extern as unimplemented)
+logicodex compile program.ldx
+logicodex check program.ldx
+
+# Opt-in: experimental v1.30 pipeline (parses struct/enum/unsafe/extern)
+logicodex compile program.ldx --pipeline v1.30
+logicodex check program.ldx --pipeline v1.30
+```
+
+| Principle | Guarantee |
+|---|---|
+| Zero regression | v1.21 code paths untouched; default remains v1.21 |
+| Zero overhead | v1.21 does not pass through HIR lowering |
+| Fail-fast | `unreachable!()` safety nets prevent silent pipeline leaks |
+| Scalable | Future versions use the same `CompilerPipeline` pattern |
+
+See `CHANGELOG.md` for the full technical implementation details.
+
 ## Documentation Map
 
 The current documentation set now separates language grammar, environment setup, and roadmap boundaries so maintainers can validate each concern independently.

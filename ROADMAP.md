@@ -30,6 +30,7 @@ The second priority is to make the language easier to reason about. The project 
 | Issue #05 — Nominal type system boundaries | Open | TBD | Type rules distinguish inference, explicit annotations, casts, and compiler-enforced invariants. |
 | Issue #06 — Pointer and hardware-region gates | Open | TBD | Hosted and freestanding memory operations are separated by explicit syntax, diagnostics, and examples. |
 | Issue #07 — Diagnostic quality pass | Open | TBD | Common user errors produce actionable messages with source locations and suggested fixes. |
+| Issue #07b — Version gate (Edition Routing) architecture | **Implemented** | Mohamad Supardi Abdul | `CompilerPipeline` enum gates parser behavior; v1.21 remains default with zero regression; v1.30 is opt-in via `--pipeline v1.30`; fail-fast `unreachable!()` safety nets prevent silent pipeline leaks. See CHANGELOG.md for full details. |
 
 ## Milestone 3: Build Developer Tooling
 

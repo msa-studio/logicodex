@@ -65,6 +65,28 @@ pub enum Stmt {
     },
     Break,
     Continue,
+    StructDecl {
+        name: String,
+        fields: Vec<Param>,
+    },
+    EnumDecl {
+        name: String,
+        variants: Vec<String>,
+    },
+    UnsafeBlock {
+        body: Vec<Stmt>,
+    },
+    ExternBlock {
+        abi: String,
+        functions: Vec<ExternFnDecl>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExternFnDecl {
+    pub name: String,
+    pub params: Vec<Param>,
+    pub return_type: Option<Type>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

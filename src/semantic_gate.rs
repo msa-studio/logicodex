@@ -63,6 +63,13 @@ impl SemanticContext {
                 self.check_expression(target);
                 self.check_expression(value);
             }
+            HirStmt::If { condition, then_branch, else_branch } => {
+                self.check_expression(condition);
+                self.check_block(then_branch);
+                if let Some(else_branch) = else_branch {
+                    self.check_block(else_branch);
+                }
+            }
             HirStmt::While { condition, body } => {
                 self.check_expression(condition);
                 self.loop_depth += 1;

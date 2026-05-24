@@ -85,6 +85,12 @@ pub struct LlvmCompiler<'ctx> {
     print_fn: FunctionValue<'ctx>,
 }
 
+/// Backend trait for version-gated codegen. v1.21 uses direct compilation;
+/// v1.30+ uses this trait for HIR-based codegen.
+pub trait CodegenBackend {
+    fn compile_hir_module(&mut self, module: &crate::hir::HirModule, options: &CodegenOptions) -> Result<CodegenArtifact>;
+}
+
 impl<'ctx> LlvmCompiler<'ctx> {
     pub fn compile_to_object(
         program: &Program,
@@ -194,6 +200,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
     fn emit_stmt(&mut self, stmt: &Stmt) -> Result<()> {
         match stmt {
             Stmt::Use { .. } => Ok(()),
+            // Safety net: v1.30-only AST nodes must never reach v1.21 codegen
+            Stmt::StructDecl { .. } => self.emit_v130_ast_in_v121("StructDecl"),
+            Stmt::EnumDecl { .. } => self.emit_v130_ast_in_v121("EnumDecl"),
+            Stmt::UnsafeBlock { .. } => self.emit_v130_ast_in_v121("UnsafeBlock"),
+            Stmt::ExternBlock { .. } => self.emit_v130_ast_in_v121("ExternBlock"),
             Stmt::HardwareZone { body } => self.emit_block(body),
             Stmt::HardwareDecl { name, address, .. } => {
                 let current_fn = self.current_function()?;
@@ -518,5 +529,104 @@ impl<'ctx> LlvmCompiler<'ctx> {
             .get_insert_block()
             .and_then(|block| block.get_parent())
             .ok_or_else(|| anyhow!("no active LLVM function"))
+    }
+
+    /// Safety net: v1.21 codegen must never receive v1.30-only AST nodes.
+    /// If this path is reached, it indicates a parser pipeline leak — fail-fast.
+    fn emit_v130_ast_in_v121(&self, stmt_kind: &str) -> Result<()> {
+        unreachable!(
+            "BUG: v1.21 codegen received v1.30-only AST node '{}'. \
+             This indicates a parser pipeline configuration error. \
+             The v1.21 pipeline must trap these tokens at parse time. \
+             Use --pipeline v1.30 to compile this construct.",
+            stmt_kind
+        )
+    }
+}
+
+/// Entry point for v1.30 HIR-to-object compilation.
+/// This is the gate between the v1.21 AST path and the v1.30 HIR path.
+/// v1.21 code never calls this function.
+pub fn compile_v130(
+    hir_module: &crate::hir::HirModule,
+    object_path: &Path,
+    options: &CodegenOptions,
+) -> Result<CodegenArtifact> {
+    let context = Context::create();
+    let mut compiler = LlvmCompiler::new(&context, &options.module_name);
+
+    // v1.30 uses HIR items instead of v1.21 AST statements
+    for item in &hir_module.items {
+        match &item.node {
+            crate::hir::HirItem::Function(function) => {
+                compiler.emit_v130_function(function, options.target)?;
+            }
+            crate::hir::HirItem::Struct(_) => {
+                // Struct layout computed at semantic time; emit placeholder
+                eprintln!("logicodex v1.30: struct items are processed at semantic time");
+            }
+            crate::hir::HirItem::Enum(_) => {
+                eprintln!("logicodex v1.30: enum items are processed at semantic time");
+            }
+            crate::hir::HirItem::ExternFunction(extern_fn) => {
+                compiler.emit_v130_extern_function(extern_fn)?;
+            }
+        }
+    }
+
+    compiler
+        .module
+        .verify()
+        .map_err(|e| anyhow!("LLVM module verification failed (v1.30): {e}"))?;
+
+    let output_kind = if options.target.is_freestanding() {
+        OutputKind::FreestandingObject
+    } else {
+        OutputKind::Object
+    };
+    let target_machine = build_target_machine(output_kind)?;
+    target_machine
+        .write_to_file(
+            &compiler.module,
+            inkwell::targets::FileType::Object,
+            object_path,
+        )
+        .map_err(|e| anyhow!("failed to emit object file {}: {e}", object_path.display()))?;
+
+    let ir_path = if options.emit_ir {
+        let mut ir_path = object_path.to_path_buf();
+        ir_path.set_extension("ll");
+        compiler
+            .module
+            .print_to_file(&ir_path)
+            .map_err(|e| anyhow!("failed to write LLVM IR {}: {e}", ir_path.display()))?;
+        Some(ir_path)
+    } else {
+        None
+    };
+
+    Ok(CodegenArtifact {
+        object_path: object_path.to_path_buf(),
+        ir_path,
+    })
+}
+
+// Stub implementations for v1.30 HIR codegen — full implementation is a future milestone
+impl<'ctx> LlvmCompiler<'ctx> {
+    fn emit_v130_function(
+        &mut self,
+        _function: &crate::hir::HirFunction,
+        _target: CompilationTarget,
+    ) -> Result<()> {
+        eprintln!("logicodex v1.30: HIR function codegen stub — full LLVM emission is a future milestone");
+        Ok(())
+    }
+
+    fn emit_v130_extern_function(
+        &mut self,
+        _extern_fn: &crate::hir::HirExternFunction,
+    ) -> Result<()> {
+        eprintln!("logicodex v1.30: extern function codegen stub — full LLVM emission is a future milestone");
+        Ok(())
     }
 }
