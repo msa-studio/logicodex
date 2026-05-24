@@ -16,6 +16,7 @@ The first priority is to keep the current compiler pipeline reproducible. This m
 
 | Issue | Status | Owner | Practical acceptance signal |
 |---|---|---|---|
+| Sprint 1.1 — Type System Foundation (TypeRegistry, CoercionEngine, Raylib FFI) | **[X] COMPLETED / MERGED #14** | Mohamad Supardi Abdul | TypeRegistry with C ABI sizes, CoercionEngine with widening/narrowing rules, Raylib FFI bindings (28 functions), 38 test assertions. See CHANGELOG.md for details. |
 | Issue #01 — Grammar baseline | Completed for v1.21-alpha baseline | Mohamad Supardi Abdul | The grammar document matches lexer/parser behavior for the currently implemented language subset. |
 | Issue #02 — UB and provenance design note | Baseline hardware-zone gate implemented and logically verified | Mohamad Supardi Abdul | The specification now records `ZON_PERKAKASAN` / `hw_unsafe` lexical gating, and the semantic analyzer rejects raw address pointer bindings outside that safe zone while leaving deeper hardware I/O work for later milestones. |
 | Issue #03 — Native example suite | Partially complete | Mohamad Supardi Abdul | The refreshed reflex-engine `.ldx` suite passes `check` and `v130-check`; remaining work is expected-output fixtures and backend/object-output parity checks. |
