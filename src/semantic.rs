@@ -105,6 +105,11 @@ pub enum SemanticError {
     },
     #[error("KRITIKAL: Pembolehubah `{name}` bukan Buffer yang berdaftar — perlu diisytiharkan dengan `let {name}: Buffer<T>` / CRITICAL: Variable `{name}` is not a registered Buffer — must be declared with `let {name}: Buffer<T>`")]
     NotABuffer { name: String },
+    // ─── Ketuk 2: Result Abstraction ───
+    #[error("KRITIKAL: `match` hanya boleh digunakan pada jenis `Result<T, E>`, tetapi menerima `{ty}` / CRITICAL: `match` can only be used on `Result<T, E>`, but received `{ty}`")]
+    MatchOnNonResult { ty: Type },
+    #[error("KRITIKAL: `match` tidak lengkap — perlu menangani `{missing}` / CRITICAL: `match` is non-exhaustive — must handle `{missing}`")]
+    NonExhaustiveMatch { missing: String },
 }
 
 #[derive(Debug, Default)]
@@ -366,6 +371,28 @@ impl Analyzer {
                     Ok(())
                 }
             }
+            Stmt::Match { value, arms } => {
+                let val_ty = self.expression(value)?;
+                if !val_ty.is_result() {
+                    return Err(SemanticError::MatchOnNonResult { ty: val_ty });
+                }
+                let mut has_ok = false;
+                let mut has_err = false;
+                for arm in arms {
+                    match &arm.pattern {
+                        MatchPattern::Ok { .. } => has_ok = true,
+                        MatchPattern::Err { .. } => has_err = true,
+                        MatchPattern::Wildcard => { has_ok = true; has_err = true; }
+                    }
+                    self.scoped_block(&arm.body)?;
+                }
+                if !has_ok || !has_err {
+                    return Err(SemanticError::NonExhaustiveMatch {
+                        missing: if !has_ok { "Ok".to_string() } else { "Err".to_string() },
+                    });
+                }
+                Ok(())
+            }
         }
     }
 
@@ -483,6 +510,15 @@ impl Analyzer {
                     return Err(SemanticError::MissingProvenance(*addr));
                 }
                 Ok(Type::Pointer(Box::new(Type::U16)))
+            }
+            // Ketuk 2: Result constructors
+            Expr::Ok { value } => {
+                let inner = self.expression(value)?;
+                Ok(Type::Result { ok: Box::new(inner), err: Box::new(Type::I64) })
+            }
+            Expr::Err { value } => {
+                let inner = self.expression(value)?;
+                Ok(Type::Result { ok: Box::new(Type::I64), err: Box::new(inner) })
             }
             Expr::Index { base, index } => {
                 // Ketuk 1: Buffer/Slice indexing — buf[idx]

@@ -80,6 +80,28 @@ pub enum Stmt {
         abi: String,
         functions: Vec<ExternFnDecl>,
     },
+    /// Ketuk 2: Pattern matching on Result<T, E>.
+    /// Syntax: `match expr { Ok(v) => body, Err(e) => body }`
+    Match {
+        value: Expr,
+        arms: Vec<MatchArm>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MatchArm {
+    pub pattern: MatchPattern,
+    pub body: Vec<Stmt>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MatchPattern {
+    /// Matches Ok variant: Ok(name)
+    Ok { binding: String },
+    /// Matches Err variant: Err(name)
+    Err { binding: String },
+    /// Wildcard: _
+    Wildcard,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -119,6 +141,10 @@ pub enum Expr {
         base: Box<Expr>,
         index: Box<Expr>,
     },
+    /// Ketuk 2: Result construction — Ok(value)
+    Ok { value: Box<Expr> },
+    /// Ketuk 2: Result construction — Err(error)
+    Err { value: Box<Expr> },
     Grouped(Box<Expr>),
 }
 
@@ -155,6 +181,9 @@ pub enum Type {
     // ─── Ketuk 1: Core Memory Model ───
     Slice { element: Box<Type> },
     Buffer { element: Box<Type> },
+    /// Ketuk 2: Result type for IO operations — Ok(T) or Err(E).
+    /// Syntax: Result<T, E>
+    Result { ok: Box<Type>, err: Box<Type> },
 }
 
 impl Type {
@@ -181,6 +210,27 @@ impl Type {
     pub fn element_type(&self) -> Option<&Type> {
         match self {
             Type::Slice { element } | Type::Buffer { element } => Some(element),
+            _ => None,
+        }
+    }
+
+    /// Ketuk 2: Check if this is a Result type.
+    pub fn is_result(&self) -> bool {
+        matches!(self, Type::Result { .. })
+    }
+
+    /// Ketuk 2: Get the Ok type from a Result.
+    pub fn ok_type(&self) -> Option<&Type> {
+        match self {
+            Type::Result { ok, .. } => Some(ok),
+            _ => None,
+        }
+    }
+
+    /// Ketuk 2: Get the Err type from a Result.
+    pub fn err_type(&self) -> Option<&Type> {
+        match self {
+            Type::Result { err, .. } => Some(err),
             _ => None,
         }
     }
@@ -235,6 +285,7 @@ impl fmt::Display for Type {
             Type::String => write!(f, "String"),
             Type::Slice { element } => write!(f, "[]{element}"),
             Type::Buffer { element } => write!(f, "Buffer<{element}>"),
+            Type::Result { ok, err } => write!(f, "Result<{ok}, {err}>"),
         }
     }
 }

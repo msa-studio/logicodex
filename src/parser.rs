@@ -364,6 +364,8 @@ impl Parser {
             self.while_statement()?
         } else if self.matches(TokenKind::Loop) {
             self.loop_statement()?
+        } else if self.matches(TokenKind::Match) {
+            self.match_statement()?
         } else if self.matches(TokenKind::Break) {
             let beginner = self.allows_control_flow_line_terminator(&self.previous().lexeme);
             self.consume_statement_terminator("; after break statement", beginner)?;
@@ -382,6 +384,64 @@ impl Parser {
         };
         self.consume_layout_separators();
         Ok(stmt)
+    }
+
+    /// Ketuk 2: Parse `match expr { Ok(v) => body, Err(e) => body }`
+    fn match_statement(&mut self) -> Result<Stmt, ParseError> {
+        let value = self.expression()?;
+        self.consume(TokenKind::LeftBrace, "'{' after match expression")?;
+        let mut arms = Vec::new();
+        if !self.check(TokenKind::RightBrace) {
+            loop {
+                arms.push(self.match_arm()?);
+                if !self.matches(TokenKind::Comma) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenKind::RightBrace, "'}' after match arms")?;
+        Ok(Stmt::Match { value, arms })
+    }
+
+    fn match_arm(&mut self) -> Result<MatchArm, ParseError> {
+        let pattern = if self.matches(TokenKind::Ok) {
+            self.consume(TokenKind::LeftParen, "'(' after 'Ok'")?;
+            let binding = self
+                .consume(TokenKind::Identifier, "binding name in Ok pattern")?
+                .lexeme
+                .clone();
+            self.consume(TokenKind::RightParen, "')' after Ok binding")?;
+            MatchPattern::Ok { binding }
+        } else if self.matches(TokenKind::Err) {
+            self.consume(TokenKind::LeftParen, "'(' after 'Err'")?;
+            let binding = self
+                .consume(TokenKind::Identifier, "binding name in Err pattern")?
+                .lexeme
+                .clone();
+            self.consume(TokenKind::RightParen, "')' after Err binding")?;
+            MatchPattern::Err { binding }
+        } else if self.matches(TokenKind::Underscore) {
+            MatchPattern::Wildcard
+        } else {
+            return Err(ParseError::Expected {
+                expected: "Ok(x), Err(e), or _ pattern".to_string(),
+                found: self.peek().lexeme.clone(),
+                line: self.peek().line,
+                column: self.peek().column,
+            });
+        };
+        self.consume(TokenKind::ArrowFat, "'=>' after match pattern")?;
+        // Body: either a single expression or a block
+        let body = if self.check(TokenKind::LeftBrace) {
+            self.advance();
+            let stmts = self.block()?;
+            self.consume(TokenKind::RightBrace, "'}' after match arm body")?;
+            stmts
+        } else {
+            let expr = self.expression()?;
+            vec![Stmt::ExprStmt { value: expr }]
+        };
+        Ok(MatchArm { pattern, body })
     }
 
     fn let_statement(&mut self, beginner: bool) -> Result<Stmt, ParseError> {
@@ -507,6 +567,15 @@ impl Parser {
             };
             self.consume(TokenKind::Greater, "'>' after Buffer type")?;
             return Ok(Type::Buffer { element: Box::new(element) });
+        }
+        // Ketuk 2: Result type syntax: Result<T, E>
+        if self.matches(TokenKind::Result) {
+            self.consume(TokenKind::Less, "'<' after 'Result'")?;
+            let ok = self.parse_type()?;
+            self.consume(TokenKind::Comma, "',' between Ok and Err types")?;
+            let err = self.parse_type()?;
+            self.consume(TokenKind::Greater, "'>' after Result type")?;
+            return Ok(Type::Result { ok: Box::new(ok), err: Box::new(err) });
         }
         let t = self.peek();
         Err(ParseError::Expected {
@@ -690,6 +759,19 @@ impl Parser {
         }
         if self.matches(TokenKind::StringLiteral) {
             return Ok(Expr::StringLiteral(self.previous().lexeme.clone()));
+        }
+        // Ketuk 2: Ok(value) and Err(value) result constructors
+        if self.matches(TokenKind::Ok) {
+            self.consume(TokenKind::LeftParen, "'(' after 'Ok'")?;
+            let value = self.expression()?;
+            self.consume(TokenKind::RightParen, "')' after Ok value")?;
+            return Ok(Expr::Ok { value: Box::new(value) });
+        }
+        if self.matches(TokenKind::Err) {
+            self.consume(TokenKind::LeftParen, "'(' after 'Err'")?;
+            let value = self.expression()?;
+            self.consume(TokenKind::RightParen, "')' after Err value")?;
+            return Ok(Expr::Err { value: Box::new(value) });
         }
         if self.matches(TokenKind::Identifier) {
             let name = self.previous().lexeme.clone();
