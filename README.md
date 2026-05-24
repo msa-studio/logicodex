@@ -43,7 +43,8 @@ The project should be read as an **alpha compiler and specification prototype**.
 |---|---|---|
 | Alias-to-canonical syntax | Implemented in the Phase 1 frontend through dictionary-aware tokenization. | Expand Malay, English pseudocode, and domain-specific alias families while preserving deterministic builds. |
 | Static semantics | Implemented for the Phase 1 core language and selected safety checks. | Tighten type-system boundaries, diagnostics, pointer-provenance rules, and UB catalog coverage. |
-| LLVM backend | Implemented through the Rust Inkwell path for core expressions and native-oriented object generation. | Mature target triples, ABI contracts, linker policies, and executable examples. |
+| LLVM backend | Implemented through the Rust Inkwell path for core expressions and native-oriented object generation. | Mature target triples, ABI contracts, linker policies, and executable-output checks. |
+| Reflex engine examples | Refreshed suite in `examples/` now covers expert and Malay arithmetic, functions, loops, bitwise operations, hardware-zone provenance, and Boolean conditionals. | Add expected-output fixtures and backend parity checks as the next proof layer. |
 | WebAssembly target | Long-term roadmap objective. | Build a small Wasm prototype after native examples and tests are stable. |
 | Migrator Engine | Long-term roadmap objective. | Start with assisted source translation experiments that require explicit human review. |
 | Runtime memory attestation | Long-term security research objective. | Convert the current plan contract into prototype digest insertion, verifier stubs, and target-specific fail-stop behavior. |
@@ -94,14 +95,15 @@ The current documentation set now separates language grammar, environment setup,
 |---|---|
 | `GrammarandDictionary.md` | Explains the current grammar surface, token dictionary, expert canonical shorthand mode, primary Malay aliases, English pseudocode aliases, semicolon policy, hardware-zone boundary policy, and executable examples generated from `dict/core_map.json`. |
 | `ENVIRONMENT_SETUP.md` | Records the confirmed WSL2/Linux baseline for building and validating **current logicodex v 1.21 alpha** with LLVM 15-oriented dependencies. |
-| `MANUAL.md` | Provides concise compiler usage, build commands, and frontend architecture notes. |
+| `MANUAL.md` | Provides concise compiler usage, build commands, frontend architecture notes, and the current example validation loop. |
+| `docs/examples/REFLEX_ENGINE_EXAMPLES.md` | Records the refreshed reflex-engine example set and the paired `check` / `v130-check` compatibility boundary. |
 | `docs/VS_CODE_EXTENSION.md` | Explains how to run the Logicodex VS Code Side View MVP for best-effort Malay/English pseudocode alias to expert canonical shorthand preview without changing Rust. |
 | `v121_execution_design.md` | Captures the executable-logic and provenance design track for the v1.21-alpha milestone. |
 | `spec/v1.30.0-alpha/v130_architecture_design.md` | Defines the documentation-first v1.30 architecture baseline with Rust skeleton structures for spans, HIR, type registry, struct layout, enum representation, FFI signatures, unsafe gatekeeping, semantic validation, and codegen contracts. |
 
 ## Practical Roadmap Summary
 
-The next useful work is not to expand claims, but to improve proof. The project should prioritize a small set of native examples, reliable build instructions, stable diagnostics, and repeatable validation scripts. After that foundation is stable, the roadmap can safely move into WebAssembly, migration tooling, runtime attestation, and freestanding hardware experiments.
+The next useful work is not to expand claims, but to improve proof. The repository now includes a refreshed reflex-engine example set that passes both the default v1.21-alpha `check` path and the opt-in v1.30.0-alpha `v130-check` probe. The next proof layer should add expected-output fixtures, backend parity checks, reliable build instructions, stable diagnostics, and repeatable validation scripts before broader WebAssembly, migration tooling, runtime attestation, or freestanding hardware experiments.
 
 | Horizon | Emphasis | Success signal |
 |---|---|---|

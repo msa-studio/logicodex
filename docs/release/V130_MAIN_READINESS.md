@@ -4,7 +4,7 @@
 **Branch prepared:** `sim/v130-resume`  
 **Target branch:** `main`  
 **Current production compiler line:** **current Logicodex v1.21 alpha**  
-**Merge status:** Prepared for Pull Request review; not merged to `main` by this document.
+**Merge status:** Historical readiness record; the dormant subsystem has since been merged into `main`, and the refreshed reflex-engine examples now pass `v130-check`.
 
 ## Executive Summary
 
@@ -45,7 +45,7 @@ The change introduces dormant architecture building blocks for the v1.30 line. I
 
 ## Validation Record
 
-The readiness validation was run after confirming that `sim/v130-resume` was up to date with `origin/main`. The validation log is stored at `target/v130-main-readiness/main_readiness_validation.log` in the local working tree and can be regenerated with `scripts/validate_v130_main_readiness.sh`.
+The original readiness validation was run after confirming that `sim/v130-resume` was up to date with `origin/main`. After the reflex-engine example refresh, maintainers should validate the entire `examples/*.ldx` suite with both the default `check` command and the opt-in `v130-check` command, because `01_tambah_*` and the newer `02_` through `06_` files now form part of the documented compatibility baseline.
 
 | Validation Step | Result | Interpretation |
 |---|---:|---|
@@ -53,12 +53,11 @@ The readiness validation was run after confirming that `sim/v130-resume` was up 
 | `cargo fmt --all -- --check` | Passed | Formatting is consistent. |
 | `cargo check --locked` | Passed | The crate compiles under the locked dependency set. |
 | `cargo test --locked` | Passed | 27 unit tests and 4 integration tests passed. |
-| `v130-check examples/hello.ldx` | Passed | v1.21 validation and v1.30 dormant subsystem probe passed. |
-| `v130-check examples/matematik.ldx` | Passed | v1.21 validation and v1.30 dormant subsystem probe passed. |
-| `v130-check examples/perkakasan.ldx` | Passed | v1.21 validation and v1.30 dormant subsystem probe passed. |
-| Remaining `todo` markers in audited v1.30 modules | None | Runtime TODO placeholders in the audited v1.30 surface were removed. |
+| Full `examples/*.ldx` default sweep | Passed after the reflex-example refresh | Every shipped example is expected to pass `cargo run --quiet -- check "$file"`. |
+| Full `examples/*.ldx` v1.30 probe sweep | Passed after the reflex-example refresh | Every shipped example is expected to pass `cargo run --quiet -- v130-check "$file"` after v1.21 validation succeeds. |
+| Remaining `todo` markers in audited v1.30 modules | None in the readiness audit | Runtime TODO placeholders in the audited v1.30 surface were removed before merge. |
 
-Two sample files, `examples/01_tambah_pakar.ldx` and `examples/01_tambah_pemula.ldx`, fail under the existing `check` command before the v1.30 subsystem is reached. Therefore, their `v130-check` failure is classified as **baseline v1.21-alpha example compatibility**, not a v1.30 regression. The validation script records this as a compatibility matrix rather than treating it as a blocker for the dormant subsystem merge.
+The former `01_tambah_*` compatibility issue has been resolved by updating those examples to syntax accepted by the current parser and semantic analyzer. They are now part of the reflex-engine compatibility baseline rather than known failures.
 
 ## Pull Request Review Checklist
 
@@ -72,7 +71,7 @@ Reviewers should confirm that the branch preserves the current compiler behavior
 | Secrets | Confirm no credentials, tokens, or environment values are committed. | Required |
 | Tests | Confirm local validation and any GitHub CI pass. | Required |
 | Documentation | Confirm this readiness document and roadmap accurately describe the dormant status. | Required |
-| Example compatibility | Confirm known `01_tambah_*` failures are baseline parser compatibility, not v1.30 regressions. | Required |
+| Example compatibility | Confirm all `examples/*.ldx` files pass both `check` and `v130-check`; `01_tambah_*` are no longer documented failures. | Required |
 
 ## Recommended Merge Procedure
 
@@ -117,7 +116,7 @@ After merging into `main`, create a follow-up issue or milestone for the next v1
 |---|---|---|
 | Parser-to-v1.30 AST bridge | Connect real parsed programs to the dormant HIR path. | After dormant subsystem merge. |
 | Parity tests against v1.21-alpha | Prove that accepted programs keep equivalent semantics. | Before any activation. |
-| Example compatibility cleanup | Decide whether `01_tambah_*` files should be updated or parser behavior extended. | Before release notes. |
+| Example compatibility maintenance | Keep `examples/*.ldx`, `docs/examples/REFLEX_ENGINE_EXAMPLES.md`, and `v130-check` behavior synchronized as parser/HIR parity expands. | Before release notes and before activation work. |
 | Codegen integration plan | Map the HIR/codegen contract to the existing backend carefully. | After parity confidence improves. |
 | Feature flag policy | Decide whether future v1.30 commands require cargo features, CLI flags, or environment gates. | Before broader testing. |
 

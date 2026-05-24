@@ -424,19 +424,20 @@ Logicodex's operating-system bridge exists to make native execution concrete. In
 
 Hosted applications inherit substantial assumptions from the operating system: process startup, stack layout, standard library availability, dynamic loader behavior, filesystem access, and termination semantics. Freestanding programs cannot assume these services. C and C++ standards distinguish hosted and freestanding implementation environments, and systems developers commonly use freestanding modes to construct kernels or firmware.[4]
 
-Logicodex v1.21-alpha mirrors this distinction through an explicit compiler target parameter:
+Logicodex v1.21-alpha mirrors this distinction through explicit target and validation boundaries. The maintained reflex-engine hardware example is `examples/05_zon_perkakasan_reflex.ldx`, which should pass the parser and semantic checks before any future freestanding object-output claim is made:
 
 ```bash
-logicodex compile --target freestanding examples/01_tambah_pakar.ldx --object-only
+cargo run --quiet -- check examples/05_zon_perkakasan_reflex.ldx
+cargo run --quiet -- v130-check examples/05_zon_perkakasan_reflex.ldx
 ```
 
-In this profile, the backend emits an object intended for later integration by a bootloader, kernel linker script, hypervisor build, or firmware image generator. The compiler does not claim to provide a complete bootable image at this stage. It provides the **layout framework** required for operating-system development: target selection, entry-symbol control, runtime bypass, and physical-memory access documentation.
+In a future freestanding object profile, the backend should emit an object intended for later integration by a bootloader, kernel linker script, hypervisor build, or firmware image generator. The compiler does not claim to provide a complete bootable image at this stage. It provides the **layout framework** required for operating-system development: target selection, entry-symbol control, runtime bypass, and physical-memory access documentation.
 
-A concrete freestanding example is the classic VGA text buffer write at physical address `0xB8000`. The example below writes raw ASCII character bytes and attribute bytes directly to screen memory. It is intentionally documented as a freestanding, capability-gated operation rather than ordinary hosted application behavior.
+A concrete freestanding roadmap example is the classic VGA text buffer write at physical address `0xB8000`. The conceptual example below writes raw ASCII character bytes and attribute bytes directly to screen memory. It is intentionally documented as a freestanding, capability-gated operation rather than ordinary hosted application behavior.
 
 > **Engineering warning:** This memory-mapped I/O operation is strictly valid under **Freestanding (OS-less)** execution targets. When running under hosted operating systems such as Linux or Windows with virtual memory paging and ASLR active, direct physical address manipulation without kernel-space memory mapping, such as `/dev/mem` access or Ring-0 driver mediation, will be rejected by the operating system page-fault defense.
 
-**Novice pseudocode variant:**
+**Future novice pseudocode variant:**
 
 ```logicodex
 MULA PROGRAM tulis_vga
@@ -460,7 +461,7 @@ TAMAT
 TAMAT PROGRAM
 ```
 
-**Expert shorthand variant:**
+**Future expert shorthand variant:**
 
 ```logicodex
 program vga_write {
@@ -481,7 +482,7 @@ program vga_write {
 }
 ```
 
-The alias and expert canonical forms compile toward the same conceptual volatile stores. On x86 text-mode targets, each `U16` cell combines an ASCII byte and a color attribute byte, while other target families would bind equivalent display or serial-output hardware through target-specific capability declarations.
+The alias and expert canonical forms are intended to compile toward the same conceptual volatile stores after the required parser, semantic, and backend gates exist. On x86 text-mode targets, each `U16` cell combines an ASCII byte and a color attribute byte, while other target families would bind equivalent display or serial-output hardware through target-specific capability declarations.
 
 ---
 

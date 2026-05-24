@@ -15,7 +15,7 @@ This authoritative document inventories the core architectural assets of the Log
 
 ## 3. Lexical Dictionaries & Code Reference (`dict/`, `examples/`)
 - `dict/core_map.json`: The core dynamic mapping scheme. Houses the schema v2 dictionary that standardizes expert canonical shorthand, primary Malay aliases, and English pseudocode aliases into identical compiler token identities.
-- `examples/`: Contains official functional validation files with the `.ldx` extension, demonstrating both localized verbose programming styles and advanced freestanding memory operations.
+- `examples/`: Contains official `.ldx` validation files, including legacy smoke examples and the refreshed reflex-engine compatibility suite for arithmetic, functions, loops, bitwise operations, hardware-zone provenance, and Boolean conditionals. These files are expected to pass the default v1.21-alpha `check` command and the opt-in v1.30.0-alpha `v130-check` probe unless a document explicitly marks a future roadmap construct as blocked.
 
 ## 4. Documentation & Specifications (`spec/`, Root)
 - `README.md`: The official Executive Summary manifesto outlining the alias-to-canonical thesis and project governance.
@@ -30,4 +30,4 @@ Repository documentation should describe implemented compiler behavior as implem
 
 ## Maintainer Context: Three-Tier Token Dictionary Expansion
 
-The current logicodex v 1.21 alpha dictionary now includes the requested three-tier token records for program structure, bindings, control flow, FFI vocabulary, resource vocabulary, type families, bitwise operators, and hardware/address vocabulary. Treat this as a vocabulary and lexer-recognition update. New executable behavior should still be introduced through parser, semantic, backend, and validation milestones.
+The current logicodex v 1.21 alpha dictionary now includes the requested three-tier token records for program structure, bindings, control flow, FFI vocabulary, resource vocabulary, type families, bitwise operators, and hardware/address vocabulary. Treat dictionary-only additions as vocabulary and lexer-recognition updates until parser, semantic, backend, and validation milestones prove executable behavior. The current reflex-engine examples document the executable subset that is already accepted by both `check` and `v130-check`.

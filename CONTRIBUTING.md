@@ -32,8 +32,9 @@ Compiler changes must preserve the active v1.21 architecture unless a maintainer
 | Formatting | Rust code must be rustfmt-compliant. | `cargo fmt --all -- --check` |
 | Compiler health | The crate must type-check with the pinned dependencies. | `cargo check --locked` |
 | Regression coverage | Unit and integration tests must pass. | `cargo test --locked` |
-| Examples | New examples must use syntax accepted by the current parser. | `cargo run -- check examples/name.ldx` |
-| Safety-sensitive syntax | Hardware and raw-address examples must remain explicitly gated. | Prefer `--target freestanding --object-only` validation |
+| Examples | New examples must use syntax accepted by the current parser and semantic analyzer. | `cargo run --quiet -- check examples/name.ldx` |
+| Reflex example compatibility | The refreshed example suite must remain valid under the default v1.21-alpha path and the opt-in v1.30.0-alpha probe. | `for file in examples/*.ldx; do cargo run --quiet -- check "$file"; cargo run --quiet -- v130-check "$file"; done` |
+| Safety-sensitive syntax | Hardware and raw-address examples must remain explicitly gated. | Prefer `--target freestanding --object-only` validation when exercising backend object generation. |
 
 ## Adding or Updating Dictionary Tokens
 
@@ -59,6 +60,10 @@ cargo check --locked
 cargo test --locked
 python3.11 scripts/check_bilingual_error_annotations.py
 python3.11 scripts/validate_v121_executable_logic.py
+for file in examples/*.ldx; do
+  cargo run --quiet -- check "$file"
+  cargo run --quiet -- v130-check "$file"
+done
 ```
 
-A pull request should explain the integrity problem being fixed, list the files changed, describe any new examples or tests, and state whether any language behavior changed. Feature additions should be separated from integrity hotfixes so reviewers can verify repository restoration independently.
+A pull request should explain the integrity problem being fixed, list the files changed, describe any new examples or tests, and state whether any language behavior changed. If the change touches parser, semantic analysis, CLI behavior, or documentation examples, include the full reflex example compatibility result in the PR body. Feature additions should be separated from integrity hotfixes so reviewers can verify repository restoration independently.

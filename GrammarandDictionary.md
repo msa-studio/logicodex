@@ -69,6 +69,8 @@ The parser accepts repeated blank lines, Windows CRLF input, extra semicolons as
 
 ## 5. Usage Examples
 
+The snippets below show the accepted grammar surface. The repository-level compatibility suite is maintained as real `.ldx` files under `examples/` and summarized in `docs/examples/REFLEX_ENGINE_EXAMPLES.md`; those files are the preferred validation target for parser, semantic, and CLI changes.
+
 ### 5.1 Expert Canonical Shorthand Mode
 
 This example uses expert canonical shorthand as the complete compiler reference surface and keeps an explicit terminator on every statement.
