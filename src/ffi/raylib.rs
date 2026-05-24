@@ -13,7 +13,100 @@ use super::raylib_sys;
 use super::{
     CallableId, CallableRegistry, CallableSafety, CallableSignature, CallingConvention,
 };
-use crate::types::{PrimitiveType, TypeRegistry};
+use crate::layout::{LayoutEngine, StructField};
+use crate::types::{PrimitiveType, StructLayout, TypeRegistry};
+
+/// Type IDs for Raylib struct types, populated by `register_raylib_types()`.
+#[derive(Debug, Clone, Copy)]
+pub struct RaylibTypeIds {
+    pub color: crate::types::TypeId,
+    pub vector2: crate::types::TypeId,
+    pub rectangle: crate::types::TypeId,
+    pub texture2d: crate::types::TypeId,
+}
+
+/// Register Raylib C struct types (Color, Vector2, Rectangle, Texture2D)
+/// with the TypeRegistry. Computes layouts via LayoutEngine.
+///
+/// Must be called *before* `register_raylib_functions()` so that
+/// function signatures can reference struct types.
+pub fn register_raylib_types(registry: &mut TypeRegistry) -> RaylibTypeIds {
+    let ids = registry.primitive_ids();
+
+    // Helper: create a LayoutEngine for computing layouts
+    let target = crate::layout::TargetLayout::native();
+    let engine = LayoutEngine::new(registry, target);
+
+    // ─── Color { r: u8, g: u8, b: u8, a: u8 } ───
+    // Size: 4, Align: 1 (packed in C)
+    let color_layout = engine
+        .compute_struct_layout(
+            "Color",
+            &[
+                StructField { name: "r".into(), ty: ids.u8_ },
+                StructField { name: "g".into(), ty: ids.u8_ },
+                StructField { name: "b".into(), ty: ids.u8_ },
+                StructField { name: "a".into(), ty: ids.u8_ },
+            ],
+            false, // natural alignment (C compiler doesn't pack Color)
+        )
+        .expect("Color layout must compute successfully");
+    let color = registry.intern_struct(color_layout);
+
+    // ─── Vector2 { x: f32, y: f32 } ───
+    // Size: 8, Align: 4
+    let vector2_layout = engine
+        .compute_struct_layout(
+            "Vector2",
+            &[
+                StructField { name: "x".into(), ty: ids.f32_ },
+                StructField { name: "y".into(), ty: ids.f32_ },
+            ],
+            false,
+        )
+        .expect("Vector2 layout must compute successfully");
+    let vector2 = registry.intern_struct(vector2_layout);
+
+    // ─── Rectangle { x: f32, y: f32, width: f32, height: f32 } ───
+    // Size: 16, Align: 4
+    let rectangle_layout = engine
+        .compute_struct_layout(
+            "Rectangle",
+            &[
+                StructField { name: "x".into(), ty: ids.f32_ },
+                StructField { name: "y".into(), ty: ids.f32_ },
+                StructField { name: "width".into(), ty: ids.f32_ },
+                StructField { name: "height".into(), ty: ids.f32_ },
+            ],
+            false,
+        )
+        .expect("Rectangle layout must compute successfully");
+    let rectangle = registry.intern_struct(rectangle_layout);
+
+    // ─── Texture2D { id: u32, width: i32, height: i32, mipmaps: i32, format: i32 } ───
+    // Size: 20, Align: 4
+    let texture2d_layout = engine
+        .compute_struct_layout(
+            "Texture2D",
+            &[
+                StructField { name: "id".into(), ty: ids.u32_ },
+                StructField { name: "width".into(), ty: ids.i32_ },
+                StructField { name: "height".into(), ty: ids.i32_ },
+                StructField { name: "mipmaps".into(), ty: ids.i32_ },
+                StructField { name: "format".into(), ty: ids.i32_ },
+            ],
+            false,
+        )
+        .expect("Texture2D layout must compute successfully");
+    let texture2d = registry.intern_struct(texture2d_layout);
+
+    RaylibTypeIds {
+        color,
+        vector2,
+        rectangle,
+        texture2d,
+    }
+}
 
 pub use raylib_sys::{
     Color, Image, Rectangle, Texture2D, Vector2, Vector3, KEY_A, KEY_B, KEY_BACKSPACE,
