@@ -11,11 +11,11 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOC = ROOT / "spec" / "v1.30-alpha" / "v130_architecture_design.md"
+DOC = ROOT / "spec" / "v1.30.0-alpha" / "v130_architecture_design.md"
 README = ROOT / "README.md"
 
 README_ENTRY = (
-    "| `spec/v1.30-alpha/v130_architecture_design.md` | Defines the "
+    "| `spec/v1.30.0-alpha/v130_architecture_design.md` | Defines the "
     "documentation-first v1.30 architecture baseline with Rust skeleton "
     "structures for spans, HIR, type registry, struct layout, enum "
     "representation, FFI signatures, unsafe gatekeeping, semantic validation, "

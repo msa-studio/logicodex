@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document records the safe path for merging the dormant Logicodex v1.30 subsystem work from `sim/v130-resume` into `main`. The branch has been synchronized with `origin/main`, validated locally, and documented so reviewers can understand the change boundary before approving any merge.
+This document records the safe path for merging the dormant Logicodex v1.30.0-alpha subsystem work from `sim/v130-resume` into `main`. The branch has been synchronized with `origin/main`, validated locally, and documented so reviewers can understand the change boundary before approving any merge.
 
 The most important safety property is that v1.30 is **not activated as the default compiler pipeline**. The existing Logicodex v1.21-alpha command path remains the default path for normal `check`, `compile`, and related commands. The v1.30 work is introduced as a dormant, opt-in subsystem with the developer command `v130-check`, which first runs v1.21 semantic validation and only then probes the v1.30 subsystem.
 
@@ -21,7 +21,7 @@ The most important safety property is that v1.30 is **not activated as the defau
 | Repository | `msa-studio/logicodex` |
 | Default branch | `main` |
 | Source branch | `sim/v130-resume` |
-| Current v1.30 implementation commit | `7956a37` — `Implement dormant v1.30 subsystem roadmap` |
+| Current v1.30 implementation commit | `7956a37` — `Implement dormant v1.30.0-alpha subsystem roadmap` |
 | Relationship to `origin/main` before documentation commit | `0` commits behind, `1` commit ahead |
 | Merge strategy recommended | Pull Request with squash merge after approval |
 
@@ -39,7 +39,7 @@ The change introduces dormant architecture building blocks for the v1.30 line. I
 | Semantic gate | `src/semantic_gate.rs` | Adds opt-in HIR traversal checks for loop legality and unsafe FFI calls. |
 | Codegen contract | `src/codegen_contract.rs` | Adds backend contract boundary and mock backend tests. |
 | Diagnostic contract | `src/span.rs` | Adds span, spanned value, diagnostic severity, and bilingual diagnostic structure. |
-| Architecture roadmap | `spec/v1.30-alpha/v130_architecture_design.md` | Documents the improved staged roadmap for dormant v1.30 work. |
+| Architecture roadmap | `spec/v1.30.0-alpha/v130_architecture_design.md` | Documents the improved staged roadmap for dormant v1.30 work. |
 | Readiness documentation | `docs/release/V130_MAIN_READINESS.md` | Provides this safe merge plan and validation record. |
 | Validation automation | `scripts/validate_v130_main_readiness.sh` | Re-runs the readiness validation and stores the log under `target/v130-main-readiness/`. |
 
@@ -92,7 +92,7 @@ After the branch is current and validation is clean, open or update the Pull Req
 gh pr create \
   --base main \
   --head sim/v130-resume \
-  --title "Implement dormant v1.30 subsystem roadmap" \
+  --title "Implement dormant v1.30.0-alpha subsystem roadmap" \
   --body-file target/v130-main-readiness/PR_BODY.md
 ```
 
@@ -123,4 +123,4 @@ After merging into `main`, create a follow-up issue or milestone for the next v1
 
 ## Final Recommendation
 
-This branch is ready for Pull Request review, not for direct push into `main`. The safe merge decision is to open the PR, attach the validation result, request review, and merge only after all checks pass. The branch should be described as **dormant v1.30 subsystem groundwork for current Logicodex v1.21 alpha**, not as an active v1.30 compiler release.
+This branch is ready for Pull Request review, not for direct push into `main`. The safe merge decision is to open the PR, attach the validation result, request review, and merge only after all checks pass. The branch should be described as **dormant v1.30.0-alpha subsystem groundwork for current Logicodex v1.21 alpha**, not as an active v1.30 compiler release.
