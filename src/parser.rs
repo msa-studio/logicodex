@@ -641,7 +641,26 @@ impl Parser {
             return Ok(Expr::StringLiteral(self.previous().lexeme.clone()));
         }
         if self.matches(TokenKind::Identifier) {
-            return Ok(Expr::Variable(self.previous().lexeme.clone()));
+            let name = self.previous().lexeme.clone();
+            // Check if followed by '(' → function or struct constructor call
+            if self.check(TokenKind::LeftParen) {
+                self.advance(); // consume '('
+                let mut args = Vec::new();
+                if !self.check(TokenKind::RightParen) {
+                    loop {
+                        args.push(self.expression()?);
+                        if !self.matches(TokenKind::Comma) {
+                            break;
+                        }
+                    }
+                }
+                self.consume(TokenKind::RightParen, "')' selepas argumen")?;
+                return Ok(Expr::Call {
+                    callee: Box::new(Expr::Variable(name)),
+                    args,
+                });
+            }
+            return Ok(Expr::Variable(name));
         }
         if self.matches(TokenKind::Address) {
             let value = self.consume_integer_literal("literal after addr")?;

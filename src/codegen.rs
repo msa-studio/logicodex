@@ -402,6 +402,24 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .context("failed to load variable")?
                     .into_int_value())
             }
+            Expr::Call { callee, args } => {
+                let callee_name = match callee.as_ref() {
+                    Expr::Variable(name) => name.as_str(),
+                    _ => "<complex callee>",
+                };
+                // Sprint 2.5: Function call codegen requires:
+                // 1. CallableRegistry lookup for function pointer
+                // 2. LLVM function pointer or direct call
+                // 3. Argument marshalling (especially for Color/Vector2 structs)
+                // This is deferred to Sprint 3 (codegen backend integration).
+                // For now, emit a placeholder zero value.
+                eprintln!(
+                    "logicodex: codegen for Call('{}', {} args) is a stub — \
+                     requires Sprint 3 codegen backend",
+                    callee_name, args.len()
+                );
+                Ok(self.i64_type.const_int(0, false))
+            }
             Expr::Grouped(inner) => self.emit_expr(inner),
             Expr::Binary { left, op, right } => {
                 let l = self.emit_expr(left)?;

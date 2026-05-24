@@ -168,9 +168,57 @@ impl TypeChecker<'_> {
                     .and_then(|id| self.registry.type_id_to_ast(id))
             }
             Expr::Unary { expr, .. } => self.infer_default_type(expr),
+            Expr::Call { callee, .. } => {
+                // Try to resolve callee as a struct type name → returns that type
+                // e.g., Color(255, 0, 0, 255) → Color
+                if let Expr::Variable(name) = callee.as_ref() {
+                    // Check if name matches a registered struct type
+                    if let Some((_, layout)) = self.registry.find_struct_by_name(name) {
+                        // Return the type name as ast::Type if possible
+                        // For Sprint 2.5, we only support primitive-named structs
+                        // Full struct type mapping requires ast::Type extension
+                        return None; // Will be refined in Sprint 3
+                    }
+                }
+                None
+            }
             // Complex expressions need symbol table context
             _ => None,
         }
+    }
+
+    /// Check a function or struct constructor call.
+    /// Returns the result type of the call, or an error description.
+    pub fn check_call(&self, callee: &Expr, args: &[Expr]) -> Result<Type, String> {
+        let callee_name = match callee {
+            Expr::Variable(name) => name.as_str(),
+            _ => return Err("Complex callees not yet supported (Sprint 3)".into()),
+        };
+
+        // Try to resolve as a struct type → struct constructor
+        if let Some((_, layout)) = self.registry.find_struct_by_name(callee_name) {
+            // Struct constructor: validate arg count matches field count
+            if args.len() != layout.fields.len() {
+                return Err(format!(
+                    "Struct constructor '{}' expects {} arguments, got {}. \
+                     / Pembina struktur '{}' memerlukan {} argumen, mendapat {}.",
+                    callee_name, layout.fields.len(), args.len(),
+                    callee_name, layout.fields.len(), args.len(),
+                ));
+            }
+            // Sprint 3: validate each argument type against field type
+            // For now, accept any arguments for struct constructors
+            // Return a placeholder type — full struct type support in Sprint 3
+            return Ok(Type::I64); // placeholder
+        }
+
+        // Try CallableRegistry for function calls
+        // Sprint 3: integrate with CallableRegistry for full function checking
+        Err(format!(
+            "Fungsi atau jenis struktur '{}' tidak dikenali. \
+             / Function or struct type '{}' is not recognized.",
+            callee_name, callee_name
+        ))
     }
 
     /// Generate a bilingual error message for a type mismatch.

@@ -335,6 +335,30 @@ impl Analyzer {
                 }
                 Ok(Type::Pointer(Box::new(Type::U16)))
             }
+            Expr::Call { callee, args } => {
+                // Sprint 2.5: Function/struct constructor call
+                // Resolve the callee name, then validate arguments
+                let callee_name = match callee.as_ref() {
+                    Expr::Variable(name) => name.as_str(),
+                    _ => "<complex callee>",
+                };
+
+                // Try to resolve as a type name (struct constructor)
+                // or as a variable (function call)
+                if let Ok(ty) = self.resolve(callee_name) {
+                    // Struct constructor: Color(255, 0, 0, 255)
+                    for arg in args {
+                        let _ = self.expression(arg)?;
+                    }
+                    Ok(ty)
+                } else {
+                    // Function call: InitWindow(800, 600, "Hi")
+                    for arg in args {
+                        let _ = self.expression(arg)?;
+                    }
+                    Ok(Type::I64) // default return type (to be refined)
+                }
+            }
             Expr::Grouped(inner) => self.expression(inner),
             Expr::Binary { left, op, right } => {
                 if *op == BinaryOp::Divide && matches!(right.as_ref(), Expr::Integer(0)) {
