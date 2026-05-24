@@ -116,17 +116,17 @@ pub enum SemanticError {
     #[error("KRITIKAL: Operasi `{operation` ditolak untuk handle `{name}` — kebenaran tidak mencukupi / CRITICAL: Operation `{operation}` denied for handle `{name}` — insufficient permission")]
     HandlePermissionDenied { name: String, operation: String },
     // ─── v1.30.1-alpha: Threading Foundation ───
-    #[error("KRITIKAL: Kotak `{name}` tidak wujud — mesti diisytiharkan sebelum digunakan / CRITICAL: Kotak `{name}` does not exist — must be declared before use")]
-    KotakNotFound { name: String },
-    #[error("KRITIKAL: Pintu dari `{from}` ke `{to}` tidak sah — Kotak penerima tidak wujud / CRITICAL: Pintu from `{from}` to `{to}` is invalid — receiving Kotak does not exist")]
-    InvalidPintuTopology { from: String, to: String },
-    #[error("KRITIKAL: Kotak `{name}` sudah diisytiharkan / CRITICAL: Kotak `{name}` is already declared")]
-    DuplicateKotak { name: String },
-    #[error("KRITIKAL: `lahirkan` hanya boleh digunakan dengan nama Kotak / CRITICAL: `lahirkan` can only be used with a Kotak name")]
-    SpawnNonKotak,
-    // v1.30.1-alpha Fasa 2: Zero-Copy Ownership Transfer
-    #[error("KRITIKAL: Pembolehubah `{name` sudah dihantar melalui Pintu — ownership telah dipindahkan / CRITICAL: Variable `{name}` has already been sent through Pintu — ownership has been transferred")]
-    UseAfterHantar { name: String },
+    #[error("KRITIKAL: Actor `{name}` does not exist — mesti diisytiharkan sebelum digunakan / CRITICAL: Actor `{name}` does not exist — must be declared before use")]
+    ActorNotFound { name: String },
+    #[error("KRITIKAL: Channel from `{from}` to `{to}` is invalid — Kotak penerima tidak wujud / CRITICAL: Channel from `{from}` to `{to}` is invalid — receiving Kotak does not exist")]
+    InvalidChannelTopology { from: String, to: String },
+    #[error("KRITIKAL: Actor `{name}` is already declared / CRITICAL: Actor `{name}` is already declared")]
+    DuplicateActor { name: String },
+    #[error("KRITIKAL: `spawn` can only be used with an Actor name / CRITICAL: `spawn` can only be used with an Actor name")]
+    SpawnNonActor,
+    // v1.30.1-alpha Phase 2: Zero-Copy Ownership Transfer
+    #[error("KRITIKAL: Variable `{name}` has already been sent through Channel — ownership telah dipindahkan / CRITICAL: Variable `{name}` has already been sent through Channel — ownership has been transferred")]
+    UseAfterSend { name: String },
 }
 
 #[derive(Debug, Default)]
@@ -149,14 +149,14 @@ pub struct Analyzer {
     handle_registry: HashMap<String, (Type, bool)>,
     /// Tracks handle permissions: variable name → mode (Read/Write/ReadWrite)
     handle_permissions: HashMap<String, String>,
-    // v1.30.1-alpha: Threading Foundation — Kotak & Pintu topology
-    /// Registered Kotak names
-    kotak_registry: HashSet<String>,
-    /// Registered Pintu: (from, to, message_type)
-    pintu_registry: Vec<(String, String, String)>,
-    // v1.30.1-alpha Fasa 2: Zero-Copy Ownership Transfer
-    /// Variables moved via Pintu hantar() — cannot use after send
-    moved_via_pintu: HashSet<String>,
+    // v1.30.1-alpha: Threading Foundation — Actor & Channel topology
+    /// Registered Actor names
+    actor_registry: HashSet<String>,
+    /// Registered Channel: (from, to, message_type)
+    channel_registry: Vec<(String, String, String)>,
+    // v1.30.1-alpha Phase 2: Zero-Copy Ownership Transfer
+    /// Variables moved via Channel hantar() — cannot use after send
+    moved_via_channel: HashSet<String>,
 }
 
 impl Default for SeverityPolicy {
@@ -190,9 +190,9 @@ impl Analyzer {
             buffer_registry: HashMap::new(),
             handle_registry: HashMap::new(),
             handle_permissions: HashMap::new(),
-            kotak_registry: HashSet::new(),
-            pintu_registry: Vec::new(),
-            moved_via_pintu: HashSet::new(),
+            actor_registry: HashSet::new(),
+            channel_registry: Vec::new(),
+            moved_via_channel: HashSet::new(),
             ..Self::default()
         };
         analyzer.block(&program.statements)
@@ -425,20 +425,20 @@ impl Analyzer {
                     Ok(())
                 }
             }
-            Stmt::Kotak { name, body } => {
+            Stmt::Actor { name, body } => {
                 // v1.30.1-alpha: Register Kotak in topology
-                if self.kotak_registry.contains(name) {
-                    return Err(SemanticError::DuplicateKotak { name: name.clone() });
+                if self.actor_registry.contains(name) {
+                    return Err(SemanticError::DuplicateActor { name: name.clone() });
                 }
-                self.kotak_registry.insert(name.clone());
+                self.actor_registry.insert(name.clone());
                 // Validate Kotak body
                 self.scopes.push(HashMap::new());
                 let result = self.block(body);
                 self.scopes.pop();
                 // Collect Pintu declarations within this Kotak
                 for stmt in body {
-                    if let Stmt::Let { declared_type: Some(Type::Pintu { from, to, message_type }), .. } = stmt {
-                        self.pintu_registry.push((from.clone(), to.clone(), message_type.clone()));
+                    if let Stmt::Let { declared_type: Some(Type::Channel { from, to, message_type }), .. } = stmt {
+                        self.channel_registry.push((from.clone(), to.clone(), message_type.clone()));
                     }
                 }
                 result
@@ -596,9 +596,9 @@ impl Analyzer {
             Expr::Boolean(_) => Ok(Type::Bool),
             Expr::StringLiteral(_) => Ok(Type::String),
             Expr::Variable(name) => {
-                // Fasa 2: Check if variable was moved via Pintu hantar()
-                if self.moved_via_pintu.contains(name) {
-                    return Err(SemanticError::UseAfterHantar { name: name.clone() });
+                // Phase 2: Check if variable was moved via Pintu hantar()
+                if self.moved_via_channel.contains(name) {
+                    return Err(SemanticError::UseAfterSend { name: name.clone() });
                 }
                 self.resolve(name)
             }
@@ -697,49 +697,49 @@ impl Analyzer {
                 }
             }
             // v1.30.1-alpha: Threading expressions
-            Expr::Spawn { kotak_name, args } => {
-                if !self.kotak_registry.contains(kotak_name) {
-                    return Err(SemanticError::KotakNotFound { name: kotak_name.clone() });
+            Expr::Spawn { actor_name, args } => {
+                if !self.actor_registry.contains(actor_name) {
+                    return Err(SemanticError::ActorNotFound { name: actor_name.clone() });
                 }
                 for arg in args { self.expression(arg)?; }
                 Ok(Type::Opaque { name: "ThreadHandle".to_string() })
             }
-            Expr::Hantar { pintu_name, value } => {
+            Expr::Send { channel_name, value } => {
                 // Validate Pintu exists in registry
-                let found = self.pintu_registry.iter().any(|(f, t, _)| {
-                    f == pintu_name || t == pintu_name
+                let found = self.channel_registry.iter().any(|(f, t, _)| {
+                    f == channel_name || t == channel_name
                 });
                 if !found {
                     // Check if it's a variable with Pintu type
-                    let _ = self.resolve(pintu_name); // Will error if not defined
+                    let _ = self.resolve(channel_name); // Will error if not defined
                 }
-                // Fasa 2: Zero-Copy Ownership Transfer
+                // Phase 2: Zero-Copy Ownership Transfer
                 // If value is a variable, mark it as moved via Pintu
                 if let Expr::Variable(var_name) = value {
-                    if self.moved_via_pintu.contains(var_name) {
-                        return Err(SemanticError::UseAfterHantar { name: var_name.clone() });
+                    if self.moved_via_channel.contains(var_name) {
+                        return Err(SemanticError::UseAfterSend { name: var_name.clone() });
                     }
-                    self.moved_via_pintu.insert(var_name.clone());
+                    self.moved_via_channel.insert(var_name.clone());
                 }
                 self.expression(value)?;
                 Ok(Type::Opaque { name: "Unit".to_string() })
             }
-            Expr::Terima { pintu_name } => {
+            Expr::Recv { channel_name } => {
                 // Return the message type of the Pintu
-                if let Some((_, _, msg_type)) = self.pintu_registry.iter().find(|(_, t, _)| t == pintu_name) {
+                if let Some((_, _, msg_type)) = self.channel_registry.iter().find(|(_, t, _)| t == channel_name) {
                     Ok(Type::Opaque { name: msg_type.clone() })
                 } else {
                     // Fallback: check variable type
-                    if let Ok(ty) = self.resolve(pintu_name) {
+                    if let Ok(ty) = self.resolve(channel_name) {
                         Ok(ty)
                     } else {
-                        Err(SemanticError::UndefinedVariable(pintu_name.clone()))
+                        Err(SemanticError::UndefinedVariable(channel_name.clone()))
                     }
                 }
             }
-            Expr::Tunggu { kotak_name } => {
-                if !self.kotak_registry.contains(kotak_name) {
-                    return Err(SemanticError::KotakNotFound { name: kotak_name.clone() });
+            Expr::Join { actor_name } => {
+                if !self.actor_registry.contains(actor_name) {
+                    return Err(SemanticError::ActorNotFound { name: actor_name.clone() });
                 }
                 Ok(Type::Opaque { name: "Unit".to_string() })
             }

@@ -86,9 +86,9 @@ pub enum Stmt {
         value: Expr,
         arms: Vec<MatchArm>,
     },
-    /// v1.30.1-alpha: Kotak declaration — concurrency unit (1 OS Thread).
-    /// Syntax: `kotak SensorSuhu { let pintu: Pintu<...> = ...; ... }`
-    Kotak {
+    /// v1.30.1-alpha: Actor declaration — concurrency unit (1 OS Thread).
+    /// Syntax: `actor SensorSuhu { let pintu: Pintu<...> = ...; ... }`
+    Actor {
         name: String,
         body: Vec<Stmt>,
     },
@@ -161,24 +161,24 @@ pub enum Expr {
     /// v1.30.1-alpha: Spawn a Kotak (create OS thread).
     /// Syntax: `lahirkan SensorSuhu()`
     Spawn {
-        kotak_name: String,
+        actor_name: String,
         args: Vec<Expr>,
     },
-    /// v1.30.1-alpha: Send value through Pintu.
-    /// Syntax: `pintu_data.hantar(Ok(DataSuhu{ nilai: 25.5 }))`
-    Hantar {
-        pintu_name: String,
+    /// v1.30.1-alpha: Send value through Channel.
+    /// Syntax: `channel_data.send(Ok(DataSuhu{ nilai: 25.5 }))`
+    Send {
+        channel_name: String,
         value: Box<Expr>,
     },
-    /// v1.30.1-alpha: Receive value from Pintu.
-    /// Syntax: `pintu_data.terima()`
-    Terima {
-        pintu_name: String,
+    /// v1.30.1-alpha: Receive value from Channel.
+    /// Syntax: `channel_data.recv()`
+    Recv {
+        channel_name: String,
     },
-    /// v1.30.1-alpha: Wait for Kotak to finish.
-    /// Syntax: `tunggu SensorSuhu`
-    Tunggu {
-        kotak_name: String,
+    /// v1.30.1-alpha: Wait for Actor to finish.
+    /// Syntax: `join SensorSuhu`
+    Join {
+        actor_name: String,
     },
     Grouped(Box<Expr>),
 }
@@ -223,9 +223,9 @@ pub enum Type {
     /// Syntax: FileHandle, FileMode
     Opaque { name: String },
     // ─── v1.30.1-alpha: Threading Foundation — Kotak & Pintu ───
-    /// Pintu<T, U> — SPSC channel with type-level capability.
-    /// Syntax: Pintu<SensorSuhu, KotakEnjin, DataSuhu>
-    Pintu { from: String, to: String, message_type: String },
+    /// Channel<T, U> — SPSC channel with type-level capability.
+    /// Syntax: Channel<SensorSuhu, KotakEnjin, DataSuhu>
+    Channel { from: String, to: String, message_type: String },
 }
 
 impl Type {
@@ -291,14 +291,14 @@ impl Type {
     }
 
     /// v1.30.1-alpha: Check if this is a Pintu type.
-    pub fn is_pintu(&self) -> bool {
-        matches!(self, Type::Pintu { .. })
+    pub fn is_channel(&self) -> bool {
+        matches!(self, Type::Channel { .. })
     }
 
     /// v1.30.1-alpha: Get Pintu capability (from, to, message_type).
-    pub fn pintu_capability(&self) -> Option<(&str, &str, &str)> {
+    pub fn channel_capability(&self) -> Option<(&str, &str, &str)> {
         match self {
-            Type::Pintu { from, to, message_type } => Some((from, to, message_type)),
+            Type::Channel { from, to, message_type } => Some((from, to, message_type)),
             _ => None,
         }
     }
@@ -355,8 +355,8 @@ impl fmt::Display for Type {
             Type::Buffer { element } => write!(f, "Buffer<{element}>"),
             Type::Result { ok, err } => write!(f, "Result<{ok}, {err}>"),
             Type::Opaque { name } => write!(f, "{name}"),
-            Type::Pintu { from, to, message_type } => {
-                write!(f, "Pintu<{from}, {to}, {message_type}>")
+            Type::Channel { from, to, message_type } => {
+                write!(f, "Channel<{from}, {to}, {message_type}>")
             }
         }
     }

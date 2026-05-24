@@ -601,32 +601,32 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         .context("failed to build right shift"),
                 }
             }
-            // v1.30.1-alpha Fasa 2: Zero-Copy Ownership Transfer via Pintu
-            Expr::Hantar { pintu_name, value } => {
-                // Fasa 2: Emit hantar with Release semantics
+            // v1.30.1-alpha Phase 2: Zero-Copy Ownership Transfer via Pintu
+            Expr::Send { channel_name, value } => {
+                // Phase 2: Emit send with Release semantics
                 // The value ownership is transferred to the Pintu
                 let val = self.emit_expr(value)?;
-                // Call runtime pintu_send_release(pintu_name, val)
+                // Call runtime pintu_send_release(channel_name, val)
                 // For now, return 0 as placeholder — full impl in Fasa 3
-                eprintln!("logicodex v1.30.1-alpha: hantar '{}' through '{}' — ownership transferred (Release)",
-                    match value { Expr::Variable(n) => n.as_str(), _ => "<expr>" }, pintu_name);
+                eprintln!("logicodex v1.30.1-alpha: send '{}' through '{}' — ownership transferred (Release)",
+                    match value { Expr::Variable(n) => n.as_str(), _ => "<expr>" }, channel_name);
                 Ok(self.i64_type.const_int(0, false))
             }
-            Expr::Terima { pintu_name } => {
-                // Fasa 2: Emit terima with Acquire semantics
+            Expr::Recv { channel_name } => {
+                // Phase 2: Emit recv with Acquire semantics
                 // The value ownership is transferred from the Pintu
-                // Call runtime pintu_recv_acquire(pintu_name)
+                // Call runtime pintu_recv_acquire(channel_name)
                 // For now, return 0 as placeholder — full impl in Fasa 3
-                eprintln!("logicodex v1.30.1-alpha: terima through '{}' — ownership acquired (Acquire)", pintu_name);
+                eprintln!("logicodex v1.30.1-alpha: recv through '{}' — ownership acquired (Acquire)", channel_name);
                 Ok(self.i64_type.const_int(0, false))
             }
             // v1.30.1-alpha: Threading expressions (stubs)
-            Expr::Spawn { kotak_name, .. } => {
-                eprintln!("logicodex v1.30.1-alpha: spawn '{}' — deferred to runtime", kotak_name);
+            Expr::Spawn { actor_name, .. } => {
+                eprintln!("logicodex v1.30.1-alpha: spawn '{}' — deferred to runtime", actor_name);
                 Ok(self.i64_type.const_int(0, false))
             }
-            Expr::Tunggu { kotak_name } => {
-                eprintln!("logicodex v1.30.1-alpha: tunggu '{}' — deferred to runtime", kotak_name);
+            Expr::Join { actor_name } => {
+                eprintln!("logicodex v1.30.1-alpha: join '{}' — deferred to runtime", actor_name);
                 Ok(self.i64_type.const_int(0, false))
             }
         }

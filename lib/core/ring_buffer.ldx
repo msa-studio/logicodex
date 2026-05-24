@@ -2,11 +2,11 @@
 // Logicodex v1.30.1-alpha Fasa 2 — SPSC Ring Buffer
 //
 // Single Producer Single Consumer ring buffer dengan memory ordering.
-// Ini adalah struktur data core untuk Pintu channel.
+// Ini adalah struktur data core untuk Channel channel.
 //
 // Memory Ordering:
-//   Producer (hantar): write data → Release write to tail
-//   Consumer (terima): Acquire read from head → read data
+//   Producer (send): write data → Release write to tail
+//   Consumer (recv): Acquire read from head → read data
 //
 // Ini memastikan:
 //   - Consumer nampak semua writes daripada Producer
@@ -15,111 +15,111 @@
 // =========================================================================
 
 struct RingBuffer<T> {
-    penimbal: *mut T,      // Pointer ke array data
-    kapasiti: i32,         // Saiz penimbal (mesti power-of-2)
-    kepala: *mut i32,      // Consumer read position (Atomic)
-    ekor: *mut i32,        // Producer write position (Atomic)
+    buffer: *mut T,      // Pointer ke array data
+    capacity: i32,         // Saiz buffer (mesti power-of-2)
+    head: *mut i32,      // Consumer read position (Atomic)
+    tail: *mut i32,        // Producer write position (Atomic)
 }
 
-// ─── ring_baru ───
-// Cipta RingBuffer baru dengan kapasiti tertentu.
+// ─── ring_new ───
+// Cipta RingBuffer baru dengan capacity tertentu.
 // Kapasiti mesti power-of-2 untuk optimization bitwise.
-function ring_baru<T>(kapasiti: i32) -> RingBuffer<T> {
-    // Pastikan kapasiti adalah power-of-2
-    let mut k = kapasiti
+function ring_new<T>(capacity: i32) -> RingBuffer<T> {
+    // Pastikan capacity adalah power-of-2
+    let mut k = capacity
     if (k & (k - 1) != 0) {
         // Round up kepada power-of-2 seterusnya
         k = 1
-        while (k < kapasiti) {
+        while (k < capacity) {
             k = k << 1
         }
     }
     
     // Allocate memory (static allocation untuk bare-metal)
-    let penimbal = alloc(k * size_of::<T>())
-    let kepala = alloc(4) as *mut i32   // 4 bytes untuk i32
-    let ekor = alloc(4) as *mut i32
+    let buffer = alloc(k * size_of::<T>())
+    let head = alloc(4) as *mut i32   // 4 bytes untuk i32
+    let tail = alloc(4) as *mut i32
     
     // Initialize atomics kepada 0
-    *kepala = 0
-    *ekor = 0
+    *head = 0
+    *tail = 0
     
     RingBuffer {
-        penimbal: penimbal,
-        kapasiti: k,
-        kepala: kepala,
-        ekor: ekor
+        buffer: buffer,
+        capacity: k,
+        head: head,
+        tail: tail
     }
 }
 
-// ─── ring_hantar ───
-// Hantar nilai ke RingBuffer (Producer — Release semantics).
-// Return true jika berjaya, false jika penimbal penuh.
+// ─── ring_send ───
+// Send nilai ke RingBuffer (Producer — Release semantics).
+// Return true jika berjaya, false jika buffer full.
 //
-// Memory ordering: Release pada ekor update
-// Ini memastikan Consumer nampak data sebelum nampak ekor update.
-function ring_hantar<T>(ring: *mut RingBuffer<T>, nilai: T) -> bool {
-    let ekor_semula = *ring.ekor          // Read ekor (plain — hanya Producer tulis)
-    let kepala_semasa = *ring.kepala      // Read kepala (Acquire — Consumer mungkin update)
+// Memory ordering: Release pada tail update
+// Ini memastikan Consumer nampak data sebelum nampak tail update.
+function ring_send<T>(ring: *mut RingBuffer<T>, nilai: T) -> bool {
+    let tail_semula = *ring.tail          // Read tail (plain — hanya Producer tulis)
+    let head_semasa = *ring.head      // Read head (Acquire — Consumer mungkin update)
     
-    // Semak jika penimbal penuh
-    let saiz = ekor_semula - kepala_semasa
-    if (saiz >= ring.kapasiti) {
-        return false  // Penimbal penuh
+    // Semak jika buffer full
+    let size = tail_semula - head_semasa
+    if (size >= ring.capacity) {
+        return false  // Penimbal full
     }
     
-    // Tulis data ke posisi ekor
-    let indeks = ekor_semula & (ring.kapasiti - 1)  // Modulo dengan bitwise AND
-    ring.penimbal[indeks] = nilai
+    // Tulis data ke posisi tail
+    let indeks = tail_semula & (ring.capacity - 1)  // Modulo dengan bitwise AND
+    ring.buffer[indeks] = nilai
     
-    // Update ekor dengan Release semantics
+    // Update tail dengan Release semantics
     // Ini adalah "memory barrier" — semua writes sebelum ini
-    // akan nampak kepada threads lain selepas mereka baca ekor.
-    *ring.ekor = ekor_semula + 1
+    // akan nampak kepada threads lain selepas mereka baca tail.
+    *ring.tail = tail_semula + 1
     
     true
 }
 
-// ─── ring_terima ───
-// Terima nilai dari RingBuffer (Consumer — Acquire semantics).
-// Return Some(nilai) jika ada data, None jika kosong.
+// ─── ring_recv ───
+// Recv nilai dari RingBuffer (Consumer — Acquire semantics).
+// Return Some(nilai) jika ada data, None jika empty.
 //
-// Memory ordering: Acquire pada kepala read
-// Ini memastikan Producer writes nampak selepas kepala read.
-function ring_terima<T>(ring: *mut RingBuffer<T>) -> Option<T> {
-    let kepala_semula = *ring.kepala      // Read kepala (plain — hanya Consumer tulis)
-    let ekor_semasa = *ring.ekor          // Read ekor (Acquire — Producer mungkin update)
+// Memory ordering: Acquire pada head read
+// Ini memastikan Producer writes nampak selepas head read.
+function ring_recv<T>(ring: *mut RingBuffer<T>) -> Option<T> {
+    let head_semula = *ring.head      // Read head (plain — hanya Consumer tulis)
+    let tail_semasa = *ring.tail          // Read tail (Acquire — Producer mungkin update)
     
-    // Semak jika penimbal kosong
-    if (kepala_semula == ekor_semasa) {
-        return None  // Penimbal kosong
+    // Semak jika buffer empty
+    if (head_semula == tail_semasa) {
+        return None  // Penimbal empty
     }
     
-    // Baca data dari posisi kepala
-    let indeks = kepala_semula & (ring.kapasiti - 1)
-    let nilai = ring.penimbal[indeks]
+    // Baca data dari posisi head
+    let indeks = head_semula & (ring.capacity - 1)
+    let nilai = ring.buffer[indeks]
     
-    // Update kepala dengan Release semantics
-    // Ini memberitahu Producer bahawa slot ini kini kosong.
-    *ring.kepala = kepala_semula + 1
+    // Update head dengan Release semantics
+    // Ini memberitahu Producer bahawa slot ini kini empty.
+    *ring.head = head_semula + 1
     
     Some(nilai)
 }
 
-// ─── ring_kosong ───
-// Check jika RingBuffer kosong.
-function ring_kosong<T>(ring: *RingBuffer<T>) -> bool {
-    *ring.kepala == *ring.ekor
+// ─── ring_empty ───
+// Check jika RingBuffer empty.
+function ring_empty<T>(ring: *RingBuffer<T>) -> bool {
+    *ring.head == *ring.tail
 }
 
-// ─── ring_penuh ───
-// Check jika RingBuffer penuh.
-function ring_penuh<T>(ring: *RingBuffer<T>) -> bool {
-    (*ring.ekor - *ring.kepala) >= ring.kapasiti
+// ─── ring_full ───
+// Check jika RingBuffer full.
+function ring_full<T>(ring: *RingBuffer<T>) -> bool {
+    (*ring.tail - *ring.head) >= ring.capacity
 }
 
-// ─── ring_saiz ───
+// ─── ring_size ───
 // Bilangan elemen dalam RingBuffer.
-function ring_saiz<T>(ring: *RingBuffer<T>) -> i32 {
-    *ring.ekor - *ring.kepala
+function ring_size<T>(ring: *RingBuffer<T>) -> i32 {
+    *ring.tail - *ring.head
 }
