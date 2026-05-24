@@ -1,0 +1,28 @@
+// =========================================================================
+// Project: Logicodex Language Engine
+// Compatibility: v1.21-alpha check + v1.30.0-alpha dormant subsystem check
+// Purpose: Nested conditional and boolean logic for reflex threshold decisions.
+// =========================================================================
+
+MULA
+BINA signal: I64 = 18
+BINA threshold: I64 = 12
+BINA armed: Bool = BENAR
+BINA fallback: Bool = PALSU
+
+JIKA (signal > threshold) && armed MAKA
+MULA
+    PAPAR 1
+TAMAT
+JIKALAU_TIDAK
+MULA
+    JIKA fallback || (signal == threshold) MAKA
+    MULA
+        PAPAR 2
+    TAMAT
+    JIKALAU_TIDAK
+    MULA
+        PAPAR 0
+    TAMAT
+TAMAT
+TAMAT

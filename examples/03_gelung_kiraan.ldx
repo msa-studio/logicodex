@@ -1,0 +1,25 @@
+// =========================================================================
+// Project: Logicodex Language Engine
+// Compatibility: v1.21-alpha check + v1.30.0-alpha dormant subsystem check
+// Purpose: Safe loop syntax examples for reflex-cycle counting, including
+//          while, loop, break, and continue without relying on reassignment.
+// =========================================================================
+
+{
+    let counter: I64 = 0;
+
+    while counter < 1 {
+        let pulse: I64 = counter + 1;
+        print pulse;
+        break;
+    }
+
+    while false {
+        continue;
+    }
+
+    loop {
+        print 7;
+        break;
+    }
+}
