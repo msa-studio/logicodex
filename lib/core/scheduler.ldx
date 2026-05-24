@@ -1,0 +1,105 @@
+// =========================================================================
+// Logicodex v1.30.1-alpha Phase 3 — Cooperative Scheduler
+//
+// Lightweight cooperative scheduler for Actor concurrency.
+// No preemptive context switching — Actors yield control explicitly.
+//
+// Usage:
+//   actor Worker {
+//       while (true) {
+//           let msg = channel.try_recv()
+//           if (msg.is_some()) {
+//               process(msg)
+//           } else {
+//               yield()  // Give control to other actors
+//           }
+//       }
+//   }
+// =========================================================================
+
+/// Scheduler state — tracks running Actors and their status.
+struct Scheduler {
+    actor_count: i32,
+    current_actor: i32,
+    active_mask: i32,      // Bitmap of active actors
+    yields_since_switch: i32,
+}
+
+// ─── sched_new ───
+// Create a new Scheduler with capacity for N actors.
+function sched_new(max_actors: i32) -> Scheduler {
+    Scheduler {
+        actor_count: 0,
+        current_actor: 0,
+        active_mask: 0xFFFFFFFF,  // All active initially
+        yields_since_switch: 0
+    }
+}
+
+// ─── sched_register ───
+// Register an actor with the scheduler. Returns actor ID.
+function sched_register(sched: *mut Scheduler) -> i32 {
+    let id = sched.actor_count
+    sched.actor_count = id + 1
+    // Set bit in active mask
+    sched.active_mask = sched.active_mask | (1 << id)
+    id
+}
+
+// ─── sched_unregister ───
+// Mark an actor as completed. Scheduler skips inactive actors.
+function sched_unregister(sched: *mut Scheduler, actor_id: i32) {
+    // Clear bit in active mask
+    sched.active_mask = sched.active_mask & ~(1 << actor_id)
+}
+
+// ─── sched_next_actor ───
+// Round-robin: get next active actor ID.
+function sched_next_actor(sched: *mut Scheduler) -> i32 {
+    let start = sched.current_actor
+    let mut next = (start + 1) % sched.actor_count
+    // Find next active actor (up to actor_count attempts)
+    let mut attempts = 0
+    while (attempts < sched.actor_count) {
+        if ((sched.active_mask & (1 << next)) != 0) {
+            sched.current_actor = next
+            return next
+        }
+        next = (next + 1) % sched.actor_count
+        attempts = attempts + 1
+    }
+    -1  // No active actors
+}
+
+// ─── sched_all_done ───
+// Check if all actors have completed.
+function sched_all_done(sched: *Scheduler) -> bool {
+    sched.active_mask == 0
+}
+
+// ─── sched_run ───
+// Run the scheduler loop until all actors complete.
+// Each actor runs until it yields or completes.
+function sched_run(sched: *mut Scheduler) {
+    while (!sched_all_done(sched)) {
+        let next = sched_next_actor(sched)
+        if (next < 0) {
+            // No active actors but mask not zero — should not happen
+            break
+        }
+        // Run actor 'next' until yield
+        // (Actual dispatch is codegen/runtime responsibility)
+        sched.yields_since_switch = 0
+    }
+}
+
+// ─── sched_yield_threshold ───
+// Adaptive yield: if actor yielded N times without progress, sleep briefly.
+// This prevents busy-waiting in tight loops.
+function sched_yield_threshold(sched: *mut Scheduler, threshold: i32) {
+    sched.yields_since_switch = sched.yields_since_switch + 1
+    if (sched.yields_since_switch >= threshold) {
+        sleep(1)  // 1ms sleep to prevent CPU spinning
+        sched.yields_since_switch = 0
+    }
+}

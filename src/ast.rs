@@ -180,6 +180,32 @@ pub enum Expr {
     Join {
         actor_name: String,
     },
+    // v1.30.1-alpha Phase 3: Backpressure + Scheduler
+    /// TrySend — non-blocking send, returns Result<bool, IoError>.
+    /// Syntax: `channel.try_send(value)`
+    TrySend {
+        channel_name: String,
+        value: Box<Expr>,
+    },
+    /// TryRecv — non-blocking recv, returns Option<T>.
+    /// Syntax: `channel.try_recv()`
+    TryRecv {
+        channel_name: String,
+    },
+    /// Yield — yield control to the scheduler.
+    /// Syntax: `yield()`
+    Yield,
+    /// Sleep — sleep for N milliseconds.
+    /// Syntax: `sleep(1000)`
+    Sleep {
+        duration_ms: Box<Expr>,
+    },
+    /// TimeoutRecv — recv with timeout, returns Result<T, TimeoutError>.
+    /// Syntax: `channel.timeout_recv(5000)`
+    TimeoutRecv {
+        channel_name: String,
+        timeout_ms: Box<Expr>,
+    },
     Grouped(Box<Expr>),
 }
 

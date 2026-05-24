@@ -127,6 +127,11 @@ pub enum SemanticError {
     // v1.30.1-alpha Phase 2: Zero-Copy Ownership Transfer
     #[error("KRITIKAL: Variable `{name}` has already been sent through Channel — ownership telah dipindahkan / CRITICAL: Variable `{name}` has already been sent through Channel — ownership has been transferred")]
     UseAfterSend { name: String },
+    // v1.30.1-alpha Phase 3: Backpressure + Scheduler
+    #[error("KRITIKAL: Channel `{name}` penuh — hantar ditolak (backpressure) / CRITICAL: Channel `{name}` is full — send rejected (backpressure)")]
+    ChannelFull { name: String },
+    #[error("KRITIKAL: Timeout menunggu recv dari Channel `{name}` selepas {timeout_ms}ms / CRITICAL: Timeout waiting for recv from Channel `{name}` after {timeout_ms}ms")]
+    RecvTimeout { name: String, timeout_ms: i64 },
 }
 
 #[derive(Debug, Default)]
@@ -742,6 +747,71 @@ impl Analyzer {
                     return Err(SemanticError::ActorNotFound { name: actor_name.clone() });
                 }
                 Ok(Type::Opaque { name: "Unit".to_string() })
+            }
+            // v1.30.1-alpha Phase 3: Backpressure + Scheduler
+            Expr::TrySend { channel_name, value } => {
+                // Validate channel exists
+                let found = self.channel_registry.iter().any(|(f, t, _)| {
+                    f == channel_name || t == channel_name
+                });
+                if !found {
+                    let _ = self.resolve(channel_name)?;
+                }
+                // Ownership transfer (same as Send)
+                if let Expr::Variable(var_name) = value {
+                    if self.moved_via_channel.contains(var_name) {
+                        return Err(SemanticError::UseAfterSend { name: var_name.clone() });
+                    }
+                    self.moved_via_channel.insert(var_name.clone());
+                }
+                self.expression(value)?;
+                // Returns Result<bool, IoError>
+                Ok(Type::Result { ok: Box::new(Type::Bool), err: Box::new(Type::Opaque { name: "IoError".to_string() }) })
+            }
+            Expr::TryRecv { channel_name } => {
+                let found = self.channel_registry.iter().any(|(f, t, _)| {
+                    f == channel_name || t == channel_name
+                });
+                if !found {
+                    let _ = self.resolve(channel_name)?;
+                }
+                // Returns Option<T> — we don't know T at this point, use Opaque
+                Ok(Type::Result { ok: Box::new(Type::Opaque { name: "T".to_string() }), err: Box::new(Type::Opaque { name: "None".to_string() }) })
+            }
+            Expr::Yield => {
+                // Yield always succeeds, returns Unit
+                Ok(Type::Opaque { name: "Unit".to_string() })
+            }
+            Expr::Sleep { duration_ms } => {
+                let dur_ty = self.expression(duration_ms)?;
+                if !is_numeric(&dur_ty) {
+                    return Err(SemanticError::TypeMismatch {
+                        op: BinaryOp::Add,
+                        expected: "numeric duration (milliseconds)",
+                        left: dur_ty.clone(),
+                        right: dur_ty,
+                    });
+                }
+                Ok(Type::Opaque { name: "Unit".to_string() })
+            }
+            Expr::TimeoutRecv { channel_name, timeout_ms } => {
+                let found = self.channel_registry.iter().any(|(f, t, _)| {
+                    f == channel_name || t == channel_name
+                });
+                if !found {
+                    let _ = self.resolve(channel_name)?;
+                }
+                let to_ty = self.expression(timeout_ms)?;
+                if !is_numeric(&to_ty) {
+                    return Err(SemanticError::TypeMismatch {
+                        op: BinaryOp::Add,
+                        expected: "numeric timeout (milliseconds)",
+                        left: to_ty.clone(),
+                        right: to_ty,
+                    });
+                }
+                // Returns Result<T, RecvTimeout>
+                Ok(Type::Result { ok: Box::new(Type::Opaque { name: "T".to_string() }), err: Box::new(Type::Opaque { name: "RecvTimeout".to_string() }) })
             }
             Expr::Call { callee, args } => {
                 // Sprint 2.5: Function/struct constructor call
