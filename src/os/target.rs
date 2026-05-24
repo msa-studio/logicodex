@@ -20,10 +20,10 @@ pub enum CompilationTarget {
 impl CompilationTarget {
     pub fn parse(value: &str) -> Result<Self> {
         match value {
-            "native" => Ok(Self::Native),
+            "native" | "host" => Ok(Self::Native),
             "freestanding" => Ok(Self::Freestanding),
             other => Err(anyhow!(
-                "unsupported Logicodex target `{other}`; expected `native` or `freestanding`"
+                "unsupported Logicodex target `{other}`; expected `native`, `host`, or `freestanding`"
             )),
         }
     }

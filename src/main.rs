@@ -83,7 +83,7 @@ enum Commands {
             help = "Emit the planned runtime memory-integrity attestation notes for the current security roadmap"
         )]
         secure: bool,
-        #[arg(long, default_value = "native", value_parser = ["native", "freestanding"], help = "Select native OS linkage or experimental freestanding object generation")]
+        #[arg(long, default_value = "native", value_parser = ["native", "host", "freestanding"], help = "Select host/native OS linkage or experimental freestanding object generation")]
         target: String,
     },
     Check {

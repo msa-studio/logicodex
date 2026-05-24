@@ -1,0 +1,12 @@
+// =========================================================================
+// Project: Logicodex Language Engine
+// Version: current logicodex v 1.21 alpha
+// Purpose: Freestanding hardware-zone demonstration for explicit provenance.
+// =========================================================================
+MULA
+ZON_PERKAKASAN MULA
+PERKAKASAN vga: U16 = ALAMAT 753664;
+BINA mirror: PTR<U16> = vga;
+PAPAR mirror;
+TAMAT
+TAMAT

@@ -1,0 +1,11 @@
+// =========================================================================
+// Project: Logicodex Language Engine
+// Version: current logicodex v 1.21 alpha
+// Purpose: Expert-style arithmetic and variable binding example.
+// =========================================================================
+{
+let x = 21;
+let y = 2;
+let jumlah = x * y;
+print jumlah;
+}
