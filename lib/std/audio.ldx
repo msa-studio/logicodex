@@ -1,0 +1,107 @@
+// =========================================================================
+// Logicodex v1.30 — Audio Engine: Native Hardware-Safe Audio Library
+// Path: lib/std/audio.ldx
+//
+// Fungsi-fungsi dalam fail ini direka untuk konteks ISR audio real-time.
+// Semua fungsi mengekalkan gred bare-metal dengan overhead minimum.
+//
+// Hardware Clipper:
+//   Memastikan nilai audio dikepit (clamped) antara [-1.0, 1.0] sebelum
+//   ditulis ke penimbal DAC. Ini melindungi speaker dan amplifier daripada
+//   kerosakan akibat isyarat terlalu kuat (clipping/distortion).
+//
+// Overhead: 3 perbandingan + 1 conditional move (LLVM → fminnm/fmaxnm)
+// =========================================================================
+
+// ─── tulis_selamat ───
+// Menulis sampel audio ke penimbal dengan hardware clipper.
+// Param:
+//   penimbal  — pointer ke buffer audio f32
+//   indeks    — indeks frame dalam buffer
+//   nilai     — nilai sampel (akan dikepit ke [-1.0, 1.0])
+function tulis_selamat(penimbal: *mut f32, indeks: i32, nilai: f32) {
+    // Hardware Clipper: kepit nilai ke [-1.0, 1.0]
+    // Ini memastikan speaker tidak pecah akibat amplitude berlebihan
+    let clipped = if (nilai > 1.0) {
+        1.0
+    } else {
+        if (nilai < -1.0) {
+            -1.0
+        } else {
+            nilai
+        }
+    }
+    // Tulis ke penimbal (buffer[index] = clipped)
+    penimbal[indeks] = clipped
+}
+
+// ─── kepit ───
+// Fungsi utiliti: kepit nilai ke julat [min, max]
+// Berguna untuk envelope, gain staging, dsb.
+function kepit(nilai: f32, min: f32, max: f32) -> f32 {
+    if (nilai > max) {
+        max
+    } else {
+        if (nilai < min) {
+            min
+        } else {
+            nilai
+        }
+    }
+}
+
+// ─── gelombang_sinus ───
+// Menghasilkan sampel gelombang sinus untuk frekuensi dan fasa tertentu.
+// Menggunakan aproximasi Taylor siri ke-7 (bare-metal friendly, tiada libm).
+function gelombang_sinus(fasa: f32) -> f32 {
+    // sin(x) ≈ x - x^3/6 + x^5/120 - x^7/5040
+    let x2 = fasa * fasa
+    let x3 = x2 * fasa
+    let x5 = x3 * x2
+    let x7 = x5 * x2
+    fasa - (x3 / 6.0) + (x5 / 120.0) - (x7 / 5040.0)
+}
+
+// ─── tulis_sine_440 ───
+// Callback audio: menghasilkan gelombang sinus 440Hz (A4).
+// FUNGSI INI MESTI patuh StrictAudioContext:
+//   ✅ Tiada I/O (print, draw)
+//   ✅ Tiada panggilan rekursif
+//   ✅ Tiada gelung tanpa batas
+//   ✅ Hanya aritmetik + tulis_selamat()
+function tulis_sine_440(samples: *mut f32, frames: i32) {
+    let sample_rate = 44100
+    let frequency = 440.0
+    let amplitude = 0.3
+
+    let mut i = 0
+    while (i < frames) {
+        let t = i / sample_rate
+        let phase = 6.2831853 * frequency * t
+        let sample = amplitude * gelombang_sinus(phase)
+
+        tulis_selamat(samples, i, sample)
+
+        i = i + 1
+    }
+}
+
+// ─── tulis_sine ───
+// Callback audio generik: gelombang sinus dengan frekuensi tersuai.
+// FUNGSI INI MESTI patuh StrictAudioContext (sama seperti di atas).
+function tulis_sine(samples: *mut f32, frames: i32) {
+    let sample_rate = 44100
+    let frequency = 880.0   // A5
+    let amplitude = 0.25
+
+    let mut i = 0
+    while (i < frames) {
+        let t = i / sample_rate
+        let phase = 6.2831853 * frequency * t
+        let sample = amplitude * gelombang_sinus(phase)
+
+        tulis_selamat(samples, i, sample)
+
+        i = i + 1
+    }
+}

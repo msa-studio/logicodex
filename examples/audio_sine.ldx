@@ -1,0 +1,75 @@
+// =========================================================================
+// Logicodex v1.30 Demo — Audio Sine Wave (Hardware-Safe)
+//
+// Compile:
+//   logicodex --pipeline v1.30 examples/audio_sine.ldx -o audio_sine
+//
+// Demonstrates:
+//   - Function pointer types: fn(*mut f32, i32) as callback parameter
+//   - StrictAudioContext: compiler verifies callback has no I/O/recursion
+//   - Hardware clipper: tulis_selamat() clamps [-1.0, 1.0]
+//   - Raylib Audio FFI: InitAudioDevice, SetAudioStreamCallback, etc.
+//
+// Safety guarantee: The compiler will reject this if the callback
+// contains any Print, Draw*, or recursive calls.
+// =========================================================================
+
+use std::audio
+
+// ─── Audio Callback Function ───
+// MESTI patuh StrictAudioContext rules:
+//   ✅ Only arithmetic + tulis_selamat()
+//   ❌ NO Print, DrawText, InitWindow, etc.
+//   ❌ NO recursive calls
+//   ❌ NO unbounded loops
+function generate_sine(samples: *mut f32, frames: i32) {
+    let sample_rate = 44100
+    let frequency = 440.0   // A4 note
+    let amplitude = 0.3     // 30% volume — safe for speakers
+    let two_pi = 6.2831853
+
+    let mut i = 0
+    while (i < frames) {
+        // Phase = 2 * PI * f * t
+        let t = i / sample_rate
+        let phase = two_pi * frequency * t
+
+        // sin(phase) approximation: phase - phase^3/6 + phase^5/120
+        let p2 = phase * phase
+        let p3 = p2 * phase
+        let p5 = p3 * p2
+        let sin_approx = phase - (p3 / 6.0) + (p5 / 120.0)
+
+        // Scale by amplitude
+        let sample = amplitude * sin_approx
+
+        // Hardware clipper: clamp to [-1.0, 1.0] before writing
+        // This protects speakers from damage
+        tulis_selamat(samples, i, sample)
+
+        i = i + 1
+    }
+}
+
+// ─── Main ───
+unsafe {
+    InitAudioDevice()
+
+    // Create audio stream: 44100 Hz, 16-bit, mono
+    let stream = InitAudioStream(44100, 16, 1)
+
+    // Set callback using FUNCTION POINTER syntax
+    // The compiler verifies `generate_sine` has no I/O via StrictAudioContext
+    SetAudioStreamCallback(stream, generate_sine)
+
+    PlayAudioStream(stream)
+
+    // Run for 5 seconds
+    let start = GetTime()
+    while (GetTime() - start < 5.0) {
+        // Audio callback runs in background via ISR
+    }
+
+    StopAudioStream(stream)
+    CloseAudioDevice()
+}

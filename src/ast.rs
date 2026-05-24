@@ -147,11 +147,35 @@ pub enum Type {
     Bool,
     Pointer(Box<Type>),
     String,
+    /// Audio Engine (v1.30): Function pointer type for hardware-safe callbacks.
+    /// Syntax: `fn(*mut f32, i32)` or `fn(i32, i32) -> f64`
+    FunctionPointer {
+        params: Vec<Type>,
+        return_type: Option<Box<Type>>,
+    },
 }
 
 impl Type {
     pub fn is_pointer(&self) -> bool {
         matches!(self, Type::Pointer(_))
+    }
+
+    /// Audio Engine (v1.30): Check if this type is a function pointer (audio callback).
+    pub fn is_function_pointer(&self) -> bool {
+        matches!(self, Type::FunctionPointer { .. })
+    }
+
+    /// Audio Engine (v1.30): Check if this function pointer is suitable for audio ISR context.
+    /// Returns true if params suggest audio callback signature (buffer pointer + frame count).
+    pub fn is_audio_callback_fp(&self) -> bool {
+        match self {
+            Type::FunctionPointer { params, .. } => {
+                params.len() == 2
+                    && params[0].is_pointer()
+                    && matches!(params[1], Type::I32)
+            }
+            _ => false,
+        }
     }
 
     #[allow(dead_code)]
@@ -161,6 +185,8 @@ impl Type {
             Type::U16 => 16,
             Type::I64 | Type::F64 | Type::Pointer(_) | Type::String => 64,
             Type::Bool => 1,
+            // Function pointers are pointer-sized (64-bit on native targets)
+            Type::FunctionPointer { .. } => 64,
         }
     }
 }
@@ -200,6 +226,18 @@ impl fmt::Display for Type {
             Type::Bool => write!(f, "Bool"),
             Type::Pointer(inner) => write!(f, "PTR<{inner}>"),
             Type::String => write!(f, "String"),
+            Type::FunctionPointer { params, return_type } => {
+                write!(f, "fn(")?;
+                for (i, p) in params.iter().enumerate() {
+                    if i > 0 { write!(f, ", ")?; }
+                    write!(f, "{p}")?;
+                }
+                write!(f, ")")?;
+                if let Some(ret) = return_type {
+                    write!(f, " -> {ret}")?;
+                }
+                Ok(())
+            }
         }
     }
 }

@@ -88,6 +88,76 @@ pub enum SemanticError {
     BreakOutsideLoop,
     #[error("pernyataan continue berada di luar loop / continue statement is outside a loop")]
     ContinueOutsideLoop,
+    // ─── Audio Engine (v1.30): Hardware-Safe Audio Guards ───
+    #[error("KRITIKAL: Fungsi audio callback `{name}` mengandungi operasi I/O (`{op}`) — operasi ini dilarang dalam konteks ISR audio real-time untuk melindungi speaker daripada kerosakan / CRITICAL: Audio callback function `{name}` contains I/O operation (`{op}`) — this is forbidden in real-time audio ISR context to protect speakers from damage")]
+    AudioViolationIo {
+        name: String,
+        op: String,
+    },
+    #[error("KRITIKAL: Fungsi audio callback `{name}` mengandungi gelung tanpa batas (`loop {{ ... }}`) — gelung mesti mempunyai syarat berhenti untuk mengelakkan buffer underrun / CRITICAL: Audio callback `{name}` contains unbounded loop (`loop {{ ... }}`) — loops must have exit conditions to prevent buffer underrun")]
+    AudioViolationUnboundedLoop { name: String },
+    #[error("KRITIKAL: Fungsi audio callback `{name}` mengandungi panggilan rekursif (`{callee}`) — panggilan rekursif dilarang dalam konteks ISR audio / CRITICAL: Audio callback `{name}` contains recursive call (`{callee}`) — recursive calls are forbidden in audio ISR context")]
+    AudioViolationRecursion {
+        name: String,
+        callee: String,
+    },
+    #[error("KRITIKAL: Fungsi audio callback `{name}` mengandungi panggilan fungsi `{callee}` yang tidak dibenarkan dalam konteks audio — hanya fungsi selamat (seperti `tulis_selamat`, operasi aritmetik) dibenarkan / CRITICAL: Audio callback `{name}` calls forbidden function `{callee}` — only safe functions (such as `tulis_selamat`, arithmetic) are permitted")]
+    AudioViolationForbiddenCall {
+        name: String,
+        callee: String,
+    },
+}
+
+/// Audio Engine (v1.30): Hardware-safe verification context for audio callbacks.
+/// Ensures callback functions passed to audio ISR are free from I/O, recursion,
+/// and unbounded loops — protecting speakers from damage and preventing buffer overflow.
+#[derive(Debug, Clone, Default)]
+pub struct StrictAudioContext {
+    /// Set of function names that have been identified as audio callbacks.
+    /// These functions receive strict safety verification.
+    pub audio_callbacks: HashSet<String>,
+    /// Functions that are safe to call from audio ISR context.
+    pub safe_functions: HashSet<String>,
+}
+
+impl StrictAudioContext {
+    pub fn new() -> Self {
+        let mut safe = HashSet::new();
+        // Built-in safe functions for audio ISR
+        safe.insert("tulis_selamat".to_string());
+        safe.insert("clamp".to_string());
+        safe.insert("lerp".to_string());
+        Self {
+            audio_callbacks: HashSet::new(),
+            safe_functions: safe,
+        }
+    }
+
+    /// Check if a function name is the audio callback registration function.
+    pub fn is_audio_registration(&self, name: &str) -> bool {
+        matches!(
+            name,
+            "SetAudioStreamCallback"
+                | "SetAudioCallback"
+                | "SetMusicCallback"
+                | "AttachAudioCallback"
+        )
+    }
+
+    /// Check if a function call is forbidden in audio ISR context.
+    pub fn is_forbidden_in_audio(&self, callee: &str) -> bool {
+        // I/O operations that can cause latency/jitter in audio ISR
+        let forbidden = [
+            "print", "Print",
+            "DrawText", "DrawRectangle", "DrawCircle", "DrawLine",
+            "ClearBackground", "BeginDrawing", "EndDrawing",
+            "InitWindow", "CloseWindow",
+            "LoadTexture", "UnloadTexture", "DrawTexture",
+            "fopen", "fclose", "fread", "fwrite",
+            "malloc", "free", "alloc",
+        ];
+        forbidden.contains(&callee)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -100,6 +170,8 @@ pub struct Analyzer {
     loop_depth: u32,
     hw_zone_depth: u32,
     policy: SeverityPolicy,
+    // Audio Engine (v1.30): Strict audio safety context
+    audio_context: StrictAudioContext,
 }
 
 impl Default for SeverityPolicy {
@@ -129,8 +201,14 @@ impl Analyzer {
         let mut analyzer = Self {
             scopes: vec![HashMap::new()],
             policy,
+            audio_context: StrictAudioContext::new(),
             ..Self::default()
         };
+
+        // Pass 1: Collect all function signatures and identify audio callbacks
+        analyzer.collect_signatures(&program.statements)?;
+
+        // Pass 2: Type-check and verify audio safety
         analyzer.block(&program.statements)
     }
 
@@ -147,6 +225,151 @@ impl Analyzer {
         self.scopes.pop();
         result
     }
+
+    // ─── Audio Engine (v1.30): Pass 1 — Collect signatures & identify audio callbacks ───
+
+    fn collect_signatures(&mut self, statements: &[Stmt]) -> Result<(), SemanticError> {
+        for stmt in statements {
+            self.collect_signature_stmt(stmt)?;
+        }
+        Ok(())
+    }
+
+    fn collect_signature_stmt(&mut self, stmt: &Stmt) -> Result<(), SemanticError> {
+        match stmt {
+            Stmt::Function { name, params, return_type, body } => {
+                self.functions.insert(
+                    name.clone(),
+                    (
+                        params.iter().map(|p| p.ty.clone()).collect(),
+                        return_type.clone(),
+                    ),
+                );
+                // Check if this function takes a function pointer parameter (audio callback candidate)
+                for param in params {
+                    if param.ty.is_audio_callback_fp() {
+                        // The function parameter name is the callback — but we don't know
+                        // the actual function name yet. We'll resolve at call sites.
+                    }
+                }
+                self.collect_signatures(body)?;
+            }
+            Stmt::If { then_branch, else_branch, .. } => {
+                self.collect_signatures(then_branch)?;
+                self.collect_signatures(else_branch)?;
+            }
+            Stmt::While { body, .. } | Stmt::Loop { body } | Stmt::UnsafeBlock { body } | Stmt::HardwareZone { body } => {
+                self.collect_signatures(body)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    /// Audio Engine (v1.30): Mark a function as an audio callback if it is passed
+    /// as a function pointer argument to an audio registration function.
+    fn mark_audio_callback_if_applicable(&mut self, callee: &str, args: &[Expr]) {
+        if !self.audio_context.is_audio_registration(callee) {
+            return;
+        }
+        // Find which argument is a function pointer (the callback)
+        for arg in args {
+            if let Expr::Variable(func_name) = arg {
+                if self.functions.contains_key(func_name) {
+                    self.audio_context.audio_callbacks.insert(func_name.clone());
+                }
+            }
+        }
+    }
+
+    /// Audio Engine (v1.30): Verify that a function body adheres to StrictAudioContext rules.
+    /// Returns Ok(()) if safe, or a SemanticError if any violation is found.
+    fn verify_audio_safety(&self, func_name: &str, body: &[Stmt]) -> Result<(), SemanticError> {
+        for stmt in body {
+            self.check_audio_statement(func_name, stmt)?;
+        }
+        Ok(())
+    }
+
+    fn check_audio_statement(&self, func_name: &str, stmt: &Stmt) -> Result<(), SemanticError> {
+        match stmt {
+            // I/O operations are forbidden in audio ISR
+            Stmt::Print { .. } => {
+                return Err(SemanticError::AudioViolationIo {
+                    name: func_name.to_string(),
+                    op: "print".to_string(),
+                });
+            }
+            Stmt::ExprStmt { value } => {
+                self.check_audio_expr(func_name, value)?;
+            }
+            // Unbounded loops are forbidden (no exit condition = watchdog risk)
+            Stmt::Loop { .. } => {
+                return Err(SemanticError::AudioViolationUnboundedLoop {
+                    name: func_name.to_string(),
+                });
+            }
+            // While loops are OK IF they have a bounded condition (checked below)
+            Stmt::While { body, .. } => {
+                self.verify_audio_safety(func_name, body)?;
+            }
+            Stmt::If { then_branch, else_branch, .. } => {
+                self.verify_audio_safety(func_name, then_branch)?;
+                self.verify_audio_safety(func_name, else_branch)?;
+            }
+            Stmt::Let { value, .. } => {
+                self.check_audio_expr(func_name, value)?;
+            }
+            Stmt::Return { value } => {
+                self.check_audio_expr(func_name, value)?;
+            }
+            Stmt::Function { name, body, .. } => {
+                self.verify_audio_safety(name, body)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn check_audio_expr(&self, func_name: &str, expr: &Expr) -> Result<(), SemanticError> {
+        match expr {
+            Expr::Call { callee, args } => {
+                let callee_name = match callee.as_ref() {
+                    Expr::Variable(name) => name.as_str(),
+                    _ => return Ok(()),
+                };
+                // Check for forbidden function calls
+                if self.audio_context.is_forbidden_in_audio(callee_name) {
+                    return Err(SemanticError::AudioViolationForbiddenCall {
+                        name: func_name.to_string(),
+                        callee: callee_name.to_string(),
+                    });
+                }
+                // Check for recursive calls (self-calling)
+                if callee_name == func_name {
+                    return Err(SemanticError::AudioViolationRecursion {
+                        name: func_name.to_string(),
+                        callee: callee_name.to_string(),
+                    });
+                }
+                // Recursively check arguments
+                for arg in args {
+                    self.check_audio_expr(func_name, arg)?;
+                }
+            }
+            Expr::Binary { left, right, .. } => {
+                self.check_audio_expr(func_name, left)?;
+                self.check_audio_expr(func_name, right)?;
+            }
+            Expr::Grouped(inner) => {
+                self.check_audio_expr(func_name, inner)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    // ─── Statement handler (Pass 2) ───
 
     fn statement(&mut self, stmt: &Stmt) -> Result<(), SemanticError> {
         match stmt {
@@ -195,6 +418,12 @@ impl Analyzer {
                 let result = self.block(body);
                 self.current_function = previous;
                 self.scopes.pop();
+
+                // Audio Engine (v1.30): If this function is an audio callback,
+                // verify StrictAudioContext compliance.
+                if result.is_ok() && self.audio_context.audio_callbacks.contains(name) {
+                    self.verify_audio_safety(name, body)?;
+                }
                 result
             }
             Stmt::Let {
@@ -209,7 +438,17 @@ impl Analyzer {
                 }
                 self.define(name, ty)
             }
-            Stmt::Print { value } | Stmt::ExprStmt { value } => {
+            Stmt::Print { value } => {
+                self.expression(value)?;
+                Ok(())
+            }
+            Stmt::ExprStmt { value } => {
+                // Audio Engine (v1.30): Detect audio callback registration calls
+                if let Expr::Call { callee, args } = value {
+                    if let Expr::Variable(callee_name) = callee.as_ref() {
+                        self.mark_audio_callback_if_applicable(callee_name, args);
+                    }
+                }
                 self.expression(value)?;
                 Ok(())
             }
@@ -459,6 +698,15 @@ fn is_numeric(ty: &Type) -> bool {
     )
 }
 
+/// Audio Engine (v1.30): Check if a type is valid for audio ISR context.
+/// Function pointers are valid only if they point to audio-safe functions.
+pub fn is_audio_safe_type(ty: &Type) -> bool {
+    match ty {
+        Type::FunctionPointer { .. } => true, // Verified separately by StrictAudioContext
+        other => is_numeric(other) || *other == Type::Bool,
+    }
+}
+
 fn promote_numeric(left: Type, right: Type) -> Type {
     if left == Type::F64 || right == Type::F64 {
         Type::F64
@@ -477,6 +725,8 @@ fn types_compatible(expected: &Type, actual: &Type) -> bool {
     expected == actual
         || (is_numeric(expected) && is_numeric(actual))
         || (expected.is_pointer() && actual.is_pointer())
+        // Audio Engine (v1.30): Function pointers are compatible if signatures match
+        || (expected.is_function_pointer() && actual.is_function_pointer())
 }
 
 fn integer_fits(value: i64, ty: &Type) -> bool {

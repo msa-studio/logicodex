@@ -457,6 +457,27 @@ impl Parser {
             self.consume(TokenKind::Greater, "> after pointer type")?;
             return Ok(Type::Pointer(Box::new(inner)));
         }
+        // Audio Engine (v1.30): Function pointer type syntax
+        // fn(param1, param2, ...) -> return_type   or   fn(param1, param2, ...)
+        if self.matches(TokenKind::Fn) {
+            self.consume(TokenKind::LeftParen, "'(' after 'fn' in function pointer type")?;
+            let mut params = Vec::new();
+            if !self.check(TokenKind::RightParen) {
+                loop {
+                    params.push(self.parse_type()?);
+                    if !self.matches(TokenKind::Comma) {
+                        break;
+                    }
+                }
+            }
+            self.consume(TokenKind::RightParen, "')' after function pointer params")?;
+            let return_type = if self.matches(TokenKind::Arrow) {
+                Some(Box::new(self.parse_type()?))
+            } else {
+                None
+            };
+            return Ok(Type::FunctionPointer { params, return_type });
+        }
         let t = self.peek();
         Err(ParseError::Expected {
             expected: "type".to_string(),
