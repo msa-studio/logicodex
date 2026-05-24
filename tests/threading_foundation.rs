@@ -1,18 +1,18 @@
 // =========================================================================
 // Logicodex v1.30.1-alpha — Threading Foundation Tests
-// Kotak & Pintu — Topology Validation
+// Actor & Channel — Topology Validation
 // =========================================================================
 
 use logicodex::ast::{Expr, Stmt, Type};
 use logicodex::lexer::{Lexer, Lexicon};
 use logicodex::parser::{CompilerPipeline, Parser};
 
-// ─── 1. Parser: Kotak declaration ───
+// ─── 1. Parser: Actor declaration ───
 
 #[test]
-fn parse_kotak_declaration() {
+fn parse_actor_declaration() {
     let source = r#"
-kotak SensorSuhu {
+actor SensorSuhu {
     let x = 1
 }
 "#;
@@ -23,19 +23,19 @@ kotak SensorSuhu {
 
     assert_eq!(program.statements.len(), 1);
     match &program.statements[0] {
-        Stmt::Kotak { name, body } => {
+        Stmt::Actor { name, body } => {
             assert_eq!(name, "SensorSuhu");
             assert_eq!(body.len(), 1);
         }
-        other => panic!("Expected Kotak, got {:?}", other),
+        other => panic!("Expected Actor, got {:?}", other),
     }
 }
 
 #[test]
-fn parse_kotak_with_pintu() {
+fn parse_actor_with_channel() {
     let source = r#"
-kotak SensorSuhu {
-    let pintu_data: Pintu<SensorSuhu, Enjin, DataSuhu>
+actor SensorSuhu {
+    let channel_data: Channel<SensorSuhu, Enjin, DataSuhu>
 }
 "#;
     let lexicon = Lexicon::from_str("{}").unwrap();
@@ -44,156 +44,156 @@ kotak SensorSuhu {
     let program = parser.parse().unwrap();
 
     match &program.statements[0] {
-        Stmt::Kotak { name, body } => {
+        Stmt::Actor { name, body } => {
             assert_eq!(name, "SensorSuhu");
             match &body[0] {
                 Stmt::Let { declared_type, .. } => {
                     let ty = declared_type.as_ref().unwrap();
                     match ty {
-                        Type::Pintu { from, to, message_type } => {
+                        Type::Channel { from, to, message_type } => {
                             assert_eq!(from, "SensorSuhu");
                             assert_eq!(to, "Enjin");
                             assert_eq!(message_type, "DataSuhu");
                         }
-                        other => panic!("Expected Pintu, got {:?}", other),
+                        other => panic!("Expected Channel, got {:?}", other),
                     }
                 }
                 other => panic!("Expected Let, got {:?}", other),
             }
         }
-        other => panic!("Expected Kotak, got {:?}", other),
+        other => panic!("Expected Actor, got {:?}", other),
     }
 }
 
-// ─── 2. Parser: lahirkan expression ───
+// ─── 2. Parser: spawn expression ───
 
 #[test]
-fn parse_lahirkan() {
-    let source = "lahirkan SensorSuhu()";
+fn parse_spawn() {
+    let source = "spawn SensorSuhu()";
     let lexicon = Lexicon::from_str("{}").unwrap();
     let tokens = Lexer::new(source, &lexicon).tokenize().unwrap();
     let mut parser = Parser::new(tokens);
     let expr = parser.expression().unwrap();
 
     match expr {
-        Expr::Spawn { kotak_name, args } => {
-            assert_eq!(kotak_name, "SensorSuhu");
+        Expr::Spawn { actor_name, args } => {
+            assert_eq!(actor_name, "SensorSuhu");
             assert!(args.is_empty());
         }
         other => panic!("Expected Spawn, got {:?}", other),
     }
 }
 
-// ─── 3. Parser: tunggu expression ───
+// ─── 3. Parser: join expression ───
 
 #[test]
-fn parse_tunggu() {
-    let source = "tunggu SensorSuhu";
+fn parse_join() {
+    let source = "join SensorSuhu";
     let lexicon = Lexicon::from_str("{}").unwrap();
     let tokens = Lexer::new(source, &lexicon).tokenize().unwrap();
     let mut parser = Parser::new(tokens);
     let expr = parser.expression().unwrap();
 
     match expr {
-        Expr::Tunggu { kotak_name } => {
-            assert_eq!(kotak_name, "SensorSuhu");
+        Expr::Join { actor_name } => {
+            assert_eq!(actor_name, "SensorSuhu");
         }
         other => panic!("Expected Tunggu, got {:?}", other),
     }
 }
 
-// ─── 4. Parser: hantar expression ───
+// ─── 4. Parser: send expression ───
 
 #[test]
-fn parse_hantar() {
-    let source = "pintu_data.hantar(42)";
+fn parse_send() {
+    let source = "channel_data.send(42)";
     let lexicon = Lexicon::from_str("{}").unwrap();
     let tokens = Lexer::new(source, &lexicon).tokenize().unwrap();
     let mut parser = Parser::new(tokens);
     let expr = parser.expression().unwrap();
 
     match expr {
-        Expr::Hantar { pintu_name, value } => {
-            assert_eq!(pintu_name, "pintu_data");
+        Expr::Send { channel_name, value } => {
+            assert_eq!(channel_name, "channel_data");
             assert_eq!(*value, Expr::Integer(42));
         }
         other => panic!("Expected Hantar, got {:?}", other),
     }
 }
 
-// ─── 5. Parser: terima expression ───
+// ─── 5. Parser: recv expression ───
 
 #[test]
-fn parse_terima() {
-    let source = "pintu_data.terima()";
+fn parse_recv() {
+    let source = "channel_data.recv()";
     let lexicon = Lexicon::from_str("{}").unwrap();
     let tokens = Lexer::new(source, &lexicon).tokenize().unwrap();
     let mut parser = Parser::new(tokens);
     let expr = parser.expression().unwrap();
 
     match expr {
-        Expr::Terima { pintu_name } => {
-            assert_eq!(pintu_name, "pintu_data");
+        Expr::Recv { channel_name } => {
+            assert_eq!(channel_name, "channel_data");
         }
         other => panic!("Expected Terima, got {:?}", other),
     }
 }
 
-// ─── 6. Type: Pintu properties ───
+// ─── 6. Type: Channel properties ───
 
 #[test]
-fn pintu_type_properties() {
-    let p = Type::Pintu {
+fn channel_type_properties() {
+    let p = Type::Channel {
         from: "SensorSuhu".to_string(),
         to: "Enjin".to_string(),
         message_type: "DataSuhu".to_string(),
     };
-    assert!(p.is_pintu());
+    assert!(p.is_channel());
     assert!(!p.is_opaque());
     assert!(!p.is_result());
 }
 
 #[test]
-fn pintu_capability() {
-    let p = Type::Pintu {
+fn channel_capability() {
+    let p = Type::Channel {
         from: "A".to_string(),
         to: "B".to_string(),
         message_type: "Msg".to_string(),
     };
-    assert_eq!(p.pintu_capability(), Some(("A", "B", "Msg")));
+    assert_eq!(p.channel_capability(), Some(("A", "B", "Msg")));
 }
 
 #[test]
-fn non_pintu_no_capability() {
-    assert_eq!(Type::I32.pintu_capability(), None);
-    assert!(!Type::I32.is_pintu());
+fn non_channel_no_capability() {
+    assert_eq!(Type::I32.channel_capability(), None);
+    assert!(!Type::I32.is_channel());
 }
 
 // ─── 7. Lexer tokens ───
 
 #[test]
 fn lexer_threading_tokens() {
-    let source = "kotak pintu lahirkan hantar terima tunggu";
+    let source = "actor channel spawn send recv join";
     let tokens = Lexer::new(source, &Lexicon::from_str("{}").unwrap()).tokenize().unwrap();
-    assert_eq!(tokens[0].lexeme, "kotak");
-    assert_eq!(tokens[1].lexeme, "pintu");
-    assert_eq!(tokens[2].lexeme, "lahirkan");
-    assert_eq!(tokens[3].lexeme, "hantar");
-    assert_eq!(tokens[4].lexeme, "terima");
-    assert_eq!(tokens[5].lexeme, "tunggu");
+    assert_eq!(tokens[0].lexeme, "actor");
+    assert_eq!(tokens[1].lexeme, "channel");
+    assert_eq!(tokens[2].lexeme, "spawn");
+    assert_eq!(tokens[3].lexeme, "send");
+    assert_eq!(tokens[4].lexeme, "recv");
+    assert_eq!(tokens[5].lexeme, "join");
 }
 
 // ─── 8. Display formatting ───
 
 #[test]
-fn display_pintu() {
-    let p = Type::Pintu {
+fn display_channel() {
+    let p = Type::Channel {
         from: "A".to_string(),
         to: "B".to_string(),
         message_type: "Msg".to_string(),
     };
     let text = format!("{}", p);
-    assert!(text.contains("Pintu<"));
+    assert!(text.contains("Channel<"));
     assert!(text.contains("A"));
     assert!(text.contains("B"));
     assert!(text.contains("Msg"));
@@ -204,67 +204,67 @@ fn display_pintu() {
 #[test]
 fn full_topology_parse() {
     let source = r#"
-kotak SensorSuhu {
-    let pintu_data: Pintu<SensorSuhu, Enjin, DataSuhu>
+actor SensorSuhu {
+    let channel_data: Channel<SensorSuhu, Enjin, DataSuhu>
 }
 
-kotak Enjin {
-    let pintu_data: Pintu<SensorSuhu, Enjin, DataSuhu>
+actor Enjin {
+    let channel_data: Channel<SensorSuhu, Enjin, DataSuhu>
 }
 
-lahirkan SensorSuhu()
-lahirkan Enjin()
-tunggu SensorSuhu
-tunggu Enjin
+spawn SensorSuhu()
+spawn Enjin()
+join SensorSuhu
+join Enjin
 "#;
     let lexicon = Lexicon::from_str("{}").unwrap();
     let tokens = Lexer::new(source, &lexicon).tokenize().unwrap();
     let parser = Parser::new(tokens).with_pipeline(CompilerPipeline::V130);
     let program = parser.parse().unwrap();
 
-    // 2 Kotak + 4 expr stmts
+    // 2 Actor + 4 expr stmts
     assert_eq!(program.statements.len(), 6);
 
-    // Verify Kotak declarations
+    // Verify Actor declarations
     match &program.statements[0] {
-        Stmt::Kotak { name, .. } => assert_eq!(name, "SensorSuhu"),
-        _ => panic!("Expected Kotak"),
+        Stmt::Actor { name, .. } => assert_eq!(name, "SensorSuhu"),
+        _ => panic!("Expected Actor"),
     }
     match &program.statements[1] {
-        Stmt::Kotak { name, .. } => assert_eq!(name, "Enjin"),
-        _ => panic!("Expected Kotak"),
+        Stmt::Actor { name, .. } => assert_eq!(name, "Enjin"),
+        _ => panic!("Expected Actor"),
     }
 
-    // Verify lahirkan calls
+    // Verify spawn calls
     match &program.statements[2] {
-        Stmt::ExprStmt { value: Expr::Spawn { kotak_name, .. } } => {
-            assert_eq!(kotak_name, "SensorSuhu");
+        Stmt::ExprStmt { value: Expr::Spawn { actor_name, .. } } => {
+            assert_eq!(actor_name, "SensorSuhu");
         }
-        _ => panic!("Expected lahirkan SensorSuhu"),
+        _ => panic!("Expected spawn SensorSuhu"),
     }
     match &program.statements[3] {
-        Stmt::ExprStmt { value: Expr::Spawn { kotak_name, .. } } => {
-            assert_eq!(kotak_name, "Enjin");
+        Stmt::ExprStmt { value: Expr::Spawn { actor_name, .. } } => {
+            assert_eq!(actor_name, "Enjin");
         }
-        _ => panic!("Expected lahirkan Enjin"),
+        _ => panic!("Expected spawn Enjin"),
     }
 
-    // Verify tunggu
+    // Verify join
     match &program.statements[4] {
-        Stmt::ExprStmt { value: Expr::Tunggu { kotak_name } } => {
-            assert_eq!(kotak_name, "SensorSuhu");
+        Stmt::ExprStmt { value: Expr::Join { actor_name } } => {
+            assert_eq!(actor_name, "SensorSuhu");
         }
-        _ => panic!("Expected tunggu SensorSuhu"),
+        _ => panic!("Expected join SensorSuhu"),
     }
 }
 
-// ─── 10. Semantic: Duplicate Kotak rejected ───
+// ─── 10. Semantic: Duplicate Actor rejected ───
 
 #[test]
-fn semantic_rejects_duplicate_kotak() {
+fn semantic_rejects_duplicate_actor() {
     let source = r#"
-kotak SensorSuhu { let x = 1 }
-kotak SensorSuhu { let y = 2 }
+actor SensorSuhu { let x = 1 }
+actor SensorSuhu { let y = 2 }
 "#;
     let lexicon = Lexicon::from_str("{}").unwrap();
     let tokens = Lexer::new(source, &lexicon).tokenize().unwrap();
@@ -272,31 +272,31 @@ kotak SensorSuhu { let y = 2 }
     let program = parser.parse().unwrap();
 
     let result = logicodex::semantic::Analyzer::analyze(&program);
-    assert!(result.is_err(), "Duplicate Kotak should be rejected");
+    assert!(result.is_err(), "Duplicate Actor should be rejected");
 }
 
-// ─── 11. Semantic: lahirkan non-existent Kotak rejected ───
+// ─── 11. Semantic: spawn non-existent Actor rejected ───
 
 #[test]
-fn semantic_rejects_spawn_nonexistent_kotak() {
-    let source = "lahirkan SensorSuhu()";
+fn semantic_rejects_spawn_nonexistent_actor() {
+    let source = "spawn SensorSuhu()";
     let lexicon = Lexicon::from_str("{}").unwrap();
     let tokens = Lexer::new(source, &lexicon).tokenize().unwrap();
     let parser = Parser::new(tokens).with_pipeline(CompilerPipeline::V130);
     let program = parser.parse().unwrap();
 
     let result = logicodex::semantic::Analyzer::analyze(&program);
-    assert!(result.is_err(), "Spawn of non-existent Kotak should be rejected");
+    assert!(result.is_err(), "Spawn of non-existent Actor should be rejected");
 }
 
-// ─── 12. Pintu type display ───
+// ─── 12. Channel type display ───
 
 #[test]
-fn pintu_display_full() {
-    let p = Type::Pintu {
+fn channel_display_full() {
+    let p = Type::Channel {
         from: "Pengesan".to_string(),
         to: "Pemproses".to_string(),
         message_type: "Isyarat".to_string(),
     };
-    assert_eq!(format!("{}", p), "Pintu<Pengesan, Pemproses, Isyarat>");
+    assert_eq!(format!("{}", p), "Channel<Pengesan, Pemproses, Isyarat>");
 }

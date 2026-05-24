@@ -1,73 +1,73 @@
 // =========================================================================
-// Logicodex v1.30.1-alpha — Threading Foundation: Kotak & Pintu
+// Logicodex v1.30.1-alpha — Threading Foundation: Actor & Channel
 //
-// Kotak  = Unit concurrency (1 OS Thread)
-// Pintu  = SPSC channel dengan type-level capability
+// Actor  = Unit concurrency (1 OS Thread)
+// Channel  = SPSC channel dengan type-level capability
 //
 // Topology divalidasi pada masa kompilasi — tiada race condition
 // yang boleh dikesan pada masa kompilasi akan lulus.
 // =========================================================================
 
-// ─── Kotak ───
-// Unit concurrency — setiap Kotak berjalan pada 1 OS Thread.
-// Topologi komunikasi (Pintu) didefinisikan pada masa kompilasi.
+// ─── Actor ───
+// Unit concurrency — setiap Actor berjalan pada 1 OS Thread.
+// Topologi komunikasi (Channel) didefinisikan pada masa kompilasi.
 //
 // Contoh:
-//   kotak SensorSuhu {
-//       let pintu_data: Pintu<SensorSuhu, KotakEnjin, DataSuhu>
-//       pintu_data.hantar(Ok(DataSuhu{ nilai: 25.5 }))
+//   actor SensorSuhu {
+//       let channel_data: Channel<SensorSuhu, ActorEnjin, DataSuhu>
+//       channel_data.send(Ok(DataSuhu{ nilai: 25.5 }))
 //   }
 
-// ─── Pintu<T, U, V> ───
+// ─── Channel<T, U, V> ───
 // Channel SPSC (Single Producer Single Consumer) dengan type-level capability.
 // 
-// T = Kotak penghantar (sender)
-// U = Kotak penerima (receiver)
+// T = Actor pengsend (sender)
+// U = Actor penerima (receiver)
 // V = Jenis mesej (message type)
 //
 // Contoh:
-//   let pintu_data: Pintu<SensorSuhu, KotakEnjin, DataSuhu>(256, Blok)
+//   let channel_data: Channel<SensorSuhu, ActorEnjin, DataSuhu>(256, Blok)
 //
 // Policy:
-//   Blok       — Penghantar tunggu sehingga ruang ada
-//   GugurLama  — Mesej lama digugur jika penimbal penuh
-//   Parkir     — Penghantar "parkir" — OS scheduler tukar thread
+//   Blok       — Pengsend join sehingga ruang ada
+//   GugurLama  — Mesej lama digugur jika buffer full
+//   Parkir     — Pengsend "parkir" — OS scheduler tukar thread
 
-// ─── lahirkan ───
-// Cipta OS Thread untuk Kotak.
-// Sintaks: lahirkan KotakNama()
+// ─── spawn ───
+// Cipta OS Thread untuk Actor.
+// Sintaks: spawn ActorNama()
 //
 // Contoh:
-//   lahirkan SensorSuhu()
-//   lahirkan KotakEnjin()
+//   spawn SensorSuhu()
+//   spawn ActorEnjin()
 
-// ─── tunggu ───
-// Tunggu Kotak selesai (pthread_join).
-// Sintaks: tunggu KotakNama
+// ─── join ───
+// Join Actor selesai (pthread_join).
+// Sintaks: join ActorNama
 //
 // Contoh:
-//   tunggu SensorSuhu
-//   tunggu KotakEnjin
+//   join SensorSuhu
+//   join ActorEnjin
 
 // ─── Topology Validation ───
 // Compiler akan semak:
-//   1. Semua Kotak yang dirujuk dalam Pintu mesti wujud
-//   2. Tiada Pintu ke Kotak yang tidak diisytiharkan
-//   3. Jenis mesej dalam hantar/terima mesti sepadan
-//   4. Kotak tidak boleh berkomunikasi dengan dirinya sendiri
+//   1. Semua Actor yang dirujuk dalam Channel mesti wujud
+//   2. Tiada Channel ke Actor yang tidak diisytiharkan
+//   3. Jenis mesej dalam send/recv mesti sepadan
+//   4. Actor tidak boleh berkomunikasi dengan dirinya sendiri
 
 // ─── Zero-Copy Ownership ───
-// Apabila hantar() dipanggil, ownership data DIPINDAHKAN (moved).
-// Data tidak boleh digunakan selepas hantar() — RAII safety.
+// Apabila send() dipanggil, ownership data DIPINDAHKAN (moved).
+// Data tidak boleh digunakan selepas send() — RAII safety.
 //
 // Contoh:
 //   let data = DataSuhu{ nilai: 25.5 }
-//   pintu_data.hantar(data)
+//   channel_data.send(data)
 //   // data tidak boleh digunakan di sini — UseAfterMove error
 
 // ─── Memory Ordering ───
-// Semua operasi Pintu menggunakan Acquire/Release semantics:
-//   hantar()  → Release (data tersedia kepada penerima)
-//   terima()  → Acquire (data diperoleh daripada penghantar)
+// Semua operasi Channel menggunakan Acquire/Release semantics:
+//   send()  → Release (data tersedia kepada penerima)
+//   recv()  → Acquire (data diperoleh daripada pengsend)
 //
 // Ini memastikan tiada data race tanpa penggunaan Mutex.
