@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #17] — 2026-05-24 — Stage 1 Quickfix: Raylib Color + Math
+
+### Fixed
+- **Color registration mismatch**: 7 drawing functions registered Color as `I64`, now `U32` (packed RGBA `0xRRGGBBAA`)
+- ClearBackground, DrawText, DrawRectangle, DrawCircle, DrawLine, DrawRectangleLines, DrawPixel
+
+### Added
+- **Math utilities** (`src/ffi/math.rs`): `clamp()`, `lerp()`, `remap()`, `normalize()`, `float_equals()`, `float_zero()`
+- **Integration test** (`tests/ffi_stage1_integration.rs`): 25 assertions validating full user story
+
+### Validation
+- v1.21 executable logic: 9/9 checks PASSED
+- Sprint 1.1 structural: 32/32 checks PASSED
+- Sprint 1.2 structural: 20/20 checks PASSED
+
 ## [Merged via PR #16] — 2026-05-24 — Sprint 1 Bugfixes (8 critical fixes)
 
 ### Fixed
