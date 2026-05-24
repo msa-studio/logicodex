@@ -22,6 +22,7 @@ mod types;
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser as ClapParser, Subcommand};
 use codegen::{CodegenOptions, LlvmCompiler, MemoryIntegrityPlan, PhysicalMemoryAccessPlan};
+use ffi::raylib;
 use lexer::{Lexer, Lexicon};
 use os::target::CompilationTarget;
 use parser::{CompilerPipeline, Parser};
@@ -171,7 +172,6 @@ fn compile(
 ) -> Result<()> {
     ensure_ldx_source(file)?;
     let target = CompilationTarget::parse(target_name)?;
-    let program = parse_and_analyze_for_target(file, dict, target_name, secure, pipeline)?;
     let output_path = output.unwrap_or_else(|| default_output(file, object_only));
     let object_path = if object_only {
         output_path.clone()
@@ -179,16 +179,25 @@ fn compile(
         output_path.with_extension("o")
     };
 
-    let artifact = LlvmCompiler::compile_to_object(
-        &program,
-        &object_path,
-        &CodegenOptions {
-            module_name: module_name(file),
-            emit_ir,
-            secure,
-            target,
-        },
-    )?;
+    // Sprint 3: Version-gated compilation — V130 uses HIR + CallableRegistry path
+    let artifact = match pipeline {
+        CompilerPipeline::V130 => {
+            compile_v130_pipeline(file, dict, &object_path, emit_ir, target)?
+        }
+        CompilerPipeline::V121 => {
+            let program = parse_and_analyze_for_target(file, dict, target_name, secure, pipeline)?;
+            LlvmCompiler::compile_to_object(
+                &program,
+                &object_path,
+                &CodegenOptions {
+                    module_name: module_name(file),
+                    emit_ir,
+                    secure,
+                    target,
+                },
+            )?
+        }
+    };
     if let Some(ir_path) = artifact.ir_path.as_ref() {
         println!("LLVM IR written to {}", ir_path.display());
     }
@@ -225,6 +234,71 @@ fn compile(
         write_security_attestation_plan(&output_path)?;
     }
     Ok(())
+}
+
+/// Sprint 3: v1.30 HIR compilation pipeline with CallableRegistry + Raylib FFI.
+fn compile_v130_pipeline(
+    file: &Path,
+    dict: &Path,
+    object_path: &Path,
+    emit_ir: bool,
+    target: CompilationTarget,
+) -> Result<codegen::CodegenArtifact> {
+    // Step 1: Parse source to AST
+    let source = fs::read_to_string(file)
+        .with_context(|| format!("failed to read Logicodex source file {}", file.display()))?;
+    let lexicon = Lexicon::from_path(dict)
+        .with_context(|| format!("failed to load dictionary {}", dict.display()))?;
+    let tokens = Lexer::new(&source, &lexicon).tokenize()?;
+    let mut parser = Parser::new(tokens).with_pipeline(CompilerPipeline::V130);
+    let program = parser.parse()?;
+    Analyzer::analyze_for_target(&program, "native", false)?;
+
+    // Step 2: Set up TypeRegistry with Raylib struct types
+    let mut types = types::TypeRegistry::new();
+    ffi::raylib::register_raylib_types(&mut types);
+
+    // Step 3: Lower AST → HIR
+    let mut symbols = hir::SymbolTable::default();
+    let module_ast = {
+        let mut lowering = hir::LoweringContext {
+            symbols: &mut symbols,
+            types: &mut types,
+            diagnostics: Vec::new(),
+        };
+        lowering.lower_v121_program(program)?
+    };
+
+    // Step 4: Set up CallableRegistry with Raylib functions
+    let mut callables = ffi::CallableRegistry::default();
+    ffi::raylib::register_raylib_functions(&mut types, &mut callables);
+
+    // Step 5: Semantic check
+    let mut semantic = semantic_gate::SemanticContext {
+        types,
+        symbols,
+        callables: callables.clone(),
+        diagnostics: Vec::new(),
+        loop_depth: 0,
+        safety_context: ffi::SafetyContext::Safe,
+    };
+    semantic
+        .check_module(&module_ast)
+        .map_err(|diagnostics| anyhow::anyhow!(format_v130_diagnostics(&diagnostics)))?;
+
+    // Step 6: HIR → LLVM object via compile_v130 with registries
+    codegen::compile_v130(
+        &module_ast,
+        object_path,
+        &CodegenOptions {
+            module_name: module_name(file),
+            emit_ir,
+            secure: false,
+            target,
+        },
+        callables,
+        semantic.types,
+    )
 }
 
 fn write_security_attestation_plan(output_path: &Path) -> Result<()> {

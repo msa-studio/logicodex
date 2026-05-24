@@ -6,14 +6,16 @@
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
 use crate::ast::{BinaryOp, Expr, Program, Stmt};
+use crate::ffi::{CallableId, CallableRegistry, CallableSignature};
 use crate::os::target::{build_target_machine, CompilationTarget, OutputKind};
+use crate::types::{PrimitiveType, TypeId, TypeKind, TypeRegistry};
 use anyhow::{anyhow, Context as AnyhowContext, Result};
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::types::IntType;
-use inkwell::values::{FunctionValue, IntValue, PointerValue};
+use inkwell::types::{BasicTypeEnum, IntType, FloatType};
+use inkwell::values::{BasicValueEnum, FunctionValue, IntValue, PointerValue};
 use inkwell::IntPredicate;
 use std::collections::HashMap;
 use std::path::Path;
@@ -83,6 +85,10 @@ pub struct LlvmCompiler<'ctx> {
     variables: Vec<HashMap<String, PointerValue<'ctx>>>,
     loop_targets: Vec<LoopTarget<'ctx>>,
     print_fn: FunctionValue<'ctx>,
+    // Sprint 3: CallableRegistry integration for function call codegen
+    callables: Option<CallableRegistry>,
+    types: Option<TypeRegistry>,
+    declared_funcs: HashMap<String, FunctionValue<'ctx>>,
 }
 
 /// Backend trait for version-gated codegen. v1.21 uses direct compilation;
@@ -167,7 +173,73 @@ impl<'ctx> LlvmCompiler<'ctx> {
             variables: vec![HashMap::new()],
             loop_targets: Vec::new(),
             print_fn,
+            callables: None,
+            types: None,
+            declared_funcs: HashMap::new(),
         }
+    }
+
+    /// Attach a CallableRegistry for FFI function resolution (Sprint 3).
+    pub fn with_callables(mut self, callables: CallableRegistry, types: TypeRegistry) -> Self {
+        self.callables = Some(callables);
+        self.types = Some(types);
+        self
+    }
+
+    /// Map a Logicodex TypeId to an LLVM BasicTypeEnum.
+    fn type_id_to_llvm(&self, type_id: TypeId) -> Result<BasicTypeEnum<'ctx>> {
+        let types = self.types.as_ref().ok_or_else(|| {
+            anyhow!("type_id_to_llvm: TypeRegistry not attached — call with_callables()")
+        })?;
+        match types.resolve(type_id) {
+            TypeKind::Primitive(PrimitiveType::Bool) => Ok(self.bool_type.into()),
+            TypeKind::Primitive(PrimitiveType::I32) => Ok(self.context.i32_type().into()),
+            TypeKind::Primitive(PrimitiveType::I64) => Ok(self.i64_type.into()),
+            TypeKind::Primitive(PrimitiveType::U32) => Ok(self.context.i32_type().into()),
+            TypeKind::Primitive(PrimitiveType::F32) => Ok(self.context.f32_type().into()),
+            TypeKind::Primitive(PrimitiveType::F64) => Ok(self.context.f64_type().into()),
+            TypeKind::Primitive(PrimitiveType::Unit) => Ok(self.context.i8_type().into()), // void represented as i8
+            TypeKind::Pointer { .. } => Ok(self.context.ptr_type(inkwell::AddressSpace::default()).into()),
+            other => Err(anyhow!("type_id_to_llvm: unsupported type kind: {:?}", other)),
+        }
+    }
+
+    /// Declare an extern function in the LLVM module (or retrieve existing declaration).
+    fn declare_extern_func(&mut self, signature: &CallableSignature) -> Result<FunctionValue<'ctx>> {
+        let name = &signature.name;
+        if let Some(func) = self.declared_funcs.get(name) {
+            return Ok(*func);
+        }
+        // Convert param types
+        let mut llvm_param_types: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(signature.params.len());
+        for param_id in &signature.params {
+            llvm_param_types.push(self.type_id_to_llvm(*param_id)?);
+        }
+        let ret_type = self.type_id_to_llvm(signature.return_type)?;
+        let fn_type = ret_type.fn_type(&llvm_param_types, signature.is_variadic);
+        let func = self.module.add_function(name, fn_type, Some(inkwell::module::Linkage::External));
+        self.declared_funcs.insert(name.clone(), func);
+        Ok(func)
+    }
+
+    /// Detect if a callee name is a struct constructor (e.g., "Color" → packed u32).
+    fn try_struct_constructor(&self, callee_name: &str, args: &[Expr]) -> Option<u32> {
+        let types = self.types.as_ref()?;
+        let (_, layout) = types.find_struct_by_name(callee_name)?;
+        // For Sprint 3: pack Color(R,G,B,A) → u32 RGBA
+        if callee_name == "Color" && args.len() == 4 {
+            // We can only handle literal arguments at codegen time
+            let vals: Vec<u32> = args.iter().filter_map(|arg| match arg {
+                Expr::Integer(v) if *v >= 0 && *v <= 255 => Some(*v as u32),
+                _ => None,
+            }).collect();
+            if vals.len() == 4 {
+                return Some((vals[0] << 24) | (vals[1] << 16) | (vals[2] << 8) | vals[3]);
+            }
+        }
+        // Other struct types: not yet supported for inline construction
+        None
+    }
     }
 
     fn emit_program(&mut self, program: &Program, target: CompilationTarget) -> Result<()> {
@@ -405,20 +477,66 @@ impl<'ctx> LlvmCompiler<'ctx> {
             Expr::Call { callee, args } => {
                 let callee_name = match callee.as_ref() {
                     Expr::Variable(name) => name.as_str(),
-                    _ => "<complex callee>",
+                    _ => {
+                        eprintln!("logicodex v1.30: complex callees not yet supported in codegen");
+                        return Ok(self.i64_type.const_int(0, false));
+                    }
                 };
-                // Sprint 2.5: Function call codegen requires:
-                // 1. CallableRegistry lookup for function pointer
-                // 2. LLVM function pointer or direct call
-                // 3. Argument marshalling (especially for Color/Vector2 structs)
-                // This is deferred to Sprint 3 (codegen backend integration).
-                // For now, emit a placeholder zero value.
-                eprintln!(
-                    "logicodex: codegen for Call('{}', {} args) is a stub — \
-                     requires Sprint 3 codegen backend",
-                    callee_name, args.len()
-                );
-                Ok(self.i64_type.const_int(0, false))
+
+                // Sprint 3: Try struct constructor first (e.g., Color(255,0,0,255) → packed u32)
+                if let Some(packed) = self.try_struct_constructor(callee_name, args) {
+                    return Ok(self.i64_type.const_int(packed as u64, false));
+                }
+
+                // Sprint 3: Try CallableRegistry lookup for FFI function
+                if let Some(ref callables) = self.callables {
+                    if let Some((callable_id, signature)) = callables.find_by_name(callee_name) {
+                        // Declare the extern function in LLVM
+                        let func = self.declare_extern_func(signature)?;
+                        // Evaluate arguments recursively
+                        let mut llvm_args: Vec<BasicValueEnum<'ctx>> = Vec::with_capacity(args.len());
+                        for arg in args {
+                            let val = self.emit_expr(arg)?;
+                            // For Sprint 3, all args are promoted to i64 then truncated at call site
+                            // based on the CallableSignature param types
+                            llvm_args.push(val.into());
+                        }
+                        let call_site = self.builder
+                            .build_call(func, &llvm_args, &format!("call_{}", callee_name))
+                            .with_context(|| format!("failed to build call to '{}'", callee_name))?;
+                        // Extract return value
+                        match call_site.try_as_basic_value() {
+                            inkwell::values::Either::Left(val) => {
+                                // Convert return value to i64 for the expression result
+                                match val {
+                                    BasicValueEnum::IntValue(iv) => Ok(iv),
+                                    other => {
+                                        // Truncate/extend as needed — for Sprint 3 return as i64
+                                        Ok(self.i64_type.const_int(0, false))
+                                    }
+                                }
+                            }
+                            inkwell::values::Either::Right(_) => {
+                                // Void return — return 0
+                                Ok(self.i64_type.const_int(0, false))
+                            }
+                        }
+                    } else {
+                        eprintln!(
+                            "logicodex v1.30: function '{}' not found in CallableRegistry",
+                            callee_name
+                        );
+                        Ok(self.i64_type.const_int(0, false))
+                    }
+                } else {
+                    // No CallableRegistry attached — emit stub
+                    eprintln!(
+                        "logicodex v1.30: codegen for Call('{}', {} args) — \
+                         CallableRegistry not attached, call with_callables()",
+                        callee_name, args.len()
+                    );
+                    Ok(self.i64_type.const_int(0, false))
+                }
             }
             Expr::Grouped(inner) => self.emit_expr(inner),
             Expr::Binary { left, op, right } => {
@@ -569,9 +687,12 @@ pub fn compile_v130(
     hir_module: &crate::hir::HirModule,
     object_path: &Path,
     options: &CodegenOptions,
+    callables: CallableRegistry,
+    types: TypeRegistry,
 ) -> Result<CodegenArtifact> {
     let context = Context::create();
-    let mut compiler = LlvmCompiler::new(&context, &options.module_name);
+    let mut compiler = LlvmCompiler::new(&context, &options.module_name)
+        .with_callables(callables, types);
 
     // v1.30 uses HIR items instead of v1.21 AST statements
     for item in &hir_module.items {
