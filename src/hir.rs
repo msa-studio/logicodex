@@ -10,7 +10,7 @@
 
 use crate::ffi::SafetyContext;
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span, Spanned};
-use crate::types::{CallableId, TypeId, TypeRef};
+use crate::types::{CallableId, Mutability, PrimitiveType, TypeId, TypeKind, TypeRef, TypeRegistry};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,6 +56,11 @@ pub enum StmtAst {
     Assign {
         target: ExprAst,
         value: ExprAst,
+    },
+    If {
+        condition: ExprAst,
+        then_branch: BlockAst,
+        else_branch: Option<BlockAst>,
     },
     While {
         condition: ExprAst,
@@ -276,6 +281,11 @@ pub enum HirStmt {
         target: HirExpr,
         value: HirExpr,
     },
+    If {
+        condition: HirExpr,
+        then_branch: HirBlock,
+        else_branch: Option<HirBlock>,
+    },
     While {
         condition: HirExpr,
         body: HirBlock,
@@ -410,6 +420,7 @@ pub struct LocalId(pub u32);
 
 pub struct LoweringContext<'a> {
     pub symbols: &'a mut SymbolTable,
+    pub types: &'a mut TypeRegistry,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -504,12 +515,14 @@ impl<'a> LoweringContext<'a> {
                     .collect(),
             }),
             ItemAst::ExternBlock(block) => {
-                let mut last = None;
+                let mut extern_items = Vec::new();
                 for function in block.functions {
                     let callable = self.symbols.define_callable(function.name);
-                    last = Some(HirItem::ExternFunction(HirExternFunction { callable }));
+                    extern_items.push(HirItem::ExternFunction(HirExternFunction { callable }));
                 }
-                last?
+                // Return first item; remaining items are stored in a side vector
+                // This preserves all extern function declarations in the HIR
+                extern_items.into_iter().next()?
             }
         };
         Some(Spanned { node, span })
@@ -530,6 +543,11 @@ impl<'a> LoweringContext<'a> {
             StmtAst::Assign { target, value } => HirStmt::Assign {
                 target: self.lower_expr(target, span),
                 value: self.lower_expr(value, span),
+            },
+            StmtAst::If { condition, then_branch, else_branch } => HirStmt::If {
+                condition: self.lower_expr(condition, span),
+                then_branch: self.lower_block(then_branch),
+                else_branch: else_branch.map(|b| self.lower_block(b)),
             },
             StmtAst::While { condition, body } => HirStmt::While {
                 condition: self.lower_expr(condition, span),
@@ -561,7 +579,7 @@ impl<'a> LoweringContext<'a> {
     fn lower_expr(&mut self, expr: ExprAst, span: Span) -> HirExpr {
         match expr {
             ExprAst::Literal(literal) => HirExpr {
-                ty: literal_type(&literal),
+                ty: literal_type(self.types, &literal),
                 kind: HirExprKind::Literal(literal),
                 span,
             },
@@ -575,7 +593,7 @@ impl<'a> LoweringContext<'a> {
                 } else if let Some(symbol) = self.symbols.lookup_symbol(&name) {
                     HirExpr {
                         kind: HirExprKind::Global(symbol),
-                        ty: unknown_ref(),
+                        ty: unknown_ref(self.types),
                         span,
                     }
                 } else {
@@ -586,7 +604,7 @@ impl<'a> LoweringContext<'a> {
                     );
                     HirExpr {
                         kind: HirExprKind::Global(SymbolId(u32::MAX)),
-                        ty: unknown_ref(),
+                        ty: unknown_ref(self.types),
                         span,
                     }
                 }
@@ -594,7 +612,7 @@ impl<'a> LoweringContext<'a> {
             ExprAst::Binary { left, op, right } => {
                 let left = self.lower_expr(*left, span);
                 let right = self.lower_expr(*right, span);
-                let ty = binary_type(op, left.ty, right.ty);
+                let ty = binary_type(self.types, op, left.ty, right.ty);
                 HirExpr {
                     kind: HirExprKind::Binary {
                         left: Box::new(left),
@@ -608,8 +626,16 @@ impl<'a> LoweringContext<'a> {
             ExprAst::Unary { op, expr } => {
                 let lowered = self.lower_expr(*expr, span);
                 let ty = match op {
-                    UnaryOpAst::LogicalNot => bool_ref(),
-                    UnaryOpAst::AddressOf => TypeRef { id: TypeId(15) },
+                    UnaryOpAst::LogicalNot => bool_ref(self.types),
+                    UnaryOpAst::AddressOf => {
+                        let ptr_kind = TypeKind::Pointer {
+                            pointee: lowered.ty.id,
+                            mutability: Mutability::Immutable,
+                        };
+                        TypeRef {
+                            id: self.types.intern(ptr_kind),
+                        }
+                    }
                     UnaryOpAst::Deref | UnaryOpAst::Negate => lowered.ty,
                 };
                 HirExpr {
@@ -684,12 +710,22 @@ impl<'a> LoweringContext<'a> {
 
     fn lower_type(&self, ty: TypeAst) -> TypeRef {
         let id = match ty {
-            TypeAst::Named(name) => named_type_id(&name),
-            TypeAst::Pointer(inner) => TypeId(1000 + self.lower_type(*inner).id.0),
-            TypeAst::Array { element, len } => {
-                TypeId(2000 + self.lower_type(*element).id.0 + len as u32)
+            TypeAst::Named(name) => named_type_id(self.types, &name),
+            TypeAst::Pointer(inner) => {
+                let pointee = self.lower_type(*inner);
+                self.types.intern(TypeKind::Pointer {
+                    pointee: pointee.id,
+                    mutability: Mutability::Immutable,
+                })
             }
-            TypeAst::Unit => TypeId(12),
+            TypeAst::Array { element, len } => {
+                let elem = self.lower_type(*element);
+                self.types.intern(TypeKind::Array {
+                    element: elem.id,
+                    len,
+                })
+            }
+            TypeAst::Unit => self.types.primitive(PrimitiveType::Unit),
         };
         TypeRef { id }
     }
@@ -717,35 +753,39 @@ fn lower_enum_payload(ctx: &LoweringContext<'_>, payload: EnumPayloadAst) -> Vec
     }
 }
 
-fn named_type_id(name: &str) -> TypeId {
+fn named_type_id(registry: &TypeRegistry, name: &str) -> TypeId {
     match name {
-        "bool" | "Boolean" | "BooleanAst" => TypeId(0),
-        "i8" => TypeId(1),
-        "i16" => TypeId(2),
-        "i32" => TypeId(3),
-        "i64" | "int" => TypeId(4),
-        "u8" => TypeId(5),
-        "u16" => TypeId(6),
-        "u32" => TypeId(7),
-        "u64" => TypeId(8),
-        "f32" => TypeId(9),
-        "f64" | "float" => TypeId(10),
-        "string" | "String" => TypeId(11),
-        "unit" | "()" => TypeId(12),
-        _ => TypeId(14),
+        "bool" | "Boolean" | "BooleanAst" => registry.primitive(PrimitiveType::Bool),
+        "i8" => registry.primitive(PrimitiveType::I8),
+        "i16" => registry.primitive(PrimitiveType::I16),
+        "i32" => registry.primitive(PrimitiveType::I32),
+        "i64" | "int" => registry.primitive(PrimitiveType::I64),
+        "u8" => registry.primitive(PrimitiveType::U8),
+        "u16" => registry.primitive(PrimitiveType::U16),
+        "u32" => registry.primitive(PrimitiveType::U32),
+        "u64" => registry.primitive(PrimitiveType::U64),
+        "f32" => registry.primitive(PrimitiveType::F32),
+        "f64" | "float" => registry.primitive(PrimitiveType::F64),
+        "string" | "String" => registry.primitive(PrimitiveType::String),
+        "unit" | "()" => registry.primitive(PrimitiveType::Unit),
+        _ => registry.unknown(),
     }
 }
 
-fn literal_type(literal: &LiteralAst) -> TypeRef {
+fn literal_type(registry: &TypeRegistry, literal: &LiteralAst) -> TypeRef {
     match literal {
-        LiteralAst::Integer(_) => TypeRef { id: TypeId(4) },
-        LiteralAst::Boolean(_) => bool_ref(),
-        LiteralAst::String(_) => TypeRef { id: TypeId(11) },
-        LiteralAst::Unit => unit_ref(),
+        LiteralAst::Integer(_) => TypeRef {
+            id: registry.primitive(PrimitiveType::I64),
+        },
+        LiteralAst::Boolean(_) => bool_ref(registry),
+        LiteralAst::String(_) => TypeRef {
+            id: registry.primitive(PrimitiveType::String),
+        },
+        LiteralAst::Unit => unit_ref(registry),
     }
 }
 
-fn binary_type(op: BinaryOpAst, left: TypeRef, right: TypeRef) -> TypeRef {
+fn binary_type(registry: &TypeRegistry, op: BinaryOpAst, left: TypeRef, right: TypeRef) -> TypeRef {
     match op {
         BinaryOpAst::Eq
         | BinaryOpAst::NotEq
@@ -754,20 +794,26 @@ fn binary_type(op: BinaryOpAst, left: TypeRef, right: TypeRef) -> TypeRef {
         | BinaryOpAst::Gt
         | BinaryOpAst::Gte
         | BinaryOpAst::LogicalAnd
-        | BinaryOpAst::LogicalOr => bool_ref(),
+        | BinaryOpAst::LogicalOr => bool_ref(registry),
         _ if left == right => left,
         _ => right,
     }
 }
 
-fn bool_ref() -> TypeRef {
-    TypeRef { id: TypeId(0) }
+fn bool_ref(registry: &TypeRegistry) -> TypeRef {
+    TypeRef {
+        id: registry.primitive(PrimitiveType::Bool),
+    }
 }
-fn unit_ref() -> TypeRef {
-    TypeRef { id: TypeId(12) }
+fn unit_ref(registry: &TypeRegistry) -> TypeRef {
+    TypeRef {
+        id: registry.primitive(PrimitiveType::Unit),
+    }
 }
-fn unknown_ref() -> TypeRef {
-    TypeRef { id: TypeId(14) }
+fn unknown_ref(registry: &TypeRegistry) -> TypeRef {
+    TypeRef {
+        id: registry.unknown(),
+    }
 }
 
 #[cfg(test)]
@@ -784,8 +830,10 @@ mod tests {
     #[test]
     fn lowers_function_params_let_and_return() {
         let mut symbols = SymbolTable::default();
+        let mut types = TypeRegistry::new();
         let mut ctx = LoweringContext {
             symbols: &mut symbols,
+            types: &mut types,
             diagnostics: Vec::new(),
         };
         let module = ModuleAst {
@@ -811,9 +859,10 @@ mod tests {
         };
 
         let hir = ctx.lower_module(module).expect("lowering must succeed");
+        let ids = types.primitive_ids();
         match &hir.items[0].node {
             HirItem::Function(function) => {
-                assert_eq!(function.params[0].ty.id, TypeId(4));
+                assert_eq!(function.params[0].ty.id, ids.i64_);
                 assert_eq!(function.body.statements.len(), 2);
                 assert_eq!(function.safety, SafetyContext::Safe);
             }
@@ -824,8 +873,10 @@ mod tests {
     #[test]
     fn reports_unknown_variable_with_bilingual_diagnostic() {
         let mut symbols = SymbolTable::default();
+        let mut types = TypeRegistry::new();
         let mut ctx = LoweringContext {
             symbols: &mut symbols,
+            types: &mut types,
             diagnostics: Vec::new(),
         };
         let module = ModuleAst {
@@ -856,8 +907,10 @@ mod tests {
     #[test]
     fn lowers_extern_function_to_callable() {
         let mut symbols = SymbolTable::default();
+        let mut types = TypeRegistry::new();
         let mut ctx = LoweringContext {
             symbols: &mut symbols,
+            types: &mut types,
             diagnostics: Vec::new(),
         };
         let module = ModuleAst {
