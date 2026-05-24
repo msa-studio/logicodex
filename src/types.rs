@@ -20,6 +20,31 @@ pub struct EnumLayoutId(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CallableId(pub u32);
 
+// ─── Struct Layout Types ───
+// These live in types.rs (not layout.rs) to avoid circular dependencies.
+// layout.rs provides the LayoutEngine that computes these;
+// TypeRegistry caches them for O(1) lookup.
+
+/// Cached memory layout for a struct type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructLayout {
+    pub name: String,
+    pub fields: Vec<StructFieldLayout>,
+    pub total_size_bytes: usize,
+    pub alignment_bytes: usize,
+    pub is_packed: bool,
+}
+
+/// Per-field layout information within a struct.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructFieldLayout {
+    pub name: String,
+    pub ty: TypeId,
+    pub offset_bytes: usize,
+    pub size_bytes: usize,
+    pub alignment_bytes: usize,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TypeRef {
     pub id: TypeId,
@@ -41,6 +66,26 @@ pub enum TypeKind {
     Function(CallableId),
     Never,
     Unknown,
+}
+
+impl TypeKind {
+    /// Extract the StructLayoutId from a TypeKind::Struct.
+    /// Panics if this is not a Struct kind.
+    pub fn unwrap_struct(&self) -> StructLayoutId {
+        match self {
+            TypeKind::Struct(id) => *id,
+            other => panic!("unwrap_struct called on {:?}", other),
+        }
+    }
+
+    /// Extract the EnumLayoutId from a TypeKind::Enum.
+    /// Panics if this is not an Enum kind.
+    pub fn _unwrap_enum(&self) -> EnumLayoutId {
+        match self {
+            TypeKind::Enum(id) => *id,
+            other => panic!("unwrap_enum called on {:?}", other),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -70,6 +115,8 @@ pub enum Mutability {
 pub struct TypeRegistry {
     kinds: Vec<TypeKind>,
     primitive_cache: PrimitiveTypeIds,
+    /// Cached struct layouts, indexed by StructLayoutId.0
+    struct_layouts: Vec<StructLayout>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -134,6 +181,7 @@ impl TypeRegistry {
 
         Self {
             kinds,
+            struct_layouts: Vec::new(),
             primitive_cache: PrimitiveTypeIds {
                 bool_,
                 i8_,
@@ -239,13 +287,20 @@ impl TypeRegistry {
                 PrimitiveType::Unit => 0,
             },
             TypeKind::Pointer { .. } => 8, // 64-bit pointer
-            TypeKind::Struct(_) => {
-                // Sprint 3: LayoutEngine integration
-                panic!("TypeRegistry::get_size for Struct requires LayoutEngine (Sprint 3)")
+            TypeKind::Struct(layout_id) => {
+                self.struct_layouts
+                    .get(layout_id.0 as usize)
+                    .map(|l| l.total_size_bytes)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "BUG: StructLayoutId({}) not found. Register struct with intern_struct() first.",
+                            layout_id.0
+                        )
+                    })
             }
             TypeKind::Enum(_) => {
-                // Sprint 3: LayoutEngine integration
-                panic!("TypeRegistry::get_size for Enum requires LayoutEngine (Sprint 3)")
+                // Sprint 2.5: Enum layout not yet implemented
+                panic!("TypeRegistry::get_size for Enum not yet implemented (Sprint 2.5)")
             }
             TypeKind::Array { element, len } => self.get_size(*element) * len,
             TypeKind::Function(_) => 8, // function pointer size
@@ -274,11 +329,20 @@ impl TypeRegistry {
                 PrimitiveType::Unit => 1,
             },
             TypeKind::Pointer { .. } => 8,
-            TypeKind::Struct(_) => {
-                panic!("TypeRegistry::get_align for Struct requires LayoutEngine (Sprint 3)")
+            TypeKind::Struct(layout_id) => {
+                self.struct_layouts
+                    .get(layout_id.0 as usize)
+                    .map(|l| l.alignment_bytes)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "BUG: StructLayoutId({}) not found. Register struct with intern_struct() first.",
+                            layout_id.0
+                        )
+                    })
             }
             TypeKind::Enum(_) => {
-                panic!("TypeRegistry::get_align for Enum requires LayoutEngine (Sprint 3)")
+                // Sprint 2.5: Enum layout not yet implemented
+                panic!("TypeRegistry::get_align for Enum not yet implemented (Sprint 2.5)")
             }
             TypeKind::Array { element, .. } => self.get_align(*element),
             TypeKind::Function(_) => 8,
@@ -293,6 +357,35 @@ impl TypeRegistry {
             size: self.get_size(id),
             align: self.get_align(id),
         }
+    }
+
+    // ─── Struct Registration ───
+    /// Register a pre-computed struct layout and return its TypeId.
+    ///
+    /// The layout should be computed using `LayoutEngine::compute_struct_layout`
+    /// (from `layout.rs`). This method stores the layout and creates a
+    /// `TypeKind::Struct` entry in the type table.
+    ///
+    /// # Panics
+    /// Panics if a struct with the same name is already registered.
+    pub fn intern_struct(&mut self, layout: StructLayout) -> TypeId {
+        let layout_id = StructLayoutId(self.struct_layouts.len() as u32);
+        self.struct_layouts.push(layout);
+        self.intern(TypeKind::Struct(layout_id))
+    }
+
+    /// Lookup a cached struct layout by its ID.
+    pub fn get_struct_layout(&self, id: StructLayoutId) -> Option<&StructLayout> {
+        self.struct_layouts.get(id.0 as usize)
+    }
+
+    /// Find a struct layout by name (linear scan — O(n) in number of structs).
+    pub fn find_struct_by_name(&self, name: &str) -> Option<(StructLayoutId, &StructLayout)> {
+        self.struct_layouts
+            .iter()
+            .enumerate()
+            .find(|(_, l)| l.name == name)
+            .map(|(i, l)| (StructLayoutId(i as u32), l))
     }
 
     // ─── FFI Type Aliases ───

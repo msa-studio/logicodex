@@ -8,25 +8,9 @@
 // =========================================================================
 
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span};
-use crate::types::{PrimitiveType, TypeId, TypeKind, TypeRegistry};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StructLayout {
-    pub name: String,
-    pub fields: Vec<StructFieldLayout>,
-    pub total_size_bytes: usize,
-    pub alignment_bytes: usize,
-    pub is_packed: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StructFieldLayout {
-    pub name: String,
-    pub ty: TypeId,
-    pub offset_bytes: usize,
-    pub size_bytes: usize,
-    pub alignment_bytes: usize,
-}
+use crate::types::{
+    PrimitiveType, StructFieldLayout, StructLayout, TypeId, TypeKind, TypeRegistry,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LayoutRequest {
@@ -116,11 +100,32 @@ impl<'a> LayoutEngine<'a> {
                 let (element_size, element_align) = self.size_and_align(*element, span)?;
                 Ok((element_size.saturating_mul(*len), element_align))
             }
-            Some(TypeKind::Never)
-            | Some(TypeKind::Unknown)
-            | Some(TypeKind::Struct(_))
-            | Some(TypeKind::Enum(_))
-            | None => Err(layout_error(
+            Some(TypeKind::Struct(layout_id)) => {
+                // Lookup cached layout from TypeRegistry
+                match self.types.get_struct_layout(layout_id) {
+                    Some(layout) => {
+                        Ok((layout.total_size_bytes, layout.alignment_bytes))
+                    }
+                    None => Err(layout_error(
+                        span,
+                        format!(
+                            "Ralat: StructLayoutId({}) tidak ditemui dalam cache",
+                            layout_id.0
+                        ),
+                        format!(
+                            "Error: StructLayoutId({}) not found in layout cache. \
+                             Register struct with intern_struct() first.",
+                            layout_id.0
+                        ),
+                    )),
+                }
+            }
+            Some(TypeKind::Enum(_)) => Err(layout_error(
+                span,
+                "Ralat: Layout Enum belum dilaksanakan".to_string(),
+                "Error: Enum layout not yet implemented (Sprint 2.5)".to_string(),
+            )),
+            Some(TypeKind::Never) | Some(TypeKind::Unknown) | None => Err(layout_error(
                 span,
                 format!("Ralat: Jenis '{ty:?}' belum mempunyai layout memori yang sah"),
                 format!("Error: Type '{ty:?}' does not have a valid memory layout yet"),
