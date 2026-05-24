@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #25] — 2026-05-24 — Ketuk 2: Result<T, E> Abstraction — Ok/Err, match, IO Guard
+
+### Added
+- **AST** (`src/ast.rs`): `Type::Result { ok, err }`, `Expr::Ok { value }`, `Expr::Err { value }`
+  `Stmt::Match { value, arms }`, `MatchArm { pattern, body }`
+  `MatchPattern::Ok { binding }`, `MatchPattern::Err { binding }`, `MatchPattern::Wildcard`
+- **Lexer** (`src/lexer.rs`): `Result`, `Ok`, `Err`, `Match`, `ArrowFat` (=>), `Underscore` (_) tokens
+- **Parser** (`src/parser.rs`): `Result<T, E>` type syntax, `Ok()`/`Err()` constructors
+  `match expr { Ok(v) => body, Err(e) => body }` statement + arm parsing
+- **Semantic** (`src/semantic.rs`): Match exhaustiveness validation
+  `MatchOnNonResult` error — match on non-Result type
+  `NonExhaustiveMatch` error — missing Ok or Err arm
+- **Native Library** (`lib/core/result.ldx`): `unwrap_or`, `expect`, `is_ok`, `is_err`, `map`
+- **Native Library** (`lib/core/io_error.ldx`): `IoError` enum — `FileNotFound`, `PermissionDenied`, `InvalidPath`, `BufferTooSmall`, `DiskFull`, `Unknown`
+- **Tests**: `tests/result_abstraction.rs` (9 assertions)
+- **Validator**: `scripts/validate_result_abstraction.py` (8 checks)
+
+### Validation
+- v1.21: 9/9 | Sprint 1.1: 32/32 | Sprint 1.2: 20/20 | Sprint 2: 34/34 | Sprint 2.5: 25/25 | Sprint 3: 28/28 | Demo: 11/11 | K1: 17/17 | **K2 Result: 9/9 ✅**
+
 ## [Merged via PR #24] — 2026-05-24 — Fix: 5 Critical Bugs in Buffer Overflow & Use-After-Move
 
 ### Fixed
