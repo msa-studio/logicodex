@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #18] — 2026-05-24 — Sprint 2: LayoutEngine
+
+### Added
+- **Struct layout types** (`src/types.rs`): `StructLayout`, `StructFieldLayout` moved from `layout.rs`
+- **TypeRegistry struct cache**: `struct_layouts: Vec<StructLayout>`, `intern_struct()`, `get_struct_layout()`, `find_struct_by_name()`
+- **get_size/get_align for Struct**: Uses cached layout instead of panic
+- **LayoutEngine struct lookup** (`src/layout.rs`): `size_and_align` resolves Struct via cache
+- **Raylib struct types** (`src/ffi/raylib.rs`): `register_raylib_types()` registers Color(4B), Vector2(8B), Rectangle(16B), Texture2D(20B)
+- **Tests** (`tests/layout_engine_integration.rs`): 29 assertions — layout, cache, Raylib types, nested structs
+
+### Changed
+- `src/layout.rs`: Import `StructLayout`/`StructFieldLayout` from `types.rs` (not local)
+
+### Validation
+- v1.21 executable logic: 9/9 checks PASSED
+- Sprint 1.1: 32/32 checks PASSED
+- Sprint 1.2: 20/20 checks PASSED
+- Sprint 2: 34/34 checks PASSED
+
 ## [Merged via PR #17] — 2026-05-24 — Stage 1 Quickfix: Raylib Color + Math
 
 ### Fixed
