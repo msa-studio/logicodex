@@ -18,8 +18,8 @@ The first priority is to keep the current compiler pipeline reproducible. This m
 |---|---|---|---|
 | Issue #01 — Grammar baseline | Completed for v1.21-alpha baseline | Mohamad Supardi Abdul | The grammar document matches lexer/parser behavior for the currently implemented language subset. |
 | Issue #02 — UB and provenance design note | Baseline hardware-zone gate implemented and logically verified | Mohamad Supardi Abdul | The specification now records `ZON_PERKAKASAN` / `hw_unsafe` lexical gating, and the semantic analyzer rejects raw address pointer bindings outside that safe zone while leaving deeper hardware I/O work for later milestones. |
-| Issue #03 — Native example suite | Open | TBD | A small set of `.ldx` programs compiles through the documented pipeline and has expected-output checks. |
-| Issue #04 — CI-oriented validation | Open | TBD | `cargo check`, release build, and validation scripts can be run from a clean checkout with documented dependencies. |
+| Issue #03 — Native example suite | Partially complete | Mohamad Supardi Abdul | The refreshed reflex-engine `.ldx` suite passes `check` and `v130-check`; remaining work is expected-output fixtures and backend/object-output parity checks. |
+| Issue #04 — CI-oriented validation | Open | TBD | `cargo check`, release build, full example sweeps, and validation scripts can be run from a clean checkout with documented dependencies. |
 
 ## Milestone 2: Tighten Language Semantics and Diagnostics
 
@@ -39,7 +39,7 @@ Developer tooling should follow the stabilized language subset rather than racin
 |---|---|---|---|
 | Issue #08 — `ldx-fmt` formatter | Open | TBD | Representative Logicodex examples are formatted into a canonical style without changing meaning. |
 | Issue #09 — LSP diagnostics | Open | TBD | Syntax and semantic feedback work in at least one supported editor. |
-| Issue #10 — Documentation examples | Open | TBD | README, manual, and specification examples are synchronized with compiler behavior. |
+| Issue #10 — Documentation examples | Partially complete | Mohamad Supardi Abdul | README, manual, grammar notes, repository context, and reflex-example documentation describe the current validated example suite; remaining work is to keep release notes and future specs synchronized as behavior changes. |
 
 ## Milestone 4: Prototype Portable Targets
 
@@ -115,5 +115,6 @@ The current logicodex v 1.21 alpha repository now includes a schema v2 token voc
 | Vocabulary family | Current status | Future implementation requirement |
 |---|---|---|
 | Program structure, bindings, conditionals, routines, and core types | Available in the dictionary and compatible with the lexer map | Keep examples synchronized with parser behavior. |
-| Mutability, loops, FFI, C interop, resources, string type marker, and bitwise markers | Available as token vocabulary | Add parser and semantic rules before claiming executable feature support. |
-| Hardware/address vocabulary | Available as token vocabulary and design direction | Add explicit target gates, provenance rules, and freestanding examples before claiming runtime support. |
+| Loops and bitwise markers | Available as token vocabulary and executable parser/semantic/codegen subset | Keep examples, tests, and `v130-check` compatibility synchronized as the subset expands. |
+| Mutability, FFI, C interop, resources, and string type marker | Available as token vocabulary | Add parser and semantic rules before claiming executable feature support. |
+| Hardware/address vocabulary | Available as token vocabulary, current hardware-zone provenance examples, and design direction | Add explicit target gates, deeper provenance rules, and freestanding backend examples before claiming runtime support. |

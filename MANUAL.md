@@ -56,6 +56,25 @@ RUSTFLAGS='-D warnings' cargo build --target x86_64-unknown-linux-gnu
 
 Set `LOGICODEX_LINKER` to override the linker used by the compiler. For machine setup details, use `ENVIRONMENT_SETUP.md`; for grammar, dictionary, aliases, and executable examples, use `GrammarandDictionary.md`.
 
+## Current Example Compatibility Suite
+
+The refreshed `examples/` directory is the maintained reflex-engine compatibility suite for **current Logicodex v1.21-alpha** plus the dormant **v1.30.0-alpha** probe. It includes expert canonical and Malay beginner programs for arithmetic, functions, loops, bitwise operators, hardware-zone provenance, and Boolean conditionals. Maintainers should validate the full suite rather than a single sample file when changing parser, semantic, CLI, or documentation behavior.
+
+| Example group | Files | Compatibility expectation |
+|---|---|---|
+| Legacy smoke examples | `hello.ldx`, `matematik.ldx`, `perkakasan.ldx` | Continue to pass the default `check` path. |
+| Reflex arithmetic examples | `01_tambah_pakar.ldx`, `01_tambah_pemula.ldx` | Pass both `check` and `v130-check` after the syntax refresh. |
+| Reflex feature examples | `02_fungsi_matematik.ldx` through `06_logik_bersyarat.ldx` | Pass both `check` and `v130-check` while avoiding recognized-but-blocked roadmap constructs. |
+
+```bash
+for file in examples/*.ldx; do
+  cargo run --quiet -- check "$file"
+  cargo run --quiet -- v130-check "$file"
+done
+```
+
+The detailed file-by-file inventory is maintained in `docs/examples/REFLEX_ENGINE_EXAMPLES.md`.
+
 ## v1.21-alpha Split-Implementation Boundary
 
 The executable v1.21-alpha subset now supports `while`, `loop`, `break`, `continue`, logical operators, bitwise operators, and shift operators through the AST, parser, semantic analyzer, and LLVM backend. The lexer and dictionary also recognize complex roadmap tokens such as `struct`, `enum`, `unsafe`, and `extern`, but these are intentionally stopped at parser level with an unimplemented diagnostic until their type-layout, ABI, and safety semantics are designed and validated.
