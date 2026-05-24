@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
-## [Unreleased] — Version Gate Integration (v1.30 Pipeline)
+## [Merged via PR #12] — 2026-05-24 — Version Gate Integration (v1.30 Pipeline)
 
 ### Added — Edition Routing / Version Gate Architecture
 - **New CLI flag**: `--pipeline <v1.21|v1.30>` on both `compile` and `check` commands.
