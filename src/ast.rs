@@ -114,6 +114,11 @@ pub enum Expr {
         op: BinaryOp,
         right: Box<Expr>,
     },
+    /// Ketuk 1: Buffer/Slice indexing — buf[index]
+    Index {
+        base: Box<Expr>,
+        index: Box<Expr>,
+    },
     Grouped(Box<Expr>),
 }
 
@@ -147,11 +152,37 @@ pub enum Type {
     Bool,
     Pointer(Box<Type>),
     String,
+    // ─── Ketuk 1: Core Memory Model ───
+    Slice { element: Box<Type> },
+    Buffer { element: Box<Type> },
 }
 
 impl Type {
     pub fn is_pointer(&self) -> bool {
         matches!(self, Type::Pointer(_))
+    }
+
+    /// Ketuk 1: Check if this type is a slice ([]T).
+    pub fn is_slice(&self) -> bool {
+        matches!(self, Type::Slice { .. })
+    }
+
+    /// Ketuk 1: Check if this type is a buffer (Buffer<T>).
+    pub fn is_buffer(&self) -> bool {
+        matches!(self, Type::Buffer { .. })
+    }
+
+    /// Ketuk 1: Check if this is a contiguous memory type (slice or buffer).
+    pub fn is_contiguous(&self) -> bool {
+        matches!(self, Type::Slice { .. } | Type::Buffer { .. })
+    }
+
+    /// Ketuk 1: Get the element type if this is a slice or buffer.
+    pub fn element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Slice { element } | Type::Buffer { element } => Some(element),
+            _ => None,
+        }
     }
 
     #[allow(dead_code)]
@@ -161,6 +192,8 @@ impl Type {
             Type::U16 => 16,
             Type::I64 | Type::F64 | Type::Pointer(_) | Type::String => 64,
             Type::Bool => 1,
+            // Slice and Buffer are pointer-sized (fat pointer: ptr + len)
+            Type::Slice { .. } | Type::Buffer { .. } => 128,
         }
     }
 }
@@ -200,6 +233,8 @@ impl fmt::Display for Type {
             Type::Bool => write!(f, "Bool"),
             Type::Pointer(inner) => write!(f, "PTR<{inner}>"),
             Type::String => write!(f, "String"),
+            Type::Slice { element } => write!(f, "[]{element}"),
+            Type::Buffer { element } => write!(f, "Buffer<{element}>"),
         }
     }
 }
