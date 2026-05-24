@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #22] — 2026-05-24 — Audio Engine: Hardware-Safe Audio Guards with Function Pointers
+
+### Added
+- **AST** (`src/ast.rs`): `Type::FunctionPointer { params, return_type }` — function pointer type
+  - `is_function_pointer()` — check if type is a function pointer
+  - `is_audio_callback_fp()` — detect audio ISR signature `fn(*mut f32, i32)`
+- **Parser** (`src/parser.rs`): `parse_type()` handles `fn(params) -> ret` syntax
+- **StrictAudioContext** (`src/semantic.rs`): Hardware-safe audio callback verification
+  - `verify_audio_safety()` — walks function body, validates all statements/expressions
+  - `AudioViolationIo` — rejects `Print`, `DrawText`, `InitWindow` in callbacks
+  - `AudioViolationRecursion` — rejects self-calling in audio ISR
+  - `AudioViolationUnboundedLoop` — rejects `loop { }` (watchdog risk)
+  - `AudioViolationForbiddenCall` — rejects unsafe function calls
+  - `mark_audio_callback_if_applicable()` — detects `SetAudioStreamCallback(func)`
+- **Native Library** (`lib/std/audio.ldx`): `tulis_selamat()` hardware clipper clamping `[-1.0, 1.0]`, `kepit()`, `gelombang_sinus()`
+- **Demo** (`examples/audio_sine.ldx`): 72-line function pointer callback demo
+- **Tests**: `tests/audio_engine_hardware_safe.rs` (14 assertions)
+- **Validator**: `scripts/validate_audio_engine.py` (8 checks)
+
+### Validation
+- v1.21: 9/9 | Sprint 1.1: 32/32 | Sprint 1.2: 20/20 | Sprint 2: 34/34 | Sprint 2.5: 25/25 | Sprint 3: 28/28 | Demo: 11/11 | **Audio: 14/14 ✅**
+
 ## [Merged via PR #21] — 2026-05-24 — Demo: Raylib Spinning Box (compile-ready example)
 
 ### Added
@@ -233,38 +255,4 @@ logicodex --pipeline v1.30 examples/raylib_spinning_box.ldx -o spinning_box
 - **AddressOf type bug** (`src/hir.rs`): Previously hardcoded `TypeId(15)` for all pointer types. Now each pointer gets a unique `TypeId` via proper type interning.
 
 ### Security / Defense-in-Depth
-- **Fail-fast codegen**: v1.21 codegen will panic with a descriptive message (via `unreachable!()`) if it receives v1.30-only AST nodes. This prevents silent corruption and makes pipeline misconfigurations immediately visible.
-
-### Zero Regression Guarantee
-- **Default pipeline**: `v1.21` (backward-compatible, no behavior change).
-- v1.21 code paths are **untouched**.
-- v1.21 does **not** pass through HIR lowering.
-- Fail-fast `unreachable!()` safety nets prevent silent pipeline leaks.
-
-### Validation
-- All 9 `validate_v121_executable_logic.py` checks pass:
-  - AST supports executable v1.21-alpha declarations ✅
-  - Lexer exposes canonical v1.21-alpha tokens ✅
-  - Parser enforces executable grammar layout ✅
-  - Semantic analyzer implements static safety checks ✅
-  - Code generator accepts expanded AST ✅
-  - CLI wires target and secure flags ✅
-  - Dictionary token surface ✅
-  - Version-label policy ✅
-  - Known regression guards ✅
-
----
-
-## [1.21.0-alpha] — 2026-05-XX
-
-### Added
-- Initial v1.21-alpha compiler core with LLVM backend.
-- Malay/English bilingual alias system via `dict/core_map.json`.
-- Hardware-zone provenance gates (`ZON_PERKAKASAN` / `hw_unsafe`).
-- Reflex-engine example suite covering arithmetic, functions, loops, bitwise operations, hardware-zone provenance, and Boolean conditionals.
-- Three-tier error severity classification (Critical / Medium / Low).
-- Dormant v1.30.0-alpha subsystem with HIR, layout engine, semantic gate, and codegen contracts.
-
----
-
-*For older releases, see the Git history.*
+- **Fail-fast codegen**: v1.21 codegen will pan
