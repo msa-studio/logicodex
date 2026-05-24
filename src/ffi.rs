@@ -9,6 +9,7 @@
 
 pub mod raylib;
 pub mod raylib_sys;
+pub mod math;
 
 use crate::hir::HirExpr;
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span};
