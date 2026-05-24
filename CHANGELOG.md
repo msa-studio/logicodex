@@ -6,6 +6,79 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #28] — 2026-05-25 — v1.30.1-alpha Fasa 2: Zero-Copy Ownership Transfer
+
+### Added
+- **Semantic** (`src/semantic.rs`): Zero-copy ownership transfer via Pintu `hantar()`
+  - `moved_via_pintu: HashSet<String>` — tracks variables moved through Pintu
+  - `UseAfterHantar { name }` error — bilingual Malay/English diagnostic
+  - Move triggered only on `hantar(variable)`, not on `hantar(literal)` or `hantar(expr)`
+  - Double-hantar same variable → compile-time error
+- **Codegen** (`src/codegen.rs`): `emit_hantar` / `emit_terima` stubs
+  - `emit_hantar`: Release semantics for zero-copy send (runtime: `pintu_send_release`)
+  - `emit_terima`: Acquire semantics for zero-copy receive (runtime: `pintu_recv_acquire`)
+  - `Spawn`/`Tunggu` expression stubs (completes Fasa 1 coverage)
+- **Native Library** (`lib/core/ring_buffer.ldx`): SPSC ring buffer with memory ordering
+  - `ring_baru<T>(kapasiti)` — allocates power-of-2 ring buffer
+  - `ring_hantar<T>()` — Producer write with **Release** tail update
+  - `ring_terima<T>()` — Consumer read with **Acquire** head read
+  - `ring_kosong()`, `ring_penuh()`, `ring_saiz()` — utility queries
+- **Tests**: `tests/threading_fasa2.rs` (12 assertions)
+- **Validator**: `scripts/validate_threading_fasa2.py` (6 checks)
+
+### Validation
+- v1.21: 9/9 | Sprint 1.1: 32/32 | Sprint 1.2: 20/20 | Sprint 2: 34/34 | Sprint 2.5: 25/25 | Sprint 3: 28/28 | Demo: 11/11 | K1: 17/17 | K2: 9/9 | K3+K4: 12/12 | Audio: 14/14 | **F1 Threading: 12/12 ✅ | F2 Ownership: 12/12 ✅**
+
+## [Merged via PR #27] — 2026-05-25 — v1.30.1-alpha Fasa 1: Threading Foundation — Kotak & Pintu
+
+### Added
+- **AST** (`src/ast.rs`): Actor-model concurrency types and expressions
+  - `Type::Pintu { from, to, message_type }` — typed SPSC channel
+  - `Stmt::Kotak { name, body }` — actor definition (1 OS thread)
+  - `Expr::Spawn { kotak_name, args }` — spawn actor (lahirkan)
+  - `Expr::Hantar { pintu_name, value }` — send through Pintu
+  - `Expr::Terima { pintu_name }` — receive from Pintu
+  - `Expr::Tunggu { kotak_name }` — wait for actor (tunggu)
+  - `is_pintu()`, `pintu_capability()` helpers
+- **Lexer** (`src/lexer.rs`): `Kotak`, `Pintu`, `Lahirkan`, `Hantar`, `Terima`, `Tunggu` tokens
+- **Parser** (`src/parser.rs`): `kotak N { ... }`, `Pintu<F, T, M>`, `lahirkan N()`, `pintu.hantar(v)`, `pintu.terima()`, `tunggu N`
+- **Semantic** (`src/semantic.rs`): Topology validation
+  - `KotakNotFound` — spawn of non-existent Kotak
+  - `DuplicateKotak` — duplicate actor definition
+  - `InvalidPintuTopology` — Pintu endpoint mismatch
+  - `SpawnNonKotak` — spawn on non-Kotak name
+  - `kotak_registry: HashSet<String>`, `pintu_registry: Vec<(String, String, String)>`
+- **Native Library** (`lib/core/thread.ldx`): Kotak & Pintu documentation, usage patterns, topology examples
+- **Native Library** (`lib/core/sync.ldx`): `Mutex`, `RwLock`, `AtomicI32` synchronization primitives
+- **Tests**: `tests/threading_foundation.rs` (12 assertions)
+- **Validator**: `scripts/validate_threading_foundation.py` (8 checks)
+
+### Validation
+- v1.21: 9/9 | Sprint 1.1: 32/32 | Sprint 1.2: 20/20 | Sprint 2: 34/34 | Sprint 2.5: 25/25 | Sprint 3: 28/28 | Demo: 11/11 | K1: 17/17 | K2: 9/9 | K3+K4: 12/12 | Audio: 14/14 | **F1 Threading: 12/12 ✅**
+
+## [Merged via PR #26] — 2026-05-24 — Ketuk 3 + 4: File Handle ABI & Syscall Backend
+
+### Added
+- **AST** (`src/ast.rs`): `Type::Opaque { name }` — opaque handle type
+  - `Expr::MethodCall { object, method, args }` — `h.read(1024)` syntax
+  - `is_opaque()`, `is_file_handle()` helpers
+- **Lexer** (`src/lexer.rs`): `FileHandle`, `Close`, `Read`, `Write`, `Seek`, `IsOpen` tokens
+- **Parser** (`src/parser.rs`): `FileHandle` type, `h.read()` / `h.close()` / `h.write()` / `h.seek()` method calls
+- **Semantic** (`src/semantic.rs`): File handle lifecycle validation
+  - `HandleNotOpen` — operation on closed handle
+  - `HandlePermissionDenied` — unauthorized access
+  - `handle_permissions: HashMap<String, FilePermission>`
+- **Native Library** (`lib/core/file.ldx`): `open`, `close`, `read`, `write`, `seek` with bilingual docs
+- **Syscall Backend** (`src/os/syscall.rs`): Linux x86_64 direct syscall
+  - `SYS_OPEN`, `SYS_CLOSE`, `SYS_READ`, `SYS_WRITE`, `SYS_LSEEK`, `SYS_MMAP` constants
+  - `emit_file_syscall()` — generates `syscall` instruction inline
+- **Runtime** (`lib/runtime/io_syscalls.ldx`): Runtime syscall wrappers
+- **Tests**: `tests/io_file_syscall.rs` (12 assertions)
+- **Validator**: `scripts/validate_io_file_syscall.py` (10 checks)
+
+### Validation
+- v1.21: 9/9 | Sprint 1.1: 32/32 | Sprint 1.2: 20/20 | Sprint 2: 34/34 | Sprint 2.5: 25/25 | Sprint 3: 28/28 | Demo: 11/11 | K1: 17/17 | K2: 9/9 | **K3+K4 File Syscall: 12/12 ✅**
+
 ## [Merged via PR #25] — 2026-05-24 — Ketuk 2: Result<T, E> Abstraction — Ok/Err, match, IO Guard
 
 ### Added
