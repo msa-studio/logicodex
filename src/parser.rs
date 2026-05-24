@@ -320,6 +320,34 @@ impl Parser {
         })
     }
 
+    /// BUGFIX #2: Peek ahead to detect `buf[index] = value` assignment pattern
+    fn peek_index_assignment(&self) -> bool {
+        let current = self.current;
+        // Need at least: Identifier [ expr ] = expr
+        if current + 4 >= self.tokens.len() {
+            return false;
+        }
+        self.tokens[current + 1].kind == TokenKind::LeftBracket
+    }
+
+    /// BUGFIX #2: Parse `buf[index] = value` as Stmt::Assign
+    fn index_assignment_statement(&mut self) -> Result<Stmt, ParseError> {
+        let name = self.consume(TokenKind::Identifier, "buffer name")?.lexeme.clone();
+        self.consume(TokenKind::LeftBracket, "'[' after buffer name")?;
+        let index = self.expression()?;
+        self.consume(TokenKind::RightBracket, "']' after index")?;
+        self.consume(TokenKind::Assign, "'=' after index expression")?;
+        let value = self.expression()?;
+        self.consume_statement_terminator("; after assignment", false)?;
+        Ok(Stmt::Assign {
+            target: Expr::Index {
+                base: Box::new(Expr::Variable(name)),
+                index: Box::new(index),
+            },
+            value,
+        })
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParseError> {
         let stmt = if self.matches(TokenKind::Let) {
             let beginner = self.allows_beginner_line_terminator(&self.previous().lexeme);
@@ -344,6 +372,9 @@ impl Parser {
             let beginner = self.allows_control_flow_line_terminator(&self.previous().lexeme);
             self.consume_statement_terminator("; after continue statement", beginner)?;
             Stmt::Continue
+        } else if self.check(TokenKind::Identifier) && self.peek_index_assignment() {
+            // BUGFIX #2: buf[index] = value assignment syntax
+            self.index_assignment_statement()?
         } else {
             let value = self.expression()?;
             self.consume_statement_terminator("; after expression", false)?;
@@ -463,11 +494,18 @@ impl Parser {
             let element = self.parse_type()?;
             return Ok(Type::Slice { element: Box::new(element) });
         }
-        // Ketuk 1: Core Memory Model — Buffer syntax: Buffer<T>
+        // Ketuk 1: Core Memory Model — Buffer syntax: Buffer<T> or Buffer<T, N>
         if self.matches(TokenKind::Buffer) {
             self.consume(TokenKind::Less, "'<' after 'Buffer'")?;
             let element = self.parse_type()?;
-            self.consume(TokenKind::Greater, "'>' after Buffer element type")?;
+            // Optional capacity: Buffer<f32, 1024>
+            let _capacity = if self.matches(TokenKind::Comma) {
+                let cap_tok = self.consume(TokenKind::Integer, "capacity integer after comma")?;
+                cap_tok.lexeme.parse::<i64>().unwrap_or(0)
+            } else {
+                0 // unknown capacity — runtime enforcement only
+            };
+            self.consume(TokenKind::Greater, "'>' after Buffer type")?;
             return Ok(Type::Buffer { element: Box::new(element) });
         }
         let t = self.peek();

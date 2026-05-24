@@ -103,6 +103,8 @@ pub enum SemanticError {
         expected: Type,
         actual: Type,
     },
+    #[error("KRITIKAL: Pembolehubah `{name}` bukan Buffer yang berdaftar — perlu diisytiharkan dengan `let {name}: Buffer<T>` / CRITICAL: Variable `{name}` is not a registered Buffer — must be declared with `let {name}: Buffer<T>`")]
+    NotABuffer { name: String },
 }
 
 #[derive(Debug, Default)]
@@ -166,6 +168,13 @@ impl Analyzer {
     fn scoped_block(&mut self, statements: &[Stmt]) -> Result<(), SemanticError> {
         self.scopes.push(HashMap::new());
         let result = self.block(statements);
+        // BUGFIX #3: Clear moved_vars and buffer_registry for variables going out of scope
+        if let Some(scope) = self.scopes.last() {
+            for name in scope.keys() {
+                self.moved_vars.remove(name);
+                self.buffer_registry.remove(name);
+            }
+        }
         self.scopes.pop();
         result
     }
@@ -229,7 +238,71 @@ impl Analyzer {
                 if let Some(declared) = declared_type {
                     self.check_assignment(name, declared, &inferred, value)?;
                 }
+                // BUGFIX #1: Register Buffer types in buffer_registry for provenance tracking
+                if let Type::Buffer { element } = &ty {
+                    // For now, capacity is not declared in type — runtime will enforce
+                    // Future: Buffer<f32, 1024> syntax for compile-time capacity
+                    self.register_buffer(name, *element.clone(), 0);
+                }
+                // BUGFIX #4: Detect ownership move — let buf2 = buf
+                if let Expr::Variable(src_name) = value {
+                    if self.is_moved(src_name) {
+                        return Err(SemanticError::UseAfterMove {
+                            name: src_name.clone(),
+                        });
+                    }
+                    if self.buffer_registry.contains_key(src_name) {
+                        // Moving a buffer: mark source as moved
+                        self.mark_moved(src_name);
+                    }
+                }
                 self.define(name, ty)
+            }
+            Stmt::Assign { target, value } => {
+                let val_ty = self.expression(value)?;
+                match target {
+                    Expr::Index { base, index } => {
+                        // BUGFIX #2: buf[index] = value assignment
+                        let base_ty = self.expression(base)?;
+                        match &base_ty {
+                            Type::Slice { element } | Type::Buffer { element } => {
+                                // Validate buffer provenance
+                                if let Expr::Variable(buf_name) = base.as_ref() {
+                                    self.validate_buffer_index(buf_name, index)?;
+                                }
+                                // Check element type compatibility
+                                if !types_compatible(element, &val_ty) {
+                                    return Err(SemanticError::ElementTypeMismatch {
+                                        elem: format!("{}[{:?}]", base, index),
+                                        expected: *element.clone(),
+                                        actual: val_ty,
+                                    });
+                                }
+                                Ok(())
+                            }
+                            other => Err(SemanticError::TypeMismatch {
+                                op: BinaryOp::Add,
+                                expected: "slice or buffer",
+                                left: other.clone(),
+                                right: other.clone(),
+                            }),
+                        }
+                    }
+                    Expr::Variable(name) => {
+                        // Simple variable assignment
+                        if self.is_moved(name) {
+                            return Err(SemanticError::UseAfterMove {
+                                name: name.clone(),
+                            });
+                        }
+                        self.expression(target)?;
+                        Ok(())
+                    }
+                    _ => {
+                        self.expression(target)?;
+                        Ok(())
+                    }
+                }
             }
             Stmt::Print { value } | Stmt::ExprStmt { value } => {
                 self.expression(value)?;
@@ -376,7 +449,9 @@ impl Analyzer {
         let (_, capacity) = self
             .buffer_registry
             .get(buf_name)
-            .ok_or_else(|| SemanticError::UndefinedVariable(buf_name.to_string()))?;
+            .ok_or_else(|| SemanticError::NotABuffer {
+                name: buf_name.to_string(),
+            })?;
 
         // If index is a compile-time constant, check against capacity
         if let Expr::Integer(idx) = index_expr {
