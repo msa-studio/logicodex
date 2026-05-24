@@ -2,12 +2,12 @@
   "schema_version": "2",
   "version": "1.21-alpha",
   "language": "Logicodex",
-  "description": "Schema v2 dictionary: expert mode is the compiler reference surface, primary_ms is the first official Malay human alias, and aliases are pseudocode or compatibility spellings.",
+  "description": "Schema v2 dictionary: expert canonical shorthand is the compiler reference surface, primary_ms is the first official Malay human alias, and aliases are English pseudocode or compatibility spellings.",
   "policy": {
     "reference_mode": "expert",
     "primary_human_language": "ms",
     "alias_order_rule": "expert_then_primary_ms_then_aliases",
-    "beginner_statement_policy": "BINA, PAPAR, and PULANG may be newline-terminated outside critical syntax; expert and critical syntax remain semicolon-terminated.",
+    "beginner_statement_policy": "BINA, PAPAR, and PULANG Malay aliases may be newline-terminated outside critical syntax; expert canonical shorthand and critical syntax remain semicolon-terminated.",
     "critical_boundary_policy": "Memory, raw address, pointer, and hardware I/O syntax require explicit block and statement boundaries."
   },
   "tokens": {
@@ -59,7 +59,7 @@
       "aliases": [
         "THEN"
       ],
-      "description": "Separate a novice condition from its branch body."
+      "description": "Separate a condition from its branch body in expert canonical shorthand or alias surfaces."
     },
     "ELSE": {
       "expert": "else",
@@ -74,25 +74,42 @@
       "expert": "while",
       "primary_ms": "SELAGI",
       "aliases": [
+        "selagi",
         "WHILE"
       ],
-      "description": "Vocabulary marker for future while-loop parsing support."
+      "description": "Executable while-loop statement supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "compiler_status": "executable_control_flow"
+    },
+    "LOOP": {
+      "expert": "loop",
+      "primary_ms": "ULANG",
+      "aliases": [
+        "ulang",
+        "LOOP"
+      ],
+      "description": "Executable unconditional loop statement supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "compiler_status": "executable_control_flow"
     },
     "LOOP_BREAK": {
       "expert": "break",
       "primary_ms": "HENTI",
       "aliases": [
+        "henti",
         "BREAK"
       ],
-      "description": "Vocabulary marker for future loop-break control flow."
+      "description": "Executable loop-break control flow supported inside while and loop bodies in v1.21-alpha.",
+      "compiler_status": "executable_control_flow"
     },
     "LOOP_CONTINUE": {
       "expert": "continue",
       "primary_ms": "TERUS",
       "aliases": [
+        "langkau",
+        "LANGKAU",
         "CONTINUE"
       ],
-      "description": "Vocabulary marker for future loop-continue control flow."
+      "description": "Executable loop-continue control flow supported inside while and loop bodies in v1.21-alpha.",
+      "compiler_status": "executable_control_flow"
     },
     "PRINT": {
       "expert": "print",
@@ -195,10 +212,57 @@
       ],
       "description": "Vocabulary marker for future explicit resource-release operations."
     },
+    "UNSAFE": {
+      "expert": "unsafe",
+      "primary_ms": "berisiko",
+      "aliases": [
+        "BERISIKO",
+        "UNSAFE"
+      ],
+      "description": "Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha.",
+      "critical_policy": {
+        "requires_explicit_block": true
+      },
+      "compiler_status": "parser_trap_unimplemented"
+    },
+    "EXTERN": {
+      "expert": "extern",
+      "primary_ms": "luar",
+      "aliases": [
+        "LUAR",
+        "EXTERN"
+      ],
+      "description": "Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha.",
+      "critical_policy": {
+        "requires_explicit_terminator": true
+      },
+      "compiler_status": "parser_trap_unimplemented"
+    },
+    "STRUCT": {
+      "expert": "struct",
+      "primary_ms": "bentuk",
+      "aliases": [
+        "BENTUK",
+        "STRUCT"
+      ],
+      "description": "Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha.",
+      "compiler_status": "parser_trap_unimplemented"
+    },
+    "ENUM": {
+      "expert": "enum",
+      "primary_ms": "pilihan",
+      "aliases": [
+        "PILIHAN",
+        "ENUM"
+      ],
+      "description": "Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha.",
+      "compiler_status": "parser_trap_unimplemented"
+    },
     "TRUE": {
       "expert": "true",
       "primary_ms": "BENAR",
       "aliases": [
+        "benar",
         "TRUE"
       ],
       "description": "Boolean true literal."
@@ -208,6 +272,7 @@
       "primary_ms": "SALAH",
       "aliases": [
         "PALSU",
+        "palsu",
         "FALSE"
       ],
       "description": "Boolean false literal."
@@ -299,24 +364,70 @@
       "aliases": [],
       "description": "Numeric division operator; constant zero is rejected statically."
     },
+    "AND": {
+      "expert": "&&",
+      "primary_ms": "dan",
+      "aliases": [
+        "DAN",
+        "AND"
+      ],
+      "description": "Executable logical AND operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "compiler_status": "executable_operator"
+    },
+    "OR": {
+      "expert": "||",
+      "primary_ms": "atau",
+      "aliases": [
+        "ATAU",
+        "OR"
+      ],
+      "description": "Executable logical OR operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "compiler_status": "executable_operator"
+    },
     "BIT_AND": {
       "expert": "&",
-      "primary_ms": "DAN_BIT",
+      "primary_ms": "bit_dan",
       "aliases": [
+        "DAN_BIT",
         "BIT_AND"
       ],
-      "description": "Bitwise AND vocabulary marker.",
+      "description": "Executable bitwise AND operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
       "critical_policy": {
         "requires_explicit_terminator": true
-      }
+      },
+      "compiler_status": "executable_operator"
     },
     "BIT_OR": {
       "expert": "|",
-      "primary_ms": "ATAU_BIT",
+      "primary_ms": "bit_atau",
       "aliases": [
+        "ATAU_BIT",
         "BIT_OR"
       ],
-      "description": "Bitwise OR vocabulary marker."
+      "description": "Executable bitwise OR operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "compiler_status": "executable_operator"
+    },
+    "SHIFT_L": {
+      "expert": "<<",
+      "primary_ms": "anjak_kiri",
+      "aliases": [
+        "ANJAK_KIRI",
+        "SHIFT_L",
+        "SHL"
+      ],
+      "description": "Executable left shift operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "compiler_status": "executable_operator"
+    },
+    "SHIFT_R": {
+      "expert": ">>",
+      "primary_ms": "anjak_kanan",
+      "aliases": [
+        "ANJAK_KANAN",
+        "SHIFT_R",
+        "SHR"
+      ],
+      "description": "Executable right shift operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "compiler_status": "executable_operator"
     },
     "GREATER": {
       "expert": ">",

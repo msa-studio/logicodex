@@ -35,49 +35,55 @@ impl SeverityPolicy {
 
 #[derive(Debug, Error)]
 pub enum SemanticError {
-    #[error("variable `{0}` is already defined in this scope")]
+    #[error("pembolehubah `{0}` sudah ditakrif dalam skop ini / variable `{0}` is already defined in this scope")]
     DuplicateVariable(String),
-    #[error("variable `{0}` is not defined")]
+    #[error("pembolehubah `{0}` tidak ditakrif / variable `{0}` is not defined")]
     UndefinedVariable(String),
-    #[error("function `{0}` is already defined")]
+    #[error("fungsi `{0}` sudah ditakrif / function `{0}` is already defined")]
     DuplicateFunction(String),
-    #[error("hardware region `{0}` is already defined")]
+    #[error("rantau perkakasan `{0}` sudah ditakrif / hardware region `{0}` is already defined")]
     DuplicateHardwareRegion(String),
-    #[error("operator `{op}` requires {expected} operands but received {left} and {right}")]
+    #[error("operator `{op}` memerlukan operand {expected} tetapi menerima {left} dan {right} / operator `{op}` requires {expected} operands but received {left} and {right}")]
     TypeMismatch {
         op: BinaryOp,
         expected: &'static str,
         left: Type,
         right: Type,
     },
-    #[error("binding `{name}` was declared as {declared} but expression has type {actual}")]
+    #[error("ikatan `{name}` diisytihar sebagai {declared} tetapi ekspresi mempunyai jenis {actual} / binding `{name}` was declared as {declared} but expression has type {actual}")]
     DeclaredTypeMismatch {
         name: String,
         declared: Type,
         actual: Type,
     },
-    #[error("if condition must be Bool but received {0}")]
+    #[error(
+        "syarat if mesti Bool tetapi menerima {0} / if condition must be Bool but received {0}"
+    )]
     NonBooleanCondition(Type),
-    #[error("division by a constant zero is rejected by static analysis")]
+    #[error("pembahagian dengan sifar tetap ditolak oleh analisis statik / division by a constant zero is rejected by static analysis")]
     DivisionByZero,
-    #[error("numeric literal {value} does not fit in declared type {ty}")]
+    #[error("literal numerik {value} tidak muat dalam jenis diisytihar {ty} / numeric literal {value} does not fit in declared type {ty}")]
     NumericBounds { value: i64, ty: Type },
-    #[error("literal address {0} has no declared hardware provenance region")]
+    #[error("alamat literal {0} tiada rantau provenance perkakasan yang diisytihar / literal address {0} has no declared hardware provenance region")]
     MissingProvenance(i64),
-    #[error("pointer value for `{name}` must originate from an explicit addr literal or hardware region")]
+    #[error("nilai pointer untuk `{name}` mesti berasal daripada literal addr eksplisit atau rantau perkakasan / pointer value for `{name}` must originate from an explicit addr literal or hardware region")]
     InvalidPointerInitializer { name: String },
-    #[error("bare address literal is rejected under {policy:?} target policy; declare a hardware region first")]
+    #[error("literal alamat kosong ditolak di bawah polisi sasaran {policy:?}; isytihar rantau perkakasan dahulu / bare address literal is rejected under {policy:?} target policy; declare a hardware region first")]
     BareAddressRejected { policy: SeverityPolicy },
-    #[error("KRITIKAL: General Error Tahap 1 - Percubaan Mutasi Perkakasan Tanpa Kebenaran Skop Zon Selamat.")]
+    #[error("KRITIKAL: Ralat Umum Tahap 1 - Percubaan Mutasi Perkakasan Tanpa Kebenaran Skop Zon Selamat / CRITICAL: General Error Level 1 - Attempted Hardware Mutation Without Safe Zone Scope Authorization.")]
     HardwareMutationOutsideZone,
-    #[error("return statement is outside a function")]
+    #[error("pernyataan return berada di luar fungsi / return statement is outside a function")]
     ReturnOutsideFunction,
-    #[error("function `{name}` returns {expected} but returned expression has type {actual}")]
+    #[error("fungsi `{name}` memulangkan {expected} tetapi ekspresi pulangan mempunyai jenis {actual} / function `{name}` returns {expected} but returned expression has type {actual}")]
     ReturnTypeMismatch {
         name: String,
         expected: Type,
         actual: Type,
     },
+    #[error("pernyataan break berada di luar loop / break statement is outside a loop")]
+    BreakOutsideLoop,
+    #[error("pernyataan continue berada di luar loop / continue statement is outside a loop")]
+    ContinueOutsideLoop,
 }
 
 #[derive(Debug, Default)]
@@ -87,6 +93,7 @@ pub struct Analyzer {
     hardware_addresses: HashSet<i64>,
     functions: HashMap<String, (Vec<Type>, Option<Type>)>,
     current_function: Option<(String, Option<Type>)>,
+    loop_depth: u32,
     hw_zone_depth: u32,
     policy: SeverityPolicy,
 }
@@ -230,6 +237,36 @@ impl Analyzer {
                 self.scoped_block(then_branch)?;
                 self.scoped_block(else_branch)
             }
+            Stmt::While { condition, body } => {
+                let ty = self.expression(condition)?;
+                if ty != Type::Bool {
+                    return Err(SemanticError::NonBooleanCondition(ty));
+                }
+                self.loop_depth += 1;
+                let result = self.scoped_block(body);
+                self.loop_depth -= 1;
+                result
+            }
+            Stmt::Loop { body } => {
+                self.loop_depth += 1;
+                let result = self.scoped_block(body);
+                self.loop_depth -= 1;
+                result
+            }
+            Stmt::Break => {
+                if self.loop_depth == 0 {
+                    Err(SemanticError::BreakOutsideLoop)
+                } else {
+                    Ok(())
+                }
+            }
+            Stmt::Continue => {
+                if self.loop_depth == 0 {
+                    Err(SemanticError::ContinueOutsideLoop)
+                } else {
+                    Ok(())
+                }
+            }
         }
     }
 
@@ -302,7 +339,14 @@ impl Analyzer {
                 let left_ty = self.expression(left)?;
                 let right_ty = self.expression(right)?;
                 match op {
-                    BinaryOp::Add | BinaryOp::Subtract | BinaryOp::Multiply | BinaryOp::Divide => {
+                    BinaryOp::Add
+                    | BinaryOp::Subtract
+                    | BinaryOp::Multiply
+                    | BinaryOp::Divide
+                    | BinaryOp::BitAnd
+                    | BinaryOp::BitOr
+                    | BinaryOp::ShiftLeft
+                    | BinaryOp::ShiftRight => {
                         if is_numeric(&left_ty) && is_numeric(&right_ty) {
                             Ok(promote_numeric(left_ty, right_ty))
                         } else {
@@ -324,6 +368,18 @@ impl Analyzer {
                             Err(SemanticError::TypeMismatch {
                                 op: *op,
                                 expected: "numeric",
+                                left: left_ty,
+                                right: right_ty,
+                            })
+                        }
+                    }
+                    BinaryOp::And | BinaryOp::Or => {
+                        if left_ty == Type::Bool && right_ty == Type::Bool {
+                            Ok(Type::Bool)
+                        } else {
+                            Err(SemanticError::TypeMismatch {
+                                op: *op,
+                                expected: "Bool",
                                 left: left_ty,
                                 right: right_ty,
                             })

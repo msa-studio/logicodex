@@ -100,7 +100,7 @@
         "logicodexSideView.insertMissingBeginnerSemicolons": {
           "type": "boolean",
           "default": true,
-          "description": "For preview only, append semicolons to newline-terminated beginner statements such as BINA, PAPAR, and PULANG when they are outside critical syntax."
+          "description": "For preview only, append semicolons to newline-terminated Malay/English alias statements such as BINA, PAPAR, PULANG, CREATE, DISPLAY, and RETURN when they are outside critical syntax."
         },
         "logicodexSideView.dictionaryPath": {
           "type": "string",

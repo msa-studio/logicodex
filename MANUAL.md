@@ -22,14 +22,14 @@ Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 
 ## Overview
 
-Logicodex is a native programming language compiler implemented in Rust. The Phase 1 MVP demonstrates a dual-syntax frontend in which novice-oriented pseudocode and expert shorthand are normalized through `dict/core_map.json` into the same compiler token identities. Once lexing is complete, both source styles produce the same AST, pass through the same semantic analyzer, and are lowered to LLVM machine code.
+Logicodex is a native programming language compiler implemented in Rust. The Phase 1 MVP demonstrates an alias-to-canonical frontend in which Malay/English pseudocode aliases and expert canonical shorthand are normalized through `dict/core_map.json` into the same compiler token identities. Once lexing is complete, all supported surface styles produce the same AST, pass through the same semantic analyzer, and are lowered to LLVM machine code.
 
 ## Compiler Frontend and Architecture
 
 ```text
-[ Novice Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Unified Token Stream ]
-                                                              │
-[ Expert Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Abstract Syntax Tree ]
+[ Malay/English Alias Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Unified Token Stream ]
+                                                                           │
+[ Expert Canonical Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Abstract Syntax Tree ]
                                                               │
 [ Native Binary ] ◄── (LLVM Backend Optimization O3) ◄── [ LLVM IR Generation ]
 ```
@@ -55,6 +55,12 @@ RUSTFLAGS='-D warnings' cargo build --target x86_64-unknown-linux-gnu
 ```
 
 Set `LOGICODEX_LINKER` to override the linker used by the compiler. For machine setup details, use `ENVIRONMENT_SETUP.md`; for grammar, dictionary, aliases, and executable examples, use `GrammarandDictionary.md`.
+
+## v1.21-alpha Split-Implementation Boundary
+
+The executable v1.21-alpha subset now supports `while`, `loop`, `break`, `continue`, logical operators, bitwise operators, and shift operators through the AST, parser, semantic analyzer, and LLVM backend. The lexer and dictionary also recognize complex roadmap tokens such as `struct`, `enum`, `unsafe`, and `extern`, but these are intentionally stopped at parser level with an unimplemented diagnostic until their type-layout, ABI, and safety semantics are designed and validated.
+
+Compiler diagnostics are emitted in **bilingual Malay + English** form, using the pattern `Malay message / English message`. Prose documentation remains **English-only** so that the repository has a single reviewable documentation language while still keeping user-facing errors accessible to Malay-first and English-speaking users.
 
 ## Runtime Bridge
 

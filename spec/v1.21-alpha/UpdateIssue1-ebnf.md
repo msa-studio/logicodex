@@ -6,23 +6,26 @@ Identifier       ::= [a-zA-Z_] [a-zA-Z0-9_]*
 LiteralInt       ::= [0-9]+
 StringLiteral    ::= '"' [^"\\]* '"'
 
-/* Lexical Mapping Targets */
-BeginBlockToken  ::= "MULA" | "BEGIN" | "{"
-EndBlockToken    ::= "TAMAT" | "END" | "}"
-LetToken         ::= "BINA" | "let"
-PrintToken       ::= "PAPAR" | "print"
-IfToken          ::= "JIKA" | "if"
-ThenToken        ::= "MAKA" | "then"
-ElseToken        ::= "JIKALAU_TIDAK" | "else"
-HardwareToken    ::= "KAWASAN_PERKAKAS" | "hw"
-AddressToken     ::= "ALAMAT" | "addr"
-ReturnToken      ::= "PULANG" | "return"
+/* Lexical Mapping Targets from schema v2 */
+BeginBlockToken  ::= "{" | "MULA" | "START" | "BEGIN"
+EndBlockToken    ::= "}" | "TAMAT" | "END"
+LetToken         ::= "let" | "BINA" | "CREATE"
+PrintToken       ::= "print" | "PAPAR" | "PRINT"
+IfToken          ::= "if" | "JIKA" | "IF"
+ThenToken        ::= "then" | "MAKA" | "THEN"
+ElseToken        ::= "else" | "MELAINKAN" | "ELSE" | "JIKALAU_TIDAK"
+HardwareToken    ::= "hw" | "PERKAKASAN" | "HARDWARE" | "KAWASAN_PERKAKAS"
+AddressToken     ::= "addr" | "ALAMAT" | "ADDRESS"
+HardwareZoneToken::= "hw_unsafe" | "ZON_PERKAKASAN" | "HW_ZONE"
+UseToken         ::= "use" | "GUNA" | "USE"
+FunctionToken    ::= "fn" | "FUNGSI" | "FUNCTION"
+ReturnToken      ::= "return" | "PULANG" | "RETURN"
 AssignOp         ::= "="
 AddOp            ::= "+"
 SubOp            ::= "-"
 
 ## Layer 2 — Canonical Token Layer (Lexer Output / Parser Invariant)
-The Logicodex parser operates exclusively on canonical token kinds emitted by the normalization lexer. Surface spellings are erased post-lexing.
+The Logicodex parser operates on canonical token kinds emitted by the normalization lexer. The `expert` spellings in `core_map.json` are the compiler reference surface, while `primary_ms` and `aliases` are accepted human-facing spellings that are erased post-lexing.
 BeginBlock ::= TokenKind::BeginBlock
 EndBlock   ::= TokenKind::EndBlock
 
@@ -50,28 +53,28 @@ Grammar validation establishes structural correctness for the implemented langua
 
 The current logicodex v 1.21 alpha dictionary uses the following three-tier token records. This table documents token vocabulary support and must not be read as proof that every listed token already has full parser, semantic, backend, or runtime behavior.
 
-| Token | Canonical Malay | Expert shorthand | English pseudocode | Status |
+| Token | Expert canonical shorthand | Primary Malay alias | English/pseudocode aliases | Status |
 |---|---|---|---|---|
-| `TOKEN_START` | `MULA` | `{` | `START` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_END` | `TAMAT` | `}` | `END` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_LET` | `BINA` | `let` | `CREATE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_MUT` | `MUTASI` | `mut` | `MUTABLE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_HW` | `PERKAKASAN` | `hw` | `HARDWARE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_ADDR` | `ALAMAT` | `addr` | `ADDRESS` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_IF` | `JIKA` | `if` | `IF` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_THEN` | `MAKA` | `then` | `THEN` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_ELSE` | `MELAINKAN` | `else` | `ELSE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_WHILE` | `SELAGI` | `while` | `WHILE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_LOOP_BREAK` | `HENTI` | `break` | `BREAK` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_LOOP_CONTINUE` | `TERUS` | `continue` | `CONTINUE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_FN` | `FUNGSI` | `fn` | `FUNCTION` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_RETURN` | `PULANG` | `return` | `RETURN` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_FFI` | `PAUTAN` | `ffi` | `FOREIGN_INTERFACE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_C_INTEROP` | `C_LUAR` | `c` | `C_LEGACY` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_RESOURCE` | `SUMBER` | `resource` | `RESOURCE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_DROP` | `LEPAS` | `drop` | `DROP` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_I32` | `I32` | `i32` | `INT32` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_U32` | `U32` | `u32` | `UINT32` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_STR` | `TEKS` | `str` | `STRING` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_BIT_AND` | `DAN_BIT` | `&` | `BIT_AND` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
-| `TOKEN_BIT_OR` | `ATAU_BIT` | `|` | `BIT_OR` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `START` | `{` | `MULA` | `START`, `BEGIN` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `END` | `}` | `TAMAT` | `END` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `LET` | `let` | `BINA` | `CREATE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `MUT` | `mut` | `MUTASI` | `MUTABLE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `HW` | `hw` | `PERKAKASAN` | `HARDWARE`, `KAWASAN_PERKAKAS` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `ADDR` | `addr` | `ALAMAT` | `ADDRESS` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `IF` | `if` | `JIKA` | `IF` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `THEN` | `then` | `MAKA` | `THEN` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `ELSE` | `else` | `MELAINKAN` | `ELSE`, `JIKALAU_TIDAK` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `WHILE` | `while` | `SELAGI` | `WHILE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `LOOP_BREAK` | `break` | `HENTI` | `BREAK` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `LOOP_CONTINUE` | `continue` | `TERUS` | `CONTINUE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `FN` | `fn` | `FUNGSI` | `FUNCTION` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `RETURN` | `return` | `PULANG` | `RETURN` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `FFI` | `ffi` | `PAUTAN` | `FOREIGN_INTERFACE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `C_INTEROP` | `c` | `C_LUAR` | `C_LEGACY` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `RESOURCE` | `resource` | `SUMBER` | `RESOURCE` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `DROP` | `drop` | `LEPAS` | `DROP` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `I32` | `i32` | `I32` | `INT32` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `U32` | `u32` | `U32` | `UINT32` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `STR` | `str` | `TEKS` | `STRING` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `BIT_AND` | `&` | `DAN_BIT` | `BIT_AND` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |
+| `BIT_OR` | `|` | `ATAU_BIT` | `BIT_OR` | Dictionary and lexer-recognition support; executable behavior depends on parser/semantic milestones where applicable. |

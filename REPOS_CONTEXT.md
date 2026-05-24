@@ -14,11 +14,11 @@ This authoritative document inventories the core architectural assets of the Log
 - `src/os/linux.rs`: Implements hyper-performance native outputs by executing raw x86_64 POSIX-compliant assembly Linux Syscalls, completely avoiding external standard C libraries dependencies.
 
 ## 3. Lexical Dictionaries & Code Reference (`dict/`, `examples/`)
-- `dict/core_map.json`: The core dynamic mapping scheme. Houses the canonical dictionary that standardizes novice Malay pseudocode and expert shortcut semantics into identical primitives.
+- `dict/core_map.json`: The core dynamic mapping scheme. Houses the schema v2 dictionary that standardizes expert canonical shorthand, primary Malay aliases, and English pseudocode aliases into identical compiler token identities.
 - `examples/`: Contains official functional validation files with the `.ldx` extension, demonstrating both localized verbose programming styles and advanced freestanding memory operations.
 
 ## 4. Documentation & Specifications (`spec/`, Root)
-- `README.md`: The official Executive Summary manifesto outlining the dual-syntax thesis and project governance.
+- `README.md`: The official Executive Summary manifesto outlining the alias-to-canonical thesis and project governance.
 - `WHITE_PAPER.md`: The research white paper detailing the compiler pipeline, runtime attestation design direction, and long-term systems objectives.
 - `ROADMAP.md`: The project management tracking center mapping open milestones, tracking tickets, and automated verification acceptance criteria.
 - `spec/v1.11-alpha/UpdateIssue1-ebnf.md`: Houses the formalized 4-Layer grammar definition.

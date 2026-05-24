@@ -38,7 +38,7 @@ The **current logicodex v 1.21 alpha** repository should be understood as an alp
 
 Modern software engineering is trapped inside a widening architectural contradiction. At one pole, high-level languages and natural-language-like interfaces make software easier to write, teach, and generate with AI systems. Python, notebooks, scripting languages, and prompt-driven code assistants make computation more accessible, but they often impose abstraction costs through dynamic typing, interpreter dispatch, runtime object models, garbage collection, and dependency-heavy ecosystems. At the other pole, C, C++, Rust, and assembly expose direct control over memory layout, calling conventions, vectorization, and hardware behavior, but their syntactic density, ownership models, build complexity, and undefined-behavior hazards create steep cognitive barriers.
 
-**Logicodex** proposes a third path: a **dual-syntax, context-aware, LLVM-backed systems language** whose surface expression adapts to the user while its internal semantics remain statically checked and native. A beginner may write verbose pseudocode-like tokens such as `MULA`, `BINA`, and `PAPAR`; an expert may write compact forms such as `{`, `let`, and `print`. Both styles normalize through `dict/core_map.json` into the same canonical token identities, parse into the same abstract syntax tree, pass through the same semantic analyzer, and lower toward LLVM Intermediate Representation for native compilation. LLVM provides reusable compiler and toolchain infrastructure, including target-independent optimization and code generation around LLVM IR.[1]
+**Logicodex** proposes a third path: an **alias-to-canonical, context-aware, LLVM-backed systems language** whose surface expression adapts to the user while its internal semantics remain statically checked and native. A user may write Malay or English pseudocode aliases such as `MULA`, `BINA`, `PAPAR`, `START`, `CREATE`, and `DISPLAY`; the compiler reference surface remains expert canonical shorthand such as `{`, `let`, and `print`. All supported surfaces normalize through `dict/core_map.json` into the same canonical token identities, parse into the same abstract syntax tree, pass through the same semantic analyzer, and lower toward LLVM Intermediate Representation for native compilation. LLVM provides reusable compiler and toolchain infrastructure, including target-independent optimization and code generation around LLVM IR.[1]
 
 The central architectural thesis of Logicodex is that **human accessibility and machine efficiency should be orthogonal design dimensions**. Syntax should adapt to the user's cognitive level, localization preference, educational context, and AI-generation style, while semantics and code generation remain deterministic, analyzable, and close to the machine. Logicodex therefore avoids defining itself around a mandatory virtual machine, bytecode interpreter, tracing garbage collector, or hidden dynamic object model. Its roadmap instead points toward native Windows PE, Linux ELF, WebAssembly, freestanding object, embedded, and future freestanding targets through a disciplined LLVM-oriented backend.[1] [2]
 
@@ -54,7 +54,7 @@ Earlier research drafts used the working name **Logica** to describe the same co
 
 For status precision, this introduction separates implemented Phase 1 infrastructure from roadmap architecture. The current compiler tree demonstrates that **Phase 1 delivers the working core compiler infrastructure validated so far** through the core path: `dict/core_map.json` loading, tokenization, parsing, AST construction, semantic analysis, and LLVM-Inkwell-oriented backend generation. The WebAssembly Target, Logicodex Migrator Engine, and Continuous Runtime Memory Attestation remain explicit Phase 2/3 roadmap specifications so contributors can design toward them without assuming that the alpha compiler already implements their full production semantics.
 
-Logicodex was conceived through a collaborative engineering paradigm between **human systems architecture** and **Advanced Artificial Intelligence (AI)**. In this model, human architecture defines the language's strategic boundaries: static semantics, native compilation, open governance, trademark discipline, security direction, and systems-level credibility. AI-assisted exploration accelerates friction discovery, compares language ergonomics, drafts syntax families, reasons over documentation, and pressure-tests the bridge between novice-friendly source and expert-grade machine behavior.
+Logicodex was conceived through a collaborative engineering paradigm between **human systems architecture** and **Advanced Artificial Intelligence (AI)**. In this model, human architecture defines the language's strategic boundaries: static semantics, native compilation, open governance, trademark discipline, security direction, and systems-level credibility. AI-assisted exploration accelerates friction discovery, compares language ergonomics, drafts syntax families, reasons over documentation, and pressure-tests the bridge between human-readable alias surfaces and expert-grade machine behavior.
 
 > **The Logicodex thesis is that readable intent and native execution are not opposing goals. They become opposing goals only when a language hard-codes one cognitive style into its grammar.**
 
@@ -83,7 +83,7 @@ The crisis becomes sharper in the era of AI-assisted development. Large language
 | Hardware control | Limited or mediated | Direct | Planned through explicit target and capability gates. |
 | Learning curve | Gentle at first | Steep immediately | Gradual disclosure of complexity. |
 
-Logicodex addresses this crisis through **progressive disclosure of complexity**. A program can begin in explanatory syntax, then gradually adopt shorthand notation, typed memory regions, FFI imports, raw pointer capabilities, and hardware bridge operations as the developer's need and skill increase. Crucially, novice and expert syntax are not separate dialects. They are different front doors into the same compiler.
+Logicodex addresses this crisis through **progressive disclosure of complexity**. A program can begin in explanatory syntax, then gradually adopt shorthand notation, typed memory regions, FFI imports, raw pointer capabilities, and hardware bridge operations as the developer's need and skill increase. Crucially, Malay and English pseudocode aliases and expert canonical shorthand are not separate dialects. They are different surface forms that enter the same compiler frontend.
 
 ---
 
@@ -91,12 +91,12 @@ Logicodex addresses this crisis through **progressive disclosure of complexity**
 
 Logicodex is organized as a deterministic ahead-of-time compiler pipeline with a deliberately flexible frontend. The pipeline begins with official `.ldx` source files and a dynamic dictionary. It then performs lexing, parsing, semantic analysis, LLVM-oriented IR generation, object emission, and platform-specific linking or freestanding object generation.
 
-The following diagram summarizes the core dual-syntax compiler pipeline. Both novice and expert `.ldx` inputs enter the same dictionary-aware lexer, collapse into a unified token stream and AST, and then lower through LLVM IR generation toward optimized native binaries.
+The following diagram summarizes the current alias-to-canonical compiler pipeline. Malay and English pseudocode `.ldx` inputs and expert canonical shorthand `.ldx` inputs enter the same dictionary-aware lexer, collapse into a unified token stream and AST, and then lower through LLVM IR generation toward optimized native binaries.
 
 ```text
-[ Novice Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Unified Token Stream ]
-                                                              │
-[ Expert Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Abstract Syntax Tree ]
+[ Malay/English Alias Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Unified Token Stream ]
+                                                                           │
+[ Expert Canonical Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Abstract Syntax Tree ]
                                                               │
 [ Native Binary ] ◄── (LLVM Backend Optimization O3) ◄── [ LLVM IR Generation ]
 ```
@@ -104,7 +104,7 @@ The following diagram summarizes the core dual-syntax compiler pipeline. Both no
 | Compiler Stage | Responsibility | Logicodex-Specific Contribution |
 |---|---|---|
 | Source input | Reads official `.ldx` files. | Enforces the official extension and source contract. |
-| Dynamic lexing | Converts characters into token identities. | Uses `core_map.json` to map localized and expert surface forms into canonical tokens. |
+| Dynamic lexing | Converts characters into token identities. | Uses `core_map.json` to map Malay/English alias surfaces and expert canonical shorthand into canonical token identities. |
 | Parsing | Builds AST nodes. | Erases syntax personality and preserves program meaning. |
 | Semantic analysis | Checks scope, expression validity, structural rules, and future safety gates. | Rejects unresolved symbols and compile-time invalid arithmetic such as division by zero. |
 | LLVM-oriented code generation | Emits IR, objects, or target plans. | Connects the AST to native compilation infrastructure rather than a custom VM. |
@@ -112,7 +112,7 @@ The following diagram summarizes the core dual-syntax compiler pipeline. Both no
 | Security architecture | Defines active runtime self-defense. | Introduces Golden Hash memory integrity planning and panic mitigation semantics. |
 | Freestanding profile | Emits objects without hosted assumptions. | Enables kernel, firmware, hypervisor, and bootloader-oriented integration. |
 
-Logicodex's originality is concentrated in the frontend and semantic model: context-aware lexing, dual-syntax normalization, progressive exposure of low-level capabilities, and a compiler path that keeps readable source and native execution aligned. LLVM is not used as a branding ornament; it is the strategic convergence layer that gives Logicodex access to mature optimization, target selection, and object generation infrastructure.[1]
+Logicodex's originality is concentrated in the frontend and semantic model: context-aware lexing, alias-to-canonical normalization, progressive exposure of low-level capabilities, and a compiler path that keeps readable source and native execution aligned. LLVM is not used as a branding ornament; it is the strategic convergence layer that gives Logicodex access to mature optimization, target selection, and object generation infrastructure.[1]
 
 ---
 
@@ -120,7 +120,7 @@ Logicodex's originality is concentrated in the frontend and semantic model: cont
 
 Most programming languages embed keywords directly into their lexer. In C, `int`, `return`, and `{` have fixed meanings. In Python, `def`, `if`, and `import` are fixed lexical constructs. This provides stability, but it also embeds a cultural and cognitive assumption into the language surface: the programmer must learn exactly the canonical tokens chosen by the language designer.
 
-Logicodex replaces that rigidity with a **dynamic dictionary mapping infrastructure**. The compiler reads a dictionary such as `dict/core_map.json`, where multiple surface forms can map to the same canonical token. For example, a Malay novice keyword such as `MULA`, an English keyword such as `BEGIN`, and an expert shorthand symbol such as `{` may all map into the same internal begin-block primitive. Likewise, `BINA` and `let` may both map into a let-binding primitive, while `PAPAR` and `print` may map into an output primitive.
+Logicodex replaces that rigidity with a **dynamic dictionary mapping infrastructure**. The compiler reads a dictionary such as `dict/core_map.json`, where multiple surface forms can map to the same canonical token. For example, the expert canonical shorthand symbol `{`, the primary Malay alias `MULA`, and English pseudocode aliases such as `START` or `BEGIN` may all map into the same internal begin-block primitive. Likewise, expert canonical `let` and Malay/English aliases such as `BINA` or `CREATE` may map into a let-binding primitive, while `print`, `PAPAR`, and `DISPLAY` may map into an output primitive.
 
 ```json
 {
@@ -137,19 +137,21 @@ Logicodex replaces that rigidity with a **dynamic dictionary mapping infrastruct
 }
 ```
 
-This design supports localization, education, AI-assisted generation, domain-specific vocabulary, and professional shorthand without fragmenting the language. The dictionary is not a macro processor. Macro systems rewrite text, while Logicodex's dictionary maps human-facing expressions into compiler-facing primitives before parsing. Once lexing finishes, the parser receives canonical token identities, and the semantic analyzer does not need to know whether the user wrote a novice-oriented word or an expert symbol.
+This design supports localization, education, AI-assisted generation, domain-specific vocabulary, and professional shorthand without fragmenting the language. The dictionary is not a macro processor. Macro systems rewrite text, while Logicodex's dictionary maps human-facing expressions into compiler-facing primitives before parsing. Once lexing finishes, the parser receives canonical token identities, and the semantic analyzer does not need to know whether the user wrote a Malay alias, an English pseudocode alias, or the expert canonical spelling.
 
-**Lexer/parser boundary clarification:** `core_map.json` is utilized strictly by the **Lexer** during tokenization. In other words, **core_map.json is utilized strictly by the Lexer** before parsing begins. A source character such as `{` and a source word such as `MULA` are matched as text lexemes before the Parser is invoked, then emitted as the same canonical `TokenKind::Start` primitive. This is token-level normalization, not a grammatical macro rewrite and not parser-side syntax desugaring. The Parser consumes only the normalized token stream and therefore never needs to know whether a block began through novice, English-verbose, or expert shorthand spelling.
+**Lexer/parser boundary clarification:** `core_map.json` is utilized strictly by the **Lexer** during tokenization. In other words, **core_map.json is utilized strictly by the Lexer** before parsing begins. A source character such as `{` and a source word such as `MULA` are matched as text lexemes before the Parser is invoked, then emitted as the same canonical `TokenKind::Start` primitive. This is token-level normalization, not a grammatical macro rewrite and not parser-side syntax desugaring. The Parser consumes only the normalized token stream and therefore never needs to know whether a block began through Malay alias, English pseudocode alias, or expert canonical shorthand spelling.
 
 | Surface Form | User Context | Canonical Meaning | Runtime Difference |
 |---|---|---|---|
-| `MULA` | Novice or localized | Begin block | None. |
-| `BEGIN` | English verbose | Begin block | None. |
-| `{` | Expert shorthand | Begin block | None. |
-| `BINA` | Novice or localized | Let binding | None. |
-| `let` | Expert shorthand | Let binding | None. |
-| `PAPAR` | Novice or localized | Output operation | None. |
-| `print` | Expert shorthand | Output operation | None. |
+| `{` | Expert canonical shorthand | Begin block | None. |
+| `MULA` | Primary Malay alias | Begin block | None. |
+| `START` / `BEGIN` | English pseudocode alias | Begin block | None. |
+| `let` | Expert canonical shorthand | Let binding | None. |
+| `BINA` | Primary Malay alias | Let binding | None. |
+| `CREATE` | English pseudocode alias | Let binding | None. |
+| `print` | Expert canonical shorthand | Output operation | None. |
+| `PAPAR` | Primary Malay alias | Output operation | None. |
+| `DISPLAY` | English pseudocode alias | Output operation | None. |
 
 Production Logicodex packages should record the dictionary version or hash used during compilation so that source builds can be reconstructed precisely. This is essential because language flexibility must not undermine reproducibility. A dynamic lexing system is trustworthy only when its mapping rules are deterministic, versioned, auditable, and tied to the build artifact's metadata.
 
@@ -180,7 +182,7 @@ The semantic analyzer is where Logicodex's readability promise becomes systems-g
 | Memory capability checks | Restricts pointer reads and writes to explicit regions. | Writing to a hardware address without permission. |
 | FFI signature validation | Ensures external calls use declared ABI-compatible types. | Passing `Text` where `PTR<U8>` is required. |
 
-Static semantic analysis is the boundary between beginner ergonomics and professional trust. A novice may write verbose code, but the compiler must still enforce deterministic typing. A professional may write shorthand code, but shorthand must not bypass safety. In Logicodex, **surface syntax never weakens semantic obligations**.
+Static semantic analysis is the boundary between alias ergonomics and professional trust. A user may write verbose Malay or English pseudocode aliases, but the compiler must still enforce deterministic typing. A professional may write expert canonical shorthand, but shorthand must not bypass safety. In Logicodex, **surface syntax never weakens semantic obligations**.
 
 ---
 
@@ -214,7 +216,7 @@ This approach does not deny future runtime libraries. It insists that future run
 
 ## 8. Syntax Showcase: Novice and Expert Paradigms
 
-The following examples demonstrate Logicodex's dual-syntax philosophy. The exact token spellings represent the intended language design and white-paper-level syntax specification. Both variants in each scenario are designed to normalize into the same AST structure and backend behavior.
+The following examples demonstrate Logicodex's alias-to-canonical philosophy. The exact token spellings represent the intended language design and white-paper-level syntax specification. Both variants in each scenario are designed to normalize into the same AST structure and backend behavior.
 
 ### 8.1 Freestanding Memory Manipulation and Hardware I/O
 
@@ -479,7 +481,7 @@ program vga_write {
 }
 ```
 
-The novice and expert forms compile toward the same conceptual volatile stores. On x86 text-mode targets, each `U16` cell combines an ASCII byte and a color attribute byte, while other target families would bind equivalent display or serial-output hardware through target-specific capability declarations.
+The alias and expert canonical forms compile toward the same conceptual volatile stores. On x86 text-mode targets, each `U16` cell combines an ASCII byte and a color attribute byte, while other target families would bind equivalent display or serial-output hardware through target-specific capability declarations.
 
 ---
 
@@ -579,13 +581,13 @@ Trademark rights are separate from copyright licenses. The names **Logicodex**, 
 
 ## 15. Research Roadmap
 
-Logicodex is positioned for AI-era software development because its surface syntax can be verbose, redundant, localized, and intention-revealing without sacrificing backend efficiency. Large language models generally perform better when the target representation exposes semantic intent clearly. Dense C++ template metaprogramming, lifetime-heavy Rust code, and symbol-rich pointer arithmetic require the model to maintain many implicit constraints at once. Logicodex's novice syntax externalizes those constraints in words, while the compiler normalizes them into a precise AST.
+Logicodex is positioned for AI-era software development because its surface syntax can be verbose, redundant, localized, and intention-revealing without sacrificing backend efficiency. Large language models generally perform better when the target representation exposes semantic intent clearly. Dense C++ template metaprogramming, lifetime-heavy Rust code, and symbol-rich pointer arithmetic require the model to maintain many implicit constraints at once. Logicodex's Malay and English pseudocode aliases externalize those constraints in words, while expert canonical shorthand keeps the professional surface compact; the compiler normalizes both into a precise AST.
 
 > **AI-readiness is not the ability to accept natural language as executable code. It is the ability to preserve generated intent long enough for compilers, humans, and static analyzers to verify it.**
 
 | Phase | Name | Primary Deliverable | Strategic Outcome |
 |---|---|---|---|
-| Phase 1 | Core Compiler and Multi-Platform Validation | Lexer, parser, AST, semantic analyzer, LLVM IR backend, Linux and Windows examples. | Demonstrates that dual syntax can compile into native artifacts. |
+| Phase 1 | Core Compiler and Multi-Platform Validation | Lexer, parser, AST, semantic analyzer, LLVM IR backend, Linux and Windows examples. | Demonstrates that alias-to-canonical syntax can compile into native artifacts. |
 | Phase 2 | Package Manager, FFI Bridges, and Wasm Target Prototype | Package registry, C ABI binding generator, platform standard libraries, and initial WebAssembly target integration. | Makes Logicodex usable with real operating systems, existing libraries, and portable sandbox targets. |
 | Phase 3 | Migrator, Continuous Attestation, and Local Small Language Model Integration | Logicodex Migrator Engine drafts, concrete runtime memory-attestation implementation, compiler-assisted AI repair, intent-to-Logicodex generation, and semantic feedback loops. | Turns the compiler into an AI-aware modernization, teaching, and high-assurance development environment. |
 | Phase 4 | Global WebAssembly Ecosystem | Browser playground, sandboxed package execution, educational cloud, and mature Wasm distribution workflows. | Brings Logicodex to web-native learning and portable deployment after the Phase 2/3 target groundwork. |
@@ -602,9 +604,9 @@ The immediate engineering milestones are to replace plan-file generation with ac
 
 ## 16. Conclusion
 
-Logicodex is a proposal for a programming language that treats syntax as a human interface and semantics as a machine contract. It rejects the historical assumption that readable programming must be slow, or that fast programming must be syntactically hostile. By separating surface expression from internal representation, Logicodex enables a novice, an AI agent, and a systems engineer to operate within the same language continuum.
+Logicodex is a proposal for a programming language that treats syntax as a human interface and semantics as a machine contract. It rejects the historical assumption that readable programming must be slow, or that fast programming must be syntactically hostile. By separating surface expression from internal representation, Logicodex enables a learner, an AI agent, and a systems engineer to operate within the same language continuum.
 
-The language's central innovation is not any single keyword, backend, or code example. It is the architectural alignment of **dual syntax**, **context-aware lexing**, **static semantic rigor**, **LLVM-backed native compilation**, **explicit interoperability**, **freestanding capability gates**, and **runtime integrity defense**. The dynamic dictionary lets localized pseudocode and expert shorthand become identical compiler primitives. The AST and semantic analyzer impose deterministic structure and safety. The LLVM-oriented backend connects high-level intent to mature native optimization and code generation infrastructure.[1] The FFI model links Logicodex to the existing ABI world.[3] WebAssembly opens a portable and sandboxed deployment path.[2]
+The language's central innovation is not any single keyword, backend, or code example. It is the architectural alignment of **alias-to-canonical syntax**, **context-aware lexing**, **static semantic rigor**, **LLVM-backed native compilation**, **explicit interoperability**, **freestanding capability gates**, and **runtime integrity defense**. The dynamic dictionary lets Malay/English pseudocode aliases and expert canonical shorthand become identical compiler primitives. The AST and semantic analyzer impose deterministic structure and safety. The LLVM-oriented backend connects high-level intent to mature native optimization and code generation infrastructure.[1] The FFI model links Logicodex to the existing ABI world.[3] WebAssembly opens a portable and sandboxed deployment path.[2]
 
 If successful, Logicodex would demystify computer hardware without hiding it. It would flatten the engineering learning curve without diluting professional power. It would allow education, AI-assisted generation, legacy migration, high-performance native development, secure runtime attestation, and freestanding systems-programming experiments to share one coherent ecosystem. Most importantly, it would pursue a practical language-design principle: **the source code humans understand and the code machines execute efficiently should not have to belong to different worlds**.
 

@@ -139,7 +139,7 @@ function needsPreviewSemicolon(line: string): boolean {
   if (trimmed.endsWith(';') || trimmed.endsWith('{') || trimmed.endsWith('}') || trimmed.endsWith('then') || trimmed.endsWith('else')) {
     return false;
   }
-  return /^(let|print|return)\b/.test(trimmed);
+  return /^(let|print|return|break|continue)\b/.test(trimmed);
 }
 
 function insertBeginnerSemicolons(input: string): string {
@@ -166,7 +166,7 @@ export function normalizeToExpertPreview(source: string, coreMap: CoreMap, optio
   }
 
   const warnings = [
-    'Best-effort preview only: this is token-level normalization from core_map.json, not compiler-backed Rust parsing.',
+    'Best-effort preview only: this is token-level normalization from core_map.json; v1.21-alpha compiler-backed control-flow support is authoritative.',
     'Run `logicodex check` or `cargo run -- check` for authoritative syntax and semantic validation.'
   ];
 

@@ -33,7 +33,7 @@ The second priority is to make the language easier to reason about. The project 
 
 ## Milestone 3: Build Developer Tooling
 
-Developer tooling should follow the stabilized language subset rather than racing ahead of it. Formatting and editor feedback will make the dual-syntax concept easier to maintain in collaborative use.
+Developer tooling should follow the stabilized language subset rather than racing ahead of it. Formatting and editor feedback will make the alias-to-canonical model easier to maintain in collaborative use.
 
 | Issue | Status | Owner | Practical acceptance signal |
 |---|---|---|---|
@@ -58,7 +58,7 @@ Runtime memory attestation, Golden Hash planning, hard fail-stop behavior, and f
 | Objective | Current status | Long-term success signal |
 |---|---|---|
 | Runtime memory attestation | Design contract and plan generation | Digest insertion, verifier stubs, threat model, overhead measurements, and tamper tests exist. |
-| Fail-stop mitigation | Roadmap model | Hosted process abort and freestanding halt/reset behavior are implemented only where safe, documented, and explicitly selected. |
+| Stop-on-failure mitigation | Roadmap model | Hosted process abort and freestanding halt/reset behavior are implemented only where safe, documented, and explicitly selected. |
 | Freestanding support | Experimental target profile | Linker scripts, bootloader integration notes, hardware-region policies, and minimal examples are validated. |
 | Migration assistant | Conceptual roadmap | Translation output is reviewable, testable, and clearly marked as assisted migration rather than automatic proof of correctness. |
 
@@ -95,7 +95,7 @@ This feature should not be implemented as automatic HTTP lookup inside `src/lexe
 
 | Registry objective | Current status | Practical acceptance signal |
 |---|---|---|
-| `global_map.json` registry format | Long-term objective | A versioned schema defines `identity`, canonical Malay token, aliases, namespace, stability, version-added metadata, checksum, and compatibility policy. |
+| `global_map.json` registry format | Long-term objective | A versioned schema defines `identity`, expert canonical shorthand, `primary_ms` Malay alias, English/pseudocode aliases, namespace, stability, version-added metadata, checksum, and compatibility policy. |
 | Offline-first sync command | Long-term objective | A command such as `logicodex registry sync --version 1.21-alpha` fetches, validates, and caches registry data before compilation. |
 | Project lockfile | Long-term objective | A `logicodex.lock` or equivalent file pins registry version, checksum, and selected namespaces so repeated builds use the same token map. |
 | Immutable token policy | Long-term objective | Published token identities are append-only or version-gated; conflicting changes are rejected rather than silently replacing existing meaning. |
@@ -110,7 +110,7 @@ The roadmap should be updated only when implementation evidence changes. Complet
 
 ## Completed Vocabulary Milestone: Dictionary Vocabulary Expansion
 
-The current logicodex v 1.21 alpha repository now includes a three-tier token vocabulary expansion in `dict/core_map.json`. This milestone is complete at the dictionary and lexer-recognition level after logical/static verification. The next practical milestones are to decide which of the new vocabulary families should become executable language features, then add parser, semantic-analysis, code-generation, examples, and tests for those features one at a time.
+The current logicodex v 1.21 alpha repository now includes a schema v2 token vocabulary model in `dict/core_map.json`, where `expert` is the compiler reference surface, `primary_ms` is the official Malay human alias, and `aliases` contains English pseudocode or compatibility spellings. This milestone is complete at the dictionary and lexer-recognition level after logical/static verification. The next practical milestones are to decide which of the new vocabulary families should become executable language features, then add parser, semantic-analysis, code-generation, examples, and tests for those features one at a time.
 
 | Vocabulary family | Current status | Future implementation requirement |
 |---|---|---|

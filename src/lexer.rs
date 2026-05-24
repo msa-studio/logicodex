@@ -21,8 +21,9 @@ pub enum TokenKind {
     Then,
     Else,
     While,
-    LoopBreak,
-    LoopContinue,
+    Loop,
+    Break,
+    Continue,
     Print,
     Hardware,
     HwZone,
@@ -34,6 +35,10 @@ pub enum TokenKind {
     CInterop,
     Resource,
     Drop,
+    Unsafe,
+    Extern,
+    Struct,
+    Enum,
     True,
     False,
     TypeI32,
@@ -49,8 +54,12 @@ pub enum TokenKind {
     Minus,
     Star,
     Slash,
+    And,
+    Or,
     BitAnd,
     BitOr,
+    ShiftL,
+    ShiftR,
     Greater,
     GreaterEqual,
     Less,
@@ -126,31 +135,35 @@ pub struct Lexicon {
 
 #[derive(Debug, Error)]
 pub enum LexError {
-    #[error("failed to read dictionary {path}: {source}")]
+    #[error(
+        "gagal membaca dictionary {path}: {source} / failed to read dictionary {path}: {source}"
+    )]
     DictionaryRead {
         path: String,
         source: std::io::Error,
     },
-    #[error("failed to parse dictionary {path}: {source}")]
+    #[error("gagal menghuraikan dictionary {path}: {source} / failed to parse dictionary {path}: {source}")]
     DictionaryParse {
         path: String,
         source: serde_json::Error,
     },
-    #[error("unknown dictionary token identity `{0}`")]
+    #[error(
+        "identiti token dictionary tidak diketahui `{0}` / unknown dictionary token identity `{0}`"
+    )]
     UnknownIdentity(String),
-    #[error("unexpected character `{ch}` at {line}:{column}")]
+    #[error("aksara tidak dijangka `{ch}` pada {line}:{column} / unexpected character `{ch}` at {line}:{column}")]
     UnexpectedCharacter {
         ch: char,
         line: usize,
         column: usize,
     },
-    #[error("integer literal `{literal}` at {line}:{column} does not fit in i64")]
+    #[error("literal integer `{literal}` pada {line}:{column} tidak muat dalam i64 / integer literal `{literal}` at {line}:{column} does not fit in i64")]
     IntegerOverflow {
         literal: String,
         line: usize,
         column: usize,
     },
-    #[error("unterminated string literal at {line}:{column}")]
+    #[error("literal string tidak ditutup pada {line}:{column} / unterminated string literal at {line}:{column}")]
     UnterminatedString { line: usize, column: usize },
 }
 
@@ -167,8 +180,9 @@ impl TryFrom<&str> for TokenKind {
             "THEN" => Ok(TokenKind::Then),
             "ELSE" => Ok(TokenKind::Else),
             "WHILE" => Ok(TokenKind::While),
-            "LOOP_BREAK" | "BREAK" => Ok(TokenKind::LoopBreak),
-            "LOOP_CONTINUE" | "CONTINUE" => Ok(TokenKind::LoopContinue),
+            "LOOP" => Ok(TokenKind::Loop),
+            "LOOP_BREAK" | "BREAK" => Ok(TokenKind::Break),
+            "LOOP_CONTINUE" | "CONTINUE" => Ok(TokenKind::Continue),
             "PRINT" => Ok(TokenKind::Print),
             "HW" | "HARDWARE" => Ok(TokenKind::Hardware),
             "HW_ZONE" => Ok(TokenKind::HwZone),
@@ -180,6 +194,10 @@ impl TryFrom<&str> for TokenKind {
             "C_INTEROP" | "C_LEGACY" => Ok(TokenKind::CInterop),
             "RESOURCE" => Ok(TokenKind::Resource),
             "DROP" => Ok(TokenKind::Drop),
+            "UNSAFE" => Ok(TokenKind::Unsafe),
+            "EXTERN" => Ok(TokenKind::Extern),
+            "STRUCT" => Ok(TokenKind::Struct),
+            "ENUM" => Ok(TokenKind::Enum),
             "TRUE" => Ok(TokenKind::True),
             "FALSE" => Ok(TokenKind::False),
             "I32" => Ok(TokenKind::TypeI32),
@@ -195,8 +213,12 @@ impl TryFrom<&str> for TokenKind {
             "MINUS" => Ok(TokenKind::Minus),
             "STAR" => Ok(TokenKind::Star),
             "SLASH" => Ok(TokenKind::Slash),
+            "AND" => Ok(TokenKind::And),
+            "OR" => Ok(TokenKind::Or),
             "BIT_AND" => Ok(TokenKind::BitAnd),
             "BIT_OR" => Ok(TokenKind::BitOr),
+            "SHIFT_L" => Ok(TokenKind::ShiftL),
+            "SHIFT_R" => Ok(TokenKind::ShiftR),
             "GREATER" => Ok(TokenKind::Greater),
             "GREATER_EQUAL" => Ok(TokenKind::GreaterEqual),
             "LESS" => Ok(TokenKind::Less),
@@ -501,14 +523,22 @@ fn default_aliases() -> &'static [(&'static str, TokenKind)] {
         ("else", TokenKind::Else),
         ("ELSE", TokenKind::Else),
         ("SELAGI", TokenKind::While),
+        ("selagi", TokenKind::While),
         ("while", TokenKind::While),
         ("WHILE", TokenKind::While),
-        ("HENTI", TokenKind::LoopBreak),
-        ("break", TokenKind::LoopBreak),
-        ("BREAK", TokenKind::LoopBreak),
-        ("TERUS", TokenKind::LoopContinue),
-        ("continue", TokenKind::LoopContinue),
-        ("CONTINUE", TokenKind::LoopContinue),
+        ("ULANG", TokenKind::Loop),
+        ("ulang", TokenKind::Loop),
+        ("loop", TokenKind::Loop),
+        ("LOOP", TokenKind::Loop),
+        ("HENTI", TokenKind::Break),
+        ("henti", TokenKind::Break),
+        ("break", TokenKind::Break),
+        ("BREAK", TokenKind::Break),
+        ("TERUS", TokenKind::Continue),
+        ("LANGKAU", TokenKind::Continue),
+        ("langkau", TokenKind::Continue),
+        ("continue", TokenKind::Continue),
+        ("CONTINUE", TokenKind::Continue),
         ("PAPAR", TokenKind::Print),
         ("print", TokenKind::Print),
         ("PERKAKASAN", TokenKind::Hardware),
@@ -541,10 +571,28 @@ fn default_aliases() -> &'static [(&'static str, TokenKind)] {
         ("LEPAS", TokenKind::Drop),
         ("drop", TokenKind::Drop),
         ("DROP", TokenKind::Drop),
+        ("BERISIKO", TokenKind::Unsafe),
+        ("berisiko", TokenKind::Unsafe),
+        ("unsafe", TokenKind::Unsafe),
+        ("UNSAFE", TokenKind::Unsafe),
+        ("LUAR", TokenKind::Extern),
+        ("luar", TokenKind::Extern),
+        ("extern", TokenKind::Extern),
+        ("EXTERN", TokenKind::Extern),
+        ("BENTUK", TokenKind::Struct),
+        ("bentuk", TokenKind::Struct),
+        ("struct", TokenKind::Struct),
+        ("STRUCT", TokenKind::Struct),
+        ("PILIHAN", TokenKind::Enum),
+        ("pilihan", TokenKind::Enum),
+        ("enum", TokenKind::Enum),
+        ("ENUM", TokenKind::Enum),
         ("BENAR", TokenKind::True),
+        ("benar", TokenKind::True),
         ("true", TokenKind::True),
         ("SALAH", TokenKind::False),
         ("PALSU", TokenKind::False),
+        ("palsu", TokenKind::False),
         ("false", TokenKind::False),
         ("I32", TokenKind::TypeI32),
         ("i32", TokenKind::TypeI32),
@@ -567,12 +615,30 @@ fn default_aliases() -> &'static [(&'static str, TokenKind)] {
         ("-", TokenKind::Minus),
         ("*", TokenKind::Star),
         ("/", TokenKind::Slash),
+        ("&&", TokenKind::And),
+        ("dan", TokenKind::And),
+        ("DAN", TokenKind::And),
+        ("AND", TokenKind::And),
+        ("||", TokenKind::Or),
+        ("atau", TokenKind::Or),
+        ("ATAU", TokenKind::Or),
+        ("OR", TokenKind::Or),
+        ("bit_dan", TokenKind::BitAnd),
         ("DAN_BIT", TokenKind::BitAnd),
         ("&", TokenKind::BitAnd),
         ("BIT_AND", TokenKind::BitAnd),
+        ("bit_atau", TokenKind::BitOr),
         ("ATAU_BIT", TokenKind::BitOr),
         ("|", TokenKind::BitOr),
         ("BIT_OR", TokenKind::BitOr),
+        ("<<", TokenKind::ShiftL),
+        ("anjak_kiri", TokenKind::ShiftL),
+        ("ANJAK_KIRI", TokenKind::ShiftL),
+        ("SHIFT_L", TokenKind::ShiftL),
+        (">>", TokenKind::ShiftR),
+        ("anjak_kanan", TokenKind::ShiftR),
+        ("ANJAK_KANAN", TokenKind::ShiftR),
+        ("SHIFT_R", TokenKind::ShiftR),
         (">=", TokenKind::GreaterEqual),
         (">", TokenKind::Greater),
         ("<=", TokenKind::LessEqual),
@@ -593,4 +659,66 @@ fn is_ident_start(ch: char) -> bool {
 }
 fn is_ident_continue(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_'
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Lexer, Lexicon, TokenKind};
+    use std::path::Path;
+
+    fn token_kinds_for(source: &str) -> Vec<TokenKind> {
+        let lexicon = Lexicon::from_path(Path::new("dict/core_map.json"))
+            .expect("core_map.json should load for lexer tests");
+        Lexer::new(source, &lexicon)
+            .tokenize()
+            .expect("source should tokenize")
+            .into_iter()
+            .map(|token| token.kind)
+            .collect()
+    }
+
+    #[test]
+    fn token_expansion_aliases_normalize_to_canonical_kinds() {
+        let kinds = token_kinds_for(
+            "while selagi loop ulang break henti continue langkau && dan || atau & bit_dan | bit_atau << anjak_kiri >> anjak_kanan struct bentuk enum pilihan true benar false palsu unsafe berisiko extern luar",
+        );
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::While,
+                TokenKind::While,
+                TokenKind::Loop,
+                TokenKind::Loop,
+                TokenKind::Break,
+                TokenKind::Break,
+                TokenKind::Continue,
+                TokenKind::Continue,
+                TokenKind::And,
+                TokenKind::And,
+                TokenKind::Or,
+                TokenKind::Or,
+                TokenKind::BitAnd,
+                TokenKind::BitAnd,
+                TokenKind::BitOr,
+                TokenKind::BitOr,
+                TokenKind::ShiftL,
+                TokenKind::ShiftL,
+                TokenKind::ShiftR,
+                TokenKind::ShiftR,
+                TokenKind::Struct,
+                TokenKind::Struct,
+                TokenKind::Enum,
+                TokenKind::Enum,
+                TokenKind::True,
+                TokenKind::True,
+                TokenKind::False,
+                TokenKind::False,
+                TokenKind::Unsafe,
+                TokenKind::Unsafe,
+                TokenKind::Extern,
+                TokenKind::Extern,
+                TokenKind::Eof,
+            ]
+        );
+    }
 }

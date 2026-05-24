@@ -11,22 +11,28 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("expected {expected} at {line}:{column}, found `{found}`")]
+    #[error("dijangka {expected} pada {line}:{column}, ditemui `{found}` / expected {expected} at {line}:{column}, found `{found}`")]
     Expected {
         expected: String,
         found: String,
         line: usize,
         column: usize,
     },
-    #[error("unexpected token `{found}` at {line}:{column}")]
+    #[error("token tidak dijangka `{found}` pada {line}:{column} / unexpected token `{found}` at {line}:{column}")]
     Unexpected {
         found: String,
         line: usize,
         column: usize,
     },
-    #[error("invalid integer literal `{literal}` at {line}:{column}")]
+    #[error("literal integer tidak sah `{literal}` pada {line}:{column} / invalid integer literal `{literal}` at {line}:{column}")]
     InvalidInteger {
         literal: String,
+        line: usize,
+        column: usize,
+    },
+    #[error("Ralat: Kata kunci '{keyword}' dikenali tetapi belum disokong (unimplemented) dalam v1.21-alpha pada {line}:{column} / Error: Keyword '{keyword}' is recognized but not yet supported (unimplemented) in v1.21-alpha at {line}:{column}")]
+    UnimplementedFeature {
+        keyword: String,
         line: usize,
         column: usize,
     },
@@ -78,6 +84,13 @@ impl Parser {
         }
         if self.matches(TokenKind::Fn) {
             return self.function_definition();
+        }
+        if self.check(TokenKind::Struct)
+            || self.check(TokenKind::Enum)
+            || self.check(TokenKind::Unsafe)
+            || self.check(TokenKind::Extern)
+        {
+            return self.unimplemented_feature();
         }
         self.statement()
     }
@@ -164,6 +177,18 @@ impl Parser {
             self.return_statement(beginner)?
         } else if self.matches(TokenKind::If) {
             self.if_statement()?
+        } else if self.matches(TokenKind::While) {
+            self.while_statement()?
+        } else if self.matches(TokenKind::Loop) {
+            self.loop_statement()?
+        } else if self.matches(TokenKind::Break) {
+            let beginner = self.allows_control_flow_line_terminator(&self.previous().lexeme);
+            self.consume_statement_terminator("; after break statement", beginner)?;
+            Stmt::Break
+        } else if self.matches(TokenKind::Continue) {
+            let beginner = self.allows_control_flow_line_terminator(&self.previous().lexeme);
+            self.consume_statement_terminator("; after continue statement", beginner)?;
+            Stmt::Continue
         } else {
             let value = self.expression()?;
             self.consume_statement_terminator("; after expression", false)?;
@@ -224,6 +249,19 @@ impl Parser {
         })
     }
 
+    fn while_statement(&mut self) -> Result<Stmt, ParseError> {
+        let condition = self.expression()?;
+        self.consume_newlines();
+        let body = self.block()?;
+        Ok(Stmt::While { condition, body })
+    }
+
+    fn loop_statement(&mut self) -> Result<Stmt, ParseError> {
+        self.consume_newlines();
+        let body = self.block()?;
+        Ok(Stmt::Loop { body })
+    }
+
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
         self.consume(TokenKind::Start, "block start MULA or {")?;
         self.consume_layout_separators();
@@ -274,7 +312,59 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expr, ParseError> {
-        self.equality()
+        self.logical_or()
+    }
+
+    fn logical_or(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.logical_and()?;
+        while self.matches(TokenKind::Or) {
+            let right = self.logical_and()?;
+            expr = Expr::Binary {
+                left: Box::new(expr),
+                op: BinaryOp::Or,
+                right: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
+
+    fn logical_and(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.bit_or()?;
+        while self.matches(TokenKind::And) {
+            let right = self.bit_or()?;
+            expr = Expr::Binary {
+                left: Box::new(expr),
+                op: BinaryOp::And,
+                right: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
+
+    fn bit_or(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.bit_and()?;
+        while self.matches(TokenKind::BitOr) {
+            let right = self.bit_and()?;
+            expr = Expr::Binary {
+                left: Box::new(expr),
+                op: BinaryOp::BitOr,
+                right: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
+
+    fn bit_and(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.equality()?;
+        while self.matches(TokenKind::BitAnd) {
+            let right = self.equality()?;
+            expr = Expr::Binary {
+                left: Box::new(expr),
+                op: BinaryOp::BitAnd,
+                right: Box::new(right),
+            };
+        }
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, ParseError> {
@@ -296,7 +386,7 @@ impl Parser {
     }
 
     fn comparison(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.term()?;
+        let mut expr = self.shift()?;
         while self.matches(TokenKind::Greater)
             || self.matches(TokenKind::GreaterEqual)
             || self.matches(TokenKind::Less)
@@ -307,6 +397,24 @@ impl Parser {
                 TokenKind::GreaterEqual => BinaryOp::GreaterEqual,
                 TokenKind::Less => BinaryOp::Less,
                 TokenKind::LessEqual => BinaryOp::LessEqual,
+                _ => unreachable!(),
+            };
+            let right = self.shift()?;
+            expr = Expr::Binary {
+                left: Box::new(expr),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
+
+    fn shift(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.term()?;
+        while self.matches(TokenKind::ShiftL) || self.matches(TokenKind::ShiftR) {
+            let op = match self.previous().kind {
+                TokenKind::ShiftL => BinaryOp::ShiftLeft,
+                TokenKind::ShiftR => BinaryOp::ShiftRight,
                 _ => unreachable!(),
             };
             let right = self.term()?;
@@ -459,6 +567,20 @@ impl Parser {
         self.critical_depth == 0 && matches!(lexeme, "BINA" | "CREATE" | "PAPAR" | "PULANG")
     }
 
+    fn allows_control_flow_line_terminator(&self, lexeme: &str) -> bool {
+        self.critical_depth == 0
+            && (lexeme.eq_ignore_ascii_case("henti") || lexeme.eq_ignore_ascii_case("langkau"))
+    }
+
+    fn unimplemented_feature(&self) -> Result<Stmt, ParseError> {
+        let t = self.peek();
+        Err(ParseError::UnimplementedFeature {
+            keyword: t.lexeme.clone(),
+            line: t.line,
+            column: t.column,
+        })
+    }
+
     fn matches(&mut self, kind: TokenKind) -> bool {
         if self.check(kind) {
             self.advance();
@@ -561,5 +683,27 @@ mod tests {
     fn accepts_else_block_start_after_blank_line() {
         let source = "MULA\nBINA x = 0\nJIKA x > 1 MAKA\nMULA\nPAPAR x\nTAMAT\nMELAINKAN\n\nMULA\nPAPAR 0\nTAMAT\nTAMAT\n";
         assert!(parse_source(source).is_ok(), "{:?}", parse_source(source));
+    }
+
+    #[test]
+    fn accepts_split_control_flow_and_logic_group_operators() {
+        let source = "MULA\nBINA x = 0\nSELAGI x < 3 DAN benar MULA\nPAPAR x\nHENTI\nTAMAT\nULANG MULA\nLANGKAU\nTAMAT\nBINA y = (1 << 2) | 1 & 3\nTAMAT\n";
+        assert!(parse_source(source).is_ok(), "{:?}", parse_source(source));
+    }
+
+    #[test]
+    fn traps_complex_tokens_as_unimplemented_in_split_scope() {
+        for source in [
+            "MULA\nbentuk Thing MULA\nTAMAT\nTAMAT\n",
+            "MULA\npilihan Mode MULA\nTAMAT\nTAMAT\n",
+            "MULA\nberisiko MULA\nTAMAT\nTAMAT\n",
+            "MULA\nluar fn c_call() -> I32 MULA\nTAMAT\nTAMAT\n",
+        ] {
+            let err = parse_source(source).expect_err("complex token must trap as unimplemented");
+            assert!(
+                err.contains("belum disokong") || err.contains("unimplemented"),
+                "unexpected error: {err}"
+            );
+        }
     }
 }

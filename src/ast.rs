@@ -56,6 +56,15 @@ pub enum Stmt {
         then_branch: Vec<Stmt>,
         else_branch: Vec<Stmt>,
     },
+    While {
+        condition: Expr,
+        body: Vec<Stmt>,
+    },
+    Loop {
+        body: Vec<Stmt>,
+    },
+    Break,
+    Continue,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,6 +100,12 @@ pub enum BinaryOp {
     LessEqual,
     Equal,
     NotEqual,
+    And,
+    Or,
+    BitAnd,
+    BitOr,
+    ShiftLeft,
+    ShiftRight,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,6 +149,12 @@ impl fmt::Display for BinaryOp {
             BinaryOp::LessEqual => "<=",
             BinaryOp::Equal => "==",
             BinaryOp::NotEqual => "!=",
+            BinaryOp::And => "&&",
+            BinaryOp::Or => "||",
+            BinaryOp::BitAnd => "&",
+            BinaryOp::BitOr => "|",
+            BinaryOp::ShiftLeft => "<<",
+            BinaryOp::ShiftRight => ">>",
         };
         write!(f, "{text}")
     }

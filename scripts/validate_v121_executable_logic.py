@@ -28,8 +28,14 @@ CHECKS: list[tuple[str, Path, list[str]]] = [
             "HardwareZone",
             "Function",
             "Return",
+            "While",
+            "Loop",
+            "Break",
+            "Continue",
             "declared_type: Option<Type>",
             "AddressOfLiteral(i64)",
+            "ShiftLeft",
+            "ShiftRight",
         ],
     ),
     (
@@ -42,6 +48,14 @@ CHECKS: list[tuple[str, Path, list[str]]] = [
             "Address",
             "Fn",
             "Return",
+            "While",
+            "Loop",
+            "Break",
+            "Continue",
+            "Unsafe",
+            "Extern",
+            "Struct",
+            "Enum",
             "TypeU16",
             "TypeU32",
             "Ptr",
@@ -61,9 +75,15 @@ CHECKS: list[tuple[str, Path, list[str]]] = [
             "TokenKind::HwZone",
             "function_definition",
             "return_statement",
+            "while_statement",
+            "loop_statement",
+            "unimplemented_feature",
+            "ParseError::UnimplementedFeature",
             "let_statement",
             "parse_type",
             "AddressOfLiteral",
+            "logical_or",
+            "TokenKind::ShiftL",
             "consume_optional_semicolons",
             "TokenKind::Arrow",
         ],
@@ -82,8 +102,13 @@ CHECKS: list[tuple[str, Path, list[str]]] = [
             "BareAddressRejected",
             "HardwareMutationOutsideZone",
             "hw_zone_depth",
-            "KRITIKAL: General Error Tahap 1 - Percubaan Mutasi Perkakasan Tanpa Kebenaran Skop Zon Selamat.",
+            "KRITIKAL: Ralat Umum Tahap 1 - Percubaan Mutasi Perkakasan Tanpa Kebenaran Skop Zon Selamat / CRITICAL: General Error Level 1 - Attempted Hardware Mutation Without Safe Zone Scope Authorization.",
             "ReturnTypeMismatch",
+            "BreakOutsideLoop",
+            "ContinueOutsideLoop",
+            "loop_depth",
+            "BinaryOp::And",
+            "BinaryOp::ShiftRight",
             "hardware_addresses",
             "integer_fits",
         ],
@@ -96,9 +121,14 @@ CHECKS: list[tuple[str, Path, list[str]]] = [
             "Stmt::HardwareZone",
             "Stmt::Function",
             "Stmt::Return",
+            "Stmt::While",
+            "Stmt::Loop",
+            "Stmt::Break",
+            "Stmt::Continue",
+            "LoopTarget",
             "Expr::StringLiteral",
             "Expr::AddressOfLiteral",
-            "IntPredicate::NE, condition_value, zero",
+            "i64_to_bool",
             "MemoryIntegrityPlan",
             "PhysicalMemoryAccessPlan",
         ],
@@ -138,6 +168,20 @@ DICT_REQUIRED = {
     "BOOL",
     "PTR",
     "ARROW",
+    "WHILE",
+    "LOOP",
+    "LOOP_BREAK",
+    "LOOP_CONTINUE",
+    "AND",
+    "OR",
+    "BIT_AND",
+    "BIT_OR",
+    "SHIFT_L",
+    "SHIFT_R",
+    "STRUCT",
+    "ENUM",
+    "UNSAFE",
+    "EXTERN",
 }
 
 
@@ -201,6 +245,10 @@ def validate_dictionary() -> None:
         for name in ["LET", "PRINT", "RETURN"]:
             if tokens.get(name, {}).get("beginner_line_terminated") is not True:
                 raise AssertionError(f"core_map.json token {name} must mark beginner_line_terminated")
+        for name in ["STRUCT", "ENUM", "UNSAFE", "EXTERN"]:
+            entry = tokens.get(name, {})
+            if entry.get("compiler_status") != "parser_trap_unimplemented":
+                raise AssertionError(f"core_map.json token {name} must mark parser_trap_unimplemented status")
         for name in ["HW", "HW_ZONE", "ADDR", "PTR"]:
             critical = tokens.get(name, {}).get("critical_policy", {})
             if not any(critical.get(key) is True for key in [

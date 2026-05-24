@@ -58,7 +58,7 @@
       "patterns": [
         {
           "name": "keyword.control.logicodex",
-          "match": "\\b(if|then|else|return|fn|hw_unsafe|let|print|JIKA|MAKA|MELAINKAN|PULANG|FUNGSI|ZON_PERKAKASAN|BINA|PAPAR|IF|THEN|ELSE|RETURN|FUNCTION|CREATE|DISPLAY|START|BEGIN|END|MULA|TAMAT)\\b"
+          "match": "\\b(if|then|else|while|loop|break|continue|return|fn|hw_unsafe|unsafe|extern|let|print|JIKA|MAKA|MELAINKAN|SELAGI|ULANG|HENTI|TERUS|LANGKAU|PULANG|FUNGSI|ZON_PERKAKASAN|BERISIKO|LUAR|BINA|PAPAR|IF|THEN|ELSE|WHILE|LOOP|BREAK|CONTINUE|RETURN|FUNCTION|UNSAFE|EXTERN|CREATE|DISPLAY|START|BEGIN|END|MULA|TAMAT|selagi|ulang|henti|langkau|berisiko|luar)\\b"
         }
       ]
     },
@@ -66,7 +66,7 @@
       "patterns": [
         {
           "name": "storage.type.logicodex",
-          "match": "\\b(I64|I32|i32|U16|U32|u32|F64|Bool|BOOL|str|TEKS|STRING|ptr|PTR|addr|ALAMAT|ADDRESS)\\b"
+          "match": "\\b(I64|I32|i32|U16|U32|u32|F64|Bool|BOOL|str|TEKS|STRING|ptr|PTR|addr|ALAMAT|ADDRESS|struct|bentuk|BENTUK|STRUCT|enum|pilihan|PILIHAN|ENUM)\\b"
         }
       ]
     },
@@ -74,7 +74,7 @@
       "patterns": [
         {
           "name": "constant.language.boolean.logicodex",
-          "match": "\\b(true|false|BENAR|SALAH|PALSU|TRUE|FALSE)\\b"
+          "match": "\\b(true|false|benar|palsu|BENAR|SALAH|PALSU|TRUE|FALSE)\\b"
         }
       ]
     },
@@ -90,7 +90,7 @@
       "patterns": [
         {
           "name": "keyword.operator.logicodex",
-          "match": "(->|==|!=|>=|<=|=|\\+|-|\\*|/|>|<|:|;|,)"
+          "match": "(->|&&|\\|\\||<<|>>|==|!=|>=|<=|=|\\+|-|\\*|/|&|\\||>|<|:|;|,)"
         }
       ]
     }

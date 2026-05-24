@@ -19,16 +19,16 @@ Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 
 ## Executive Summary
 
-Logicodex is a dual-syntax, LLVM-backed systems programming language created by **Mohamad Supardi Abdul** (`mymsastudio@gmail.com`). Its practical aim is to reduce the cognitive gap between readable human intent and native-oriented compiler output by allowing novice-oriented pseudocode and expert shorthand to flow through one deterministic frontend.
+Logicodex is an alias-to-canonical, LLVM-backed systems programming language created by **Mohamad Supardi Abdul** (`mymsastudio@gmail.com`). Its practical aim is to reduce the cognitive gap between readable human intent and native-oriented compiler output by allowing Malay/English pseudocode aliases and expert canonical shorthand to flow through one deterministic frontend.
 
 The current **Phase 1** alpha focuses on a working compiler core: the `dict/core_map.json` dictionary loader, lexer, parser, AST construction, semantic analyzer, and LLVM-Inkwell backend path for native-oriented object generation. Roadmap capabilities including the **WebAssembly target**, **Logicodex Migrator Engine**, continuous runtime memory attestation, and deeper freestanding support are **objectives to be built and validated over time**, not completed implementation claims in the current alpha.
 
 ## Compiler Pipeline
 
 ```text
-[ Novice Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Unified Token Stream ]
-                                                              │
-[ Expert Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Abstract Syntax Tree ]
+[ Malay/English Alias Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Unified Token Stream ]
+                                                                           │
+[ Expert Canonical Code (.ldx) ] ──► (Lexer + core_map.json) ──► [ Abstract Syntax Tree ]
                                                               │
 [ Native-Oriented Object Output ] ◄── (LLVM Backend) ◄── [ LLVM IR Generation ]
 ```
@@ -41,7 +41,7 @@ The project should be read as an **alpha compiler and specification prototype**.
 
 | Area | Current v1.21-alpha status | Practical next objective |
 |---|---|---|
-| Dual syntax | Implemented in the Phase 1 frontend through dictionary-aware tokenization. | Expand localized and domain-specific token families while preserving deterministic builds. |
+| Alias-to-canonical syntax | Implemented in the Phase 1 frontend through dictionary-aware tokenization. | Expand Malay, English pseudocode, and domain-specific alias families while preserving deterministic builds. |
 | Static semantics | Implemented for the Phase 1 core language and selected safety checks. | Tighten type-system boundaries, diagnostics, pointer-provenance rules, and UB catalog coverage. |
 | LLVM backend | Implemented through the Rust Inkwell path for core expressions and native-oriented object generation. | Mature target triples, ABI contracts, linker policies, and executable examples. |
 | WebAssembly target | Long-term roadmap objective. | Build a small Wasm prototype after native examples and tests are stable. |
@@ -92,10 +92,10 @@ The current documentation set now separates language grammar, environment setup,
 
 | Document | Purpose |
 |---|---|
-| `GrammarandDictionary.md` | Explains the current grammar surface, token dictionary, canonical expert mode, Malay aliases, pseudocode aliases, semicolon policy, hardware-zone boundary policy, and executable examples generated from `dict/core_map.json`. |
+| `GrammarandDictionary.md` | Explains the current grammar surface, token dictionary, expert canonical shorthand mode, primary Malay aliases, English pseudocode aliases, semicolon policy, hardware-zone boundary policy, and executable examples generated from `dict/core_map.json`. |
 | `ENVIRONMENT_SETUP.md` | Records the confirmed WSL2/Linux baseline for building and validating **current logicodex v 1.21 alpha** with LLVM 15-oriented dependencies. |
 | `MANUAL.md` | Provides concise compiler usage, build commands, and frontend architecture notes. |
-| `docs/VS_CODE_EXTENSION.md` | Explains how to run the Logicodex VS Code Side View MVP for best-effort pseudo Melayu/English to canonical expert preview without changing Rust. |
+| `docs/VS_CODE_EXTENSION.md` | Explains how to run the Logicodex VS Code Side View MVP for best-effort Malay/English pseudocode alias to expert canonical shorthand preview without changing Rust. |
 | `v121_execution_design.md` | Captures the executable-logic and provenance design track for the v1.21-alpha milestone. |
 
 ## Practical Roadmap Summary
@@ -118,12 +118,18 @@ Contributors interested in compiler engineering, LLVM optimization, operating-sy
 
 ## v1.21-alpha Three-Tier Token Dictionary Expansion
 
-The current logicodex v 1.21 alpha dictionary now records a practical three-tier token vocabulary for the requested program-structure, binding, control-flow, FFI vocabulary, resource vocabulary, type-family, hardware vocabulary, and bitwise-operator families. Each requested `TOKEN_*` entry in `dict/core_map.json` has a stable universal identifier, one structured Malay canonical spelling, and the requested expert shorthand plus English pseudocode aliases.
+The current logicodex v 1.21 alpha dictionary now records a practical three-tier token vocabulary for the requested program-structure, binding, control-flow, FFI vocabulary, resource vocabulary, type-family, hardware vocabulary, and bitwise-operator families. Each requested `TOKEN_*` entry in `dict/core_map.json` has a stable universal identifier, one expert canonical spelling, one primary Malay alias, and English pseudocode aliases.
 
-This is a **dictionary-level capability upgrade**. It improves lexical coverage and documentation consistency, but it does not by itself claim that every related parser, semantic-analysis, code-generation, FFI, RAII, or freestanding runtime behavior is complete. Those executable behaviors remain roadmap items until they have implementation evidence and repeatable tests.
+This is now a **split-implementation capability upgrade**. The lexer and dictionary recognize the broader token vocabulary, while the compiler frontend, semantic analyzer, and LLVM backend execute only the safe, bounded subset that has implementation evidence and repeatable tests. Complex declaration tokens remain recognized but intentionally blocked with clear bilingual diagnostics until their type-system, layout, FFI, and safety semantics are designed and validated.
 
 | Capability boundary | Current status | Practical note |
 |---|---|---|
-| Dual syntax and token families | Expanded at dictionary and lexer-recognition level | The token vocabulary is broader and logically verified. |
-| Loop, FFI, resource, and bitwise vocabulary | Tokenized as vocabulary support | Parser and semantic behavior should be added through future focused milestones. |
+| Alias-to-canonical token families | Expanded at dictionary and lexer-recognition level | The token vocabulary is broader and logically verified. |
+| `while`, `loop`, `break`, and `continue` | Implemented across AST, parser, semantic analysis, and LLVM code generation | Control-flow aliases such as `selagi`, `ulang`, `henti`, and `langkau` compile through the executable subset. |
+| Logical, bitwise, and shift operators | Implemented across parsing, semantic typing, and code generation | Boolean logic returns `Bool`; integer bitwise and shift operators remain numeric. |
+| `struct`, `enum`, `unsafe`, and `extern` | Recognized by the lexer and dictionary, then stopped at parser level with an unimplemented diagnostic | This prevents false production claims while preserving the token-completeness roadmap. |
 | Embedded and freestanding vocabulary | Dictionary support plus existing address/hardware concepts | Hardware behavior still requires explicit target gates, examples, and validation. |
+
+## Language Policy
+
+All repository prose documentation is maintained in **English** so external contributors can read one consistent specification baseline. Compiler diagnostics and error messages must remain **bilingual Malay + English** whenever they are emitted to users, using the pattern `Malay message / English message`; this preserves accessibility for Malay-first users while keeping diagnostics searchable and reviewable by English-speaking maintainers.

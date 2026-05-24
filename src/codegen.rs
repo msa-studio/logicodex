@@ -8,6 +8,7 @@
 use crate::ast::{BinaryOp, Expr, Program, Stmt};
 use crate::os::target::{build_target_machine, CompilationTarget, OutputKind};
 use anyhow::{anyhow, Context as AnyhowContext, Result};
+use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
@@ -67,6 +68,12 @@ pub struct CodegenArtifact {
     pub ir_path: Option<std::path::PathBuf>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct LoopTarget<'ctx> {
+    continue_block: BasicBlock<'ctx>,
+    break_block: BasicBlock<'ctx>,
+}
+
 pub struct LlvmCompiler<'ctx> {
     context: &'ctx Context,
     module: Module<'ctx>,
@@ -74,6 +81,7 @@ pub struct LlvmCompiler<'ctx> {
     i64_type: IntType<'ctx>,
     bool_type: IntType<'ctx>,
     variables: Vec<HashMap<String, PointerValue<'ctx>>>,
+    loop_targets: Vec<LoopTarget<'ctx>>,
     print_fn: FunctionValue<'ctx>,
 }
 
@@ -111,7 +119,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     inkwell::targets::FileType::Object,
                     object_path,
                 )
-                .map_err(|e| anyhow!("failed to emit object file {}: {e}", object_path.display()))?;
+                .map_err(|e| {
+                    anyhow!("failed to emit object file {}: {e}", object_path.display())
+                })?;
 
             let ir_path = if options.emit_ir {
                 let mut ir_path = object_path.to_path_buf();
@@ -149,6 +159,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             i64_type,
             bool_type,
             variables: vec![HashMap::new()],
+            loop_targets: Vec::new(),
             print_fn,
         }
     }
@@ -171,6 +182,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
     fn emit_block(&mut self, statements: &[Stmt]) -> Result<()> {
         self.variables.push(HashMap::new());
         for stmt in statements {
+            if self.current_block_has_terminator() {
+                break;
+            }
             self.emit_stmt(stmt)?;
         }
         self.variables.pop();
@@ -224,6 +238,30 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 then_branch,
                 else_branch,
             } => self.emit_if(condition, then_branch, else_branch),
+            Stmt::While { condition, body } => self.emit_while(condition, body),
+            Stmt::Loop { body } => self.emit_loop(body),
+            Stmt::Break => {
+                let target = self
+                    .loop_targets
+                    .last()
+                    .ok_or_else(|| anyhow!("internal codegen error: break outside loop"))?
+                    .break_block;
+                self.builder
+                    .build_unconditional_branch(target)
+                    .context("failed to build break branch")?;
+                Ok(())
+            }
+            Stmt::Continue => {
+                let target = self
+                    .loop_targets
+                    .last()
+                    .ok_or_else(|| anyhow!("internal codegen error: continue outside loop"))?
+                    .continue_block;
+                self.builder
+                    .build_unconditional_branch(target)
+                    .context("failed to build continue branch")?;
+                Ok(())
+            }
         }
     }
 
@@ -277,6 +315,64 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
+    fn emit_while(&mut self, condition: &Expr, body: &[Stmt]) -> Result<()> {
+        let parent = self.current_function()?;
+        let condition_block = self.context.append_basic_block(parent, "while.cond");
+        let body_block = self.context.append_basic_block(parent, "while.body");
+        let after_block = self.context.append_basic_block(parent, "while.end");
+        self.builder
+            .build_unconditional_branch(condition_block)
+            .context("failed to branch to while condition")?;
+
+        self.builder.position_at_end(condition_block);
+        let condition_value = self.emit_expr(condition)?;
+        let condition_bool = self.i64_to_bool(condition_value, "whilecond")?;
+        self.builder
+            .build_conditional_branch(condition_bool, body_block, after_block)
+            .context("failed to build while condition branch")?;
+
+        self.builder.position_at_end(body_block);
+        self.loop_targets.push(LoopTarget {
+            continue_block: condition_block,
+            break_block: after_block,
+        });
+        self.emit_block(body)?;
+        self.loop_targets.pop();
+        if !self.current_block_has_terminator() {
+            self.builder
+                .build_unconditional_branch(condition_block)
+                .context("failed to branch from while body")?;
+        }
+
+        self.builder.position_at_end(after_block);
+        Ok(())
+    }
+
+    fn emit_loop(&mut self, body: &[Stmt]) -> Result<()> {
+        let parent = self.current_function()?;
+        let body_block = self.context.append_basic_block(parent, "loop.body");
+        let after_block = self.context.append_basic_block(parent, "loop.end");
+        self.builder
+            .build_unconditional_branch(body_block)
+            .context("failed to branch to loop body")?;
+
+        self.builder.position_at_end(body_block);
+        self.loop_targets.push(LoopTarget {
+            continue_block: body_block,
+            break_block: after_block,
+        });
+        self.emit_block(body)?;
+        self.loop_targets.pop();
+        if !self.current_block_has_terminator() {
+            self.builder
+                .build_unconditional_branch(body_block)
+                .context("failed to branch from loop body")?;
+        }
+
+        self.builder.position_at_end(after_block);
+        Ok(())
+    }
+
     fn emit_expr(&mut self, expr: &Expr) -> Result<IntValue<'ctx>> {
         match expr {
             Expr::Integer(value) => Ok(self.i64_type.const_int(*value as u64, true)),
@@ -322,6 +418,40 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     BinaryOp::LessEqual => self.compare_to_i64(IntPredicate::SLE, l, r, "letmp"),
                     BinaryOp::Equal => self.compare_to_i64(IntPredicate::EQ, l, r, "eqtmp"),
                     BinaryOp::NotEqual => self.compare_to_i64(IntPredicate::NE, l, r, "netmp"),
+                    BinaryOp::And => {
+                        let lb = self.i64_to_bool(l, "andlhs")?;
+                        let rb = self.i64_to_bool(r, "andrhs")?;
+                        let value = self
+                            .builder
+                            .build_and(lb, rb, "andtmp")
+                            .context("failed to build logical and")?;
+                        Ok(self.bool_to_i64(value))
+                    }
+                    BinaryOp::Or => {
+                        let lb = self.i64_to_bool(l, "orlhs")?;
+                        let rb = self.i64_to_bool(r, "orrhs")?;
+                        let value = self
+                            .builder
+                            .build_or(lb, rb, "ortmp")
+                            .context("failed to build logical or")?;
+                        Ok(self.bool_to_i64(value))
+                    }
+                    BinaryOp::BitAnd => self
+                        .builder
+                        .build_and(l, r, "bitandtmp")
+                        .context("failed to build bitwise and"),
+                    BinaryOp::BitOr => self
+                        .builder
+                        .build_or(l, r, "bitortmp")
+                        .context("failed to build bitwise or"),
+                    BinaryOp::ShiftLeft => self
+                        .builder
+                        .build_left_shift(l, r, "shltmp")
+                        .context("failed to build left shift"),
+                    BinaryOp::ShiftRight => self
+                        .builder
+                        .build_right_shift(l, r, true, "shrtmp")
+                        .context("failed to build right shift"),
                 }
             }
         }
@@ -341,10 +471,23 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(self.bool_to_i64(cmp))
     }
 
+    fn i64_to_bool(&self, value: IntValue<'ctx>, name: &str) -> Result<IntValue<'ctx>> {
+        self.builder
+            .build_int_compare(IntPredicate::NE, value, self.i64_type.const_zero(), name)
+            .context("failed to normalize integer to bool")
+    }
+
     fn bool_to_i64(&self, value: IntValue<'ctx>) -> IntValue<'ctx> {
         self.builder
             .build_int_z_extend(value, self.i64_type, "booltoint")
             .expect("zext from i1 to i64 is valid")
+    }
+
+    fn current_block_has_terminator(&self) -> bool {
+        self.builder
+            .get_insert_block()
+            .and_then(|block| block.get_terminator())
+            .is_some()
     }
 
     fn create_entry_alloca(&self, function: FunctionValue<'ctx>, name: &str) -> PointerValue<'ctx> {

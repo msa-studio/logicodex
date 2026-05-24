@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CORE_MAP = ROOT / "dict" / "core_map.json"
+CORE_MAP = ROOT / "dict/core_map.json"
 OUTPUT = ROOT / "GrammarandDictionary.md"
 
 
@@ -19,7 +19,7 @@ def fmt_aliases(values: list[str]) -> str:
 def policy_summary(token: dict) -> str:
     parts: list[str] = []
     if token.get("beginner_line_terminated"):
-        parts.append("newline beginner")
+        parts.append("newline-terminated Malay alias")
     critical = token.get("critical_policy") or {}
     if critical.get("requires_explicit_block"):
         parts.append("explicit block")
@@ -32,7 +32,7 @@ def policy_summary(token: dict) -> str:
 
 def token_table(tokens: dict) -> str:
     rows = [
-        "| Token | Expert canonical | Primary Melayu | Aliases | Policy | Keterangan |",
+        "| Token | Expert canonical shorthand | Primary Malay alias (`primary_ms`) | English/pseudocode aliases | Policy | Description |",
         "|---|---:|---:|---|---|---|",
     ]
     for name, spec in tokens.items():
@@ -56,69 +56,78 @@ def main() -> None:
 
     content = f"""# Logicodex Grammar and Dictionary
 
-Dokumen ini menerangkan **grammar** dan **dictionary token** untuk **current logicodex v 1.21 alpha** berdasarkan `dict/core_map.json` schema v{data.get('schema_version')}.[1] Dictionary semasa menetapkan **expert mode** sebagai rujukan canonical compiler, manakala `primary_ms` ialah alias manusia utama dalam Bahasa Melayu. Alias lain kekal sebagai bentuk pseudocode atau compatibility spelling yang terhad.
+This document describes the **grammar** and **token dictionary** for **current Logicodex v1.21-alpha** based on the `dict/core_map.json` schema v{data.get('schema_version')}.[1] The current dictionary defines **expert canonical shorthand mode** through the `expert` field as the canonical compiler reference, while `primary_ms` is the main human-facing Malay alias. The `aliases` field contains explicitly accepted English pseudocode and compatibility spellings.
 
-> **Prinsip ringkas:** compiler reference surface ialah `expert`; pengguna Melayu boleh menulis menggunakan `primary_ms`; dan alias tambahan digunakan hanya apabila sudah disenaraikan secara eksplisit dalam dictionary.
+> **Short principle:** the compiler reference surface is the expert canonical shorthand stored in `expert`; Malay-first users may write the `primary_ms` aliases; and English/pseudocode aliases are accepted only when they are listed explicitly in the dictionary.
 
-## 1. Policy Dictionary Semasa
+## 1. Current Dictionary Policy
 
-| Policy | Nilai |
+| Policy | Value |
 |---|---|
 | Version | `{data.get('version')}` |
 | Language | `{data.get('language')}` |
 | Reference mode | `{policy.get('reference_mode')}` |
 | Primary human language | `{policy.get('primary_human_language')}` |
 | Alias order rule | `{policy.get('alias_order_rule')}` |
-| Beginner statement policy | {policy.get('beginner_statement_policy')} |
+| Malay alias newline statement policy (`beginner_statement_policy`) | {policy.get('beginner_statement_policy')} |
 | Critical boundary policy | {policy.get('critical_boundary_policy')} |
 
-Policy ini bermaksud syntax expert seperti `let`, `print`, `return`, `fn`, `if`, dan block braces `{{` `}}` ialah bentuk paling stabil untuk compiler. Pseudo Melayu seperti `BINA`, `PAPAR`, `PULANG`, `FUNGSI`, `JIKA`, `MAKA`, `MELAINKAN`, `MULA`, dan `TAMAT` ialah alias rasmi manusia yang dipetakan kepada token canonical yang sama.
+This policy means that expert canonical shorthand such as `let`, `print`, `return`, `fn`, `if`, and block braces `{{` `}}` is the most stable compiler reference form. Malay pseudocode aliases such as `BINA`, `PAPAR`, `PULANG`, `FUNGSI`, `JIKA`, `MAKA`, `MELAINKAN`, `MULA`, and `TAMAT` are official human-facing aliases mapped to the same canonical token identities.
 
-## 2. Ringkasan Grammar v1.21-alpha
+## 2. v1.21-alpha Grammar Summary
 
-Grammar semasa adalah **statement-oriented** dan menyokong program yang dibalut dengan block `{{ ... }}` atau `MULA ... TAMAT`.[2] Di peringkat tertinggi, parser menerima deklarasi `use`, deklarasi hardware `hw`, zon hardware `hw_unsafe`, definisi fungsi `fn`, dan statement biasa seperti `let`, `print`, `return`, `if`, atau expression statement.
+The current grammar is **statement-oriented** and supports programs wrapped in explicit blocks using `{{ ... }}` or `MULA ... TAMAT`.[2] At the top level, the parser accepts `use` declarations, `hw` declarations, `hw_unsafe` hardware zones, `fn` definitions, and regular statements such as `let`, `print`, `return`, `if`, `while`, `loop`, `break`, `continue`, or expression statements.
 
-| Bentuk Grammar | Bentuk Expert | Bentuk Melayu | Nota |
+| Grammar form | Expert form | Malay form | Note |
 |---|---|---|---|
-| Program/block | `{{ ... }}` | `MULA ... TAMAT` | Block eksplisit digunakan untuk program, fungsi, `if`, `else`, dan `hw_unsafe`. |
-| Binding | `let name: Type = expr;` | `BINA name: Type = expr;` | Type annotation boleh wujud atau diinfer. Expert `let` wajib semicolon. |
-| Print | `print expr;` | `PAPAR expr;` | Dalam beginner Melayu, newline boleh menjadi terminator di luar zon kritikal. |
-| Function | `fn name(params) -> Type {{ ... }}` | `FUNGSI name(params) -> Type MULA ... TAMAT` | Parameter menggunakan `name: Type` dan dipisahkan dengan comma. |
-| Return | `return expr;` | `PULANG expr;` | Sah di dalam fungsi sahaja. |
-| Conditional | `if condition then {{ ... }} else {{ ... }}` | `JIKA condition MAKA MULA ... TAMAT MELAINKAN MULA ... TAMAT` | `then/MAKA` boleh diikuti newline sebelum block. |
-| Hardware declaration | `hw name: Type = addr literal;` | `PERKAKASAN name: Type = ALAMAT literal;` | Termasuk syntax kritikal; semicolon eksplisit wajib. |
-| Hardware zone | `hw_unsafe {{ ... }}` | `ZON_PERKAKASAN MULA ... TAMAT` | Block eksplisit wajib dan statement di dalamnya wajib terminator. |
-| Pointer type | `ptr<Type>` | `PTR<Type>` | Termasuk boundary kritikal; digunakan untuk address/provenance typing. |
+| Program/block | `{{ ... }}` | `MULA ... TAMAT` | Explicit blocks are used for programs, functions, `if`, `else`, `while`, `loop`, and `hw_unsafe`. |
+| Binding | `let name: Type = expr;` | `BINA name: Type = expr;` | Type annotations may be explicit or inferred. Expert `let` requires a semicolon. |
+| Print | `print expr;` | `PAPAR expr;` | Malay aliases may be newline-terminated outside critical zones. |
+| Function | `fn name(params) -> Type {{ ... }}` | `FUNGSI name(params) -> Type MULA ... TAMAT` | Parameters use `name: Type` and are separated by commas. |
+| Return | `return expr;` | `PULANG expr;` | Valid inside functions only. |
+| Conditional | `if condition then {{ ... }} else {{ ... }}` | `JIKA condition MAKA MULA ... TAMAT MELAINKAN MULA ... TAMAT` | `then`/`MAKA` may be followed by a newline before the block. |
+| While loop | `while condition {{ ... }}` | `SELAGI condition MULA ... TAMAT` | Executable in v1.21-alpha with Boolean conditions. |
+| Unconditional loop | `loop {{ ... }}` | `ULANG MULA ... TAMAT` | Executable in v1.21-alpha; use `break` or `continue` for loop control. |
+| Loop control | `break;` / `continue;` | `HENTI;` / `LANGKAU;` | Valid only inside `while` or `loop` bodies. |
+| Hardware declaration | `hw name: Type = addr literal;` | `PERKAKASAN name: Type = ALAMAT literal;` | Critical syntax; an explicit semicolon is required. |
+| Hardware zone | `hw_unsafe {{ ... }}` | `ZON_PERKAKASAN MULA ... TAMAT` | Explicit block and explicit statement terminators are required. |
+| Pointer type | `ptr<Type>` | `PTR<Type>` | Critical boundary syntax used for address/provenance typing. |
+| Complex roadmap declarations | `struct`, `enum`, `unsafe`, `extern` | `BENTUK`, `PILIHAN`, `BERISIKO`, `LUAR` | Recognized by the lexer and dictionary, then stopped at parser level with a bilingual unimplemented diagnostic. |
 
-## 3. Struktur Expression
+## 3. Expression Structure
 
-Expression semasa menyokong literal integer, boolean, string literal, variable, literal address menggunakan `addr`, grouped expression menggunakan parentheses, dan operator binary.[2] Keutamaan operator dikendalikan daripada comparison/equality ke arithmetic term/factor.
+Expressions support integer literals, Boolean literals, string literals, variables, address literals using `addr`, grouped expressions using parentheses, and binary operators.[2] Operator precedence is handled from logical `or`/`||` through logical `and`/`&&`, bitwise operators, equality, comparison, shifts, arithmetic terms, and factors.
 
-| Kategori | Operator atau Bentuk | Contoh |
+| Category | Operator or form | Example |
 |---|---|---|
-| Arithmetic | `+`, `-`, `*`, `/` | `seed * scale + 1` |
-| Comparison | `>`, `>=`, `<`, `<=` | `total >= limit` |
+| Logical OR | `||`, `or` | `ready || fallback` |
+| Logical AND | `&&`, `and` | `ok && enabled` |
+| Bitwise | `&`, `|` | `mask & flag` |
 | Equality | `==`, `!=` | `flag == true` |
+| Comparison | `>`, `>=`, `<`, `<=` | `total >= limit` |
+| Shift | `<<`, `>>` | `value << 1` |
+| Arithmetic | `+`, `-`, `*`, `/` | `seed * scale + 1` |
 | Grouping | `(expr)` | `(a + b) * 2` |
 | Address literal | `addr 65280` / `ALAMAT 65280` | `hw port: U16 = addr 65280;` |
 | Boolean literal | `true`, `false` / `BENAR`, `SALAH` | `let ok: Bool = true;` |
 
-## 4. Semicolon dan Layout Tolerance
+## 4. Semicolon and Layout Tolerance
 
-Parser semasa menerima blank lines berganda, CRLF Windows, extra semicolon sebagai layout separator, trailing layout sebelum EOF, dan newline selepas `then/MAKA` atau `else/MELAINKAN` sebelum block bermula. Walau bagaimanapun, **expert syntax kekal strict**: `let`, `print`, dan `return` dalam expert mode perlu diakhiri dengan semicolon.
+The parser accepts repeated blank lines, Windows CRLF input, extra semicolons as layout separators, trailing layout before EOF, and newlines after `then`/`MAKA` or `else`/`MELAINKAN` before a block begins. However, **expert canonical shorthand remains strict**: `let`, `print`, `return`, `break`, and `continue` require explicit semicolons.
 
-| Lokasi | Semicolon diperlukan? | Huraian |
+| Location | Is a semicolon required? | Description |
 |---|---|---|
-| Expert statements | Ya | `let x = 1;`, `print x;`, dan `return x;` mesti mempunyai `;`. |
-| Beginner Melayu di luar zon kritikal | Tidak semestinya | `BINA`, `PAPAR`, dan `PULANG` boleh newline-terminated di luar critical zone. |
-| Hardware zone | Ya | Semua statement di dalam `hw_unsafe` / `ZON_PERKAKASAN` perlu terminator eksplisit. |
-| Hardware declaration dan address syntax | Ya | `hw port: U16 = addr 65280;` wajib `;`. |
+| Expert statements | Yes | `let x = 1;`, `print x;`, `return x;`, `break;`, and `continue;` must end with `;`. |
+| Malay aliases outside critical zones | Not always | `BINA`, `PAPAR`, and `PULANG` may be newline-terminated outside critical zones. |
+| Loop control aliases | Yes | `HENTI;` and `LANGKAU;` require explicit semicolons. |
+| Hardware zone | Yes | Every statement inside `hw_unsafe` / `ZON_PERKAKASAN` requires an explicit terminator. |
+| Hardware declaration and address syntax | Yes | `hw port: U16 = addr 65280;` requires `;`. |
 
-## 5. Contoh Penggunaan
+## 5. Usage Examples
 
-### 5.1 Canonical Expert Mode
+### 5.1 Expert Canonical Shorthand Mode
 
-Contoh ini menggunakan surface canonical compiler sepenuhnya dan mengekalkan terminator eksplisit pada setiap statement.
+This example uses expert canonical shorthand as the complete compiler reference surface and keeps an explicit terminator on every statement.
 
 ```logicodex
 {{
@@ -137,20 +146,16 @@ else
 return value;
 }}
 }}
-if total >= limit then
-{{
-print limit;
-}}
-else
-{{
+while total < limit {{
 print total;
+break;
 }}
 }}
 ```
 
-### 5.2 Pseudo Melayu Rasmi
+### 5.2 Official Malay Pseudocode
 
-Contoh ini mengekalkan maksud program yang sama menggunakan alias `primary_ms`. Semicolon dikekalkan supaya contoh ini mudah dibandingkan dengan expert mode dan masih jelas untuk beginner.
+This example preserves the same program meaning using `primary_ms` aliases. Semicolons are retained so the example remains easy to compare with expert canonical shorthand and clear for human readers.
 
 ```logicodex
 MULA
@@ -169,20 +174,16 @@ MULA
 PULANG value;
 TAMAT
 TAMAT
-JIKA total >= limit MAKA
-MULA
-PAPAR limit;
-TAMAT
-MELAINKAN
-MULA
+SELAGI total < limit MULA
 PAPAR total;
+HENTI;
 TAMAT
 TAMAT
 ```
 
-### 5.3 Pseudo English Compatibility
+### 5.3 Pseudo-English Compatibility
 
-Contoh ini menggunakan alias English/pseudocode yang disenaraikan dalam dictionary. Ia bukan reference mode, tetapi dipetakan kepada token canonical yang sama apabila alias tersebut wujud dalam `core_map.json`.
+This example uses English/pseudocode aliases listed in the dictionary. This is not the reference mode, but the aliases are mapped to the same canonical tokens when they exist in `core_map.json`.
 
 ```logicodex
 START
@@ -201,20 +202,16 @@ START
 RETURN value;
 END
 END
-IF total >= limit THEN
-START
-PRINT limit;
-END
-ELSE
-START
+WHILE total < limit START
 PRINT total;
+BREAK;
 END
 END
 ```
 
-### 5.4 Beginner Melayu dengan Newline Terminator
+### 5.4 Malay Aliases with Newline Terminators
 
-Di luar zon kritikal, `BINA`, `PAPAR`, dan `PULANG` boleh menggunakan newline sebagai terminator. Ini ialah ergonomic baseline untuk beginner tanpa mengubah strictness expert mode.
+Outside critical zones, `BINA`, `PAPAR`, and `PULANG` may use newline terminators. This is the ergonomic baseline for Malay aliases without changing the strictness of expert canonical shorthand mode.
 
 ```logicodex
 MULA
@@ -225,9 +222,9 @@ PAPAR total
 TAMAT
 ```
 
-### 5.5 Hardware Zone yang Strict
+### 5.5 Strict Hardware Zone
 
-Hardware I/O dan raw address syntax berada di bawah boundary policy yang lebih strict.[3] Block perlu eksplisit dan statement di dalam zon perlu semicolon walaupun menggunakan alias Melayu.
+Hardware I/O and raw address syntax remain under a stricter boundary policy.[3] Blocks must be explicit and every statement inside the zone requires a semicolon, even when Malay aliases are used.
 
 ```logicodex
 MULA
@@ -239,25 +236,25 @@ TAMAT
 TAMAT
 ```
 
-## 6. Dictionary Token Lengkap
+## 6. Complete Dictionary Token Table
 
-Jadual berikut dijana terus daripada `dict/core_map.json`.[1] Lajur **Expert canonical** ialah bentuk rujukan compiler; lajur **Primary Melayu** ialah alias manusia utama; dan lajur **Aliases** ialah ejaan tambahan yang diterima jika disenaraikan.
+The following table is generated directly from `dict/core_map.json`.[1] The **Expert canonical shorthand** column is the compiler reference form; **Primary Malay alias (`primary_ms`)** is the main human-facing Malay alias; and **English/pseudocode aliases** lists additional accepted spellings when they are explicitly present.
 
 {token_table(tokens)}
 
-## 7. Nota Had Semasa
+## 7. Current Limit Notes
 
-Sebahagian token dalam dictionary ialah **vocabulary marker** untuk fasa seterusnya dan belum semestinya mempunyai rule parser lengkap dalam v1.21-alpha. Contohnya termasuk `while`, `break`, `continue`, `ffi`, `resource`, dan `drop`. Dokumen ini membezakan token yang wujud dalam dictionary daripada grammar yang benar-benar diparse dalam baseline semasa.
+Logicodex v1.21-alpha uses a **split-implementation** boundary. Control flow and operator tokens listed as executable in the table have AST, parser, semantic, and code-generation coverage. Complex declaration tokens such as `struct`, `enum`, `unsafe`, and `extern` are recognized by the lexer and dictionary, but are intentionally stopped at parser level with a bilingual unimplemented diagnostic until their type-layout, ABI, and safety models are finalized.
 
-## 8. Cara Menjana Semula Dokumen
+## 8. Regenerating This Document
 
-Dokumen ini boleh dijana semula selepas `dict/core_map.json` berubah dengan arahan berikut dari root repository:
+Regenerate this document after `dict/core_map.json` changes by running the following command from the repository root:
 
 ```bash
 python3 scripts/generate_grammar_and_dictionary_md.py
 ```
 
-Selepas menjana semula, jalankan validator projek biasa supaya schema dictionary, parser, dan policy kekal konsisten:
+After regeneration, run the regular project validator so the dictionary schema, parser, and policy remain consistent:
 
 ```bash
 python3 scripts/validate_v121_executable_logic.py

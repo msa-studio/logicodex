@@ -236,15 +236,15 @@ pub struct Lexicon {
 
 #[derive(Debug, Error)]
 pub enum LexError {
-    #[error("failed to read dictionary {path}: {source}")]
+    #[error("gagal membaca dictionary {path}: {source} / failed to read dictionary {path}: {source}")]
     DictionaryRead { path: String, source: std::io::Error },
-    #[error("failed to parse dictionary {path}: {source}")]
+    #[error("gagal menghuraikan dictionary {path}: {source} / failed to parse dictionary {path}: {source}")]
     DictionaryParse { path: String, source: serde_json::Error },
-    #[error("unknown dictionary token identity `{0}`")]
+    #[error("identiti token dictionary tidak diketahui `{0}` / unknown dictionary token identity `{0}`")]
     UnknownIdentity(String),
-    #[error("unexpected character `{ch}` at {line}:{column}")]
+    #[error("aksara tidak dijangka `{ch}` pada {line}:{column} / unexpected character `{ch}` at {line}:{column}")]
     UnexpectedCharacter { ch: char, line: usize, column: usize },
-    #[error("integer literal `{literal}` at {line}:{column} does not fit in i64")]
+    #[error("literal integer `{literal}` pada {line}:{column} tidak muat dalam i64 / integer literal `{literal}` at {line}:{column} does not fit in i64")]
     IntegerOverflow { literal: String, line: usize, column: usize },
 }
 
@@ -411,11 +411,11 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("expected {expected} at {line}:{column}, found `{found}`")]
+    #[error("dijangka {expected} pada {line}:{column}, ditemui `{found}` / expected {expected} at {line}:{column}, found `{found}`")]
     Expected { expected: String, found: String, line: usize, column: usize },
-    #[error("unexpected token `{found}` at {line}:{column}")]
+    #[error("token tidak dijangka `{found}` pada {line}:{column} / unexpected token `{found}` at {line}:{column}")]
     Unexpected { found: String, line: usize, column: usize },
-    #[error("invalid integer literal `{literal}` at {line}:{column}")]
+    #[error("literal integer tidak sah `{literal}` pada {line}:{column} / invalid integer literal `{literal}` at {line}:{column}")]
     InvalidInteger { literal: String, line: usize, column: usize },
 }
 
@@ -595,15 +595,15 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum SemanticError {
-    #[error("variable `{0}` is already defined in this scope")]
+    #[error("pemboleh ubah `{0}` sudah ditakrif dalam skop ini / variable `{0}` is already defined in this scope")]
     DuplicateVariable(String),
-    #[error("variable `{0}` is not defined")]
+    #[error("pemboleh ubah `{0}` tidak ditakrif / variable `{0}` is not defined")]
     UndefinedVariable(String),
-    #[error("operator `{op}` requires {expected} operands but received {left} and {right}")]
+    #[error("operator `{op}` memerlukan operand {expected} tetapi menerima {left} dan {right} / operator `{op}` requires {expected} operands but received {left} and {right}")]
     TypeMismatch { op: BinaryOp, expected: &'static str, left: Type, right: Type },
-    #[error("if condition must be Bool but received {0}")]
+    #[error("syarat if mesti Bool tetapi menerima {0} / if condition must be Bool but received {0}")]
     NonBooleanCondition(Type),
-    #[error("division by a constant zero is rejected by static analysis")]
+    #[error("pembahagian dengan sifar malar ditolak oleh analisis statik / division by a constant zero is rejected by static analysis")]
     DivisionByZero,
 }
 

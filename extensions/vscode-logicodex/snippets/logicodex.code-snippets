@@ -52,6 +52,33 @@
       "TAMAT"
     ]
   },
+  "Logicodex While Vocabulary Marker": {
+    "prefix": "ldx-while-token",
+    "description": "Lexical-only while-loop vocabulary marker for future parser support.",
+    "body": [
+      "selagi ${1:condition}",
+      "MULA",
+      "${2:# future parser support}",
+      "TAMAT"
+    ]
+  },
+  "Logicodex Struct Vocabulary Marker": {
+    "prefix": "ldx-struct-token",
+    "description": "Lexical-only struct vocabulary marker for future parser support.",
+    "body": [
+      "bentuk ${1:Name}",
+      "MULA",
+      "${2:field}: ${3:I64};",
+      "TAMAT"
+    ]
+  },
+  "Logicodex Extern Vocabulary Marker": {
+    "prefix": "ldx-extern-token",
+    "description": "Lexical-only extern vocabulary marker for future FFI parser support.",
+    "body": [
+      "luar fn ${1:name}(${2:value}: ${3:I64}) -> ${4:I64};"
+    ]
+  },
   "Logicodex Hardware Zone": {
     "prefix": "ldx-hw",
     "description": "Explicit hardware unsafe zone skeleton.",

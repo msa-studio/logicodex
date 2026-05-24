@@ -1,42 +1,42 @@
 # Logicodex VS Code Side View
 
-Dokumen ini menerangkan cara menggunakan **Logicodex Side View** untuk **current logicodex v 1.21 alpha**. Extension ini dibina sebagai MVP tanpa mengubah kod Rust. Ia menyediakan syntax highlighting, snippets, dan panel sebelah kanan yang memaparkan bentuk **canonical expert preview** berdasarkan `dict/core_map.json`.
+This document explains how to use **Logicodex Side View** for **current Logicodex v1.21-alpha**. The extension is built as an MVP without changing the Rust compiler. It provides syntax highlighting, snippets, and a right-side panel that displays a **best-effort expert canonical shorthand preview** based on `dict/core_map.json`.
 
-> Extension ini ialah **best-effort preview**, bukan compiler-backed translator. Ia melakukan normalisasi token daripada pseudo Melayu atau pseudo English kepada expert canonical, tetapi validasi sebenar masih perlu dibuat melalui compiler Logicodex.
+> This extension is a **best-effort preview**, not a compiler-backed translator. It normalizes Malay pseudocode and English pseudocode aliases to expert canonical shorthand, while real validation must still be performed through the Logicodex compiler.
 
-## Kedudukan Dalam Repository
+## Repository Location
 
-Extension diletakkan di bawah `extensions/vscode-logicodex/` supaya ia boleh dibangunkan bersama repository utama tanpa menyentuh `src/*.rs`.
+The extension lives under `extensions/vscode-logicodex/` so it can be developed with the main repository without touching `src/*.rs`.
 
-| Path | Tujuan |
+| Path | Purpose |
 |---|---|
-| `extensions/vscode-logicodex/src/extension.ts` | Entry point VS Code, command registration, Webview side-view, dan auto-refresh. |
-| `extensions/vscode-logicodex/src/dictionary.ts` | Loader `core_map.json` daripada setting, workspace `dict/core_map.json`, atau snapshot bundled. |
-| `extensions/vscode-logicodex/src/previewNormalizer.ts` | Normalizer token-level pseudo Melayu/English kepada expert canonical. |
-| `extensions/vscode-logicodex/syntaxes/logicodex.tmLanguage.json` | Syntax highlighting asas untuk `.ldx`. |
-| `extensions/vscode-logicodex/snippets/logicodex.code-snippets` | Snippets untuk program, fungsi, if/else, dan hardware zone. |
-| `extensions/vscode-logicodex/resources/core_map.json` | Snapshot fallback dictionary semasa extension dipasang di luar workspace repo. |
-| `extensions/vscode-logicodex/dist/*.tar.gz` | Pakej tar.gz untuk dipindahkan atau dipasang secara manual. |
+| `extensions/vscode-logicodex/src/extension.ts` | VS Code entry point, command registration, Webview side-view, and auto-refresh. |
+| `extensions/vscode-logicodex/src/dictionary.ts` | Loads `core_map.json` from settings, workspace `dict/core_map.json`, or the bundled snapshot. |
+| `extensions/vscode-logicodex/src/previewNormalizer.ts` | Token-level normalizer from Malay/English pseudocode aliases to expert canonical shorthand. |
+| `extensions/vscode-logicodex/syntaxes/logicodex.tmLanguage.json` | Basic syntax highlighting for `.ldx`. |
+| `extensions/vscode-logicodex/snippets/logicodex.code-snippets` | Snippets for programs, functions, if/else, loop forms, and hardware zones. |
+| `extensions/vscode-logicodex/resources/core_map.json` | Fallback dictionary snapshot used when the extension runs outside the repository workspace. |
+| `extensions/vscode-logicodex/dist/*.tar.gz` | Tarball package for manual transfer or local installation. |
 
-## Cara Apply Di Visual Studio Code
+## Running in Visual Studio Code
 
-Kaedah paling mudah untuk mencuba extension ini ialah menggunakan **Extension Development Host**. Ini tidak memerlukan publish ke Marketplace dan sesuai untuk development tempatan.
+The easiest way to try the extension is through the **Extension Development Host**. This does not require publishing to the Marketplace and is appropriate for local development.
 
-| Langkah | Arahan |
+| Step | Instruction |
 |---|---|
-| 1 | Buka VS Code pada folder repository: `code /path/to/logicodex`. |
-| 2 | Buka terminal VS Code dan masuk ke `extensions/vscode-logicodex`. |
-| 3 | Jalankan `npm install` jika belum dibuat. |
-| 4 | Jalankan `npm run compile`. |
-| 5 | Tekan `F5` dalam VS Code untuk membuka **Extension Development Host**. |
-| 6 | Dalam window baharu itu, buka fail `.ldx`, contohnya `extensions/vscode-logicodex/examples/side_view_demo.ldx`. |
-| 7 | Jalankan command palette `Ctrl+Shift+P` atau `Cmd+Shift+P`, kemudian pilih **Logicodex: Open Expert Side View**. |
+| 1 | Open VS Code at the repository folder: `code /path/to/logicodex`. |
+| 2 | Open the VS Code terminal and enter `extensions/vscode-logicodex`. |
+| 3 | Run `npm install` if dependencies are not installed yet. |
+| 4 | Run `npm run compile`. |
+| 5 | Press `F5` in VS Code to open the **Extension Development Host**. |
+| 6 | In the new window, open an `.ldx` file, for example `extensions/vscode-logicodex/examples/side_view_demo.ldx`. |
+| 7 | Open the command palette with `Ctrl+Shift+P` or `Cmd+Shift+P`, then choose **Logicodex: Open Expert Side View**. |
 
-Selepas panel dibuka, edit fail `.ldx` di sebelah kiri. Preview akan dikemas kini secara automatik selepas debounce ringkas. Jika perlu, command **Logicodex: Refresh Expert Side View** boleh digunakan untuk refresh manual.
+After the panel opens, edit the `.ldx` file on the left side. The preview updates automatically after a short debounce. If needed, use **Logicodex: Refresh Expert Side View** for a manual refresh.
 
-## Cara Guna Dari Pakej Tar.gz
+## Using the Tarball Package
 
-Pakej tar.gz boleh digunakan sebagai artefak pembangunan ringkas. Ia tidak sama seperti `.vsix`, tetapi berguna untuk dihantar kepada delegate atau diekstrak ke mana-mana folder pembangunan.
+The tarball package is a lightweight development artifact. It is not the same as a `.vsix`, but it is useful for sending the extension to another developer or extracting it into any development folder.
 
 ```bash
 cd extensions/vscode-logicodex
@@ -47,33 +47,36 @@ tar -xzf dist/logicodex-side-view-0.1.0.tar.gz -C /tmp/logicodex-vscode-extensio
 code /tmp/logicodex-vscode-extension/logicodex-side-view-0.1.0
 ```
 
-Dalam folder hasil extract, jalankan `npm install` dan `npm run compile` jika mahu menjalankan Extension Development Host daripada salinan tersebut.
+Inside the extracted folder, run `npm install` and `npm run compile` if you want to launch an Extension Development Host from that copy.
 
-## Behavior Preview
+## Preview Behavior
 
-Extension membaca dictionary dan membina peta alias kepada expert canonical. Contohnya, `MULA` akan dipaparkan sebagai `{`, `TAMAT` sebagai `}`, `BINA` sebagai `let`, `PAPAR` sebagai `print`, `FUNGSI` sebagai `fn`, `JIKA` sebagai `if`, `MAKA` sebagai `then`, `MELAINKAN` sebagai `else`, dan `PULANG` sebagai `return`.
+The extension reads the dictionary and builds an alias-to-expert-canonical map. For example, `MULA` previews as `{`, `TAMAT` previews as `}`, `BINA` previews as `let`, `PAPAR` previews as `print`, `FUNGSI` previews as `fn`, `JIKA` previews as `if`, `MAKA` previews as `then`, `MELAINKAN` previews as `else`, `PULANG` previews as `return`, `SELAGI` previews as `while`, `ULANG` previews as `loop`, `HENTI` previews as `break`, and `LANGKAU` previews as `continue`.
 
-| Input pseudo | Preview expert |
+| Input pseudocode | Expert preview |
 |---|---|
 | `MULA` | `{` |
 | `BINA seed: I64 = 21;` | `let seed: I64 = 21;` |
 | `PAPAR seed;` | `print seed;` |
 | `FUNGSI clamp(value: I64) -> I64 MULA` | `fn clamp(value: I64) -> I64 {` |
+| `SELAGI seed < 30 MULA` | `while seed < 30 {` |
+| `HENTI;` | `break;` |
+| `LANGKAU;` | `continue;` |
 | `PULANG value;` | `return value;` |
 | `TAMAT` | `}` |
 
-Normalizer mengelak replacement di dalam string literal dan comment supaya teks dokumentasi dalam kod tidak diubah secara agresif. Ia juga boleh menambah semicolon preview untuk statement beginner newline-terminated seperti `BINA`, `PAPAR`, dan `PULANG`, mengikut setting `logicodexSideView.insertMissingBeginnerSemicolons`.
+The normalizer avoids replacements inside string literals and comments so documentation text inside code is not aggressively changed. It can also add preview semicolons for newline-terminated Malay statement aliases such as `BINA`, `PAPAR`, and `PULANG`, following the legacy `logicodexSideView.insertMissingBeginnerSemicolons` setting.
 
 ## Settings
 
-| Setting | Default | Kegunaan |
+| Setting | Default | Purpose |
 |---|---:|---|
-| `logicodexSideView.debounceMs` | `300` | Masa menunggu sebelum preview refresh selepas edit. |
-| `logicodexSideView.showLineNumbers` | `true` | Paparkan nombor baris dalam side-view. |
-| `logicodexSideView.insertMissingBeginnerSemicolons` | `true` | Tambah semicolon preview untuk statement beginner yang sesuai. |
-| `logicodexSideView.dictionaryPath` | `""` | Path custom kepada `core_map.json`; jika kosong, extension cuba workspace `dict/core_map.json`, kemudian bundled fallback. |
+| `logicodexSideView.debounceMs` | `300` | Wait time before the preview refreshes after edits. |
+| `logicodexSideView.showLineNumbers` | `true` | Shows line numbers in the side-view. |
+| `logicodexSideView.insertMissingBeginnerSemicolons` | `true` | Adds preview semicolons for suitable Malay statement aliases; the setting name is retained for MVP compatibility. |
+| `logicodexSideView.dictionaryPath` | `""` | Custom path to `core_map.json`; when empty, the extension tries workspace `dict/core_map.json` and then the bundled fallback. |
 
-Contoh `.vscode/settings.json`:
+Example `.vscode/settings.json`:
 
 ```json
 {
@@ -84,34 +87,34 @@ Contoh `.vscode/settings.json`:
 }
 ```
 
-## Batasan Yang Sengaja Dikekalkan
+## Deliberate MVP Limits
 
-Extension ini tidak melaksanakan parser Logicodex dalam TypeScript kerana parser sebenar berada dalam Rust. Oleh itu, ia tidak melakukan type checking, semantic checking, provenance checking, hardware-zone validation, atau code generation. Tanggungjawab extension ini ialah UX: membantu pengguna melihat padanan canonical expert dengan cepat semasa menulis pseudo Melayu atau pseudo English.
+The extension does not implement the Logicodex parser in TypeScript because the real parser is in Rust. Therefore, it does not perform type checking, semantic checking, provenance checking, hardware-zone validation, or code generation. Its responsibility is UX: helping users quickly see the expert canonical shorthand that corresponds to Malay or English pseudocode aliases.
 
-| Perkara | Status MVP |
+| Item | MVP status |
 |---|---|
-| Side-view canonical expert | Disokong secara best-effort. |
-| Syntax highlighting `.ldx` | Disokong. |
-| Snippets | Disokong. |
-| Compiler-backed translate | Belum disokong kerana Rust tidak disentuh. |
-| Semantic diagnostics live | Belum disokong. |
-| `.vsix` Marketplace package | Belum disediakan; artefak semasa ialah tar.gz. |
+| Side-view expert canonical shorthand | Supported on a best-effort basis. |
+| `.ldx` syntax highlighting | Supported. |
+| Snippets | Supported. |
+| Compiler-backed translation | Not supported yet because translation must come from the Rust compiler. |
+| Live semantic diagnostics | Not supported yet. |
+| `.vsix` Marketplace package | Not prepared yet; the current artifact is a tarball. |
 
-## Validasi Sebenar
+## Real Validation
 
-Untuk validasi sebenar, gunakan compiler Logicodex daripada root repository. Contoh:
+For real validation, use the Logicodex compiler from the repository root. Example:
 
 ```bash
 cargo run --quiet -- check extensions/vscode-logicodex/examples/side_view_demo.ldx
 ```
 
-Jika mahu extension memanggil compiler secara automatik pada masa hadapan, reka bentuk yang disyorkan ialah menambah command berasingan yang menjalankan `logicodex check` terhadap fail aktif. Itu masih boleh dibuat tanpa mengubah Rust jika subcommand sedia ada mencukupi, tetapi untuk translation rasmi, subcommand Rust seperti `translate --stdin --to expert` tetap diperlukan pada fasa berikutnya.
+If the extension should call the compiler automatically in the future, the recommended design is to add a separate command that runs `logicodex check` against the active file. That can still be done without changing Rust if the current subcommand is sufficient, but official translation should eventually come from a Rust compiler subcommand such as `translate --stdin --to expert`.
 
-## Rujukan Teknikal
+## Technical References
 
-VS Code menyediakan Webview API untuk membina view custom di dalam editor, dan extension ini menggunakannya dengan script disabled serta Content Security Policy ringkas supaya panel hanya memaparkan HTML statik. Dokumentasi rasmi VS Code juga menyarankan contribution points seperti languages, grammars, snippets, commands, dan configuration untuk integrasi editor yang biasa digunakan dalam extension.
+VS Code provides a Webview API for building custom views inside the editor, and this extension uses it with scripts disabled and a simple Content Security Policy so the panel renders static HTML only. The official VS Code documentation also recommends contribution points such as languages, grammars, snippets, commands, and configuration for typical editor integrations.
 
-| Rujukan | Pautan |
+| Reference | Link |
 |---|---|
 | VS Code Webview API | <https://code.visualstudio.com/api/extension-guides/webview> |
 | VS Code Contribution Points | <https://code.visualstudio.com/api/references/contribution-points> |

@@ -96,7 +96,7 @@ If a runtime error escapes static compilation analysis or triggers during future
 - **TIER 3: LOW:** Intended for warnings such as safe integer truncation, benign wrap-around, or deprecated library use. Prefer diagnostics and metadata unless measured runtime behavior is explicitly implemented.
 
 ## 3. Generic Hardware I/O Capability Gating
-Raw hardware-address manipulation must be explicitly scoped through `ZON_PERKAKASAN { ... }` or `hw_unsafe { ... }`. Outside this lexical zone, semantic analysis rejects raw address pointer bindings with the Level 1 diagnostic: `KRITIKAL: General Error Tahap 1 - Percubaan Mutasi Perkakasan Tanpa Kebenaran Skop Zon Selamat.` This remains a practical baseline gate; volatile lowering, dynamic device manifests, and hardware mutex coordination remain deferred roadmap work.
+Raw hardware-address manipulation must be explicitly scoped through `ZON_PERKAKASAN { ... }` or `hw_unsafe { ... }`. Outside this lexical zone, semantic analysis rejects raw address pointer bindings with the Level 1 diagnostic: `KRITIKAL: Ralat Umum Tahap 1 - Percubaan Mutasi Perkakasan Tanpa Kebenaran Skop Zon Selamat / CRITICAL: General Error Level 1 - Attempted Hardware Mutation Without Safe Zone Scope Authorization.` This remains a practical baseline gate; volatile lowering, dynamic device manifests, and hardware mutex coordination remain deferred roadmap work.
 '''
 
 REPOS_CONTEXT = '''# Logicodex Repository Context Document
