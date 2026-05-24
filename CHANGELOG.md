@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #16] — 2026-05-24 — Sprint 1 Bugfixes (8 critical fixes)
+
+### Fixed
+- **CRITICAL #1**: `ast_type_to_id` returned invalid `TypeId(1000+)` — would panic on `resolve()`
+- **CRITICAL #2**: Circular dependency `types.rs ↔ semantic/coercion.rs` broke compilation
+- **CRITICAL #3**: `use` statement inside method body — invalid Rust syntax
+- **HIGH #4**: `coercion.rs` test `setup()` — self-referential lifetime issue
+- **HIGH #5**: `type_checker.rs` test — same self-referential pattern
+- **MEDIUM #6**: `infer_default_type` returned `I64` for all complex expressions → now `Option<Type>`
+- **MEDIUM #7**: `c_void_ptr`/`c_const_char_ptr` needed `&mut self` — inconsistent API → added `void_ptr()`/`const_char_ptr()` with `&self`
+- **LOW #8**: `explain_incompatibility` only covered Bool/String → expanded to all cases
+
+### Changed
+- `src/types.rs`: Removed AST bridge (→ TypeChecker), added `&self` pointer accessors
+- `src/semantic/type_checker.rs`: Added bridge functions, fixed lifetimes, `Option<Type>` inference
+- `src/semantic/coercion.rs`: Fixed test helper lifetime
+
+### Validation
+- v1.21 executable logic: 9/9 checks PASSED
+- Sprint 1.1 structural: 32/32 checks PASSED
+- Sprint 1.2 structural: 20/20 checks PASSED
+
 ## [Merged via PR #15] — 2026-05-24 — Sprint 1.2: Parser Type Injection
 
 ### Added
