@@ -97,7 +97,7 @@ The current documentation set now separates language grammar, environment setup,
 | `MANUAL.md` | Provides concise compiler usage, build commands, and frontend architecture notes. |
 | `docs/VS_CODE_EXTENSION.md` | Explains how to run the Logicodex VS Code Side View MVP for best-effort Malay/English pseudocode alias to expert canonical shorthand preview without changing Rust. |
 | `v121_execution_design.md` | Captures the executable-logic and provenance design track for the v1.21-alpha milestone. |
-| `spec/v1.30-alpha/v130_architecture_design.md` | Defines the documentation-first v1.30 architecture baseline with Rust skeleton structures for spans, HIR, type registry, struct layout, enum representation, FFI signatures, unsafe gatekeeping, semantic validation, and codegen contracts. |
+| `spec/v1.30.0-alpha/v130_architecture_design.md` | Defines the documentation-first v1.30 architecture baseline with Rust skeleton structures for spans, HIR, type registry, struct layout, enum representation, FFI signatures, unsafe gatekeeping, semantic validation, and codegen contracts. |
 
 ## Practical Roadmap Summary
 

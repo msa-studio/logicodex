@@ -102,7 +102,7 @@ enum Commands {
     #[command(
         name = "v130-check",
         hide = true,
-        about = "Run dormant v1.30 subsystem validation after the stable v1.21 semantic check"
+        about = "Run dormant v1.30.0-alpha subsystem validation after the stable v1.21 semantic check"
     )]
     V130Check {
         #[arg(value_name = "FILE")]
@@ -268,7 +268,7 @@ fn v130_check(file: &Path, dict: &Path) -> Result<()> {
     parse_and_analyze(file, dict)?;
     run_v130_subsystem_self_check()?;
     println!(
-        "{}: v1.21 semantic validation and dormant v1.30 subsystem check succeeded",
+        "{}: v1.21 semantic validation and dormant v1.30.0-alpha subsystem check succeeded",
         file.display()
     );
     Ok(())
