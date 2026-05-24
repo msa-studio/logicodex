@@ -1,0 +1,62 @@
+// =========================================================================
+// Logicodex v1.30 — Ketuk 2: Result<T, E> Abstraction
+//
+// Semua operasi IO mesti return Result<T, IoError>.
+// Developer mesti handle error — tak boleh ignore.
+//
+// Syntax:
+//   function read_file(path: []u8) -> Result<[]u8, IoError>
+//
+//   match read_file("/data.txt") {
+//     Ok(data) => process(data),
+//     Err(e)   => print(e.message)
+//   }
+// =========================================================================
+
+// ─── unwrap_or ───
+// Ambil nilai Ok, atau return default jika Err.
+function unwrap_or<T, E>(r: Result<T, E>, default: T) -> T {
+    match r {
+        Ok(v) => v,
+        Err(_) => default
+    }
+}
+
+// ─── expect ───
+// Ambil nilai Ok, atau panic dengan mesej jika Err.
+function expect<T, E>(r: Result<T, E>, message: []u8) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => {
+            print(message)
+            panic("Result::expect failed")
+        }
+    }
+}
+
+// ─── is_ok ───
+// Check jika Result adalah Ok.
+function is_ok<T, E>(r: Result<T, E>) -> bool {
+    match r {
+        Ok(_) => true,
+        Err(_) => false
+    }
+}
+
+// ─── is_err ───
+// Check jika Result adalah Err.
+function is_err<T, E>(r: Result<T, E>) -> bool {
+    match r {
+        Ok(_) => false,
+        Err(_) => true
+    }
+}
+
+// ─── map ───
+// Transform Ok value dengan fungsi.
+function map<T, U, E>(r: Result<T, E>, f: fn(T) -> U) -> Result<U, E> {
+    match r {
+        Ok(v) => Ok(f(v)),
+        Err(e) => Err(e)
+    }
+}

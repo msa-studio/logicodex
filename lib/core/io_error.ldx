@@ -1,0 +1,41 @@
+// =========================================================================
+// Logicodex v1.30 — Ketuk 2: IoError Enum
+//
+// Semua error IO menggunakan enum ini.
+// Bilingual: mesej ada dalam Malay + English.
+// =========================================================================
+
+enum IoError {
+    FileNotFound,
+    PermissionDenied,
+    InvalidPath,
+    BufferTooSmall,
+    DiskFull,
+    Unknown
+}
+
+// ─── message ───
+// Ambil mesej bilingual untuk error.
+function message(err: IoError) -> []u8 {
+    match err {
+        FileNotFound      => "Fail tidak dijumpai / File not found",
+        PermissionDenied  => "Kebenaran dinafikan / Permission denied",
+        InvalidPath       => "Laluan tidak sah / Invalid path",
+        BufferTooSmall    => "Penimbal terlalu kecil / Buffer too small",
+        DiskFull          => "Cakera penuh / Disk full",
+        Unknown           => "Ralat tidak diketahui / Unknown error"
+    }
+}
+
+// ─── code ───
+// Ambil kod numerik untuk error (POSIX-compatible).
+function code(err: IoError) -> i32 {
+    match err {
+        FileNotFound      => 2,    // ENOENT
+        PermissionDenied  => 13,   // EACCES
+        InvalidPath       => 22,   // EINVAL
+        BufferTooSmall    => 105,  // ENOBUFS
+        DiskFull          => 28,   // ENOSPC
+        Unknown           => 999   // Custom
+    }
+}
