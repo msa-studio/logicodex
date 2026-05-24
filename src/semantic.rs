@@ -5,6 +5,9 @@
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
+pub mod coercion;
+pub mod registry;
+
 use crate::ast::{BinaryOp, Expr, Program, Stmt, Type};
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;

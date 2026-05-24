@@ -195,6 +195,154 @@ impl TypeRegistry {
     pub fn is_empty(&self) -> bool {
         self.kinds.is_empty()
     }
+
+    /// Resolve a TypeId to its TypeKind, panicking if invalid.
+    /// Use this when the TypeId is known to be valid (internal use).
+    pub fn resolve(&self, id: TypeId) -> &TypeKind {
+        self.get(id)
+            .unwrap_or_else(|| panic!("BUG: invalid TypeId({})", id.0))
+    }
+
+    /// Byte size of a type for the target platform (64-bit).
+    /// This is the Single Source of Truth for memory layout calculations.
+    pub fn get_size(&self, id: TypeId) -> usize {
+        match self.resolve(id) {
+            TypeKind::Primitive(primitive) => match primitive {
+                PrimitiveType::Bool => 1,
+                PrimitiveType::I8 => 1,
+                PrimitiveType::I16 => 2,
+                PrimitiveType::I32 => 4,
+                PrimitiveType::I64 => 8,
+                PrimitiveType::U8 => 1,
+                PrimitiveType::U16 => 2,
+                PrimitiveType::U32 => 4,
+                PrimitiveType::U64 => 8,
+                PrimitiveType::F32 => 4,
+                PrimitiveType::F64 => 8,
+                PrimitiveType::String => 8, // pointer-sized
+                PrimitiveType::Unit => 0,
+            },
+            TypeKind::Pointer { .. } => 8, // 64-bit pointer
+            TypeKind::Struct(_) => {
+                // Sprint 3: LayoutEngine integration
+                panic!("TypeRegistry::get_size for Struct requires LayoutEngine (Sprint 3)")
+            }
+            TypeKind::Enum(_) => {
+                // Sprint 3: LayoutEngine integration
+                panic!("TypeRegistry::get_size for Enum requires LayoutEngine (Sprint 3)")
+            }
+            TypeKind::Array { element, len } => self.get_size(*element) * len,
+            TypeKind::Function(_) => 8, // function pointer size
+            TypeKind::Never => 0,
+            TypeKind::Unknown => 0,
+        }
+    }
+
+    /// Alignment of a type for the target platform (64-bit).
+    /// Critical for FFI — C ABI requires correct alignment.
+    pub fn get_align(&self, id: TypeId) -> usize {
+        match self.resolve(id) {
+            TypeKind::Primitive(primitive) => match primitive {
+                PrimitiveType::Bool => 1,
+                PrimitiveType::I8 => 1,
+                PrimitiveType::I16 => 2,
+                PrimitiveType::I32 => 4,
+                PrimitiveType::I64 => 8,
+                PrimitiveType::U8 => 1,
+                PrimitiveType::U16 => 2,
+                PrimitiveType::U32 => 4,
+                PrimitiveType::U64 => 8,
+                PrimitiveType::F32 => 4,
+                PrimitiveType::F64 => 8,
+                PrimitiveType::String => 8, // pointer-aligned
+                PrimitiveType::Unit => 1,
+            },
+            TypeKind::Pointer { .. } => 8,
+            TypeKind::Struct(_) => {
+                panic!("TypeRegistry::get_align for Struct requires LayoutEngine (Sprint 3)")
+            }
+            TypeKind::Enum(_) => {
+                panic!("TypeRegistry::get_align for Enum requires LayoutEngine (Sprint 3)")
+            }
+            TypeKind::Array { element, .. } => self.get_align(*element),
+            TypeKind::Function(_) => 8,
+            TypeKind::Never => 1,
+            TypeKind::Unknown => 1,
+        }
+    }
+
+    /// C ABI size and alignment combined — used by FFI layer.
+    pub fn c_abi_info(&self, id: TypeId) -> CAbiInfo {
+        CAbiInfo {
+            size: self.get_size(id),
+            align: self.get_align(id),
+        }
+    }
+
+    // ─── FFI Type Aliases ───
+    // These map C types to Logicodex types for FFI calls.
+    // They are convenience methods that return the corresponding TypeId.
+
+    /// C `int` — typically 32-bit on all modern platforms.
+    pub fn c_int(&self) -> TypeId {
+        self.primitive_cache.i32_
+    }
+
+    /// C `unsigned int`.
+    pub fn c_uint(&self) -> TypeId {
+        self.primitive_cache.u32_
+    }
+
+    /// C `long` — same as i64 on LP64 (Linux/macOS 64-bit).
+    pub fn c_long(&self) -> TypeId {
+        self.primitive_cache.i64_
+    }
+
+    /// C `float`.
+    pub fn c_float(&self) -> TypeId {
+        self.primitive_cache.f32_
+    }
+
+    /// C `double`.
+    pub fn c_double(&self) -> TypeId {
+        self.primitive_cache.f64_
+    }
+
+    /// C `char` (signed).
+    pub fn c_char(&self) -> TypeId {
+        self.primitive_cache.i8_
+    }
+
+    /// C `unsigned char`.
+    pub fn c_uchar(&self) -> TypeId {
+        self.primitive_cache.u8_
+    }
+
+    /// C `void*` — pointer to unit (opaque pointer).
+    pub fn c_void_ptr(&mut self) -> TypeId {
+        let unit = self.primitive_cache.unit;
+        self.intern(TypeKind::Pointer {
+            pointee: unit,
+            mutability: Mutability::Mutable,
+        })
+    }
+
+    /// C `const char*` — pointer to i8 (for strings).
+    pub fn c_const_char_ptr(&mut self) -> TypeId {
+        let i8_ = self.primitive_cache.i8_;
+        self.intern(TypeKind::Pointer {
+            pointee: i8_,
+            mutability: Mutability::Immutable,
+        })
+    }
+}
+
+/// C ABI metadata for a type.
+/// Used by the FFI layer to ensure correct calling conventions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CAbiInfo {
+    pub size: usize,
+    pub align: usize,
 }
 
 fn push_kind(kinds: &mut Vec<TypeKind>, kind: TypeKind) -> TypeId {
