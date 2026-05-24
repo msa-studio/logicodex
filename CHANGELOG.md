@@ -6,7 +6,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
-## [Merged via PR #28] — 2026-05-25 — v1.30.1-alpha Fasa 2: Zero-Copy Ownership Transfer
+## [Merged via PR #30] — 2026-05-25 — v1.30.1-alpha Phase 3: Backpressure + Scheduler
+
+### Added
+- **AST** (`src/ast.rs`): `Expr::TrySend`, `Expr::TryRecv`, `Expr::Yield`, `Expr::Sleep`, `Expr::TimeoutRecv`
+- **Lexer** (`src/lexer.rs`): `TokenKind::TrySend`, `TryRecv`, `Yield`, `Sleep` + default aliases
+- **Parser** (`src/parser.rs`): `channel.try_send(v)`, `channel.try_recv()`, `yield()`, `sleep(ms)`, `channel.timeout_recv(ms)`
+- **Semantic** (`src/semantic.rs`):
+  - `ChannelFull { name }` error — backpressure when channel buffer is full
+  - `RecvTimeout { name, timeout_ms }` error — recv exceeded timeout
+  - Type checking for all Phase 3 expressions (ownership transfer on try_send, numeric duration validation)
+- **Codegen** (`src/codegen.rs`): Phase 3 stubs with backpressure-aware + scheduler comments
+- **Native Library** (`lib/core/ring_buffer.ldx`): `ring_try_send` (Result<bool, IoError>), `ring_try_recv` (Option<T>), `ring_timeout_recv` (Result<T, RecvTimeout>)
+- **Native Library** (`lib/core/scheduler.ldx`): Cooperative scheduler with round-robin — `sched_new`, `sched_register`, `sched_unregister`, `sched_next_actor`, `sched_all_done`, `sched_run`, `sched_yield_threshold`
+- **Tests**: `tests/threading_fasa3.rs` (14 assertions)
+- **Validator**: `scripts/validate_threading_fasa3.py` (10 checks)
+
+### Validation
+- Phase 3 Backpressure: 10/10 | Phase 2 Ownership: 6/6 | Phase 1 Threading: 8/8 | v1.21: 9/9 | **Total: 33/33 ✅**
+
+## [Merged via PR #29] — 2026-05-25 — BREAKING CHANGE: Malay Syntax → English for International Acceptance
+
+### Changed
+All threading syntax keywords renamed from Malay to English for international standards compliance.
+
+| Malay (old) | English (new) | Purpose |
+|---|---|---|
+| `kotak` | `actor` | Concurrency unit (actor-model) |
+| `pintu` | `channel` | SPSC communication channel |
+| `lahirkan` | `spawn` | Create actor instance |
+| `hantar` | `send` | Send value through channel |
+| `terima` | `recv` | Receive value from channel |
+| `tunggu` | `join` | Wait for actor completion |
+
+### Internal Renames
+- `Stmt::Kotak` → `Stmt::Actor`, `Type::Pintu` → `Type::Channel`, `Expr::Hantar` → `Expr::Send`, `Expr::Terima` → `Expr::Recv`, `Expr::Tunggu` → `Expr::Join`
+- `TokenKind::{Kotak,Pintu,Lahirkan,Hantar,Terima,Tunggu}` → English equivalents
+- `kotak_registry` → `actor_registry`, `pintu_registry` → `channel_registry`, `moved_via_pintu` → `moved_via_channel`
+- `UseAfterHantar` → `UseAfterSend`, `KotakNotFound` → `ActorNotFound`, `InvalidPintuTopology` → `InvalidChannelTopology`, `DuplicateKotak` → `DuplicateActor`, `SpawnNonKotak` → `SpawnNonActor`
+
+### Files Modified (12 files, ~875 lines)
+`src/ast.rs`, `src/lexer.rs`, `src/parser.rs`, `src/semantic.rs`, `src/codegen.rs`, `tests/threading_foundation.rs`, `tests/threading_fasa2.rs`, `lib/core/ring_buffer.ldx`, `lib/core/thread.ldx`, `scripts/validate_threading_foundation.py`, `scripts/validate_threading_fasa2.py`
+
+### Validation
+- Threading Foundation: 8/8 ✅ | Phase 2 Ownership: 6/6 ✅ | v1.21: 9/9 ✅
+
+## [Merged via PR #28] — 2026-05-25 — v1.30.1-alpha Phase 2: Zero-Copy Ownership Transfer
 
 ### Added
 - **Semantic** (`src/semantic.rs`): Zero-copy ownership transfer via Pintu `hantar()`
