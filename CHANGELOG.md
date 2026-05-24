@@ -6,6 +6,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #14] — 2026-05-24 — Sprint 1.1: Type System Foundation
+
+### Added
+- **TypeRegistry enhancements** (`src/types.rs`):
+  - `get_size(TypeId) -> usize` — deterministic byte sizes (I32=4, I64=8, Ptr=8)
+  - `get_align(TypeId) -> usize` — C ABI alignment
+  - `resolve(TypeId) -> &TypeKind` — infallible lookup
+  - `c_abi_info(TypeId) -> CAbiInfo` — combined size+align for FFI
+  - FFI type aliases: `c_int()`, `c_double()`, `c_void_ptr()`, `c_const_char_ptr()`
+- **TypeInspector** (`src/semantic/registry.rs`): High-level type queries
+  - `is_integer`, `is_float`, `is_numeric`, `is_pointer`, `is_bool`
+  - `type_name()` for diagnostic messages
+  - `validate_ffi_type()` for FFI boundary checks
+  - `is_lossless_conversion()` for widening checks
+- **CoercionEngine** (`src/semantic/coercion.rs`): Full coercion matrix
+  - `CoercionResult` enum: `Identity`, `Implicit`, `RequiresCast`, `Incompatible`
+  - `can_coerce(from, to)` — complete coercion rules
+  - `common_type(left, right)` — binary operation type inference
+  - Widening: I32→I64, I32→F64, F32→F64, String→*const I8 (implicit)
+  - Narrowing: I64→I32, F64→I32 (requires explicit cast)
+- **Raylib FFI** (`src/ffi/raylib_sys.rs` + `src/ffi/raylib.rs`):
+  - Raw `extern "C"` declarations for 20 core functions
+  - C types: `Color` (4 bytes), `Vector2` (8 bytes), `Texture2D` (20 bytes)
+  - Safe wrapper layer with null-checks
+  - `CallableRegistry` integration (28 functions, all `UnsafeRequired`)
+  - Coverage: windowing, drawing, textures, input
+- **Library target** (`src/lib.rs` + `Cargo.toml`): `[lib]` section for integration tests
+- **Tests** (`tests/type_registry_test.rs` + `tests/raylib_ffi_test.rs`):
+  - 38 assertions covering sizes, alignment, idempotency, FFI, coercion, layouts
+- **Validator** (`scripts/validate_sprint1_type_registry.py`): 32-check structural validator
+
+### Validation
+- v1.21 executable logic: 9/9 checks PASSED
+- Sprint 1.1 structural: 32/32 checks PASSED
+
 ## [Merged via PR #12] — 2026-05-24 — Version Gate Integration (v1.30 Pipeline)
 
 ### Added — Edition Routing / Version Gate Architecture
