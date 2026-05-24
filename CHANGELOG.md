@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #15] — 2026-05-24 — Sprint 1.2: Parser Type Injection
+
+### Added
+- **TypeChecker** (`src/semantic/type_checker.rs`):
+  - `check_assignment(declared, actual) -> TypeCheckResult` — uses CoercionEngine
+  - `TypeCheckResult` enum: `Ok`, `ImplicitWidening`, `RequiresExplicitCast`, `Incompatible`
+  - `infer_default_type(Expr) -> Type` — I64 (int), F64 (float), String, Bool
+  - `format_error()` — bilingual Malay/English diagnostics with cast suggestions
+- **AST Type Bridge** (`src/types.rs`):
+  - `ast_type_to_id()` — converts `ast::Type` to `TypeId`
+  - `type_id_to_ast()` — converts `TypeId` back to `ast::Type`
+  - `ast_types_compatible()` — CoercionEngine-based compatibility check
+- **Tests** (`tests/parser_type_test.rs`): 25 assertions
+
+### Validation
+- v1.21 executable logic: 9/9 checks PASSED
+- Sprint 1.1 structural: 32/32 checks PASSED
+- Sprint 1.2 structural: 20/20 checks PASSED
+
 ## [Merged via PR #14] — 2026-05-24 — Sprint 1.1: Type System Foundation
 
 ### Added
