@@ -1,0 +1,83 @@
+// =========================================================================
+// Logicodex v1.30 — Ketuk 4: Syscall Backend Bindings
+//
+// Low-level syscall wrappers untuk Linux x86_64.
+// Direct syscall — tiada libc overhead.
+// =========================================================================
+
+// ─── Linux x86_64 syscall numbers ───
+const SYS_READ:  i32 = 0
+const SYS_WRITE: i32 = 1
+const SYS_OPEN:  i32 = 2
+const SYS_CLOSE: i32 = 3
+const SYS_LSEEK: i32 = 8
+const SYS_EXIT:  i32 = 60
+
+// ─── O_ flags (Linux open) ───
+const O_RDONLY: i32 = 0
+const O_WRONLY: i32 = 1
+const O_RDWR:   i32 = 2
+const O_CREAT:  i32 = 64
+const O_TRUNC:  i32 = 512
+
+// ─── sys_open ───
+// Buka fail — return fd atau -1
+unsafe function sys_open(path: *u8, flags: i32, mode: i32) -> i32 {
+    // LLVM inline asm: syscall; args: rax=2, rdi=path, rsi=flags, rdx=mode
+    rax = SYS_OPEN
+    rdi = path
+    rsi = flags
+    rdx = mode
+    syscall
+    return rax as i32
+}
+
+// ─── sys_read ───
+// Baca daripada fd — return bytes read atau -1
+unsafe function sys_read(fd: i32, buf: *mut u8, count: i32) -> i32 {
+    rax = SYS_READ
+    rdi = fd
+    rsi = buf
+    rdx = count
+    syscall
+    return rax as i32
+}
+
+// ─── sys_write ───
+// Tulis ke fd — return bytes written atau -1
+unsafe function sys_write(fd: i32, buf: *u8, count: i32) -> i32 {
+    rax = SYS_WRITE
+    rdi = fd
+    rsi = buf
+    rdx = count
+    syscall
+    return rax as i32
+}
+
+// ─── sys_close ───
+// Tutup fd — return 0 atau -1
+unsafe function sys_close(fd: i32) -> i32 {
+    rax = SYS_CLOSE
+    rdi = fd
+    syscall
+    return rax as i32
+}
+
+// ─── sys_lseek ───
+// Alihkan penunjuk fail — return offset baru atau -1
+unsafe function sys_lseek(fd: i32, offset: i32, whence: i32) -> i32 {
+    rax = SYS_LSEEK
+    rdi = fd
+    rsi = offset
+    rdx = whence
+    syscall
+    return rax as i32
+}
+
+// ─── sys_exit ───
+// Keluar process
+unsafe function sys_exit(code: i32) {
+    rax = SYS_EXIT
+    rdi = code
+    syscall
+}

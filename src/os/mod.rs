@@ -6,6 +6,7 @@
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
 pub mod target;
+pub mod syscall;
 
 #[cfg(target_os = "linux")]
 pub mod linux;

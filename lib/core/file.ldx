@@ -1,0 +1,50 @@
+// =========================================================================
+// Logicodex v1.30 — Ketuk 3: File Handle ABI
+//
+// Safe wrapper untuk operasi fail. Semua fungsi return Result<T, IoError>.
+// =========================================================================
+
+enum FileMode {
+    ReadOnly,
+    WriteOnly,
+    ReadWrite,
+    Append
+}
+
+enum SeekWhence {
+    Start,
+    Current,
+    End
+}
+
+// ─── open ───
+// Buka fail dengan mod dan kebenaran.
+function open(path: []u8, mode: FileMode) -> Result<FileHandle, IoError> {
+    // FFI: sys_open(path, flags, mode) → fd
+    // Diroute ke syscall backend
+}
+
+// ─── close ───
+// Tutup handle fail.
+function close(handle: FileHandle) -> Result<Unit, IoError> {
+    // FFI: sys_close(fd)
+    handle.close()
+}
+
+// ─── read ───
+// Baca sehingga `count` bait daripada fail.
+function read(handle: FileHandle, count: i32) -> Result<[]u8, IoError> {
+    handle.read(count)
+}
+
+// ─── write ───
+// Tulis `data` ke fail.
+function write(handle: FileHandle, data: []u8) -> Result<i32, IoError> {
+    handle.write(data)
+}
+
+// ─── seek ───
+// Alihkan penunjuk fail ke offset.
+function seek(handle: FileHandle, offset: i32, whence: SeekWhence) -> Result<i32, IoError> {
+    handle.seek(offset, whence)
+}

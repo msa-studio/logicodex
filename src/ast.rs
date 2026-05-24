@@ -145,6 +145,13 @@ pub enum Expr {
     Ok { value: Box<Expr> },
     /// Ketuk 2: Result construction — Err(error)
     Err { value: Box<Expr> },
+    /// Ketuk 3: File Handle ABI — Method call on opaque type.
+    /// Syntax: h.read(1024), h.close(), h.seek(0, Start)
+    MethodCall {
+        object: String,
+        method: String,
+        args: Vec<Expr>,
+    },
     Grouped(Box<Expr>),
 }
 
@@ -184,6 +191,9 @@ pub enum Type {
     /// Ketuk 2: Result type for IO operations — Ok(T) or Err(E).
     /// Syntax: Result<T, E>
     Result { ok: Box<Type>, err: Box<Type> },
+    /// Ketuk 3: File Handle ABI — Opaque type (internal structure hidden).
+    /// Syntax: FileHandle, FileMode
+    Opaque { name: String },
 }
 
 impl Type {
@@ -231,6 +241,19 @@ impl Type {
     pub fn err_type(&self) -> Option<&Type> {
         match self {
             Type::Result { err, .. } => Some(err),
+            _ => None,
+        }
+    }
+
+    /// Ketuk 3: Check if this is an opaque type.
+    pub fn is_opaque(&self) -> bool {
+        matches!(self, Type::Opaque { .. })
+    }
+
+    /// Ketuk 3: Get the name of an opaque type.
+    pub fn opaque_name(&self) -> Option<&str> {
+        match self {
+            Type::Opaque { name } => Some(name),
             _ => None,
         }
     }
@@ -286,6 +309,7 @@ impl fmt::Display for Type {
             Type::Slice { element } => write!(f, "[]{element}"),
             Type::Buffer { element } => write!(f, "Buffer<{element}>"),
             Type::Result { ok, err } => write!(f, "Result<{ok}, {err}>"),
+            Type::Opaque { name } => write!(f, "{name}"),
         }
     }
 }
