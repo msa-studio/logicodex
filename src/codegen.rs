@@ -629,6 +629,31 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 eprintln!("logicodex v1.30.1-alpha: join '{}' — deferred to runtime", actor_name);
                 Ok(self.i64_type.const_int(0, false))
             }
+            // v1.30.1-alpha Phase 3: Backpressure + Scheduler (stubs)
+            Expr::TrySend { channel_name, value } => {
+                let val = self.emit_expr(value)?;
+                eprintln!("logicodex v1.30.1-alpha: try_send '{}' through '{}' — non-blocking (Release, backpressure aware)",
+                    match value { Expr::Variable(n) => n.as_str(), _ => "<expr>" }, channel_name);
+                Ok(self.i64_type.const_int(1, false)) // Return true as placeholder (success)
+            }
+            Expr::TryRecv { channel_name } => {
+                eprintln!("logicodex v1.30.1-alpha: try_recv through '{}' — non-blocking (Acquire)", channel_name);
+                Ok(self.i64_type.const_int(0, false)) // Return 0 as placeholder (None)
+            }
+            Expr::Yield => {
+                eprintln!("logicodex v1.30.1-alpha: yield — control passed to scheduler");
+                Ok(self.i64_type.const_int(0, false))
+            }
+            Expr::Sleep { duration_ms } => {
+                let dur = self.emit_expr(duration_ms)?;
+                eprintln!("logicodex v1.30.1-alpha: sleep — deferred to runtime scheduler");
+                Ok(self.i64_type.const_int(0, false))
+            }
+            Expr::TimeoutRecv { channel_name, timeout_ms } => {
+                let to = self.emit_expr(timeout_ms)?;
+                eprintln!("logicodex v1.30.1-alpha: timeout_recv through '{}' — blocking with timeout", channel_name);
+                Ok(self.i64_type.const_int(0, false))
+            }
         }
     }
 

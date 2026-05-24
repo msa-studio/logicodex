@@ -1,17 +1,18 @@
 // =========================================================================
-// Logicodex v1.30.1-alpha Fasa 2 — SPSC Ring Buffer
+// Logicodex v1.30.1-alpha Phase 3 — SPSC Ring Buffer (with Backpressure)
 //
-// Single Producer Single Consumer ring buffer dengan memory ordering.
-// Ini adalah struktur data core untuk Channel channel.
+// Single Producer Single Consumer ring buffer with memory ordering.
+// Core data structure for Channel communication.
 //
 // Memory Ordering:
 //   Producer (send): write data → Release write to tail
 //   Consumer (recv): Acquire read from head → read data
 //
-// Ini memastikan:
-//   - Consumer nampak semua writes daripada Producer
-//   - Tiada data race tanpa Mutex
+// Guarantees:
+//   - Consumer sees all writes from Producer
+//   - No data races without Mutex
 //   - Zero-copy ownership transfer
+//   - Backpressure: try_send returns Result (full = Err)
 // =========================================================================
 
 struct RingBuffer<T> {
@@ -122,4 +123,45 @@ function ring_full<T>(ring: *RingBuffer<T>) -> bool {
 // Bilangan elemen dalam RingBuffer.
 function ring_size<T>(ring: *RingBuffer<T>) -> i32 {
     *ring.tail - *ring.head
+}
+
+// ─── ring_try_send ───
+// Phase 3: Non-blocking send with backpressure.
+// Returns Ok(true) on success, Err(ChannelFull) if buffer full.
+function ring_try_send<T>(ring: *mut RingBuffer<T>, nilai: T) -> Result<bool, IoError> {
+    if (ring_full(ring)) {
+        return Err(ChannelFull)
+    }
+    let berjaya = ring_send(ring, nilai)
+    if (berjaya) {
+        Ok(true)
+    } else {
+        Err(ChannelFull)
+    }
+}
+
+// ─── ring_try_recv ───
+// Phase 3: Non-blocking recv.
+// Returns Some(nilai) if data available, None if buffer empty.
+function ring_try_recv<T>(ring: *mut RingBuffer<T>) -> Option<T> {
+    if (ring_empty(ring)) {
+        return None
+    }
+    ring_recv(ring)
+}
+
+// ─── ring_timeout_recv ───
+// Phase 3: Blocking recv with timeout.
+// Returns Ok(nilai) on success, Err(Timeout) if timeout reached.
+function ring_timeout_recv<T>(ring: *mut RingBuffer<T>, timeout_ms: i32) -> Result<T, RecvTimeout> {
+    let start = get_time_ms()
+    while (get_time_ms() - start < timeout_ms) {
+        let result = ring_try_recv(ring)
+        if (result.is_some()) {
+            return Ok(result.unwrap())
+        }
+        // Spin-wait (or yield in cooperative scheduler)
+        yield()
+    }
+    Err(RecvTimeout { channel: "ring", timeout_ms: timeout_ms })
 }

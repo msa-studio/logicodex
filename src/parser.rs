@@ -800,10 +800,23 @@ impl Parser {
             self.consume(TokenKind::RightParen, "')' after lahirkan args")?;
             return Ok(Expr::Spawn { actor_name, args });
         }
-        // v1.30.1-alpha: Tunggu — tunggu KotakName
+        // v1.30.1-alpha: Join — join ActorName
         if self.matches(TokenKind::Join) {
-            let actor_name = self.consume(TokenKind::Identifier, "Kotak name after 'tunggu'")?.lexeme.clone();
+            let actor_name = self.consume(TokenKind::Identifier, "Actor name after 'join'")?.lexeme.clone();
             return Ok(Expr::Join { actor_name });
+        }
+        // v1.30.1-alpha Phase 3: Yield — yield control to scheduler
+        if self.matches(TokenKind::Yield) {
+            self.consume(TokenKind::LeftParen, "'(' after 'yield'")?;
+            self.consume(TokenKind::RightParen, "')' after 'yield'")?;
+            return Ok(Expr::Yield);
+        }
+        // v1.30.1-alpha Phase 3: Sleep — sleep(duration_ms)
+        if self.matches(TokenKind::Sleep) {
+            self.consume(TokenKind::LeftParen, "'(' after 'sleep'")?;
+            let duration_ms = self.expression()?;
+            self.consume(TokenKind::RightParen, "')' after sleep duration")?;
+            return Ok(Expr::Sleep { duration_ms: Box::new(duration_ms) });
         }
         // Ketuk 2: Ok(value) and Err(value) result constructors
         if self.matches(TokenKind::Ok) {
@@ -855,15 +868,30 @@ impl Parser {
                 self.advance(); // consume '.'
                 let method = self.consume(TokenKind::Identifier, "method name after '.'")?.lexeme.clone();
                 self.consume(TokenKind::LeftParen, "'(' after method name")?;
-                // v1.30.1-alpha: Special handling for hantar/terima
-                if method == "send" || method == "Hantar" {
+                // v1.30.1-alpha: Channel method calls — send, recv
+                if method == "send" {
                     let value = self.expression()?;
-                    self.consume(TokenKind::RightParen, "')' after hantar value")?;
+                    self.consume(TokenKind::RightParen, "')' after send value")?;
                     return Ok(Expr::Send { channel_name: name, value: Box::new(value) });
                 }
-                if method == "recv" || method == "Terima" {
-                    self.consume(TokenKind::RightParen, "')' after terima")?;
+                if method == "recv" {
+                    self.consume(TokenKind::RightParen, "')' after recv'")?;
                     return Ok(Expr::Recv { channel_name: name });
+                }
+                // v1.30.1-alpha Phase 3: Backpressure — try_send, try_recv, timeout_recv
+                if method == "try_send" {
+                    let value = self.expression()?;
+                    self.consume(TokenKind::RightParen, "')' after try_send value")?;
+                    return Ok(Expr::TrySend { channel_name: name, value: Box::new(value) });
+                }
+                if method == "try_recv" {
+                    self.consume(TokenKind::RightParen, "')' after try_recv'")?;
+                    return Ok(Expr::TryRecv { channel_name: name });
+                }
+                if method == "timeout_recv" {
+                    let timeout_ms = self.expression()?;
+                    self.consume(TokenKind::RightParen, "')' after timeout_recv'")?;
+                    return Ok(Expr::TimeoutRecv { channel_name: name, timeout_ms: Box::new(timeout_ms) });
                 }
                 let mut args = Vec::new();
                 if !self.check(TokenKind::RightParen) {
