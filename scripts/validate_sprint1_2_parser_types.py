@@ -39,11 +39,11 @@ check_code(root / "src" / "semantic" / "type_checker.rs", "TypeCheckResult::Requ
 check_code(root / "src" / "semantic" / "type_checker.rs", "TypeCheckResult::Incompatible", "Incompatible variant")
 print("   TypeCheckResult: OK")
 
-# 3. AST Type bridge
-print("\n[3] AST Type bridge (types.rs)...")
-check_code(root / "src" / "types.rs", "pub fn ast_type_to_id", "ast_type_to_id()")
-check_code(root / "src" / "types.rs", "pub fn type_id_to_ast", "type_id_to_ast()")
-check_code(root / "src" / "types.rs", "pub fn ast_types_compatible", "ast_types_compatible()")
+# 3. AST Type bridge (now in type_checker.rs to avoid circular dep)
+print("\n[3] AST Type bridge (type_checker.rs)...")
+check_code(root / "src" / "semantic" / "type_checker.rs", "fn ast_type_to_id", "ast_type_to_id()")
+check_code(root / "src" / "types.rs", "pub fn void_ptr", "void_ptr() &self accessor")
+check_code(root / "src" / "types.rs", "pub fn const_char_ptr", "const_char_ptr() &self accessor")
 print("   AST bridge: OK")
 
 # 4. Module declarations
