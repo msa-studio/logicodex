@@ -8,6 +8,7 @@
 // HIR lowering for the executable subset.
 // =========================================================================
 
+use crate::ast;
 use crate::ffi::SafetyContext;
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span, Spanned};
 use crate::types::{CallableId, Mutability, PrimitiveType, TypeId, TypeKind, TypeRef, TypeRegistry};
@@ -425,6 +426,103 @@ pub struct LoweringContext<'a> {
 }
 
 impl<'a> LoweringContext<'a> {
+    /// Sprint 3: Convert a v1.21 AST Program to HIR ModuleAst and lower it.
+    pub fn lower_v121_program(&mut self, program: ast::Program) -> Result<HirModule, Vec<Diagnostic>> {
+        use ast::Stmt;
+        // Register built-in callables (print is always available)
+        self.symbols.define_callable("print".to_string());
+        let mut functions: Vec<Spanned<ItemAst>> = Vec::new();
+        let mut top_level_stmts: Vec<Spanned<StmtAst>> = Vec::new();
+
+        for stmt in program.statements {
+            match stmt {
+                Stmt::Function { name, params, return_type, body } => {
+                    functions.push(Spanned {
+                        node: ItemAst::Function(FunctionAst {
+                            name,
+                            params: params.into_iter().map(|p| ParamAst {
+                                name: p.name,
+                                ty: lower_type_ast(p.ty),
+                            }).collect(),
+                            return_type: return_type.map(lower_type_ast),
+                            body: BlockAst {
+                                statements: body.into_iter().map(|s| Spanned {
+                                    node: lower_stmt_ast(s),
+                                    span: Span::unknown(),
+                                }).collect(),
+                            },
+                            is_unsafe: false,
+                        }),
+                        span: Span::unknown(),
+                    });
+                }
+                Stmt::StructDecl { name, fields } => {
+                    functions.push(Spanned {
+                        node: ItemAst::Struct(StructDeclAst {
+                            name,
+                            fields: fields.into_iter().map(|p| FieldAst {
+                                name: p.name,
+                                ty: lower_type_ast(p.ty),
+                                attributes: Vec::new(),
+                            }).collect(),
+                            attributes: Vec::new(),
+                        }),
+                        span: Span::unknown(),
+                    });
+                }
+                Stmt::EnumDecl { name, variants } => {
+                    functions.push(Spanned {
+                        node: ItemAst::Enum(EnumDeclAst {
+                            name: name.clone(),
+                            variants: variants.into_iter().map(|v| (v, Vec::new())).collect(),
+                            attributes: Vec::new(),
+                        }),
+                        span: Span::unknown(),
+                    });
+                }
+                Stmt::ExternBlock { abi, functions: decls } => {
+                    functions.push(Spanned {
+                        node: ItemAst::ExternBlock(ExternBlockAst {
+                            abi,
+                            functions: decls.into_iter().map(|f| ExternFnAst {
+                                name: f.name,
+                                params: f.params.into_iter().map(|p| ParamAst {
+                                    name: p.name,
+                                    ty: lower_type_ast(p.ty),
+                                }).collect(),
+                                return_type: f.return_type.map(lower_type_ast).unwrap_or(TypeAst::Unit),
+                                is_variadic: false,
+                            }).collect(),
+                        }),
+                        span: Span::unknown(),
+                    });
+                }
+                other => {
+                    top_level_stmts.push(Spanned {
+                        node: lower_stmt_ast(other),
+                        span: Span::unknown(),
+                    });
+                }
+            }
+        }
+
+        // Wrap remaining top-level statements into a main function
+        if !top_level_stmts.is_empty() {
+            functions.push(Spanned {
+                node: ItemAst::Function(FunctionAst {
+                    name: "main".to_string(),
+                    params: Vec::new(),
+                    return_type: Some(TypeAst::Unit),
+                    body: BlockAst { statements: top_level_stmts },
+                    is_unsafe: false,
+                }),
+                span: Span::unknown(),
+            });
+        }
+
+        self.lower_module(ModuleAst { items: functions })
+    }
+
     pub fn lower_module(&mut self, module: ModuleAst) -> Result<HirModule, Vec<Diagnostic>> {
         for item in &module.items {
             match &item.node {
@@ -813,6 +911,127 @@ fn unit_ref(registry: &TypeRegistry) -> TypeRef {
 fn unknown_ref(registry: &TypeRegistry) -> TypeRef {
     TypeRef {
         id: registry.unknown(),
+    }
+}
+
+// Sprint 3: v1.21 AST → HIR AST conversion helpers
+
+fn lower_type_ast(ty: ast::Type) -> TypeAst {
+    match ty {
+        ast::Type::I32 => TypeAst::Named("i32".to_string()),
+        ast::Type::I64 => TypeAst::Named("i64".to_string()),
+        ast::Type::U16 => TypeAst::Named("u16".to_string()),
+        ast::Type::U32 => TypeAst::Named("u32".to_string()),
+        ast::Type::F64 => TypeAst::Named("f64".to_string()),
+        ast::Type::Bool => TypeAst::Named("bool".to_string()),
+        ast::Type::Pointer(inner) => TypeAst::Pointer(Box::new(lower_type_ast(*inner))),
+        ast::Type::String => TypeAst::Named("String".to_string()),
+    }
+}
+
+fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
+    use ast::Stmt;
+    match stmt {
+        Stmt::Let { name, declared_type, value } => StmtAst::Let {
+            name,
+            ty: declared_type.map(lower_type_ast),
+            value: Some(lower_expr_ast(value)),
+        },
+        Stmt::Print { value } => StmtAst::Expr(ExprAst::Call {
+            callee: Box::new(ExprAst::Variable("print".to_string())),
+            args: vec![lower_expr_ast(value)],
+        }),
+        Stmt::Return { value } => StmtAst::Return(Some(lower_expr_ast(value))),
+        Stmt::ExprStmt { value } => StmtAst::Expr(lower_expr_ast(value)),
+        Stmt::If { condition, then_branch, else_branch } => StmtAst::If {
+            condition: lower_expr_ast(condition),
+            then_branch: BlockAst {
+                statements: then_branch.into_iter().map(|s| Spanned {
+                    node: lower_stmt_ast(s),
+                    span: Span::unknown(),
+                }).collect(),
+            },
+            else_branch: Some(BlockAst {
+                statements: else_branch.into_iter().map(|s| Spanned {
+                    node: lower_stmt_ast(s),
+                    span: Span::unknown(),
+                }).collect(),
+            }),
+        },
+        Stmt::While { condition, body } => StmtAst::While {
+            condition: lower_expr_ast(condition),
+            body: BlockAst {
+                statements: body.into_iter().map(|s| Spanned {
+                    node: lower_stmt_ast(s),
+                    span: Span::unknown(),
+                }).collect(),
+            },
+        },
+        Stmt::Loop { body } => StmtAst::Loop {
+            body: BlockAst {
+                statements: body.into_iter().map(|s| Spanned {
+                    node: lower_stmt_ast(s),
+                    span: Span::unknown(),
+                }).collect(),
+            },
+        },
+        Stmt::Break => StmtAst::Break,
+        Stmt::Continue => StmtAst::Continue,
+        Stmt::UnsafeBlock { body } => StmtAst::UnsafeBlock(BlockAst {
+            statements: body.into_iter().map(|s| Spanned {
+                node: lower_stmt_ast(s),
+                span: Span::unknown(),
+            }).collect(),
+        }),
+        Stmt::Use { .. } | Stmt::HardwareDecl { .. } | Stmt::HardwareZone { .. } => {
+            // These v1.21-specific constructs are dropped in HIR lowering
+            StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit))
+        }
+        Stmt::Function { .. } | Stmt::StructDecl { .. } | Stmt::EnumDecl { .. } | Stmt::ExternBlock { .. } => {
+            // These should have been extracted at the item level, not statements
+            StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit))
+        }
+    }
+}
+
+fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
+    match expr {
+        ast::Expr::Integer(v) => ExprAst::Literal(LiteralAst::Integer(v)),
+        ast::Expr::Boolean(v) => ExprAst::Literal(LiteralAst::Boolean(v)),
+        ast::Expr::StringLiteral(s) => ExprAst::Literal(LiteralAst::String(s)),
+        ast::Expr::Variable(name) => ExprAst::Variable(name),
+        ast::Expr::AddressOfLiteral(v) => ExprAst::Literal(LiteralAst::Integer(v)),
+        ast::Expr::Call { callee, args } => ExprAst::Call {
+            callee: Box::new(lower_expr_ast(*callee)),
+            args: args.into_iter().map(lower_expr_ast).collect(),
+        },
+        ast::Expr::Binary { left, op, right } => ExprAst::Binary {
+            left: Box::new(lower_expr_ast(*left)),
+            op: lower_binary_op(op),
+            right: Box::new(lower_expr_ast(*right)),
+        },
+        ast::Expr::Grouped(inner) => lower_expr_ast(*inner),
+    }
+}
+
+fn lower_binary_op(op: ast::BinaryOp) -> BinaryOpAst {
+    match op {
+        ast::BinaryOp::Add => BinaryOpAst::Add,
+        ast::BinaryOp::Subtract => BinaryOpAst::Sub,
+        ast::BinaryOp::Multiply => BinaryOpAst::Mul,
+        ast::BinaryOp::Divide => BinaryOpAst::Div,
+        ast::BinaryOp::Greater => BinaryOpAst::Gt,
+        ast::BinaryOp::GreaterEqual => BinaryOpAst::Gte,
+        ast::BinaryOp::Less => BinaryOpAst::Lt,
+        ast::BinaryOp::LessEqual => BinaryOpAst::Lte,
+        ast::BinaryOp::Equal => BinaryOpAst::Eq,
+        ast::BinaryOp::NotEqual => BinaryOpAst::NotEq,
+        ast::BinaryOp::And => BinaryOpAst::LogicalAnd,
+        ast::BinaryOp::Or => BinaryOpAst::LogicalOr,
+        ast::BinaryOp::BitAnd => BinaryOpAst::BitAnd,
+        ast::BinaryOp::BitOr => BinaryOpAst::BitOr,
+        ast::BinaryOp::ShiftLeft => BinaryOpAst::ShiftLeft,
+        ast::BinaryOp::ShiftRight => BinaryOpAst::ShiftRight,
     }
 }
 
