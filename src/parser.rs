@@ -330,6 +330,15 @@ impl Parser {
         self.tokens[current + 1].kind == TokenKind::LeftBracket
     }
 
+    /// v1.30.1-alpha: Parse `kotak Name { ... }`
+    fn kotak_statement(&mut self) -> Result<Stmt, ParseError> {
+        let name = self.consume(TokenKind::Identifier, "Kotak name after 'kotak'")?.lexeme.clone();
+        self.consume(TokenKind::LeftBrace, "'{' after Kotak name")?;
+        let body = self.block()?;
+        self.consume(TokenKind::RightBrace, "'}' after Kotak body")?;
+        Ok(Stmt::Kotak { name, body })
+    }
+
     /// BUGFIX #2: Parse `buf[index] = value` as Stmt::Assign
     fn index_assignment_statement(&mut self) -> Result<Stmt, ParseError> {
         let name = self.consume(TokenKind::Identifier, "buffer name")?.lexeme.clone();
@@ -366,6 +375,8 @@ impl Parser {
             self.loop_statement()?
         } else if self.matches(TokenKind::Match) {
             self.match_statement()?
+        } else if self.matches(TokenKind::Kotak) {
+            self.kotak_statement()?
         } else if self.matches(TokenKind::Break) {
             let beginner = self.allows_control_flow_line_terminator(&self.previous().lexeme);
             self.consume_statement_terminator("; after break statement", beginner)?;
@@ -581,6 +592,17 @@ impl Parser {
         if self.matches(TokenKind::FileHandle) {
             return Ok(Type::Opaque { name: "FileHandle".to_string() });
         }
+        // v1.30.1-alpha: Pintu<T, U, V> — SPSC channel with type-level capability
+        if self.matches(TokenKind::Pintu) {
+            self.consume(TokenKind::Less, "'<' after 'Pintu'")?;
+            let from = self.consume(TokenKind::Identifier, "sender Kotak name")?.lexeme.clone();
+            self.consume(TokenKind::Comma, "',' after sender")?;
+            let to = self.consume(TokenKind::Identifier, "receiver Kotak name")?.lexeme.clone();
+            self.consume(TokenKind::Comma, "',' after receiver")?;
+            let message_type = self.consume(TokenKind::Identifier, "message type")?.lexeme.clone();
+            self.consume(TokenKind::Greater, "'>' after message type")?;
+            return Ok(Type::Pintu { from, to, message_type });
+        }
         let t = self.peek();
         Err(ParseError::Expected {
             expected: "type".to_string(),
@@ -764,6 +786,25 @@ impl Parser {
         if self.matches(TokenKind::StringLiteral) {
             return Ok(Expr::StringLiteral(self.previous().lexeme.clone()));
         }
+        // v1.30.1-alpha: Spawn — lahirkan KotakName()
+        if self.matches(TokenKind::Lahirkan) {
+            let kotak_name = self.consume(TokenKind::Identifier, "Kotak name after 'lahirkan'")?.lexeme.clone();
+            self.consume(TokenKind::LeftParen, "'(' after Kotak name")?;
+            let mut args = Vec::new();
+            if !self.check(TokenKind::RightParen) {
+                loop {
+                    args.push(self.expression()?);
+                    if !self.matches(TokenKind::Comma) { break; }
+                }
+            }
+            self.consume(TokenKind::RightParen, "')' after lahirkan args")?;
+            return Ok(Expr::Spawn { kotak_name, args });
+        }
+        // v1.30.1-alpha: Tunggu — tunggu KotakName
+        if self.matches(TokenKind::Tunggu) {
+            let kotak_name = self.consume(TokenKind::Identifier, "Kotak name after 'tunggu'")?.lexeme.clone();
+            return Ok(Expr::Tunggu { kotak_name });
+        }
         // Ketuk 2: Ok(value) and Err(value) result constructors
         if self.matches(TokenKind::Ok) {
             self.consume(TokenKind::LeftParen, "'(' after 'Ok'")?;
@@ -809,10 +850,21 @@ impl Parser {
             }
             // Ketuk 3: Check if followed by '.' → method call on opaque type
             // h.read(1024), h.close(), h.seek(0)
+            // v1.30.1-alpha: pintu.hantar(val), pintu.terima()
             if self.check(TokenKind::Dot) {
                 self.advance(); // consume '.'
                 let method = self.consume(TokenKind::Identifier, "method name after '.'")?.lexeme.clone();
                 self.consume(TokenKind::LeftParen, "'(' after method name")?;
+                // v1.30.1-alpha: Special handling for hantar/terima
+                if method == "hantar" || method == "Hantar" {
+                    let value = self.expression()?;
+                    self.consume(TokenKind::RightParen, "')' after hantar value")?;
+                    return Ok(Expr::Hantar { pintu_name: name, value: Box::new(value) });
+                }
+                if method == "terima" || method == "Terima" {
+                    self.consume(TokenKind::RightParen, "')' after terima")?;
+                    return Ok(Expr::Terima { pintu_name: name });
+                }
                 let mut args = Vec::new();
                 if !self.check(TokenKind::RightParen) {
                     loop {

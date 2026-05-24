@@ -86,6 +86,12 @@ pub enum Stmt {
         value: Expr,
         arms: Vec<MatchArm>,
     },
+    /// v1.30.1-alpha: Kotak declaration — concurrency unit (1 OS Thread).
+    /// Syntax: `kotak SensorSuhu { let pintu: Pintu<...> = ...; ... }`
+    Kotak {
+        name: String,
+        body: Vec<Stmt>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -152,6 +158,28 @@ pub enum Expr {
         method: String,
         args: Vec<Expr>,
     },
+    /// v1.30.1-alpha: Spawn a Kotak (create OS thread).
+    /// Syntax: `lahirkan SensorSuhu()`
+    Spawn {
+        kotak_name: String,
+        args: Vec<Expr>,
+    },
+    /// v1.30.1-alpha: Send value through Pintu.
+    /// Syntax: `pintu_data.hantar(Ok(DataSuhu{ nilai: 25.5 }))`
+    Hantar {
+        pintu_name: String,
+        value: Box<Expr>,
+    },
+    /// v1.30.1-alpha: Receive value from Pintu.
+    /// Syntax: `pintu_data.terima()`
+    Terima {
+        pintu_name: String,
+    },
+    /// v1.30.1-alpha: Wait for Kotak to finish.
+    /// Syntax: `tunggu SensorSuhu`
+    Tunggu {
+        kotak_name: String,
+    },
     Grouped(Box<Expr>),
 }
 
@@ -194,6 +222,10 @@ pub enum Type {
     /// Ketuk 3: File Handle ABI — Opaque type (internal structure hidden).
     /// Syntax: FileHandle, FileMode
     Opaque { name: String },
+    // ─── v1.30.1-alpha: Threading Foundation — Kotak & Pintu ───
+    /// Pintu<T, U> — SPSC channel with type-level capability.
+    /// Syntax: Pintu<SensorSuhu, KotakEnjin, DataSuhu>
+    Pintu { from: String, to: String, message_type: String },
 }
 
 impl Type {
@@ -258,6 +290,19 @@ impl Type {
         }
     }
 
+    /// v1.30.1-alpha: Check if this is a Pintu type.
+    pub fn is_pintu(&self) -> bool {
+        matches!(self, Type::Pintu { .. })
+    }
+
+    /// v1.30.1-alpha: Get Pintu capability (from, to, message_type).
+    pub fn pintu_capability(&self) -> Option<(&str, &str, &str)> {
+        match self {
+            Type::Pintu { from, to, message_type } => Some((from, to, message_type)),
+            _ => None,
+        }
+    }
+
     #[allow(dead_code)]
     pub fn storage_width_bits(&self) -> u32 {
         match self {
@@ -310,6 +355,9 @@ impl fmt::Display for Type {
             Type::Buffer { element } => write!(f, "Buffer<{element}>"),
             Type::Result { ok, err } => write!(f, "Result<{ok}, {err}>"),
             Type::Opaque { name } => write!(f, "{name}"),
+            Type::Pintu { from, to, message_type } => {
+                write!(f, "Pintu<{from}, {to}, {message_type}>")
+            }
         }
     }
 }

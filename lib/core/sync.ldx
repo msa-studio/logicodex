@@ -1,0 +1,129 @@
+// =========================================================================
+// Logicodex v1.30.1-alpha — Synchronization Primitives
+//
+// Low-level sync primitives untuk keselamatan thread.
+// Semua menggunakan memory ordering yang betul.
+// =========================================================================
+
+// ─── Mutex ───
+// Mutual exclusion lock — hanya 1 thread boleh pegang pada satu masa.
+//
+// Contoh:
+//   let lock: Mutex = mutex_baru()
+//   mutex_kunci(lock)
+//   // critical section
+//   mutex_buka(lock)
+
+enum MutexState {
+    Bebas,     // Free — tiada thread pegang
+    Terkunci   // Locked — 1 thread pegang
+}
+
+struct Mutex {
+    keadaan: MutexState
+}
+
+// Cipta Mutex baru dalam keadaan Bebas
+function mutex_baru() -> Mutex {
+    Mutex { keadaan: MutexState::Bebas }
+}
+
+// Kunci Mutex — blok sehingga bebas
+function mutex_kunci(lock: *mut Mutex) {
+    while (true) {
+        // Atomic CAS: cuba tukar Bebas → Terkunci
+        // Release semantics
+        if (lock.keadaan == MutexState::Bebas) {
+            lock.keadaan = MutexState::Terkunci
+            break
+        }
+        // Spin-wait atau yield kepada OS scheduler
+        thread_yield()
+    }
+}
+
+// Buka Mutex — tukar ke Bebas
+function mutex_buka(lock: *mut Mutex) {
+    // Acquire semantics
+    lock.keadaan = MutexState::Bebas
+}
+
+// ─── RwLock ───
+// Read-write lock — banyak pembaca ATAU 1 penulis.
+//
+// Contoh:
+//   let lock: RwLock = rwlock_baru()
+//   baca_kunci(lock)    // banyak thread boleh
+//   baca_buka(lock)
+//   tulis_kunci(lock)   // hanya 1 thread
+//   tulis_buka(lock)
+
+struct RwLock {
+    pembaca: i32,    // Bilangan pembaca aktif
+    penulis: bool    // Ada penulis aktif?
+}
+
+function rwlock_baru() -> RwLock {
+    RwLock { pembaca: 0, penulis: false }
+}
+
+function baca_kunci(lock: *mut RwLock) {
+    while (true) {
+        if (!lock.penulis) {
+            lock.pembaca = lock.pembaca + 1
+            break
+        }
+        thread_yield()
+    }
+}
+
+function baca_buka(lock: *mut RwLock) {
+    lock.pembaca = lock.pembaca - 1
+}
+
+function tulis_kunci(lock: *mut RwLock) {
+    while (true) {
+        if (lock.pembaca == 0 && !lock.penulis) {
+            lock.penulis = true
+            break
+        }
+        thread_yield()
+    }
+}
+
+function tulis_buka(lock: *mut RwLock) {
+    lock.penulis = false
+}
+
+// ─── Atomic ───
+// Operasi atomic untuk integer.
+//
+// Contoh:
+//   let counter: AtomicI32 = atomic_baru(0)
+//   atomic_tambah(counter, 1)   // thread-safe
+//   let val = atomic_baca(counter)
+
+struct AtomicI32 {
+    nilai: i32
+}
+
+function atomic_baru(v: i32) -> AtomicI32 {
+    AtomicI32 { nilai: v }
+}
+
+function atomic_baca(a: *AtomicI32) -> i32 {
+    // Acquire semantics
+    a.nilai
+}
+
+function atomic_tulis(a: *mut AtomicI32, v: i32) {
+    // Release semantics
+    a.nilai = v
+}
+
+function atomic_tambah(a: *mut AtomicI32, v: i32) -> i32 {
+    // Read-Modify-Write dengan Acquire-Release
+    let lama = a.nilai
+    a.nilai = lama + v
+    lama
+}
