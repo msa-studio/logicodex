@@ -7,6 +7,7 @@
 // =========================================================================
 pub mod coercion;
 pub mod registry;
+pub mod type_checker;
 
 use crate::ast::{BinaryOp, Expr, Program, Stmt, Type};
 use std::collections::{HashMap, HashSet};

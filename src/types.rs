@@ -345,6 +345,80 @@ pub struct CAbiInfo {
     pub align: usize,
 }
 
+// ─── AST Type Bridge ───
+// Converts between ast::Type (v1.21 enum) and TypeId/TypeKind (v1.30 registry).
+// This is the integration point between the parser/semantic analyzer
+// and the TypeRegistry/CoercionEngine.
+
+impl TypeRegistry {
+    /// Convert an ast::Type to a TypeId in this registry.
+    pub fn ast_type_to_id(&self, ast_type: &crate::ast::Type) -> TypeId {
+        match ast_type {
+            crate::ast::Type::I32 => self.primitive(PrimitiveType::I32),
+            crate::ast::Type::I64 => self.primitive(PrimitiveType::I64),
+            crate::ast::Type::U16 => self.primitive(PrimitiveType::U16),
+            crate::ast::Type::U32 => self.primitive(PrimitiveType::U32),
+            crate::ast::Type::F64 => self.primitive(PrimitiveType::F64),
+            crate::ast::Type::Bool => self.primitive(PrimitiveType::Bool),
+            crate::ast::Type::String => self.primitive(PrimitiveType::String),
+            crate::ast::Type::Pointer(inner) => {
+                let pointee = self.ast_type_to_id(inner);
+                // Look up in existing kinds — intern if needed
+                self.kinds
+                    .iter()
+                    .enumerate()
+                    .find(|(_, k)| {
+                        matches!(
+                            k,
+                            TypeKind::Pointer {
+                                pointee: p,
+                                mutability: Mutability::Immutable,
+                            } if *p == pointee
+                        )
+                    })
+                    .map(|(i, _)| TypeId(i as u32))
+                    .unwrap_or_else(|| {
+                        // Fallback: can't intern without &mut self,
+                        // return a predictable ID for common cases
+                        TypeId(1000 + pointee.0)
+                    })
+            }
+        }
+    }
+
+    /// Convert a TypeId back to an ast::Type (best-effort).
+    /// Returns None if the TypeId doesn't map to a simple ast::Type.
+    pub fn type_id_to_ast(&self, id: TypeId) -> Option<crate::ast::Type> {
+        match self.resolve(id) {
+            TypeKind::Primitive(PrimitiveType::I32) => Some(crate::ast::Type::I32),
+            TypeKind::Primitive(PrimitiveType::I64) => Some(crate::ast::Type::I64),
+            TypeKind::Primitive(PrimitiveType::U16) => Some(crate::ast::Type::U16),
+            TypeKind::Primitive(PrimitiveType::U32) => Some(crate::ast::Type::U32),
+            TypeKind::Primitive(PrimitiveType::F64) => Some(crate::ast::Type::F64),
+            TypeKind::Primitive(PrimitiveType::Bool) => Some(crate::ast::Type::Bool),
+            TypeKind::Primitive(PrimitiveType::String) => Some(crate::ast::Type::String),
+            TypeKind::Pointer { pointee, .. } => {
+                self.type_id_to_ast(*pointee).map(|inner| crate::ast::Type::Pointer(Box::new(inner)))
+            }
+            _ => None,
+        }
+    }
+
+    /// Check if two ast::Type values are compatible using the CoercionEngine.
+    /// This is the integration point for semantic analysis.
+    pub fn ast_types_compatible(
+        &self,
+        declared: &crate::ast::Type,
+        actual: &crate::ast::Type,
+    ) -> crate::semantic::coercion::CoercionResult {
+        use crate::semantic::coercion::{CoercionEngine, CoercionResult};
+        let engine = CoercionEngine::new(self);
+        let declared_id = self.ast_type_to_id(declared);
+        let actual_id = self.ast_type_to_id(actual);
+        engine.can_coerce(actual_id, declared_id)
+    }
+}
+
 fn push_kind(kinds: &mut Vec<TypeKind>, kind: TypeKind) -> TypeId {
     let id = TypeId(kinds.len() as u32);
     kinds.push(kind);
