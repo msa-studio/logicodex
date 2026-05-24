@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #20] — 2026-05-24 — Sprint 3: Codegen Backend for Function Calls
+
+### Added
+- **LlvmCompiler CallableRegistry integration** (`src/codegen.rs`): `with_callables()` attaches `CallableRegistry` + `TypeRegistry` for function call codegen
+- **TypeId → LLVM mapping** (`src/codegen.rs`): `type_id_to_llvm()` maps all `PrimitiveType` variants → `inkwell::BasicTypeEnum`
+- **LLVM extern function declaration** (`src/codegen.rs`): `declare_extern_func()` creates LLVM function declarations with `Linkage::External` and caching
+- **Function call codegen** (`src/codegen.rs`): `emit_expr(Expr::Call)` — CallableRegistry lookup → declare → `builder.build_call()` → extract return value
+- **Struct constructor codegen** (`src/codegen.rs`): `try_struct_constructor()` — `Color(255,0,0,255)` → packed u32 `0xFF0000FF`
+- **v1.21 → HIR lowering** (`src/hir.rs`): `lower_v121_program()` converts `ast::Program` → `HirModule` with callable registration
+- **AST conversion helpers** (`src/hir.rs`): `lower_type_ast`, `lower_stmt_ast`, `lower_expr_ast`, `lower_binary_op` — v1.21 AST → HIR AST bridge
+- **V130 compile pipeline** (`src/main.rs`): `compile_v130_pipeline()` — parse → Raylib type/function registration → HIR lowering → semantic check → `compile_v130()`
+- **Tests** (`tests/codegen_function_calls.rs`): 28 assertions — CallableRegistry, type mapping, Raylib registration, HIR lowering, Color packing
+- **Validator** (`scripts/validate_sprint3_codegen_calls.py`): 28/28 checks PASSED
+
+### Changed
+- `compile_v130()`: Updated signature to accept `(CallableRegistry, TypeRegistry)`
+- `compile()`: Branches on `CompilerPipeline::V130` → `compile_v130_pipeline()` vs `V121` → `compile_to_object()`
+
+### Validation
+- v1.21 executable logic: 9/9 checks PASSED
+- Sprint 1.1: 32/32 checks PASSED
+- Sprint 1.2: 20/20 checks PASSED
+- Sprint 2: 34/34 checks PASSED
+- Sprint 2.5: 25/25 checks PASSED
+- Sprint 3: 28/28 checks PASSED
+
 ## [Merged via PR #19] — 2026-05-24 — Sprint 2.5: Struct Literals & Function Call Parser
 
 ### Added
