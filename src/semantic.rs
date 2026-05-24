@@ -124,6 +124,9 @@ pub enum SemanticError {
     DuplicateKotak { name: String },
     #[error("KRITIKAL: `lahirkan` hanya boleh digunakan dengan nama Kotak / CRITICAL: `lahirkan` can only be used with a Kotak name")]
     SpawnNonKotak,
+    // v1.30.1-alpha Fasa 2: Zero-Copy Ownership Transfer
+    #[error("KRITIKAL: Pembolehubah `{name` sudah dihantar melalui Pintu — ownership telah dipindahkan / CRITICAL: Variable `{name}` has already been sent through Pintu — ownership has been transferred")]
+    UseAfterHantar { name: String },
 }
 
 #[derive(Debug, Default)]
@@ -151,6 +154,9 @@ pub struct Analyzer {
     kotak_registry: HashSet<String>,
     /// Registered Pintu: (from, to, message_type)
     pintu_registry: Vec<(String, String, String)>,
+    // v1.30.1-alpha Fasa 2: Zero-Copy Ownership Transfer
+    /// Variables moved via Pintu hantar() — cannot use after send
+    moved_via_pintu: HashSet<String>,
 }
 
 impl Default for SeverityPolicy {
@@ -186,6 +192,7 @@ impl Analyzer {
             handle_permissions: HashMap::new(),
             kotak_registry: HashSet::new(),
             pintu_registry: Vec::new(),
+            moved_via_pintu: HashSet::new(),
             ..Self::default()
         };
         analyzer.block(&program.statements)
@@ -588,7 +595,13 @@ impl Analyzer {
             Expr::Integer(_) => Ok(Type::I64),
             Expr::Boolean(_) => Ok(Type::Bool),
             Expr::StringLiteral(_) => Ok(Type::String),
-            Expr::Variable(name) => self.resolve(name),
+            Expr::Variable(name) => {
+                // Fasa 2: Check if variable was moved via Pintu hantar()
+                if self.moved_via_pintu.contains(name) {
+                    return Err(SemanticError::UseAfterHantar { name: name.clone() });
+                }
+                self.resolve(name)
+            }
             Expr::AddressOfLiteral(addr) => {
                 if self.hw_zone_depth == 0 {
                     return Err(SemanticError::HardwareMutationOutsideZone);
@@ -699,6 +712,14 @@ impl Analyzer {
                 if !found {
                     // Check if it's a variable with Pintu type
                     let _ = self.resolve(pintu_name); // Will error if not defined
+                }
+                // Fasa 2: Zero-Copy Ownership Transfer
+                // If value is a variable, mark it as moved via Pintu
+                if let Expr::Variable(var_name) = value {
+                    if self.moved_via_pintu.contains(var_name) {
+                        return Err(SemanticError::UseAfterHantar { name: var_name.clone() });
+                    }
+                    self.moved_via_pintu.insert(var_name.clone());
                 }
                 self.expression(value)?;
                 Ok(Type::Opaque { name: "Unit".to_string() })
