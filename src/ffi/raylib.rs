@@ -237,25 +237,25 @@ pub fn register_raylib_functions(registry: &mut TypeRegistry, callables: &mut Ca
     // DrawRectangleLines, DrawPixel — these take Color structs
     // For now, register them as taking I64 (hex color value)
     // Sprint 3: proper struct passing
-    register_fn!("ClearBackground", &[ids.i64_], ids.unit);
-    register_fn!("DrawText", &[c_string, ids.i32_, ids.i32_, ids.i32_, ids.i64_], ids.unit);
+    register_fn!("ClearBackground", &[ids.u32_], ids.unit); // Color as packed RGBA
+    register_fn!("DrawText", &[c_string, ids.i32_, ids.i32_, ids.i32_, ids.u32_], ids.unit); // Color as packed RGBA
     register_fn!(
         "DrawRectangle",
-        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, ids.i64_],
+        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, ids.u32_], // Color as packed RGBA
         ids.unit
     );
-    register_fn!("DrawCircle", &[ids.i32_, ids.i32_, ids.f32_, ids.i64_], ids.unit);
+    register_fn!("DrawCircle", &[ids.i32_, ids.i32_, ids.f32_, ids.u32_], ids.unit); // Color as packed RGBA
     register_fn!(
         "DrawLine",
-        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, ids.i64_],
+        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, ids.u32_], // Color as packed RGBA
         ids.unit
     );
     register_fn!(
         "DrawRectangleLines",
-        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, ids.i64_],
+        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, ids.u32_], // Color as packed RGBA
         ids.unit
     );
-    register_fn!("DrawPixel", &[ids.i32_, ids.i32_, ids.i64_], ids.unit);
+    register_fn!("DrawPixel", &[ids.i32_, ids.i32_, ids.u32_], ids.unit); // Color as packed RGBA
 
     // ─── Textures (3 functions) ───
     // Sprint 3: Texture2D will be a proper struct type
