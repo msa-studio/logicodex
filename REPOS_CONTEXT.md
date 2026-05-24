@@ -28,6 +28,30 @@ This authoritative document inventories the core architectural assets of the Log
 
 Repository documentation should describe implemented compiler behavior as implemented, prototype behavior as experimental, and broader security or freestanding ambitions as long-term objectives. This keeps the project credible while preserving the full research direction for future milestones.
 
+## Version Gate Architecture (Edition Routing) — MERGED #12
+
+The repository implements a **version-gated compiler pipeline** inspired by Rust Editions. This allows v1.30 language constructs to be developed without destabilizing the v1.21-alpha baseline:
+
+| Pipeline | Flag | Behavior |
+|---|---|---|
+| v1.21 (default) | `--pipeline v1.21` | Stable behavior. `struct`, `enum`, `unsafe`, `extern` are trapped with clear bilingual `UnimplementedFeature` errors. |
+| v1.30 (experimental) | `--pipeline v1.30` | Activates parsing for `struct`, `enum`, `unsafe`, `extern`, and HIR-based codegen path. |
+
+**Key design principles:**
+- **Zero regression**: v1.21 code paths are untouched; the default pipeline remains v1.21.
+- **Zero overhead**: v1.21 does not pass through HIR lowering.
+- **Fail-fast**: v1.21 codegen has `unreachable!()` safety nets that panic if v1.30 AST nodes leak through.
+- **Scalable**: Future versions (`v1.40`, `v1.50`) can use the same `CompilerPipeline` enum and `Parser::with_pipeline()` pattern.
+
+**Implementation locations:**
+- `src/parser.rs`: `CompilerPipeline` enum, `Parser::with_pipeline()`, conditional parse/trap logic.
+- `src/ast.rs`: v1.30 AST variants (`StructDecl`, `EnumDecl`, `UnsafeBlock`, `ExternBlock`).
+- `src/hir.rs`: `HirStmt::If`, `TypeRegistry` integration, `ExternBlock` and `AddressOf` fixes.
+- `src/codegen.rs`: `unreachable!()` safety net, `CodegenBackend` trait, `compile_v130()` entry point.
+- `src/semantic_gate.rs`: `HirStmt::If` scope management.
+
+**Merged**: 2026-05-24 via [PR #12](https://github.com/msa-studio/logicodex/pull/12)
+
 ## Maintainer Context: Three-Tier Token Dictionary Expansion
 
 The current logicodex v 1.21 alpha dictionary now includes the requested three-tier token records for program structure, bindings, control flow, FFI vocabulary, resource vocabulary, type families, bitwise operators, and hardware/address vocabulary. Treat dictionary-only additions as vocabulary and lexer-recognition updates until parser, semantic, backend, and validation milestones prove executable behavior. The current reflex-engine examples document the executable subset that is already accepted by both `check` and `v130-check`.
