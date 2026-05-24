@@ -97,6 +97,7 @@ The current documentation set now separates language grammar, environment setup,
 | `MANUAL.md` | Provides concise compiler usage, build commands, and frontend architecture notes. |
 | `docs/VS_CODE_EXTENSION.md` | Explains how to run the Logicodex VS Code Side View MVP for best-effort Malay/English pseudocode alias to expert canonical shorthand preview without changing Rust. |
 | `v121_execution_design.md` | Captures the executable-logic and provenance design track for the v1.21-alpha milestone. |
+| `spec/v1.30-alpha/v130_architecture_design.md` | Defines the documentation-first v1.30 architecture baseline with Rust skeleton structures for spans, HIR, type registry, struct layout, enum representation, FFI signatures, unsafe gatekeeping, semantic validation, and codegen contracts. |
 
 ## Practical Roadmap Summary
 
@@ -105,7 +106,7 @@ The next useful work is not to expand claims, but to improve proof. The project 
 | Horizon | Emphasis | Success signal |
 |---|---|---|
 | Short term | Stabilize compiler core and examples. | `cargo check`, release build, validators, and representative `.ldx` programs pass reproducibly. |
-| Medium term | Improve tooling and language boundaries. | Formatter, LSP diagnostics, stronger type rules, and documented unsafe capability gates exist. |
+| Medium term | Improve tooling and language boundaries. | Formatter, LSP diagnostics, stronger type rules, documented unsafe capability gates, and the v1.30 HIR/type-layout skeleton are available for implementation review. |
 | Long term | Research-grade systems and security features. | Wasm target, migration assistant, attestation prototype, freestanding examples, and measured overhead data are available. |
 
 ## Governance and Licensing
