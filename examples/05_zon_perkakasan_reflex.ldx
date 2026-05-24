@@ -1,18 +1,14 @@
 // =========================================================================
 // Project: Logicodex Language Engine
 // Compatibility: v1.21-alpha check + v1.30.0-alpha dormant subsystem check
-// Purpose: Beginner-style arithmetic and conditional flow example.
+// Purpose: Reflex hardware-zone provenance example using a declared hardware
+//          region, address literal, and pointer binding inside a safe zone.
 // =========================================================================
+
 MULA
-BINA x = 5
-BINA y = 10
-BINA total = x + y
-JIKA total > 12 MAKA
-MULA
-    PAPAR 1
-TAMAT
-JIKALAU_TIDAK
-MULA
-    PAPAR 0
+ZON_PERKAKASAN MULA
+    PERKAKASAN reflex_bus: U16 = ALAMAT 753664;
+    BINA mirror: PTR<U16> = reflex_bus;
+    PAPAR mirror;
 TAMAT
 TAMAT

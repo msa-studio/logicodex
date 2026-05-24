@@ -1,15 +1,14 @@
 // =========================================================================
 // Project: Logicodex Language Engine
 // Compatibility: v1.21-alpha check + v1.30.0-alpha dormant subsystem check
-// Purpose: Expert-style arithmetic and conditional flow example.
+// Purpose: Bitwise and shift operations for reflex-engine signal masking.
 // =========================================================================
+
 {
-let x = 5;
-let y = 10;
-let total = x + y;
-if total > 12 {
-    print 1;
-} else {
-    print 0;
-}
+    let sensor: U32 = 42;
+    let mask: U32 = 15;
+    let low_bits: U32 = sensor & mask;
+    let shifted: U32 = sensor >> 1;
+    let routed: U32 = (low_bits | shifted) << 1;
+    print routed;
 }
