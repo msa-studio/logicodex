@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #31] — 2026-05-25 — v1.31.0-alpha: Tier 2 — 2-Pass Streaming Engine
+
+### Added
+- **Tier 2 Module** (`src/tier2/`): Streaming Semantic Compiler foundation
+  - `src/tier2/metadata.rs` — Core data structures for semantic compression
+    - `SemanticSummary` (~64 bytes/symbol): compressed semantic essence replacing full AST
+    - `MetadataGraph`: persistent lightweight index — name→ID lookup, call graph, actor registry, channel topology
+    - `Capability` (u8 bitflags): Pure, IO, Unsafe, Concurrent, Hardware, Diverging — inferred per-function
+    - `InlineCost`: Trivial/Small/Medium/Large/Recursive — estimated from statement count + recursion
+    - `MemoryReport`: compare metadata vs. AST memory usage, compute compression ratio
+  - `src/tier2/pass.rs` — 2-Pass Streaming Engine
+    - `pass1_predeclare()`: lightning scan — collects all signatures, builds call graph, detects mutual recursion
+    - `pass2_streaming()`: deep analysis per function — infers capabilities, estimates inline cost
+    - `compile_streaming()`: full pipeline — Pass 1 → Pass 2 → StreamingResult
+  - `CompileMode`: `Pantas` (aggressive streaming) / `Pakar { max_ram_mb }` (adaptive window)
+- **Tests**: `tests/streaming_pass_engine.rs` (12 assertions)
+- **Validator**: `scripts/validate_streaming_pass.py` (6 checks)
+
+### Validation
+- Streaming Engine: 6/6 | Phase 3: 10/10 | Phase 2: 6/6 | Phase 1: 8/8 | v1.21: 9/9 | **Total: 41/41 ✅**
+
+---
+
 ## [Merged via PR #30] — 2026-05-25 — v1.30.1-alpha Phase 3: Backpressure + Scheduler
 
 ### Added
