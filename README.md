@@ -1,5 +1,5 @@
-# Logicodex Language — v1.38.0-alpha
-## The Deferred Items Cleanup
+# Logicodex Language — v1.39.0-alpha
+## The Sharded Runtime
 
 > v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor → v1.34 Sharded Reactor → v1.35 Capability IR → v1.36 CTL Mapper → v1.37 Network Runtime → **v1.38 Deferred Cleanup**
 
@@ -60,6 +60,7 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 | **v1.36.0-alpha** | CTL Mapper | Auto-generates WIT from CapabilityGraph — 6 domain mappings, manual overrides, HW gate host reactor stubs |
 | **v1.37.0-alpha** | **Network Runtime** | **Deterministic event loop — epoll, live socket I/O, taint FSM, RAII auto-cleanup, backpressure at runtime** |
 | **v1.38.0-alpha** | **Deferred Cleanup** | **CallableRegistry predeclare, topology fix, enum layout, Windows fallback, secure attestation, freestanding target, semantic gatekeeper** |
+| **v1.39.0-alpha** | **Sharded Runtime** | **Real OS thread per shard, parallel execution, CPU affinity via direct syscall (Linux: sched_setaffinity, macOS: thread_policy_set, Windows: SetThreadAffinityMask)** |
 
 ### Architecture: Door + Gate + Service + IR + CTL
 

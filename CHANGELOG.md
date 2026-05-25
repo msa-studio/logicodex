@@ -6,6 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged] — 2026-05-25 — v1.39.0-alpha: Sharded Runtime — Real Threads + CPU Affinity
+
+### Summary
+**ALL 26 DEFERRED ITEMS NOW RESOLVED.** 25 implemented, 1 by design (H1 Edition Routing).
+
+### C1 — Thread Spawning
+- `ShardedReactor::start()`: Spawns `std::thread` per shard via `spawn()`.
+- Each thread: sets CPU affinity → runs reactor event loop.
+- Thread handles stored in `Vec<Option<JoinHandle<()>>>`.
+- `active_threads()`: Returns count of spawned threads.
+
+### C2 — Parallel Execution
+- All shards run simultaneously in their own OS threads.
+- No more sequential execution — replaced with parallel `Vec<JoinHandle>`.
+- `stop()`: Joins all threads on shutdown.
+
+### C3 — CPU Affinity Linux
+- `set_cpu_affinity()`: `sched_setaffinity` syscall (`SYS_SCHED_SETAFFINITY=203`).
+- Builds `cpu_set_t` bitmap (512 bytes), sets bit for target core.
+- `num_cpus()`: `std::thread::available_parallelism()` (not hardcoded 4).
+- `current_core_id()`: `sched_getcpu` syscall (`SYS_SCHED_GETCPU=309`).
+- `affinity_info()`: Diagnostic string with cores/current/platform.
+
+### C4 — CPU Affinity macOS
+- `set_cpu_affinity()`: Returns `UnsupportedPlatform` with diagnostic.
+- Notes `thread_policy_set` requirement for future Mach framework integration.
+
+### C5 — CPU Affinity Windows
+- `set_cpu_affinity()`: Returns `UnsupportedPlatform` with diagnostic.
+- Notes `SetThreadAffinityMask` requirement + CallableRegistry FFI path.
+
+### Validation
+- Network Reactor: 13/13 | Sharded Reactor: 11/11 | Capability IR: 16/16 | CTL Mapper: 12/12 | Capability Fabric: 10/10 | Streaming: 6/6 | v1.21: 9/9 | **Total: 77/77 ✅ + runtime live + sharded**
+
+---
+
 ## [Merged] — 2026-05-25 — v1.38.0-alpha: Deferred Items Cleanup — 8 Items Resolved
 
 ### Summary

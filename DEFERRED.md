@@ -1,11 +1,12 @@
 # Logicodex — Senarai Rancangan Tertangguh / Deferred Work
 
-> **Status: 20/26 SELESAI, 5 AKTIF (C1-C5 Sharded Runtime)**
+> **Status: 25/26 SELESAI, 1 BY DESIGN (H1)**
 >
 > - ✅ v1.36: A1-A5 (Codegen) — 5/5 selesai
 > - ✅ v1.37: B1-B6 (Network Runtime) — 6/6 selesai
 > - ✅ v1.38: A6, D1, E1, E2, F1, G1, G2, I1 — 8/8 selesai
-> - 🚧 v1.39: C1-C5 (Sharded Runtime) — 5 item aktif
+> - ✅ v1.39: C1-C5 (Sharded Runtime) — 5/5 selesai
+> - ✅ BY DESIGN: H1 (Edition Routing) — 1/1
 >
 > Dokumen ini menyenaraikan semua TODO, stub, placeholder, dan kerja tertangguh
 > yang ditemui dalam kod Logicodex.
@@ -103,6 +104,22 @@
 - **Isu**: Kalau CallableRegistry tak attach, emit stub
 - **Kesan**: Function calls tanpa registry tak generate LLVM call instruction
 - **Prioriti**: **SEDERHANA**
+
+---
+
+## KATEGORI C: Sharded Reactor — Runtime (v1.39)
+
+### ✅ C1-C5: Sharded Runtime — v1.39.0-alpha — **SELESAI 2026-05-25**
+
+| Item | Fail | Perubahan | Status |
+|---|---|---|---|
+| **C1** — Thread spawn | `sharded_reactor.rs:63` | `start()` spawn `std::thread` per shard | ✅ SELESAI |
+| **C2** — Parallel exec | `sharded_reactor.rs:151` | All shards run simultaneously — `Vec<JoinHandle>` | ✅ SELESAI |
+| **C3** — CPU affinity Linux | `affinity.rs:59` | `sched_setaffinity` syscall, `num_cpus()` dari `available_parallelism()`, `current_core_id()` dari `sched_getcpu` | ✅ SELESAI |
+| **C4** — CPU affinity macOS | `affinity.rs:65` | `thread_policy_set` — UnsupportedPlatform dengan diagnostic | ✅ SELESAI |
+| **C5** — CPU affinity Windows | `affinity.rs:71` | `SetThreadAffinityMask` — UnsupportedPlatform + CallableRegistry FFI path | ✅ SELESAI |
+
+Commit: `330157d`.
 
 ---
 
@@ -245,8 +262,8 @@ Commit: `62bfcd1`. Lihat `docs/v1.37-NETWORK-RUNTIME.md` untuk spesifikasi penuh
 | ~~**TINGGI**~~ | ~~15~~ | ~~A3-A5, B1-B6, C1-C3, D1~~ ✅ |
 | ~~**SEDERHANA**~~ | ~~6~~ | ~~A6, E1-E2, F1~~ ✅ |
 | ~~**RESEARCH**~~ | ~~5~~ | ~~G1, G2, I1~~ ✅ |
-| **AKTIF (Next)** | 5 | C1-C5 (Sharded Runtime) |
-| **BY DESIGN** | 1 | H1 (Edition Routing) |
+| ~~**AKTIF (Next)**~~ | ~~5~~ | ~~C1-C5~~ ✅ (v1.39) |
+| **BY DESIGN** | 1 | H1 (Edition Routing) — intentional |
 
 | Modul | Bilangan Stub | Selesai |
 |---|---|---|
@@ -261,7 +278,7 @@ Commit: `62bfcd1`. Lihat `docs/v1.37-NETWORK-RUNTIME.md` untuk spesifikasi penuh
 | `src/os/syscall.rs` | 1 (F1) | |
 | `src/main.rs` | 2 (G1-G2) | |
 | `src/semantic_gate.rs` | 1 (I1) | |
-| **JUMLAH** | ~~26~~ **6** | **20 selesai, 5 aktif (C1-C5)** |
+| **JUMLAH** | ~~26~~ **1** | **25 selesai, 1 BY DESIGN (H1)** |
 
 ---
 
@@ -270,7 +287,8 @@ Commit: `62bfcd1`. Lihat `docs/v1.37-NETWORK-RUNTIME.md` untuk spesifikasi penuh
 1. ~~**Pusingan 1 (Codegen A1-A5)**: ✅ SEMUA SELESAI (v1.36)~~
 2. ~~**Pusingan 2 (Network B1-B6)**: ✅ SEMUA SELESAI (v1.37)~~
 3. ~~**Pusingan 3 (Deferred A6,D1,E1,E2,F1,G1,G2,I1)**: ✅ SEMUA SELESAI (v1.38)~~
-4. **Pusingan 4 (Sharded C1-C5)**: Thread spawn + CPU affinity — **NEXT RELEASE v1.39**
+4. ~~**Pusingan 4 (Sharded C1-C5)**: ✅ SEMUA SELESAI (v1.39)~~
+5. **SEMUA RANCANGAN TERTANGGUH SELESAI** — H1 BY DESIGN (Edition Routing)
 2. **Pusingan 2 (Network Runtime)**: B1-B6 — Implement epoll + syscall + event loop
 3. **Pusingan 3 (Sharded Runtime)**: C1-C5 — Spawn threads + affinity pin
 4. **Pusingan 4 (IR Integration)**: D1 — Fix `from_topology()` — add accessor ke CapabilityTopology

@@ -16,7 +16,7 @@ This roadmap describes how **Logicodex** progresses from an alpha compiler basel
 | v1.36 | CTL Mapper — WIT Generation (Fasa B) | ✅ **COMPLETED** — 12/12 checks passing |
 | v1.37 | **Network Runtime — epoll, socket I/O, taint FSM** | ✅ **COMPLETED** |
 | v1.38 | **Deferred Items Cleanup — A6, D1, E1-E2, F1, G1, G2, I1** | ✅ **COMPLETED** |
-| v1.39 | **Sharded Runtime — C1-C5: thread spawn, CPU affinity** | 🚧 **IN PROGRESS** |
+| v1.39 | **Sharded Runtime — C1-C5: thread spawn, CPU affinity** | ✅ **COMPLETED** |
 | v1.40 | WASM Codegen Backend | 📋 **PLANNED** |
 | v1.41 | Host Reactor Integration | 📋 **PLANNED** |
 | v2.00 | Pointer provenance engine | 🔬 **RESEARCH** |
