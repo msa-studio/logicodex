@@ -287,7 +287,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
         // Other struct types: not yet supported for inline construction
         None
     }
-    }
 
     fn emit_program(&mut self, program: &Program, target: CompilationTarget) -> Result<()> {
         let i32_type = self.context.i32_type();
