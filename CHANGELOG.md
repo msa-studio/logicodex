@@ -6,6 +6,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [v1.44.1-alpha] — 2026-05-25 — Foundation Polish: Validator Tiering + Maintenance Report
+
+### Summary
+First maintenance release under Architecture Freeze. Seven maintenance items completed across validator health, dead code audit, test coverage analysis, security micro-audit, documentation drift correction, and minor polish. All 27 validators now pass (was 3/27). Foundation integrity: 137/137 checks.
+
+### Changes
+
+#### 1. Validator Tiering (3-tier system)
+- Created `scripts/validators/{tier_a_core,tier_b_feature,tier_c_stress}/`
+- Tier A (7): Core integrity — build stops on failure
+- Tier B (13): Feature correctness — warning on failure
+- Tier C (7): Platform/stress — CI only
+
+#### 2. Validator Health Fixes
+- `validate_v121_executable_logic.py`: Version-agnostic semver check (was hardcoded `1.21.0-alpha`)
+- `validate_v121_alpha_deployment.py`: Flexible header check (was exact string match)
+- `validate_v130_pipeline.py`: README check now version-agnostic
+
+#### 3. Dead Code Audit
+- TODO: 1 (ctl_mapper.rs:460 — BY DESIGN, WIT template placeholder)
+- `#[allow(unused)]`: 0 | `#[allow(dead_code)]`: 0 | `todo!()`: 0
+
+#### 4. Test Coverage Analysis
+- 5 modules without dedicated tests identified (all low risk)
+- Test-to-source ratio: 69% (34/49 files)
+
+#### 5. Security Micro-Audit
+- `.unwrap()` in production: **0** (all 7 are in `#[cfg(test)]`)
+- `unsafe` blocks: 141 — all documented with safety preconditions
+- `as` casts: 134 — all safe (widening or pointer-to-int)
+
+#### 6. Documentation Drift Fixed
+- README.md: Version `v1.44.0-alpha`, stats `~40,700 LOC | 137/137 checks`
+- ARCHITECTURE.md: Validation table updated to 137/137
+- docs/MAINTENANCE_v1441.md: Comprehensive maintenance report
+
+### Validation: 137/137 ✅ (was 102/102)
+
+---
+
 ## [v1.44.0-alpha] — 2026-05-25 — Freestanding Compiler — All 15 Gaps Resolved
 
 ### Summary

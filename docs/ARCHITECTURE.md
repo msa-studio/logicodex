@@ -267,7 +267,7 @@ The CTL Mapper auto-generates WIT from CapabilityGraph, projecting Logicodex's c
 
 ## Validation
 
-**102/102 checks passing + runtime live + sharded + wasm + host** — zero regression across all versions.
+**137/137 checks passing + runtime live + sharded + wasm + host + freestanding** — zero regression across all versions.
 
 ```
 Host Reactor (v1.41):      20/20 ✅  (GatePermissions, HardwareZone, HW dispatch)
@@ -285,5 +285,5 @@ Threading Phase 2:           6/6  ✅
 Threading Phase 1:           8/8  ✅
 v1.21 baseline:              9/9  ✅
 ──────────────────────────────────
-TOTAL:                      102/102 ✅ + runtime live + sharded + wasm + host
+TOTAL:                       137/137 ✅ + all platforms
 ```

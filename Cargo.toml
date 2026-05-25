@@ -1,6 +1,6 @@
 [package]
 name = "logicodex"
-version = "1.44.0-alpha"
+version = "1.44.1-alpha"
 edition = "2021"
 authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
 description = "v1.44-alpha: Freestanding Compiler — 15 gaps resolved (startup, panic, linker, allocator, UART, IDT, MMIO, multiboot)"
