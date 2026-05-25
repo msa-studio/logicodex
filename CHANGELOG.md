@@ -6,7 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
-## [IN PROGRESS] — v1.37.0-alpha: Deterministic Network Runtime — From Compile-Time to Live
+## [Merged] — 2026-05-25 — v1.38.0-alpha: Deferred Items Cleanup — 8 Items Resolved
+
+### Summary
+Closed 8 long-standing deferred items. **20 of 26 total deferred items are now resolved.** Remaining: C1-C5 (Sharded Runtime) → v1.39.
+
+### A6 — CallableRegistry Integration
+- `predeclare_callables()`: Iterates all registered callables, declares them in LLVM module before HIR codegen begins. Prevents "CallableRegistry not attached" errors.
+- Integrated at start of `compile_v130()`.
+
+### D1 — from_topology() Fix
+- Added accessor methods to `CapabilityTopology`: `contracts()`, `providers_of()`, `consumers_of()`, `all_providers()`, `all_consumers()`, `module_symbol()`.
+- `from_topology()`: Now imports all `GateContract` entries as `IRGateEdge` into CapabilityGraph.
+
+### E1 — Struct Type Resolution
+- Clarified design: struct constructors returning `I64` (packed value) is intentional — value types packed into integer registers.
+
+### E2 — Enum Layout
+- Added `enum_layouts: Vec<EnumLayout>` to `TypeRegistry` with `register_enum_layout()` and `get_enum_layout()` methods.
+- `layout.rs`: `TypeKind::Enum` now looks up cached layout (fallback to `u32` for unregistered enums).
+
+### F1 — Windows Syscall Fallback
+- `open_file()`: Returns `Err(-1)` with diagnostic instead of `unimplemented!()` panic.
+- `win_recv_fallback()` + `win_send_fallback()`: Graceful error returns.
+
+### G1 — Memory Attestation (--secure)
+- `compute_module_hash()`: Simple folding hash (placeholder for future SHA-256 over `.text` section).
+- `--secure` flag now includes computed hash in security plan document.
+
+### G2 — Freestanding Target (--target freestanding)
+- `select_freestanding_target_triple()`: Returns `x86_64-unknown-none-elf`, `aarch64-unknown-none`, or `riscv64gc-unknown-none-elf` based on host arch.
+- `--target freestanding` now includes selected LLVM triple in plan document.
+
+### I1 — Semantic Gatekeeper Activation
+- Removed `#![allow(dead_code)]`, added module documentation.
+- `validate_module()`: Public API for final validation pass.
+- `validate_module_with_reporting()`: Convenience function with diagnostics.
+- Integrated into `compile_v130()`: Runs as final validation pass before LLVM codegen (non-fatal).
+
+### Validation
+- Network Reactor: 13/13 | Sharded Reactor: 11/11 | Capability IR: 16/16 | CTL Mapper: 12/12 | Capability Fabric: 10/10 | Streaming: 6/6 | v1.21: 9/9 | **Total: 77/77 ✅ + runtime live**
+
+---
+
+## [Merged] — 2026-05-25 — v1.37.0-alpha: Deterministic Network Runtime — From Compile-Time to Live
 
 ### The Gap Being Closed
 The v1.33 Network Reactor provided compile-time verification (syntax, topology, taint analysis, backpressure policies) but all runtime operations were stubs. v1.37 closes this gap — the reactor now runs live with real syscalls.

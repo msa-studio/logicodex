@@ -14,9 +14,11 @@ This roadmap describes how **Logicodex** progresses from an alpha compiler basel
 | v1.34 | Sharded multi-core reactor | ✅ **COMPLETED** — 11/11 checks passing |
 | v1.35 | CapabilityGraph IR (Fasa A) | ✅ **COMPLETED** — 16/16 checks passing |
 | v1.36 | CTL Mapper — WIT Generation (Fasa B) | ✅ **COMPLETED** — 12/12 checks passing |
-| v1.37 | **Network Runtime — epoll, socket I/O, taint FSM** | 🚧 **IN PROGRESS** |
-| v1.38 | WASM Codegen Backend | 📋 **PLANNED** |
-| v1.39 | Host Reactor Integration | 📋 **PLANNED** |
+| v1.37 | **Network Runtime — epoll, socket I/O, taint FSM** | ✅ **COMPLETED** |
+| v1.38 | **Deferred Items Cleanup — A6, D1, E1-E2, F1, G1, G2, I1** | ✅ **COMPLETED** |
+| v1.39 | **Sharded Runtime — C1-C5: thread spawn, CPU affinity** | 🚧 **IN PROGRESS** |
+| v1.40 | WASM Codegen Backend | 📋 **PLANNED** |
+| v1.41 | Host Reactor Integration | 📋 **PLANNED** |
 | v2.00 | Pointer provenance engine | 🔬 **RESEARCH** |
 
 ## Milestone 1: Stabilize the Alpha Compiler Core
@@ -66,6 +68,21 @@ Project Logicodex's capability-native world INTO the WASM ecosystem. "Project IN
 |---|---|---|---|
 | v1.35 — CapabilityGraph IR (CompileTarget, CapabilityRef, IRServiceNode, IRShardNode, verify, to_cap, to_wit_stub) | **[X] COMPLETED / MERGED #37** | Mohamad Supardi Abdul | 16/16 validator checks, `src/tier2/capability_ir.rs`. Single Source of Truth unifying v1.31+v1.32+v1.34. See `docs/v1.35-CAPABILITY-IR.md`. |
 | v1.36 — CTL Mapper (WitDomain, WitOperation, CtlMapper, 6 domain mappings, manual overrides, host reactor stubs) | **[X] COMPLETED / MERGED #38** | Mohamad Supardi Abdul | 12/12 validator checks, `src/tier2/ctl_mapper.rs`. Auto-generates WIT from CapabilityGraph. See `docs/v1.36-CTL-MAPPER.md`. |
+
+## Milestone 1f: Deferred Items Cleanup (v1.38)
+
+Close 8 long-standing deferred items from DEFERRED.md.
+
+| Issue | Status | Owner | Practical acceptance signal |
+|---|---|---|---|
+| v1.38 A6 — CallableRegistry predeclaration (predeclare_callables before HIR codegen) | **[X] COMPLETED** | Mohamad Supardi Abdul | No more "CallableRegistry not attached" errors during codegen. |
+| v1.38 D1 — from_topology() fix (CapabilityTopology accessors + IRGateEdge import) | **[X] COMPLETED** | Mohamad Supardi Abdul | CapabilityTopology data correctly merges into CapabilityGraph. |
+| v1.38 E1 — Struct type resolution (clarified I64 packed value design) | **[X] COMPLETED** | Mohamad Supardi Abdul | Struct constructors return correct packed values. |
+| v1.38 E2 — Enum layout (enum_layouts in TypeRegistry, layout.rs lookup) | **[X] COMPLETED** | Mohamad Supardi Abdul | TypeKind::Enum resolves to cached layout (u32 fallback). |
+| v1.38 F1 — Windows syscall fallback (graceful errors instead of panic) | **[X] COMPLETED** | Mohamad Supardi Abdul | Windows builds don't panic on I/O — return diagnostic errors. |
+| v1.38 G1 — Memory attestation (compute_module_hash placeholder SHA-256) | **[X] COMPLETED** | Mohamad Supardi Abdul | `--secure` flag produces hash in security plan document. |
+| v1.38 G2 — Freestanding target (select_freestanding_target_triple) | **[X] COMPLETED** | Mohamad Supardi Abdul | `--target freestanding` selects correct LLVM triple (x86_64/aarch64/riscv64). |
+| v1.38 I1 — Semantic gatekeeper activation (validate_module in compile_v130) | **[X] COMPLETED** | Mohamad Supardi Abdul | Final validation pass runs before LLVM codegen. |
 
 ## Milestone 1e: The Deterministic Network Runtime (v1.37)
 

@@ -1,5 +1,9 @@
-# Logicodex Language — v1.37.0-alpha
-## The Deterministic Network Runtime
+# Logicodex Language — v1.38.0-alpha
+## The Deferred Items Cleanup
+
+> v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor → v1.34 Sharded Reactor → v1.35 Capability IR → v1.36 CTL Mapper → v1.37 Network Runtime → **v1.38 Deferred Cleanup**
+
+The **current logicodex v1.38 alpha** closes 8 long-standing deferred items: CallableRegistry integration (A6), CapabilityTopology fix (D1), struct/enum type resolution (E1-E2), Windows syscall fallback (F1), memory attestation (G1), freestanding target (G2), and semantic gatekeeper activation (I1). **20 of 26 deferred items are now resolved.**
 
 > v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor → v1.34 Sharded Reactor → v1.35 Capability IR → v1.36 CTL Mapper → **v1.37 Network Runtime**
 
@@ -55,6 +59,7 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 | **v1.35.0-alpha** | CapabilityGraph IR | Single Source of Truth IR — unifies SemanticSummary + CapabilityTopology + ShardTopology; generates Native/`.cap`/WIT |
 | **v1.36.0-alpha** | CTL Mapper | Auto-generates WIT from CapabilityGraph — 6 domain mappings, manual overrides, HW gate host reactor stubs |
 | **v1.37.0-alpha** | **Network Runtime** | **Deterministic event loop — epoll, live socket I/O, taint FSM, RAII auto-cleanup, backpressure at runtime** |
+| **v1.38.0-alpha** | **Deferred Cleanup** | **CallableRegistry predeclare, topology fix, enum layout, Windows fallback, secure attestation, freestanding target, semantic gatekeeper** |
 
 ### Architecture: Door + Gate + Service + IR + CTL
 
