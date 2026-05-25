@@ -1,6 +1,6 @@
-# Logicodex Systems Architecture: Door + Gate + Service
+# Logicodex Systems Architecture: Door + Gate + Service + IR + CTL
 
-> **"The Deterministic Systems Platform"**
+> **"The Capability Translation Layer"**
 
 Architect: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 
@@ -8,14 +8,18 @@ Architect: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 
 ## Philosophy
 
-Logicodex bukan sekadar bahasa pengaturcaraan — ia adalah **"Hardware-Integrated Systems Platform"** yang menggabungkan 4 tiang utama:
+Logicodex bukan sekadar bahasa pengaturcaraan — ia adalah **"Hardware-Integrated Systems Platform"** yang menggabungkan 6 tiang utama:
 
 1. **Provenance Memory** (K1-K4) — Memori dengan jejak keaslian
 2. **Deterministic Concurrency** (Actor & Channel) — Zero-copy actor model
 3. **Capability Fabric** (Security Gate) — Compile-time security
 4. **Network Reactor** (Deterministic I/O) — Event-driven networking
+5. **Sharded Reactor** (Multi-Core) — Per-CPU-core deterministic instances
+6. **Capability Translation** (WASM) — Project INTO, not borrow FROM
 
 > **"Mustahil untuk mengalami race condition atau memory leak"** — kerana semuanya diverifikasi pada masa kompil.
+>
+> **"WASM Guest = Unit Logik — NO direct hardware access"** — All hardware through Capability Gates → Host Reactor.
 
 ---
 
@@ -153,20 +157,62 @@ Healthy → Suspicious → Closing
 | v1.31 | Tier 2 Streaming Engine | ✅ Merged | 6/6 |
 | v1.32 | Static Capability Fabric | ✅ Merged | 10/10 |
 | v1.33 | Deterministic Network Reactor | ✅ Merged | 13/13 |
-| | **TOTAL** | | **260+** |
+| v1.34 | Sharded Multi-Core Reactor | ✅ Merged | 11/11 |
+| v1.35 | CapabilityGraph IR | ✅ Merged | 22/22 |
+| v1.36 | CTL Mapper (WIT Generation) | ✅ Merged | 16/16 |
+| | **TOTAL** | | **320+** |
+
+---
+
+## New Architecture: CapabilityGraph IR + CTL Mapper
+
+### v1.35.0-alpha: CapabilityGraph IR — Single Source of Truth
+
+The CapabilityGraph IR unifies three previously separate structures into one language-agnostic representation:
+
+| Source Structure | IR Component | File |
+|---|---|---|
+| v1.31 `SemanticSummary` | `IRServiceNode` (effects, inline_cost) | `src/tier2/capability_ir.rs` |
+| v1.32 `CapabilityTopology` | `IRGateEdge` + `CapabilityRef` | `src/tier2/capability_ir.rs` |
+| v1.34 `ShardTopology` | `IRShardNode` + `IRDoorEdge` | `src/tier2/capability_ir.rs` |
+
+**Output Targets:**
+- `CompileTarget::Native` → ELF with inlined capability checks
+- `CompileTarget::Wasm` → Sandboxed, maps to WASI via CTL
+- `CompileTarget::All` → Dual artifacts from one CapabilityGraph
+
+**Verification:** 6 unified checks (`verify()`) — `EmptyGraph`, `WasmHardwareGate`, `InvalidShardAssignment`, `UnknownServiceInDoor`, `UnknownServiceInGate`, `EmptyShard`
+
+### v1.36.0-alpha: CTL Mapper — "Project INTO, not borrow FROM"
+
+The CTL Mapper auto-generates WIT from CapabilityGraph, projecting Logicodex's capability model INTO the WASM ecosystem:
+
+| Logicodex Domain | WIT Target | Hardware? |
+|---|---|---|
+| `Storage` | `wasi:filesystem` | No |
+| `Net` | `wasi:sockets` | No |
+| `UI` | `wasi:cli` | No |
+| `HW` | `logicodex:host-reactor` | **Host-mediated only** |
+| `Audio` | `wasi:io/custom` | No |
+| `Crypto` | `wasi:crypto` | No |
+
+**Key Features:**
+- Manual overrides via `add_override(domain.op, custom_wit)`
+- HW gates NEVER reach WASM guest — always routed through Host Reactor
+- Unknown domains fallback to `logicodex:custom`
+- Host reactor stubs auto-generated in Rust
 
 ---
 
 ## Future Work
 
-### v1.34.0-alpha: Sharded Multi-Core Reactor
-- Per-CPU-core reactor instance
-- Static CPU affinity untuk servis
-- Cross-core communication melalui dedicated Door
+### v1.37.0-alpha: WASM Codegen Backend
+- LLVM backend generates `.wasm` from CapabilityGraph IR
+- `CompileTarget::Wasm` produces valid WebAssembly component
 
-### v1.35.0-alpha: WebAssembly Target
-- Wasm code generation daripada LLVM IR
-- Capability gate untuk browser APIs
+### v1.38.0-alpha: Host Reactor Integration
+- WASM host implements `logicodex:host-reactor` interface
+- Guest ↔ Host HW gate communication validated end-to-end
 
 ### v1.40.0-alpha: Full Freestanding
 - Bootloader examples
@@ -178,16 +224,19 @@ Healthy → Suspicious → Closing
 
 ## Validation
 
-**60/60 checks passing** — zero regression across all versions.
+**88/88 checks passing** — zero regression across all versions.
 
 ```
-Network Reactor:     13/13 ✅
-Capability Fabric:   10/10 ✅
-Streaming Engine:     6/6  ✅
-Threading Phase 3:   10/10 ✅
-Threading Phase 2:    6/6  ✅
-Threading Phase 1:    8/8  ✅
-v1.21 baseline:       9/9  ✅
-─────────────────────────────
-TOTAL:               60/60 ✅
+CTL Mapper (v1.36):       12/12 ✅
+Capability IR (v1.35):    16/16 ✅
+Sharded Reactor (v1.34):  11/11 ✅
+Network Reactor (v1.33):  13/13 ✅
+Capability Fabric (v1.32): 10/10 ✅
+Streaming Engine (v1.31):   6/6  ✅
+Threading Phase 3:         10/10 ✅
+Threading Phase 2:          6/6  ✅
+Threading Phase 1:          8/8  ✅
+v1.21 baseline:             9/9  ✅
+─────────────────────────────────
+TOTAL:                      88/88 ✅
 ```

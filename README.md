@@ -1,9 +1,9 @@
-# Logicodex Language — v1.33.0-alpha
-## The Deterministic Systems Platform
+# Logicodex Language — v1.36.0-alpha
+## The Capability Translation Layer
 
-> v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor
+> v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor → v1.34 Sharded Reactor → v1.35 Capability IR → v1.36 CTL Mapper
 
-The **current logicodex v1.33 alpha** milestone transforms Logicodex from a practical compiler-core into a **"Hardware-Integrated Systems Platform"** combining deterministic concurrency, streaming compilation, capability-based security, and event-driven networking — all verified at compile time with **zero runtime mediation**.
+The **current logicodex v1.36 alpha** milestone completes the **Capability Translation Layer (CTL)** — a unified IR that projects Logicodex's capability-native world INTO the WASM ecosystem. It combines deterministic concurrency, streaming compilation, capability-based security, sharded event-driven networking, and now **WIT auto-generation** — all verified at compile time with **zero runtime mediation**.
 
 The **current logicodex v 1.21 alpha** milestone establishes a practical compiler-core baseline and a documented security research direction. It includes a four-layer grammar baseline, an Undefined Behavior and Pointer Provenance design note, and a Critical/Medium/Low severity taxonomy. The stronger security, freestanding, and measured-overhead goals are treated as **long-term engineering objectives** until they are implemented, benchmarked, and validated by repeatable tests.
 
@@ -39,9 +39,9 @@ The current **Phase 1** alpha focuses on a working compiler core: the `dict/core
 
 The dictionary is consumed strictly during lexing. Surface forms such as `MULA`, `BEGIN`, and `{` normalize into canonical token identities such as `TokenKind::Start` before parsing begins. The parser therefore consumes a uniform token stream rather than performing macro rewriting or grammar-level dialect conversion.
 
-## v1.30-v1.33 Capability Overview
+## v1.30-v1.36 Capability Overview
 
-Logicodex has evolved from a compiler-core prototype into a **deterministic systems platform** through 4 consecutive alpha releases:
+Logicodex has evolved from a compiler-core prototype into a **deterministic systems platform with WASM integration** through 7 consecutive alpha releases:
 
 | Release | Focus | Key Innovation |
 |---|---|---|
@@ -49,34 +49,69 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 | **v1.31.0-alpha** | Streaming Compiler | 2-Pass Engine — RAM stays flat regardless of program size; SemanticSummary (~64B/symbol) replaces full AST |
 | **v1.32.0-alpha** | Capability Security | Static Capability Fabric — Gate/Door split, compile-time topology verification, supply-chain `.cap` files, privilege escalation detection |
 | **v1.33.0-alpha** | Network Reactor | Deterministic event-driven networking — RAII auto-cleanup (no socket leaks), taint state machine, backpressure policies, service manifest syntax |
+| **v1.34.0-alpha** | Sharded Multi-Core Reactor | Per-CPU-core reactor instances, static affinity mapping, cross-shard SPSC doors, memory budgeting |
+| **v1.35.0-alpha** | CapabilityGraph IR | Single Source of Truth IR — unifies SemanticSummary + CapabilityTopology + ShardTopology; generates Native/`.cap`/WIT |
+| **v1.36.0-alpha** | CTL Mapper | Auto-generates WIT from CapabilityGraph — 6 domain mappings, manual overrides, HW gate host reactor stubs |
 
-### Architecture: Door + Gate + Service
+### Architecture: Door + Gate + Service + IR + CTL
 
 ```
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│    DOOR     │    │     GATE     │    │   SERVICE   │
-│  (SPSC Ring │    │  (Compile-   │    │  (Port Actor│
-│   Buffer)   │    │   time Cap)  │    │   + Reactor)│
-│ Zero-copy   │    │ Zero Runtime │    │ RAII Cleanup│
-│ Lock-free   │    │  Mediation   │    │ Taint FSM   │
-└─────────────┘    └──────────────┘    └─────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        APPLICATION LAYER                                 │
+│                                                                          │
+│    actor Worker {          service WebServer {          ┌───────────┐    │
+│        let ch: Channel<...>      port: 443              │ WIT Output│    │
+│        ch.send(data)             requires: Net.Admin    │  (WASM)   │    │
+│    }                             handler: WebHandler    └───────────┘    │
+│                                  policy: Block              ▲            │
+│    spawn Worker()            }                              │            │
+│                                                             │ CTL Mapper │
+├──────────────┬──────────────┬──────────────────┬────────────┴───────────┤
+│    DOOR      │     GATE     │     SERVICE      │     CapabilityGraph    │
+│  (SPSC Ring  │  (Compile-   │  (Port Actor     │      (THE IR)          │
+│   Buffer)    │   time Cap)  │   + Reactor)     │  Single Source of      │
+│ Zero-copy    │ Zero Runtime │ RAII Cleanup     │  Truth — unifies       │
+│ Lock-free    │  Mediation   │ Taint FSM        │  v1.31+v1.32+v1.34    │
+├──────────────┴──────────────┴──────────────────┴────────────────────────┤
+│                         COMPILER LAYER                                   │
+│                                                                          │
+│   Tier 1: Parser (AST) → Tier 2: CapabilityGraph → Tier 3: Codegen     │
+│   Full AST           →  Unified IR          →  Native / WASM           │
+│   (temporary)          (persistent)            (streamed)               │
+│                                                                          │
+│   2-Pass Engine + Capability Verification + Sharding                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                          RUNTIME LAYER                                   │
+│                                                                          │
+│   RAII Connection Drop → close(fd) deterministik                        │
+│   Taint State Machine  → Healthy → Suspicious → Closing                 │
+│   Backpressure Policy  → Block / DropOldest / Error                     │
+│   Shard Local Pool     → Per-core memory budgeting                      │
+│   Host Reactor         → HW gate mediation (WASM safety)                │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 - **Door** = Data transport (v1.30 Phase 3) — `lib/core/ring_buffer.ldx`
 - **Gate** = Security contract (v1.32) — `src/tier2/gate.rs`, `src/tier2/topology.rs`
 - **Service** = Event loop + connection (v1.33) — `src/net/*.rs`
+- **CapabilityGraph IR** = Unified IR (v1.35) — `src/tier2/capability_ir.rs`
+- **CTL Mapper** = WIT generator (v1.36) — `src/tier2/ctl_mapper.rs`
 
-**Validation: 60/60 checks passing — zero regression across all versions.**
+**Validation: 88/88 checks passing — zero regression across all versions.**
 
 ### Documentation
 
 | Document | Description |
 |---|---|
-| `docs/ARCHITECTURE.md` | Complete Door+Gate+Service architecture overview |
+| `docs/ARCHITECTURE.md` | Complete Door+Gate+Service+IR+CTL architecture overview |
 | `docs/v1.30-THREADING.md` | Threading Phases 1-3 (Actor/Channel/Backpressure) |
 | `docs/v1.31-STREAMING.md` | Tier 2 Streaming Semantic Compiler |
 | `docs/v1.32-CAPABILITY.md` | Static Capability Fabric (Gate/Door/Topology) |
 | `docs/v1.33-REACTOR.md` | Deterministic Network Reactor (RAII/Service/Taint) |
+| `docs/v1.34-SHARDED.md` | Sharded Deterministic Reactor (Per-core/Doors/Budget) |
+| `docs/v1.35-CAPABILITY-IR.md` | CapabilityGraph IR — Single Source of Truth |
+| `docs/v1.36-CTL-MAPPER.md` | CTL Mapper — WIT Auto-Generation from CapabilityGraph |
 
 ---
 
@@ -90,7 +125,7 @@ The project should be read as an **alpha systems platform and specification prot
 | Static semantics | Implemented for the Phase 1 core language and selected safety checks. | Tighten type-system boundaries, diagnostics, pointer-provenance rules, and UB catalog coverage. |
 | LLVM backend | Implemented through the Rust Inkwell path for core expressions and native-oriented object generation. | Mature target triples, ABI contracts, linker policies, and executable-output checks. |
 | Reflex engine examples | Refreshed suite in `examples/` now covers expert and Malay arithmetic, functions, loops, bitwise operations, hardware-zone provenance, and Boolean conditionals. | Add expected-output fixtures and backend parity checks as the next proof layer. |
-| WebAssembly target | Long-term roadmap objective. | Build a small Wasm prototype after native examples and tests are stable. |
+| WebAssembly target | **Foundation laid via CTL Mapper (v1.36)** — WIT auto-generation from CapabilityGraph with 6 domain mappings. Full `.wasm` codegen remains a medium-term objective. | Complete end-to-end: CapabilityGraph → WIT → WASM component → host reactor integration. |
 | Migrator Engine | Long-term roadmap objective. | Start with assisted source translation experiments that require explicit human review. |
 | Runtime memory attestation | Long-term security research objective. | Convert the current plan contract into prototype digest insertion, verifier stubs, and target-specific fail-stop behavior. |
 | Freestanding support | Alpha target profile and plan generation. | Add linker scripts, bootloader examples, raw-pointer gates, and hardware-region policies before claiming full freestanding readiness. |

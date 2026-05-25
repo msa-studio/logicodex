@@ -6,6 +6,82 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #38] — 2026-05-25 — v1.36.0-alpha: CTL Mapper — WIT Auto-Generation (Fasa B)
+
+### Added
+- **CTL Mapper** (`src/tier2/ctl_mapper.rs`): Capability Translation Layer — bridges Logicodex capability world to WASM ecosystem
+  - `WitDomain` enum: 6 standard mappings — `Storage→wasi:filesystem`, `Net→wasi:sockets`, `UI→wasi:cli`, `HW→HostReactor`, `Audio→wasi:io/custom`, `Crypto→wasi:crypto`
+  - `WitOperation`: WIT function signature generation with typed parameters and return values
+  - `get_wit_operations()`: domain-specific operation lookup (3 ops per standard domain)
+  - `CtlMapper`: core mapper struct — `map_capability()`, `map_graph()`, `generate_wit()`, `generate_host_reactor_stub()`
+  - Manual overrides: `add_override()` lets users define custom WIT mappings that take precedence over auto-mapping
+  - HW gate detection: HW gates are routed through Host Reactor, NEVER exposed to WASM guest
+  - Unknown domain fallback: maps to `logicodex:custom` interface
+  - `CtlMappingStats`: reports mappings applied, HW gates detected, unknown domains, overrides used
+  - Pipeline functions: `map_and_generate_wit()` (one-shot), `map_and_generate_wit_with_overrides()`
+- **Module exports** (`src/tier2/mod.rs`): `CtlMapper`, `CtlMappingStats`, `WitDomain`, `WitOperation`, `get_wit_operations`, `map_and_generate_wit`
+- **Tests**: `tests/ctl_mapper.rs` (16 test groups — all 6 domains + overrides + HW + pipeline)
+- **Validator**: `scripts/validate_ctl_mapper.py` (12 checks)
+
+### Design Philosophy
+> "Project INTO, not borrow FROM" — Logicodex domains are primary; WASI is a projection target.
+
+### Validation
+- CTL Mapper: 12/12 | Capability IR: 16/16 | Sharded Reactor: 11/11 | Network Reactor: 13/13 | Capability Fabric: 10/10 | Streaming: 6/6 | v1.21: 9/9 | **Total: 77/77 ✅**
+
+---
+
+## [Merged via PR #37] — 2026-05-25 — v1.35.0-alpha: CapabilityGraph IR — Single Source of Truth (Fasa A)
+
+### Added
+- **CapabilityGraph IR** (`src/tier2/capability_ir.rs`): Unified "Single Source of Truth" language-agnostic capability representation
+  - `CompileTarget`: `Native` (ELF), `Wasm`, `All` (dual artifacts) — determines output safety rules
+  - `CapabilityRef`: `domain.operation + GateType + optional WIT mapping` — canonical capability reference
+  - `IRServiceNode`: unified service node merging v1.31 SemanticSummary + v1.32 gates + v1.34 shard info
+  - `IRShardNode`: `core_id + budget_mb + allowed_gates + service IDs`
+  - `IRDoorEdge + IRGateEdge`: unified edge types (cross-shard communication + capability contracts)
+  - `CapabilityGraph`: THE IR — services, shards, doors, gates, target — generates all output targets
+  - `verify()`: 6 unified checks — `EmptyGraph`, `WasmHardwareGate`, `InvalidShardAssignment`, `UnknownServiceInDoor`, `UnknownServiceInGate`, `EmptyShard`
+  - `to_cap()`: `.cap` audit manifest generation (SERVICES/SHARDS/DOORS/GATES sections)
+  - `to_wit_stub()`: WIT string generation stub — foundation for Fasa B CTL Mapper
+  - Integration: `from_semantic_summaries()` (v1.31), `from_topology()` (v1.32), `from_shard_topology()` (v1.34)
+- **Module exports** (`src/tier2/mod.rs`): `CapabilityGraph`, `CapabilityRef`, `CompileTarget`, `IR*`, `IRVerifyResult`, `IRViolation`
+- **Tests**: `tests/capability_ir.rs` (22 assertions — CompileTarget, CapabilityRef, all node types, verify all 6 checks, to_cap, to_wit_stub, integration)
+- **Validator**: `scripts/validate_capability_ir.py` (16 checks)
+
+### Guard Rail
+> WASM Guest = Unit Logik — NO direct hardware access. All hardware access through Capability Gates → Host Reactor.
+
+### Validation
+- Capability IR: 16/16 | Sharded Reactor: 11/11 | Network Reactor: 13/13 | Capability Fabric: 10/10 | Streaming: 6/6 | v1.21: 9/9 | **Total: 65/65 ✅**
+
+---
+
+## [Merged via PR #36] — 2026-05-25 — v1.34.0-alpha: Sharded Deterministic Reactor
+
+### Added
+- **ShardTopology** (`src/tier2/shard.rs`): Compile-time service topology sharding
+  - `ShardAssignment`: `shard_id + core_id + services + budget_mb + gates` — static mapping oleh kompiler
+  - `ShardTopology`: assignments + service graph + cross-shard doors + 5 verify checks
+  - `ShardVerifyResult` + `ShardViolation`: unassigned service, duplicate assignment, forbidden direct cross-shard, budget overflow, empty shard, core conflict
+  - `ServiceGraph` + `ServiceNode`: named service nodes with ports, gates, handlers, policies
+  - `CommEdge` + `CommType`: Door (SPSC, cross-shard) vs Direct (intra-shard only)
+  - `DoorRef`: cross-shard SPSC channel reference — `from_shard → to_shard` with message type + capacity
+  - `to_manifest_json()`: JSON serialization untuk visualisasi / audit
+- **ShardedReactor** (`src/net/sharded_reactor.rs`): Runtime sharded reactor — `Vec<ShardInstance>` dengan per-core event loops
+- **ShardLocalPool** (`src/net/shard_local_pool.rs`): Per-shard memory pool dengan budget tracking
+- **CPU Affinity** (`src/net/affinity.rs`): Wrapper untuk `sched_setaffinity` — static mapping service → core
+- **Tests**: `tests/sharded_reactor.rs` + `tests/shard_topology.rs` (combined assertions)
+- **Validator**: `scripts/validate_v134_sharded_reactor.py` (11 checks)
+
+### Design Principle
+> "Shard Isolation: Setiap CPU Core = satu ReactorInstance + LocalPool. Cross-Shard = Door Only."
+
+### Validation
+- Sharded Reactor: 11/11 | Network Reactor: 13/13 | Capability Fabric: 10/10 | Streaming: 6/6 | v1.21: 9/9 | **Total: 49/49 ✅**
+
+---
+
 ## [Merged via PR #31] — 2026-05-25 — v1.31.0-alpha: Tier 2 — 2-Pass Streaming Engine
 
 ### Added

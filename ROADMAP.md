@@ -1,6 +1,6 @@
-# Logicodex Practical Roadmap — v1.33.0-alpha The Deterministic Systems Platform
+# Logicodex Practical Roadmap — v1.36.0-alpha The Capability Translation Layer
 
-This roadmap describes how **Logicodex** progresses from an alpha compiler baseline toward a deterministic systems platform combining actor-model concurrency, streaming compilation, capability-based security, and event-driven networking.
+This roadmap describes how **Logicodex** progresses from an alpha compiler baseline toward a deterministic systems platform with WASM integration, combining actor-model concurrency, streaming compilation, capability-based security, sharded event-driven networking, and capability-native WIT generation.
 
 > **Roadmap principle:** Logicodex should earn stronger claims through reproducible builds, executable examples, validation scripts, measured performance, and clearly documented safety boundaries.
 
@@ -11,8 +11,11 @@ This roadmap describes how **Logicodex** progresses from an alpha compiler basel
 | v1.31 | Streaming compiler | ✅ **COMPLETED** — 6/6 checks passing |
 | v1.32 | Capability security | ✅ **COMPLETED** — 10/10 checks passing |
 | v1.33 | Network reactor | ✅ **COMPLETED** — 13/13 checks passing |
-| v1.34 | Sharded multi-core reactor | 📋 **PLANNED** |
-| v1.35 | WebAssembly target | 📋 **PLANNED** |
+| v1.34 | Sharded multi-core reactor | ✅ **COMPLETED** — 11/11 checks passing |
+| v1.35 | CapabilityGraph IR (Fasa A) | ✅ **COMPLETED** — 16/16 checks passing |
+| v1.36 | CTL Mapper — WIT Generation (Fasa B) | ✅ **COMPLETED** — 12/12 checks passing |
+| v1.37 | WASM Codegen Backend | 📋 **PLANNED** |
+| v1.38 | Host Reactor Integration | 📋 **PLANNED** |
 | v2.00 | Pointer provenance engine | 🔬 **RESEARCH** |
 
 ## Milestone 1: Stabilize the Alpha Compiler Core
@@ -43,7 +46,7 @@ Deterministic concurrency, 4-Ketuk IO architecture, and hardware-safe audio engi
 | Audio Engine — Hardware-Safe Audio Guards (StrictAudioContext, 4 violation types) | **[X] COMPLETED / MERGED #22** | Mohamad Supardi Abdul | 14/14 validator checks, `lib/std/audio.ldx`. |
 | Buffer Provenance Bug Fixes (5 critical fixes) | **[X] COMPLETED / MERGED #24** | Mohamad Supardi Abdul | 9/9 validator checks. |
 
-## Milestone 1c: The Deterministic Systems Platform (v1.31-v1.33)
+## Milestone 1c: The Deterministic Systems Platform (v1.31-v1.34)
 
 Transform Logicodex from a compiler into a hardware-integrated systems platform.
 
@@ -52,6 +55,16 @@ Transform Logicodex from a compiler into a hardware-integrated systems platform.
 | v1.31 — Tier 2 Streaming Engine (2-Pass Engine, SemanticSummary ~64B, MetadataGraph) | **[X] COMPLETED / MERGED #31** | Mohamad Supardi Abdul | 6/6 validator checks, `src/tier2/`. RAM stays flat regardless of program size. See `docs/v1.31-STREAMING.md`. |
 | v1.32 — Static Capability Fabric (Gate/Door split, 3 gate types, topology verify, .cap file, privilege escalation detection) | **[X] COMPLETED / MERGED #32** | Mohamad Supardi Abdul | 10/10 validator checks, `src/tier2/gate.rs`, `src/tier2/topology.rs`. Zero runtime mediation. See `docs/v1.32-CAPABILITY.md`. |
 | v1.33 — Deterministic Network Reactor (RAII Connection, Taint FSM, Service manifest, backpressure policies) | **[X] COMPLETED / MERGED #33** | Mohamad Supardi Abdul | 13/13 validator checks, `src/net/`. No socket leaks. See `docs/v1.33-REACTOR.md`. |
+| v1.34 — Sharded Deterministic Reactor (ShardTopology, per-core instances, CPU affinity, cross-shard doors, memory budgeting) | **[X] COMPLETED / MERGED #35** | Mohamad Supardi Abdul | 11/11 validator checks, `src/tier2/shard.rs`, `src/net/sharded_reactor.rs`. See `docs/v1.34-SHARDED.md`. |
+
+## Milestone 1d: The Capability Translation Layer (v1.35-v1.36)
+
+Project Logicodex's capability-native world INTO the WASM ecosystem. "Project INTO, not borrow FROM."
+
+| Issue | Status | Owner | Practical acceptance signal |
+|---|---|---|---|
+| v1.35 — CapabilityGraph IR (CompileTarget, CapabilityRef, IRServiceNode, IRShardNode, verify, to_cap, to_wit_stub) | **[X] COMPLETED / MERGED #37** | Mohamad Supardi Abdul | 16/16 validator checks, `src/tier2/capability_ir.rs`. Single Source of Truth unifying v1.31+v1.32+v1.34. See `docs/v1.35-CAPABILITY-IR.md`. |
+| v1.36 — CTL Mapper (WitDomain, WitOperation, CtlMapper, 6 domain mappings, manual overrides, host reactor stubs) | **[X] COMPLETED / MERGED #38** | Mohamad Supardi Abdul | 12/12 validator checks, `src/tier2/ctl_mapper.rs`. Auto-generates WIT from CapabilityGraph. See `docs/v1.36-CTL-MAPPER.md`. |
 
 ## Milestone 2: Tighten Language Semantics and Diagnostics
 
@@ -95,14 +108,15 @@ Runtime memory attestation, Golden Hash planning, hard fail-stop behavior, and f
 | Freestanding support | Experimental target profile | Linker scripts, bootloader integration notes, hardware-region policies, and minimal examples are validated. |
 | Migration assistant | Conceptual roadmap | Translation output is reviewable, testable, and clearly marked as assisted migration rather than automatic proof of correctness. |
 
-## Milestone 5b: Future Platform Work (v1.34-v1.40)
+## Milestone 5b: Future Platform Work (v1.37-v1.40)
 
-Sharded multi-core reactor, WebAssembly target, and full freestanding support.
+WASM codegen backend, host reactor integration, and full freestanding support.
 
 | Objective | Current status | Practical acceptance signal |
 |---|---|---|
-| v1.34 — Sharded multi-core reactor | Planned | Per-CPU-core reactor instance with static affinity. Near-linear scaling. Cross-core communication via dedicated Door. |
-| v1.35 — WebAssembly target | Long-term objective | A documented `.wasm` generation path can compile and run one representative Logicodex program. Capability gates for browser APIs. |
+| v1.37 — WASM Codegen Backend | Planned | LLVM backend generates `.wasm` from CapabilityGraph IR. `CompileTarget::Wasm` produces valid WebAssembly component. |
+| v1.38 — Host Reactor Integration | Planned | WASM host implements `logicodex:host-reactor` interface for HW gate mediation. Guest ↔ Host communication validated. |
+| v1.39 — WASM Capability Verification | Planned | `verify()` extended to validate WASM-specific constraints: memory limits, no hardware gates, WASI import completeness. |
 | v1.40 — Full freestanding support | Research objective | Bootloader examples, raw pointer gates, hardware-region policies, OS-less target profile with linker scripts. |
 
 ## Milestone 6: Prepare the Logicodex v2.0 Pointer Provenance Research Track
