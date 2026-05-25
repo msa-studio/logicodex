@@ -224,6 +224,7 @@ pub enum HirItem {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HirFunction {
+    pub name: String,
     pub symbol: SymbolId,
     pub params: Vec<HirParam>,
     pub return_type: TypeRef,
@@ -576,6 +577,7 @@ impl<'a> LoweringContext<'a> {
                 let body = self.lower_block(function.body);
                 self.symbols.exit_scope();
                 HirItem::Function(HirFunction {
+                    name: function.name.clone(),
                     symbol,
                     params,
                     return_type: function

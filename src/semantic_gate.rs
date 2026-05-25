@@ -202,6 +202,7 @@ mod tests {
         let mut ctx = base_context();
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                name: "test".to_string(),
                 symbol: SymbolId(0),
                 params: Vec::new(),
                 return_type: TypeRef {
@@ -225,6 +226,7 @@ mod tests {
         let mut ctx = base_context();
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                name: "test".to_string(),
                 symbol: SymbolId(0),
                 params: Vec::new(),
                 return_type: TypeRef {
@@ -267,6 +269,7 @@ mod tests {
         };
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                name: "test".to_string(),
                 symbol: SymbolId(0),
                 params: Vec::new(),
                 return_type: TypeRef { id: ids.unit },
@@ -306,6 +309,7 @@ mod tests {
         };
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                name: "test".to_string(),
                 symbol: SymbolId(0),
                 params: Vec::new(),
                 return_type: TypeRef { id: ids.unit },

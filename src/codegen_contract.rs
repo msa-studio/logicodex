@@ -95,6 +95,7 @@ mod tests {
         let hir = HirModule {
             items: vec![Spanned {
                 node: HirItem::Function(HirFunction {
+                    name: "main".to_string(),
                     symbol: SymbolId(0),
                     params: Vec::new(),
                     return_type: TypeRef { id: ids.unit },
