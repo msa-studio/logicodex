@@ -1,7 +1,7 @@
 // =========================================================================
 // Logicodex v1.30 — Demo: Raylib Spinning Box Pipeline Validation
 //
-// This test verifies that examples/raylib_spinning_box.ldx can be fully
+// This test verifies that examples/dormant/v1_30/raylib_spinning_box.ldx can be fully
 // processed by the Logicodex compiler pipeline:
 //   1. Parse → Expr::Call for all Color(...) and DrawRectangle(...)
 //   2. TypeChecker validates all struct constructors
@@ -17,7 +17,7 @@ use logicodex::hir::LoweringContext;
 use logicodex::semantic::type_checker::TypeChecker;
 use logicodex::types::TypeRegistry;
 
-const DEMO_SOURCE: &str = include_str!("../examples/raylib_spinning_box.ldx");
+const DEMO_SOURCE: &str = include_str!("../examples/dormant/v1_30/raylib_spinning_box.ldx");
 
 // ─── Helper: Parse the demo file ───
 fn parse_demo() -> Vec<Stmt> {

@@ -25,9 +25,9 @@ print("=" * 60)
 
 # 1. Demo .ldx file
 print("\n[1] Demo source file...")
-demo_path = root / "examples" / "raylib_spinning_box.ldx"
+demo_path = root / "examples" / "dormant" / "v1_30" / "raylib_spinning_box.ldx"
 if not demo_path.exists():
-    errors.append("examples/raylib_spinning_box.ldx: FILE MISSING")
+    errors.append("examples/dormant/v1_30/raylib_spinning_box.ldx: FILE MISSING")
     print("   Demo file: MISSING")
 else:
     text = demo_path.read_text()
@@ -94,8 +94,8 @@ else:
     print("ALL CHECKS PASSED — Raylib Spinning Box Demo is ready")
     print("=" * 60)
     print("\nSummary:")
-    print("  - Demo file: examples/raylib_spinning_box.ldx")
+    print("  - Demo file: examples/dormant/v1_30/raylib_spinning_box.ldx")
     print("  - Tests: 11 assertions covering parse, typecheck, registry, HIR, packing")
-    print("  - Compile: logicodex --pipeline v1.30 examples/raylib_spinning_box.ldx -o spinning_box")
+    print("  - Compile: logicodex --pipeline v1.30 examples/dormant/v1_30/raylib_spinning_box.ldx -o spinning_box")
     print("  - v1.21 integrity: maintained")
     sys.exit(0)
