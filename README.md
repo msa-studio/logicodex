@@ -40,7 +40,7 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 | **v1.38.0-alpha** | Deferred Cleanup | CallableRegistry predeclare, topology fix, enum layout, Windows fallback, secure attestation, freestanding target, semantic gatekeeper |
 | **v1.39.0-alpha** | Sharded Runtime | Real OS thread per shard, parallel execution, CPU affinity via direct syscall (Linux: sched_setaffinity) |
 | **v1.40.0-alpha** | WASM Codegen Backend | LLVM → .wasm via wasm32-unknown-unknown target — `--target wasm` CLI |
-| **v1.41.0-alpha** | Host Reactor | Guest ↔ Host HW mediation: GPIO, Timer, DMA. Permission-based pin allowlists. HostFunction dispatch protocol |
+| **v1.45.0-alpha** | Host Reactor | Guest ↔ Host HW mediation: GPIO, Timer, DMA. Permission-based pin allowlists. HostFunction dispatch protocol |
 | **v1.42.0-alpha** | Raylib FFI — 8 Pending Items | Struct-by-value Color, Vector2/Rectangle constructors, math utilities (clamp/lerp/remap), StrictAudioContext, WASM blocks Raylib, FfiGatekeeper coercion |
 | **v1.43.0-alpha** | Raylib Audio — 22 Functions | Sound/Music/Wave/AudioStream types, 22 audio functions, StrictAudioContext integration with capability gates |
 | **v1.44.0-alpha** | Freestanding Compiler | Bare-metal support: _start, panic handler, linker script, bump allocator, UART/VGA, IDT/PIC, MMIO volatile codegen, multiboot. 3 architectures: x86_64/aarch64/riscv64 |
@@ -128,10 +128,14 @@ logicodex --secure input.ldx -o output.o
 
 ## Validation
 
-**102/102 checks passing — zero regression across all versions.**
+**148/148 checks passing — zero regression across all versions.**
 
 ```
-v1.41 Host Reactor:         12/12 ✅
+v1.45 Benchmark Framework:   6/6  ✅
+v1.44 Freestanding Compiler: 15/15 ✅
+v1.43 Raylib Audio:          80/80 ✅
+v1.42 Raylib FFI:             9/9  ✅
+v1.41 Host Reactor:          20/20 ✅
 v1.40 WASM Backend:         13/13 ✅
 v1.39 Sharded Runtime:      11/11 ✅
 v1.38 Deferred Cleanup:     12/12 ✅
@@ -144,7 +148,7 @@ v1.32 Capability Fabric:    10/10 ✅
 v1.31 Streaming Engine:       6/6  ✅
 v1.21 Baseline:               9/9  ✅
 ─────────────────────────────────────
-TOTAL:                     102/102 ✅
+TOTAL:                     148/148 ✅
 ```
 
 Run all validators:
@@ -161,9 +165,9 @@ for v in scripts/validate_*.py; do python3 "$v"; done
 | Rust Source (`src/`) | 43 | 17,083 |
 | Tests (`tests/`) | 31 | 9,230 |
 | Validators (`scripts/`) | 34 | 6,675 |
-| Documentation (`docs/` + root) | 17 | 3,578 |
+| Documentation (`docs/` + root + 2 wikis) | 57 | 14,078 |
 | Library (`lib/`) | 13 | — |
-| **TOTAL** | **139** | **~37,500** |
+| **TOTAL** | **~180** | **~43,600** |
 
 ---
 
@@ -173,6 +177,7 @@ for v in scripts/validate_*.py; do python3 "$v"; done
 |---|---|
 | `docs/AUDIT.md` | **Full project audit** (this release) |
 | `docs/ARCHITECTURE.md` | Complete architecture overview |
+| `docs/CHANGELOG_ANALYSIS_v121_to_v145.md` | Comprehensive change analysis v1.21→v1.45 |
 | `docs/v1.30-THREADING.md` | Threading Phases 1-3 |
 | `docs/v1.31-STREAMING.md` | Tier 2 Streaming Semantic Compiler |
 | `docs/v1.32-CAPABILITY.md` | Static Capability Fabric |
@@ -202,6 +207,6 @@ for v in scripts/validate_*.py; do python3 "$v"; done
 
 ---
 
-*Logicodex Language — v1.41.0-alpha*
+*Logicodex Language — v1.45.0-alpha*
 *Architect: Mohamad Supardi Abdul (mymsastudio@gmail.com)*
 *2026-05-25*

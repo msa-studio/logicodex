@@ -1,3 +1,17 @@
+# ⚠️ STALE DOCUMENT — v1.41 Audit
+
+> **This audit was conducted at v1.41.0-alpha and has NOT been updated for v1.45.**
+>
+> Key metrics have changed significantly since this audit:
+> - Validators: 102 → **148** checks
+> - LOC: ~37,566 → **~43,600**
+> - Releases: v1.21→v1.41 → **v1.21→v1.45** (14 releases)
+> - New capabilities: Raylib FFI (v1.42), Raylib Audio (v1.43), Freestanding Compiler (v1.44), Benchmark Framework (v1.45)
+>
+> For current data, see `CHANGELOG.md` or `docs/CHANGELOG_ANALYSIS_v121_to_v145.md`.
+
+---
+
 # Logicodex Project Audit — v1.41.0-alpha
 
 > **Full Audit Date**: 2026-05-25

@@ -41,7 +41,7 @@ Most programming languages allow behavior that depends on runtime conditions (ra
 |---|---|
 | Memory leaks | RAII auto-cleanup — memory freed when owner drops |
 | Race conditions | Shard isolation — no shared state between parallel units |
-| Null pointer crashes | Compile-time null checks |
+| Null pointer crashes | No null pointers by design — use `Option<T>` |
 | Use-after-free | Ownership transfer — can't use after giving away |
 | Security vulnerabilities | Capability gates — explicit permission for dangerous ops |
 | Slow debugging | Deterministic behavior — same input = same output, every time |

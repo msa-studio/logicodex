@@ -38,7 +38,7 @@ The first priority is to keep the current compiler pipeline reproducible. This m
 | Issue #01 — Grammar baseline | Completed for v1.21-alpha baseline | Mohamad Supardi Abdul | The grammar document matches lexer/parser behavior for the currently implemented language subset. |
 | Issue #02 — UB and provenance design note | Baseline hardware-zone gate implemented and logically verified | Mohamad Supardi Abdul | The specification now records `ZON_PERKAKASAN` / `hw_unsafe` lexical gating, and the semantic analyzer rejects raw address pointer bindings outside that safe zone while leaving deeper hardware I/O work for later milestones. |
 | Issue #03 — Native example suite | Partially complete | Mohamad Supardi Abdul | The refreshed reflex-engine `.ldx` suite passes `check` and `v130-check`; remaining work is expected-output fixtures and backend/object-output parity checks. |
-| Issue #04 — CI-oriented validation | Open | TBD | `cargo check`, release build, full example sweeps, and validation scripts can be run from a clean checkout with documented dependencies. |
+| Issue #04 — CI-oriented validation | ✅ **COMPLETED** v1.44.1 | Mohamad Supardi Abdul | 3-tier validator pipeline (Tier A: 7 core, Tier B: 13 feature, Tier C: 8 stress) with `cargo test`. |
 
 ## Milestone 1b: Threading + IO + Audio (v1.30.1-alpha)
 
@@ -130,8 +130,8 @@ WebAssembly and cross-platform targets remain valuable objectives, but they shou
 
 | Issue | Status | Owner | Practical acceptance signal |
 |---|---|---|---|
-| Issue #11 — WebAssembly prototype | Long-term objective | TBD | A documented `.wasm` generation path can compile and run one representative Logicodex program. |
-| Issue #12 — Cross-platform benchmark harness | Long-term objective | TBD | Benchmarks are reproducible, documented, and runnable across declared target platforms. |
+| Issue #11 — WebAssembly prototype | ✅ **COMPLETED** v1.40 | Mohamad Supardi Abdul | LLVM `wasm32-unknown-unknown` with `+bulk-memory,+mutable-globals,+sign-ext`. CLI `--target wasm`. |
+| Issue #12 — Cross-platform benchmark harness | ✅ **COMPLETED** v1.45 | Mohamad Supardi Abdul | 4-layer framework (micro/reactor/stability/security), BASELINE.json, regression detection. |
 | Issue #13 — Release artifact refresh workflow | Open | TBD | Archives are regenerated only after build and validator evidence is captured. |
 
 ## Milestone 5: Treat Security and Freestanding Work as Research Objectives
@@ -156,7 +156,8 @@ WASM codegen backend, host reactor integration, and freestanding target support 
 | v1.39 — Sharded Runtime | ✅ **COMPLETED** | `std::thread::spawn` per shard, CPU affinity via `sched_setaffinity`, `available_parallelism()`, `sched_getcpu`. |
 | v1.40 — WASM Codegen Backend | ✅ **COMPLETED** | LLVM `wasm32-unknown-unknown` with `+bulk-memory,+mutable-globals,+sign-ext`. CLI `--target wasm`. |
 | v1.41 — Host Reactor Integration | ✅ **COMPLETED** | `logicodex:host-reactor` interface for HW gate mediation. `GatePermissions` + `HardwareZone` for guest ↔ host access control. |
-| v1.42 — WASI Capability Verification | 🔬 **RESEARCH** | `verify()` extended for WASM-specific constraints: memory limits, no hardware gates, WASI import completeness. |
+| v1.42 — Raylib FFI Resolution | ✅ **COMPLETED** | 8 pending items resolved: build.rs, struct-by-value, constructors, math shims, audio guards, WASM safety, coercion. |
+| v1.42b — WASI Capability Verification | 🔬 **RESEARCH** | `verify()` extended for WASM-specific constraints: memory limits, no hardware gates, WASI import completeness. |
 | v2.00 — Pointer Provenance Engine | 🔬 **RESEARCH** | 5-level provenance: linear → sub-bounded → hardware view-only → hardware mutex-isolated → wild/untrusted. |
 
 ## Milestone 6: Prepare the Logicodex v2.0 Pointer Provenance Research Track
