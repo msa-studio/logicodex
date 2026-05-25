@@ -112,29 +112,55 @@ impl Connection {
     }
 
     /// Baca data dari koneksi. Mengembalikan bytes yang dibaca.
-    /// Untuk v1.33.0-alpha: stub (akan guna syscall sebenar dalam produksi)
+    /// v1.37: Uses SYS_RECV syscall directly (no libc).
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, ConnectionError> {
         if !self.taint.is_active() {
             return Err(ConnectionError::ConnectionClosed);
         }
-        // Simulasi baca — dalam produksi: libc::read(self.fd, buf.as_mut_ptr(), buf.len())
-        let n = buf.len().min(1024);
-        self.bytes_received += n as u64;
-        self.last_activity_ms = now_ms();
-        self.consecutive_errors = 0;
-        Ok(n)
+        let n = unsafe {
+            crate::os::syscall::sys_recv(self.fd, buf.as_mut_ptr(), buf.len(), 0)
+        };
+        if n < 0 {
+            self.consecutive_errors += 1;
+            if self.consecutive_errors >= 3 {
+                self.taint = TaintState::Closing;
+            }
+            Err(ConnectionError::ReadTimeout)
+        } else if n == 0 {
+            // Peer closed connection
+            self.taint = TaintState::Closing;
+            Err(ConnectionError::ConnectionClosed)
+        } else {
+            let n = n as usize;
+            self.bytes_received += n as u64;
+            self.last_activity_ms = now_ms();
+            self.consecutive_errors = 0;
+            Ok(n)
+        }
     }
 
     /// Tulis data ke koneksi.
+    /// v1.37: Uses SYS_SEND syscall directly (no libc).
     pub fn write(&mut self, buf: &[u8]) -> Result<usize, ConnectionError> {
         if !self.taint.is_active() {
             return Err(ConnectionError::ConnectionClosed);
         }
-        let n = buf.len().min(1024);
-        self.bytes_sent += n as u64;
-        self.last_activity_ms = now_ms();
-        self.consecutive_errors = 0;
-        Ok(n)
+        let n = unsafe {
+            crate::os::syscall::sys_send(self.fd, buf.as_ptr(), buf.len(), 0)
+        };
+        if n < 0 {
+            self.consecutive_errors += 1;
+            if self.consecutive_errors >= 3 {
+                self.taint = TaintState::Closing;
+            }
+            Err(ConnectionError::WriteTimeout)
+        } else {
+            let n = n as usize;
+            self.bytes_sent += n as u64;
+            self.last_activity_ms = now_ms();
+            self.consecutive_errors = 0;
+            Ok(n)
+        }
     }
 
     /// Proses satu event daripada Reactor.
@@ -204,11 +230,12 @@ impl Connection {
     }
 
     /// Tutup konegsi (manual — biasanya dilakukan oleh Drop).
+    /// v1.37: Uses SYS_CLOSE syscall directly.
     pub fn shutdown(&mut self) {
         if !self.closed {
             self.closed = true;
             self.taint = TaintState::Closing;
-            // Dalam produksi: libc::close(self.fd)
+            crate::os::syscall::sys_close(self.fd);
         }
     }
 
@@ -269,10 +296,9 @@ impl std::fmt::Display for ConnectionError {
 impl std::error::Error for ConnectionError {}
 
 // ─── Helper ───
-/// Current timestamp dalam ms (stub — dalam produksi guna libc::clock_gettime).
+/// Current timestamp dalam ms (monotonic — v1.37: guna clock_gettime).
 fn now_ms() -> u64 {
-    // Dalam Rust sebenar: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64
-    0 // placeholder
+    crate::os::syscall::clock_gettime_monotonic_ms()
 }
 
 /// Statistik global koneksi (untuk monitoring / .cap audit).
