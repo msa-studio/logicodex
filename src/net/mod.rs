@@ -20,6 +20,7 @@
 pub mod affinity;
 pub mod connection;
 pub mod event;
+pub mod host_reactor;
 pub mod policy;
 pub mod reactor;
 pub mod service;
@@ -32,5 +33,6 @@ pub use event::{Action, Event, EventKind};
 pub use policy::{BackpressureDecision, BackpressurePolicy, PolicyConfig};
 pub use reactor::{Interest, Reactor, ReactorError};
 pub use service::{GateVerificationError, Service, ServiceRegistry, ServiceRegistryError, ServiceRegistryStats};
+pub use host_reactor::{GatePermissions, HardwareZone, HostFunction, HostReactor, HostReactorError, HostReactorStats, GuestRequest, HostResponse};
 pub use shard_local_pool::{AcquireResult, BudgetError, PoolStats, ShardLocalPool};
 pub use sharded_reactor::{ShardInstance, ShardStats, ShardedReactor, ShardedReactorError};
