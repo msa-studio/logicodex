@@ -59,19 +59,19 @@
 
 ## KATEGORI B: Network / Runtime — Stubs Sistem Operasi
 
-### 🚧 B1-B6: Network Runtime — v1.37.0-alpha (IN PROGRESS)
+### ✅ B1-B6: Network Runtime — v1.37.0-alpha — **SELESAI 2026-05-25**
 
-Semua 6 item B1-B6 sedang dikerjakan sebagai **v1.37.0-alpha: Deterministic Network Runtime**.
-Lihat `docs/v1.37-NETWORK-RUNTIME.md` untuk spesifikasi penuh.
+Semua 6 item B1-B6 selesai sebagai **v1.37.0-alpha: Deterministic Network Runtime**.
+Commit: `62bfcd1`. Lihat `docs/v1.37-NETWORK-RUNTIME.md` untuk spesifikasi penuh.
 
-| Item | Fail | Isu | Status |
+| Item | Fail | Perubahan | Status |
 |---|---|---|---|
-| **B1** — epoll event loop | `reactor.rs:61` | `epoll_fd: -1` placeholder | 🚧 IN PROGRESS (v1.37) |
-| **B2** — Connection I/O | `connection.rs:115` | `read/write` stub | 🚧 IN PROGRESS (v1.37) |
-| **B3** — Timestamp | `connection.rs:272` | `current_timestamp_ms()` returns 0 | 🚧 IN PROGRESS (v1.37) |
-| **B4** — Event loop single iter | `reactor.rs:171` | `running = false` after 1 iter | 🚧 IN PROGRESS (v1.37) |
-| **B5** — Event processing | `reactor.rs:142` | `process_events()` stub | 🚧 IN PROGRESS (v1.37) |
-| **B6** — Last activity | `reactor.rs:128` | `last_activity_ms = 0` | 🚧 IN PROGRESS (v1.37) |
+| **B1** — epoll event loop | `reactor.rs:61` | `epoll_create1()` dalam `new()`, `epoll_ctl ADD/MOD/DEL` dalam register/unregister/reregister | ✅ SELESAI |
+| **B2** — Connection I/O | `connection.rs:115` | `sys_recv()`/`sys_send()` direct syscall, error handling + taint | ✅ SELESAI |
+| **B3** — Timestamp | `connection.rs:272` | `clock_gettime(CLOCK_MONOTONIC)` → monotonic ms | ✅ SELESAI |
+| **B4** — Event loop | `reactor.rs:171` | `while self.running { epoll_wait(-1) }` — continuous | ✅ SELESAI |
+| **B5** — Event processing | `reactor.rs:142` | `process_epoll_events()`: parse epoll_event, dispatch EPOLLIN/OUT/ERR/HUP | ✅ SELESAI |
+| **B6** — Last activity | `reactor.rs:128` | `last_activity_ms = clock_gettime_monotonic_ms()` — real timestamp | ✅ SELESAI |
 
 ---
 
@@ -193,7 +193,7 @@ Lihat `docs/v1.37-NETWORK-RUNTIME.md` untuk spesifikasi penuh.
 | Prioriti | Bilangan | Items |
 |---|---|---|
 | ~~**KRITIKAL**~~ | ~~2~~ | ~~A1 (HIR codegen)~~ ✅, ~~A2 (Extern codegen)~~ ✅ |
-| **TINGGI** | 4 | C1-C3, D1 | (B1-B6: 🚧 v1.37 in progress)
+| **TINGGI** | 4 | C1-C3, D1 |
 | **SEDERHANA** | 6 | A6, B6, C4-C5, E1-E2, F1 |
 | **RENDAH / RESEARCH** | 5 | D2, G1-G2, I1 |
 | **BY DESIGN** | 1 | H1 (Edition Routing) |
@@ -211,7 +211,7 @@ Lihat `docs/v1.37-NETWORK-RUNTIME.md` untuk spesifikasi penuh.
 | `src/os/syscall.rs` | 1 (F1) | |
 | `src/main.rs` | 2 (G1-G2) | |
 | `src/semantic_gate.rs` | 1 (I1) | |
-| **JUMLAH** | ~~26~~ **21** | **5 selesai** | (B1-B6: 🚧 v1.37 in progress)
+| **JUMLAH** | ~~26~~ **15** | **11 selesai** |
 
 ---
 
