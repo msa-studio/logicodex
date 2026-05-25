@@ -60,6 +60,14 @@ jobs:
       - name: Check build
         run: cargo check 2>&1 | tee build-check.log
 
+      - name: Show build errors
+        if: failure()
+        run: |
+          echo "=== BUILD CHECK ERRORS ==="
+          cat build-check.log | grep -E "^error" | head -20
+          echo "=== FULL ERROR CONTEXT ==="
+          tail -80 build-check.log
+
       - name: Upload build check log
         if: always()
         uses: actions/upload-artifact@v4
@@ -93,6 +101,14 @@ jobs:
         run: cargo build --release --message-format=short 2>&1 | tee build-release.log
         env:
           RUST_BACKTRACE: 1
+
+      - name: Show build errors
+        if: failure()
+        run: |
+          echo "=== BUILD ERRORS ==="
+          cat build-release.log | grep -E "^error" | head -20
+          echo "=== FULL ERROR CONTEXT ==="
+          tail -80 build-release.log
 
       - name: Upload build release log
         if: always()
