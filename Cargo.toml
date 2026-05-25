@@ -3,7 +3,9 @@ name = "logicodex"
 version = "1.45.0-alpha"
 edition = "2021"
 authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
-description = "v1.44-alpha: Freestanding Compiler — 15 gaps resolved (startup, panic, linker, allocator, UART, IDT, MMIO, multiboot)"
+description = "Deterministic systems programming language with alias-to-canonical syntax, actor-model concurrency, and compile-time capability security"
+keywords = ["compiler", "systems-programming", "concurrency", "capability-security", "llvm"]
+categories = ["compilers", "development-tools"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/msa-studio/logicodex"
 readme = "README.md"
@@ -38,8 +40,8 @@ panic = "unwind"
 
 [package.metadata.logicodex]
 language_name = "Logicodex"
-phase = "v1.21-alpha executable grammar and provenance integration"
+phase = "v1.45.0-alpha"
 source_extension = "ldx"
-public_release_label = "v1.21-alpha"
+public_release_label = "v1.45.0-alpha"
 rust_channel = "1.75.0"
 llvm_feature = "llvm15-0"

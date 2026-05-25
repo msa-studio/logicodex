@@ -1,3 +1,18 @@
+# ⚠️ STALE DOCUMENT — Preserved for Historical Reference
+
+> **This document was written for v1.21-alpha and has NOT been updated.**
+>
+> It references files that have moved (`WHITE_PAPER.md` → `docs/archive/WHITE_PAPER_v121.md`,
+> `ROADMAP.md` → merged into `SPECIFICATION.md`).
+>
+> **For current information, see:**
+> - `README.md` — project entry point
+> - `SPECIFICATION.md` — language spec + architecture + roadmap
+> - `CHANGELOG.md` — version history
+> - `docs/HANDBOOK.md` — user guide
+
+---
+
 # Logicodex Repository Context Document
 This authoritative document inventories the core architectural assets of the Logicodex Language repository and establishes the operational context for each component under the current logicodex v 1.21 alpha milestone.
 

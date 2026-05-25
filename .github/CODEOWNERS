@@ -1,0 +1,34 @@
+# Logicodex Code Owners
+# These owners will be automatically requested for review on PRs
+
+# Global default
+* @mymsa
+
+# Compiler core
+/src/lexer.rs @mymsa
+/src/parser.rs @mymsa
+/src/semantic.rs @mymsa
+/src/codegen.rs @mymsa
+/src/hir.rs @mymsa
+
+# OS / freestanding
+/src/os/ @mymsa
+
+# Capability + IR
+/src/tier2/ @mymsa
+
+# Network
+/src/net/ @mymsa
+
+# FFI
+/src/ffi/ @mymsa
+
+# Library
+/lib/ @mymsa
+
+# Documentation
+/docs/ @mymsa
+*.md @mymsa
+
+# CI/CD
+/.github/ @mymsa

@@ -1,3 +1,15 @@
+# ⚠️ STALE DOCUMENT — v1.21-alpha Developer Manual
+
+> **This manual was written for v1.21-alpha.** Many features described as "future" or "planned"
+> are now implemented (threading, capability fabric, WASM, Raylib, freestanding).
+>
+> **For current information, see:**
+> - `docs/HANDBOOK.md` — comprehensive user guide with v1.45 features
+> - `SPECIFICATION.md` — architecture and roadmap
+> - `CHANGELOG.md` — what changed and when
+
+---
+
 # Logicodex Phase 1 MVP Developer Manual
 
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
