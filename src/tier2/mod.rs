@@ -18,6 +18,7 @@ pub mod gate;
 pub mod shard;
 pub mod topology;
 pub mod capability_ir;
+pub mod ctl_mapper;
 
 // Re-exports for convenience
 pub use metadata::{
@@ -34,4 +35,8 @@ pub use capability_ir::{
     CapabilityGraph, CapabilityRef, CompileTarget,
     IRServiceNode, IRShardNode, IRDoorEdge, IRGateEdge,
     IRVerifyResult, IRViolation,
+};
+pub use ctl_mapper::{
+    CtlMapper, CtlMappingStats, WitDomain, WitOperation,
+    get_wit_operations, map_and_generate_wit, map_and_generate_wit_with_overrides,
 };
