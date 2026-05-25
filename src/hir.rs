@@ -102,6 +102,21 @@ pub enum ExprAst {
         expr: Box<ExprAst>,
         target: TypeAst,
     },
+    // ─── v1.30 Threading Expressions (A3) ───
+    Spawn {
+        actor_name: String,
+        args: Vec<ExprAst>,
+    },
+    Join {
+        actor_name: String,
+    },
+    ChannelSend {
+        channel_name: String,
+        value: Box<ExprAst>,
+    },
+    ChannelRecv {
+        channel_name: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -338,6 +353,25 @@ pub enum HirExprKind {
     Cast {
         expr: Box<HirExpr>,
         target: TypeRef,
+    },
+    // ─── v1.30 Threading Expressions (A3) ───
+    /// Spawn an actor instance: `spawn ActorName(args)`
+    Spawn {
+        actor_name: String,
+        args: Vec<HirExpr>,
+    },
+    /// Wait for actor completion: `join ActorName`
+    Join {
+        actor_name: String,
+    },
+    /// Send through channel (blocking, Release semantics): `channel.send(value)`
+    ChannelSend {
+        channel_name: String,
+        value: Box<HirExpr>,
+    },
+    /// Receive from channel (blocking, Acquire semantics): `channel.recv()`
+    ChannelRecv {
+        channel_name: String,
     },
 }
 
@@ -805,6 +839,36 @@ impl<'a> LoweringContext<'a> {
                     span,
                 }
             }
+            // ─── v1.30 Threading (A3) — lowered to HIR ───
+            ExprAst::Spawn { actor_name, args } => {
+                let lowered_args: Vec<_> = args
+                    .into_iter()
+                    .map(|arg| self.lower_expr(arg, span))
+                    .collect();
+                HirExpr {
+                    kind: HirExprKind::Spawn { actor_name, args: lowered_args },
+                    ty: unit_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::Join { actor_name } => HirExpr {
+                kind: HirExprKind::Join { actor_name },
+                ty: unit_ref(self.types),
+                span,
+            },
+            ExprAst::ChannelSend { channel_name, value } => {
+                let lowered = self.lower_expr(*value, span);
+                HirExpr {
+                    kind: HirExprKind::ChannelSend { channel_name, value: Box::new(lowered) },
+                    ty: unit_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::ChannelRecv { channel_name } => HirExpr {
+                kind: HirExprKind::ChannelRecv { channel_name },
+                ty: unit_ref(self.types),
+                span,
+            },
         }
     }
 
@@ -1013,6 +1077,32 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             right: Box::new(lower_expr_ast(*right)),
         },
         ast::Expr::Grouped(inner) => lower_expr_ast(*inner),
+        // ─── v1.30 Threading (A3) — lowered to ExprAst ───
+        ast::Expr::Spawn { actor_name, args } => ExprAst::Spawn {
+            actor_name,
+            args: args.into_iter().map(lower_expr_ast).collect(),
+        },
+        ast::Expr::Join { actor_name } => ExprAst::Join { actor_name },
+        ast::Expr::Send { channel_name, value } => ExprAst::ChannelSend {
+            channel_name,
+            value: Box::new(lower_expr_ast(*value)),
+        },
+        ast::Expr::Recv { channel_name } => ExprAst::ChannelRecv { channel_name },
+        // Backpressure/scheduler — mapped to standard send/recv for now
+        ast::Expr::TrySend { channel_name, value } => ExprAst::ChannelSend {
+            channel_name,
+            value: Box::new(lower_expr_ast(*value)),
+        },
+        ast::Expr::TryRecv { channel_name } => ExprAst::ChannelRecv { channel_name },
+        ast::Expr::Yield => ExprAst::Literal(LiteralAst::Unit), // no-op for now
+        ast::Expr::Sleep { duration_ms } => {
+            let _ = lower_expr_ast(*duration_ms);
+            ExprAst::Literal(LiteralAst::Unit) // no-op for now
+        }
+        ast::Expr::TimeoutRecv { channel_name, timeout_ms } => {
+            let _ = lower_expr_ast(*timeout_ms);
+            ExprAst::ChannelRecv { channel_name }
+        }
     }
 }
 

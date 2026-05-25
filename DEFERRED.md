@@ -236,4 +236,8 @@
 3. **Pusingan 3 (Sharded Runtime)**: C1-C5 — Spawn threads + affinity pin
 4. **Pusingan 4 (IR Integration)**: D1 — Fix `from_topology()` — add accessor ke CapabilityTopology
 5. **Pusingan 5 (Cross-platform)**: C4-C5, F1 — macOS/Windows support
-6. **Pusingan 6 (Research)**: G1
+6. **Pusingan 6 (Research)**: G1-G2, I1 — Security attestation + freestanding
+
+---
+
+*Dokumen terakhir dikemaskini: 2026-05-25 untuk v1.36.0-alpha*

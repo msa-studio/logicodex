@@ -227,6 +227,21 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(func)
     }
 
+    /// Declare a runtime function (for threading primitives).
+    /// Caches the declaration to avoid duplicates.
+    fn declare_runtime_func(
+        &mut self,
+        name: &str,
+        fn_type: inkwell::types::FunctionType<'ctx>,
+    ) -> FunctionValue<'ctx> {
+        if let Some(func) = self.declared_funcs.get(name) {
+            return *func;
+        }
+        let func = self.module.add_function(name, fn_type, Some(inkwell::module::Linkage::External));
+        self.declared_funcs.insert(name.to_string(), func);
+        func
+    }
+
     /// Detect if a callee name is a struct constructor (e.g., "Color" → packed u32).
     fn try_struct_constructor(&self, callee_name: &str, args: &[Expr]) -> Option<u32> {
         let types = self.types.as_ref()?;
@@ -1055,6 +1070,95 @@ impl<'ctx> LlvmCompiler<'ctx> {
             HirExprKind::Cast { expr, .. } => {
                 // For now, emit the inner expression (casts are no-ops at LLVM level for compatible types)
                 self.emit_hir_expr(expr, func)
+            }
+            // ─── v1.30 Threading Expressions (A3) — LLVM Codegen ───
+            HirExprKind::Spawn { actor_name, args } => {
+                // Declare runtime function: logicodex_spawn(actor_name: *const u8) -> i64
+                let spawn_fn = self.declare_runtime_func(
+                    "logicodex_spawn",
+                    self.i64_type.fn_type(&[self.context.i8_type().ptr_type(AddressSpace::default()).into()], false),
+                );
+                // Evaluate args (passed as pointers or values)
+                let mut llvm_args: Vec<BasicValueEnum<'ctx>> = Vec::new();
+                for arg in args {
+                    let val = self.emit_hir_expr(arg, func)?;
+                    llvm_args.push(val.into());
+                }
+                // Pass actor name as a global string
+                let name_ptr = self.builder.build_global_string_ptr(actor_name, "spawn_actor_name")
+                    .context("spawn actor name")?
+                    .as_pointer_value();
+                let call_site = self.builder
+                    .build_call(spawn_fn, &[name_ptr.into()], "spawn_call")
+                    .context("spawn call")?;
+                match call_site.try_as_basic_value() {
+                    inkwell::values::Either::Left(val) => match val {
+                        BasicValueEnum::IntValue(iv) => Ok(iv),
+                        _ => Ok(self.i64_type.const_int(0, false)),
+                    }
+                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
+            HirExprKind::Join { actor_name } => {
+                let join_fn = self.declare_runtime_func(
+                    "logicodex_join",
+                    self.i64_type.fn_type(&[self.context.i8_type().ptr_type(AddressSpace::default()).into()], false),
+                );
+                let name_ptr = self.builder.build_global_string_ptr(actor_name, "join_actor_name")
+                    .context("join actor name")?
+                    .as_pointer_value();
+                let call_site = self.builder
+                    .build_call(join_fn, &[name_ptr.into()], "join_call")
+                    .context("join call")?;
+                match call_site.try_as_basic_value() {
+                    inkwell::values::Either::Left(val) => match val {
+                        BasicValueEnum::IntValue(iv) => Ok(iv),
+                        _ => Ok(self.i64_type.const_int(0, false)),
+                    }
+                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
+            HirExprKind::ChannelSend { channel_name, value } => {
+                let send_fn = self.declare_runtime_func(
+                    "logicodex_channel_send",
+                    self.i64_type.fn_type(&[
+                        self.context.i8_type().ptr_type(AddressSpace::default()).into(),
+                        self.i64_type.into(),
+                    ], false),
+                );
+                let val = self.emit_hir_expr(value, func)?;
+                let name_ptr = self.builder.build_global_string_ptr(channel_name, "send_channel_name")
+                    .context("send channel name")?
+                    .as_pointer_value();
+                let call_site = self.builder
+                    .build_call(send_fn, &[name_ptr.into(), val.into()], "send_call")
+                    .context("send call")?;
+                match call_site.try_as_basic_value() {
+                    inkwell::values::Either::Left(val) => match val {
+                        BasicValueEnum::IntValue(iv) => Ok(iv),
+                        _ => Ok(self.i64_type.const_int(0, false)),
+                    }
+                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
+            HirExprKind::ChannelRecv { channel_name } => {
+                let recv_fn = self.declare_runtime_func(
+                    "logicodex_channel_recv",
+                    self.i64_type.fn_type(&[self.context.i8_type().ptr_type(AddressSpace::default()).into()], false),
+                );
+                let name_ptr = self.builder.build_global_string_ptr(channel_name, "recv_channel_name")
+                    .context("recv channel name")?
+                    .as_pointer_value();
+                let call_site = self.builder
+                    .build_call(recv_fn, &[name_ptr.into()], "recv_call")
+                    .context("recv call")?;
+                match call_site.try_as_basic_value() {
+                    inkwell::values::Either::Left(val) => match val {
+                        BasicValueEnum::IntValue(iv) => Ok(iv),
+                        _ => Ok(self.i64_type.const_int(0, false)),
+                    }
+                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                }
             }
         }
     }
