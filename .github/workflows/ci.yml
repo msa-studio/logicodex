@@ -1,3 +1,18 @@
+# CI Pipeline for Logicodex Language Engine
+#
+# Architecture:
+#   ACTIVE:   v1.21-alpha (stable pipeline — default for all compilation)
+#   DORMANT:  v1.30.0-alpha (experimental — opt-in via --pipeline v1.30)
+#
+# The CI enforces this architecture by:
+#   1. Default check/compile → v1.21 pipeline (active)
+#   2. v130-check step → verifies dormant subsystem compiles but does not activate
+#   3. Example checks → all use default v1.21 semantic validation
+#   4. Safety nets → v1.21 codegen panics if v1.30 AST nodes leak (emit_v130_ast_in_v121)
+#
+# Freestanding-only modules (os/startup, os/allocator, os/uart) are gated with
+# #[cfg(target_os = "none")] and excluded from hosted CI builds.
+
 name: CI
 
 on:
@@ -86,11 +101,19 @@ jobs:
             python3 "$v" || exit 1
           done
 
-      - name: Check example programs compile
+      # v1.21 ACTIVE: Example programs use default pipeline (v1.21 stable)
+      - name: Check example programs (v1.21 pipeline)
         run: |
           for f in examples/*.ldx; do
             if [ -f "$f" ]; then
-              echo "=== Checking $f ==="
+              echo "=== Checking $f (v1.21) ==="
               cargo run --quiet -- check "$f" || exit 1
             fi
           done
+
+      # v1.30 DORMANT: Verify subsystem compiles but does not activate
+      - name: Verify dormant v1.30.0-alpha subsystem
+        run: |
+          echo "=== v1.30 dormant subsystem self-check ==="
+          cargo run --quiet -- v130-check examples/hello.ldx || exit 1
+          echo "=== v1.30 dormant subsystem OK ==="
