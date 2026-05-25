@@ -1,0 +1,54 @@
+// =========================================================================
+// Logicodex v1.33.0-alpha — Network Standard Library
+//
+// Pustaka standard untuk rangkaian deterministik.
+// Semua operasi rangkaian melalui Reactor — tiada raw socket access.
+//
+// Prinsip: "Gate = SIAPA, Door = BAGAIMANA, Service = APA"
+// =========================================================================
+
+// ─── Service Declaration ───
+// Contoh deklarasi servis dalam kod Logicodex:
+//
+// service WebServer {
+//     port: 443,
+//     requires: Net.Admin,
+//     handler: WebHandler,
+//     policy: Block,
+// }
+
+// ─── Connection Lifecycle ───
+// Koneksi diuruskan sepenuhnya oleh Reactor (RAII auto-cleanup):
+//
+//   1. Reactor.accept() → Connection baru (fd assigned)
+//   2. Reactor.process_event(Readable) → Connection.read()
+//   3. Reactor.process_event(Writable) → Connection.write()
+//   4. Connection.drop() → close(fd) deterministik
+//
+// Tiada manual close() — compiler akan pastikan fd ditutup.
+
+// ─── Backpressure Policies ───
+//
+// policy: Block      → Tunggu buffer kosong (selamat, latency tinggi)
+// policy: DropOldest → Buang data lama (real-time, boleh kehilangan data)
+// policy: Error      → Kembalikan error (protocol retry, paling reliable)
+
+// ─── Taint State Machine ───
+//
+//   Healthy     → Normal operation
+//   Suspicious  → Pattern anomali detected (monitoring ketat)
+//   Closing     → Akan di-drop (deterministic cleanup)
+//
+// Transition:
+//   Healthy + 3 consecutive errors → Suspicious
+//   Suspicious + timeout/2 → Closing
+//   Suspicious + normal traffic → Healthy (recovery)
+//   Hangup/Error → Closing (immediate)
+
+// ─── Gate Requirements untuk Servis ───
+//
+// Servis yang listen pada port < 1024 MESTI ada requires gate.
+// Contoh:
+//   port: 443 → requires: Net.Admin     (HTTPS — privileged)
+//   port: 80  → requires: Net.Admin     (HTTP — privileged)
+//   port: 8080 → (no requires needed)   (User port)
