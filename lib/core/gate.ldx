@@ -1,0 +1,57 @@
+// =========================================================================
+// Logicodex v1.32.0-alpha — Gate Contract Patterns
+//
+// "Gate = Kontrak, Door = Pengangkutan"
+//
+// Pola-polá gate kontrak yang biasa digunakan dalam ekosistem Logicodex.
+// Ini adalah panduan — bukan enforce — untuk membina modul-modul yang
+// mengikuti prinsip Capability-Based Security.
+// =========================================================================
+
+// ─── Pola 1: Provider-Consumer ───
+// Modul provider mendedahkan gate, modul consumer menggunakannya.
+//
+// PROVIDER: driver/storage.ldx
+//   PROVIDE Storage.Baca, Storage.Tulis, Storage.Padam
+//
+// CONSUMER: app/file_manager.ldx
+//   REQUIRE Storage.Baca, Storage.Tulis
+//
+// Topology: app → Storage.Baca ← driver [VALID]
+
+// ─── Pola 2: Sink ───
+// Modul yang hanya menerima data (tidak perlu provide apa-apa).
+//
+// SINK: app/logger.ldx
+//   REQUIRE Storage.Tulis  // Log ke fail
+//   REQUIRE Net.Send       // Hantar ke server log
+
+// ─── Pola 3: Bridge ───
+// Modul yang menerima dari satu domain dan hantar ke domain lain.
+//
+// BRIDGE: net/proxy.ldx
+//   REQUIRE Net.Recv
+//   PROVIDE Net.Send       // Proxy forward
+
+// ─── Pola 4: Hardware Driver ───
+// Modul driver hardware — provide HW gates, require nothing.
+//
+// DRIVER: hw/sensor.ldx
+//   PROVIDE HW.GPIO, HW.ADC
+//   PROVIDE HW.Timer       // Timer interrupts
+
+// ─── Pola 5: Application Sandbox ───
+// Aplikasi yang hanya perlu UI dan Storage.
+//
+// APP: app/gui.ldx
+//   REQUIRE UI.Papar, UI.Input
+//   REQUIRE Storage.Baca   // Buka fail
+
+// ─── Anti-Pola: Privilege Escalation ───
+// Ini adalah contoh KESALAHAN — jangan buat begini:
+//
+// MALICIOUS: lib/utils.ldx
+//   REQUIRE Net.Raw        // Tiba-tiba mahu raw socket?!?
+//   REQUIRE HW.DMA         // Dan direct memory access?!?
+//
+// Capability Diff akan detect ini sebagai privilege escalation!

@@ -1,0 +1,83 @@
+// =========================================================================
+// Logicodex v1.32.0-alpha — Capability Domain Definitions
+//
+// "Gate menentukan SIAPA boleh bercakap."
+//
+// Domain-domain gate standard dalam ekosistem Logicodex.
+// Setiap domain mengandungi operasi-operasi yang boleh diberikan
+// atau diperlukan oleh modul-modul.
+//
+// Gate adalah Type-Level — divalidasi oleh 2-Pass Engine.
+// Zero Runtime Mediation: kalau compile lulus, program proven safe.
+// =========================================================================
+
+// ─── Storage ───
+// Operasi fail dan storage (cakera, flash, EEPROM).
+domain Storage {
+    Baca,       // Read files
+    Tulis,      // Write/create files
+    Padam,      // Delete files
+}
+
+// ─── Net ───
+// Operasi rangkaian (TCP, UDP, raw socket).
+domain Net {
+    Send,       // Send data
+    Recv,       // Receive data
+    Raw,        // Raw socket access (sensitive — requires Hardware gate)
+}
+
+// ─── UI ───
+// Antaramuka pengguna (display, input, graphics).
+domain UI {
+    Papar,      // Display output (DrawText, ClearBackground)
+    Input,      // Read input (IsKeyPressed, IsMouseButtonPressed)
+}
+
+// ─── HW ───
+// Hardware / bare-metal register access.
+// EKSKLUSIF untuk device drivers dan embedded code.
+domain HW {
+    GPIO,       // General Purpose I/O pins
+    Timer,      // Hardware timers
+    DMA,        // Direct Memory Access
+    ADC,        // Analog-to-Digital Converter
+    PWM,        // Pulse Width Modulation
+}
+
+// ─── Audio ───
+// Audio processing (play, record, stream).
+domain Audio {
+    Main,       // Play audio
+    Rakam,      // Record audio
+}
+
+// ─── Crypto ───
+// Kriptografi (hash, encrypt, sign).
+// Sentiasa DirectCall — inline-able untuk performance.
+domain Crypto {
+    Hash,       // Cryptographic hash
+    Encrypt,    // Encryption
+    Decrypt,    // Decryption
+    Sign,       // Digital signature
+}
+
+// ─── DB ───
+// Database operations.
+domain DB {
+    Query,      // Read from database
+    Insert,     // Write to database
+    Update,     // Modify existing records
+    Delete,     // Remove records
+}
+
+// ─── Contoh Penggunaan ───
+//
+// Modul A (DriverStorage) mendedahkan:
+//   PROVIDE Storage.Baca, Storage.Tulis
+//
+// Modul B (Aplikasi) memerlukan:
+//   REQUIRE Storage.Baca
+//
+// Kompiler akan verify: Aplikasi → Storage.Baca ← DriverStorage [OK]
+// Kalau Aplikasi tiba-tiba REQUIRE Net.Raw tanpa provider: [ERROR]
