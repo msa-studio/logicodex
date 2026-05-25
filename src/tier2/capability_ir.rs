@@ -307,14 +307,36 @@ impl CapabilityGraph {
         &mut self,
         topology: &CapabilityTopology,
     ) {
-        // Convert each gate contract to an IRGateEdge
-        for contract in topology.contracts() {
-            let cap_ref = CapabilityRef::from(&contract.gate);
-            self.add_gate(IRGateEdge {
-                from: contract.provider,
-                to: contract.consumer,
-                capability: cap_ref,
-            });
+        // Create service nodes for each contract's module
+        for (idx, contract) in topology.contracts().iter().enumerate() {
+            let module_id = idx as u32;
+            // Only add if not already present
+            if self.service_by_name(&contract.module_name).is_none() {
+                let node = IRServiceNode::new(module_id, contract.module_name.clone());
+                self.add_service(node);
+            }
+        }
+        // Create gate edges from provides → requires relationships
+        for (idx, contract) in topology.contracts().iter().enumerate() {
+            let module_id = idx as u32;
+            // For each provided gate, create an edge from this module
+            for gate in &contract.provides {
+                let cap_ref = CapabilityRef::from(gate);
+                self.add_gate(IRGateEdge {
+                    from: module_id,
+                    to: 0, // 0 = system/generic consumer
+                    capability: cap_ref,
+                });
+            }
+            // For each required gate, create an edge to this module
+            for gate in &contract.requires {
+                let cap_ref = CapabilityRef::from(gate);
+                self.add_gate(IRGateEdge {
+                    from: 0, // 0 = system/generic provider
+                    to: module_id,
+                    capability: cap_ref,
+                });
+            }
         }
     }
 
