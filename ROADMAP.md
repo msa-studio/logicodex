@@ -1,14 +1,19 @@
-# Logicodex Practical Roadmap — current logicodex v 1.21 alpha
+# Logicodex Practical Roadmap — v1.33.0-alpha The Deterministic Systems Platform
 
-This roadmap describes how **Logicodex** should progress from the current alpha compiler baseline toward a more complete systems-language ecosystem. It intentionally separates what is implemented today from what remains a prototype objective or a long-term research goal.
+This roadmap describes how **Logicodex** progresses from an alpha compiler baseline toward a deterministic systems platform combining actor-model concurrency, streaming compilation, capability-based security, and event-driven networking.
 
 > **Roadmap principle:** Logicodex should earn stronger claims through reproducible builds, executable examples, validation scripts, measured performance, and clearly documented safety boundaries.
 
-| Horizon | Primary focus | Risk addressed | Acceptance signal |
-|---|---|---|---|
-| Short term | Compiler-core stability | The language vision outpaces verified implementation. | Rust 1.75 builds, validators, release artifacts, and representative `.ldx` examples pass consistently. |
-| Medium term | Tooling and specification discipline | Contributors lack a stable editing and diagnostic workflow. | Formatter, LSP diagnostics, type-system rules, and unsafe capability gates are documented and tested. |
-| Long term | Systems and security research | Security and freestanding objectives are mistaken for completed production features. | WebAssembly, migration tooling, runtime attestation, and freestanding examples are implemented with benchmarks and target-specific tests. |
+| Horizon | Primary focus | Status |
+|---|---|---|
+| v1.21 | Compiler-core baseline | ✅ **COMPLETED** — 9/9 checks passing |
+| v1.30 | Threading + IO + Audio | ✅ **COMPLETED** — 104/104 checks passing |
+| v1.31 | Streaming compiler | ✅ **COMPLETED** — 6/6 checks passing |
+| v1.32 | Capability security | ✅ **COMPLETED** — 10/10 checks passing |
+| v1.33 | Network reactor | ✅ **COMPLETED** — 13/13 checks passing |
+| v1.34 | Sharded multi-core reactor | 📋 **PLANNED** |
+| v1.35 | WebAssembly target | 📋 **PLANNED** |
+| v2.00 | Pointer provenance engine | 🔬 **RESEARCH** |
 
 ## Milestone 1: Stabilize the Alpha Compiler Core
 
@@ -22,6 +27,31 @@ The first priority is to keep the current compiler pipeline reproducible. This m
 | Issue #02 — UB and provenance design note | Baseline hardware-zone gate implemented and logically verified | Mohamad Supardi Abdul | The specification now records `ZON_PERKAKASAN` / `hw_unsafe` lexical gating, and the semantic analyzer rejects raw address pointer bindings outside that safe zone while leaving deeper hardware I/O work for later milestones. |
 | Issue #03 — Native example suite | Partially complete | Mohamad Supardi Abdul | The refreshed reflex-engine `.ldx` suite passes `check` and `v130-check`; remaining work is expected-output fixtures and backend/object-output parity checks. |
 | Issue #04 — CI-oriented validation | Open | TBD | `cargo check`, release build, full example sweeps, and validation scripts can be run from a clean checkout with documented dependencies. |
+
+## Milestone 1b: Threading + IO + Audio (v1.30.1-alpha)
+
+Deterministic concurrency, 4-Ketuk IO architecture, and hardware-safe audio engine. All integrated with the v1.21 baseline with zero regression.
+
+| Issue | Status | Owner | Practical acceptance signal |
+|---|---|---|---|
+| Phase 1 — Threading Foundation (Actor & Channel, topology validation) | **[X] COMPLETED / MERGED #27** | Mohamad Supardi Abdul | 8/8 validator checks, `lib/core/thread.ldx`, `lib/core/sync.ldx`. See `docs/v1.30-THREADING.md`. |
+| Phase 2 — Zero-Copy Ownership Transfer (RAII move via channel, UseAfterSend) | **[X] COMPLETED / MERGED #28** | Mohamad Supardi Abdul | 6/6 validator checks, `lib/core/ring_buffer.ldx`. See `docs/v1.30-THREADING.md`. |
+| Phase 3 — Backpressure + Scheduler (try_send/try_recv/yield/sleep/timeout_recv) | **[X] COMPLETED / MERGED #30** | Mohamad Supardi Abdul | 10/10 validator checks, `lib/core/scheduler.ldx`. See `docs/v1.30-THREADING.md`. |
+| IO Architecture K1 — Core Memory Model (Slice<T>, Buffer<T>, provenance) | **[X] COMPLETED / MERGED #23** | Mohamad Supardi Abdul | 17/17 validator checks, `lib/core/memori.ldx`. See `docs/architecture/IO_ARCHITECTURE_4KETUK.md`. |
+| IO Architecture K2 — Result<T,E> Abstraction (Ok/Err/Match) | **[X] COMPLETED / MERGED #25** | Mohamad Supardi Abdul | 9/9 validator checks, `lib/core/result.ldx`. |
+| IO Architecture K3+4 — File Handle ABI + Syscall Backend | **[X] COMPLETED / MERGED #26** | Mohamad Supardi Abdul | 12/12 validator checks, `src/os/syscall.rs`, `lib/core/file.ldx`. |
+| Audio Engine — Hardware-Safe Audio Guards (StrictAudioContext, 4 violation types) | **[X] COMPLETED / MERGED #22** | Mohamad Supardi Abdul | 14/14 validator checks, `lib/std/audio.ldx`. |
+| Buffer Provenance Bug Fixes (5 critical fixes) | **[X] COMPLETED / MERGED #24** | Mohamad Supardi Abdul | 9/9 validator checks. |
+
+## Milestone 1c: The Deterministic Systems Platform (v1.31-v1.33)
+
+Transform Logicodex from a compiler into a hardware-integrated systems platform.
+
+| Issue | Status | Owner | Practical acceptance signal |
+|---|---|---|---|
+| v1.31 — Tier 2 Streaming Engine (2-Pass Engine, SemanticSummary ~64B, MetadataGraph) | **[X] COMPLETED / MERGED #31** | Mohamad Supardi Abdul | 6/6 validator checks, `src/tier2/`. RAM stays flat regardless of program size. See `docs/v1.31-STREAMING.md`. |
+| v1.32 — Static Capability Fabric (Gate/Door split, 3 gate types, topology verify, .cap file, privilege escalation detection) | **[X] COMPLETED / MERGED #32** | Mohamad Supardi Abdul | 10/10 validator checks, `src/tier2/gate.rs`, `src/tier2/topology.rs`. Zero runtime mediation. See `docs/v1.32-CAPABILITY.md`. |
+| v1.33 — Deterministic Network Reactor (RAII Connection, Taint FSM, Service manifest, backpressure policies) | **[X] COMPLETED / MERGED #33** | Mohamad Supardi Abdul | 13/13 validator checks, `src/net/`. No socket leaks. See `docs/v1.33-REACTOR.md`. |
 
 ## Milestone 2: Tighten Language Semantics and Diagnostics
 
@@ -64,6 +94,16 @@ Runtime memory attestation, Golden Hash planning, hard fail-stop behavior, and f
 | Stop-on-failure mitigation | Roadmap model | Hosted process abort and freestanding halt/reset behavior are implemented only where safe, documented, and explicitly selected. |
 | Freestanding support | Experimental target profile | Linker scripts, bootloader integration notes, hardware-region policies, and minimal examples are validated. |
 | Migration assistant | Conceptual roadmap | Translation output is reviewable, testable, and clearly marked as assisted migration rather than automatic proof of correctness. |
+
+## Milestone 5b: Future Platform Work (v1.34-v1.40)
+
+Sharded multi-core reactor, WebAssembly target, and full freestanding support.
+
+| Objective | Current status | Practical acceptance signal |
+|---|---|---|
+| v1.34 — Sharded multi-core reactor | Planned | Per-CPU-core reactor instance with static affinity. Near-linear scaling. Cross-core communication via dedicated Door. |
+| v1.35 — WebAssembly target | Long-term objective | A documented `.wasm` generation path can compile and run one representative Logicodex program. Capability gates for browser APIs. |
+| v1.40 — Full freestanding support | Research objective | Bootloader examples, raw pointer gates, hardware-region policies, OS-less target profile with linker scripts. |
 
 ## Milestone 6: Prepare the Logicodex v2.0 Pointer Provenance Research Track
 
