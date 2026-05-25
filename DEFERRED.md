@@ -22,11 +22,15 @@
 - **Files modified**: `src/codegen.rs`, `src/hir.rs` (added `name` field), `src/semantic_gate.rs`, `src/codegen_contract.rs`
 - **Tests**: `tests/hir_codegen_function.rs` — 6 assertions (empty, let+return, if, while, binary, extern call)
 
-### A3. Threading Expressions Codegen (v1.30)
-- **Fail**: `src/codegen.rs:623-629`
-- **Isu**: `spawn`, `join`, `send`, `recv` — cuma `eprintln!` deferred-to-runtime
-- **Kesan**: Actor/channel code tak dapat dijalankan — hanya syntax check
-- **Prioriti**: **TINGGI** — core feature v1.30
+### ✅ A3. Threading Expressions Codegen (v1.30) — **SELESAI 2026-05-25**
+- **Commit**: `f00b15f`
+- **Perubahan**: HIR → LLVM IR lowering untuk threading:
+  - `HirExprKind::Spawn/Join/ChannelSend/ChannelRecv` — variants baru
+  - `ExprAst` + `lower_expr_ast()` + `lower_expr()` — AST→HIR lowering
+  - `emit_hir_expr()` — codegen: `declare_runtime_func()` + `build_call`
+  - Runtime functions: `logicodex_spawn`, `logicodex_join`, `logicodex_channel_send`, `logicodex_channel_recv`
+  - Backpressure (TrySend/TryRecv/Yield/Sleep/TimeoutRecv) → mapped ke no-op/standard send-recv
+- **Tests**: `tests/hir_codegen_threading.rs` — 5 assertions (spawn, join, send, recv, full workflow)
 
 ### A4. Backpressure + Scheduler Codegen (v1.30 Phase 3)
 - **Fail**: `src/codegen.rs:632-649`
@@ -206,14 +210,14 @@
 | Prioriti | Bilangan | Items |
 |---|---|---|
 | ~~**KRITIKAL**~~ | ~~2~~ | ~~A1 (HIR codegen)~~ ✅, ~~A2 (Extern codegen)~~ ✅ |
-| **TINGGI** | 9 | A3-A5, B1-B6, C1-C3, D1 |
+| **TINGGI** | 8 | A4-A5, B1-B6, C1-C3, D1 |
 | **SEDERHANA** | 6 | A6, B6, C4-C5, E1-E2, F1 |
 | **RENDAH / RESEARCH** | 5 | D2, G1-G2, I1 |
 | **BY DESIGN** | 1 | H1 (Edition Routing) |
 
 | Modul | Bilangan Stub | Selesai |
 |---|---|---|
-| `src/codegen.rs` | ~~7~~ 5 (A1-A5) | ✅ A1, ✅ A2 |
+| `src/codegen.rs` | ~~7~~ 2 (A4-A5) | ✅ A1, ✅ A2, ✅ A3 |
 | `src/net/reactor.rs` | 4 (B1-B2, B4-B6) | |
 | `src/net/connection.rs` | 2 (B3) | |
 | `src/net/sharded_reactor.rs` | 2 (C1-C2) | |
@@ -224,14 +228,15 @@
 | `src/os/syscall.rs` | 1 (F1) | |
 | `src/main.rs` | 2 (G1-G2) | |
 | `src/semantic_gate.rs` | 1 (I1) | |
-| **JUMLAH** | ~~26~~ **24** | **2 selesai** |
+| **JUMLAH** | ~~26~~ **23** | **3 selesai** |
 
 ---
 
 ## Cadangan Urutan Pelaksanaan
 
 1. ~~**Pusingan 1a (Codegen)**: ✅ A1-A2 — HIR Function + Extern codegen selesai (2026-05-25, commit `b680e9f`)~~
-1. **Pusingan 1b (Codegen)**: A3-A5 — Threading expr, Backpressure, Struct constructor
+1. ~~**Pusingan 1b (Codegen)**: ✅ A3 — Threading expr selesai (2026-05-25, commit `f00b15f`)~~
+1. **Pusingan 1c (Codegen)**: A4-A5 — Backpressure + Scheduler, Struct constructor
 2. **Pusingan 2 (Network Runtime)**: B1-B6 — Implement epoll + syscall + event loop
 3. **Pusingan 3 (Sharded Runtime)**: C1-C5 — Spawn threads + affinity pin
 4. **Pusingan 4 (IR Integration)**: D1 — Fix `from_topology()` — add accessor ke CapabilityTopology
