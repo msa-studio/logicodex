@@ -1,0 +1,14 @@
+// Logicodex v1.21 — Addition and conditional (beginner/Malay syntax)
+MULA
+BINA x = 5
+BINA y = 10
+BINA total = x + y
+JIKA total > 12 MAKA
+MULA
+    PAPAR 1
+TAMAT
+JIKALAU_TIDAK
+MULA
+    PAPAR 0
+TAMAT
+TAMAT

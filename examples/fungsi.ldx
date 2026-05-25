@@ -1,0 +1,12 @@
+// Logicodex v1.21 — Function declaration (expert/canonical syntax)
+{
+    fn tambah(a: I64, b: I64) -> I64 {
+        let total: I64 = a + b;
+        return total;
+    }
+
+    let baseline: I64 = 8;
+    let bias: I64 = 3;
+    let score: I64 = baseline + bias;
+    print score;
+}

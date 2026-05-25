@@ -1,9 +1,5 @@
-// =========================================================================
-// Project: Logicodex Language Engine
-// Version: current logicodex v 1.21 alpha
-// Purpose: Beginner-style executable example.
-// =========================================================================
-MULA
-BINA mesej = "Hello from Logicodex"
-PAPAR mesej
-TAMAT
+// Logicodex v1.21 — Hello World (expert/canonical syntax)
+{
+    let mesej = "Hello from Logicodex";
+    print mesej;
+}
