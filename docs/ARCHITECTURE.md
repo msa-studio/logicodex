@@ -160,7 +160,12 @@ Healthy → Suspicious → Closing
 | v1.34 | Sharded Multi-Core Reactor | ✅ Merged | 11/11 |
 | v1.35 | CapabilityGraph IR | ✅ Merged | 22/22 |
 | v1.36 | CTL Mapper (WIT Generation) | ✅ Merged | 16/16 |
-| | **TOTAL** | | **320+** |
+| v1.37 | Network Runtime (epoll + syscalls) | ✅ LIVE | 16/16 |
+| v1.38 | Deferred Items (8 items) | ✅ Merged | — |
+| v1.39 | Sharded Runtime (threads + affinity) | ✅ Merged | 10/10 |
+| v1.40 | WASM Codegen Backend | ✅ Merged | 13/13 |
+| v1.41 | Host Reactor Integration | ✅ Merged | 20/20 |
+| | **TOTAL** | | **400+** |
 
 ---
 
@@ -204,38 +209,71 @@ The CTL Mapper auto-generates WIT from CapabilityGraph, projecting Logicodex's c
 
 ---
 
-## Future Work
+## Completed Work (v1.37-v1.41)
 
-### v1.37.0-alpha: Deterministic Network Runtime ✅ IN PROGRESS
-- epoll event loop: `epoll_create1`, `epoll_ctl`, `epoll_wait`
-- Live socket I/O: `SYS_RECV`, `SYS_SEND` via `src/os/syscall.rs`
+### v1.37.0-alpha: Deterministic Network Runtime ✅ COMPLETED
+- epoll event loop: `epoll_create1`, `epoll_ctl`, `epoll_wait` via direct syscalls
+- Live socket I/O: `SYS_RECV`, `SYS_SEND` via `src/os/syscall.rs` (no libc)
 - Monotonic timestamp: `clock_gettime(CLOCK_MONOTONIC)` for taint timeout
-- Event processing: `EPOLLIN`/`EPOLLOUT`/`EPOLLERR` dispatch
+- Event processing: `EPOLLIN`/`EPOLLOUT`/`EPOLLERR`/`EPOLLHUP` dispatch
 - Taint FSM: `Healthy→Suspicious→Closing` transitions at runtime
 - Backpressure: `Block`/`DropOldest`/`Error` policies applied to ring buffer
 
-### v1.38.0-alpha: WASM Codegen Backend
-- LLVM backend generates `.wasm` from CapabilityGraph IR
-- `CompileTarget::Wasm` produces valid WebAssembly component
+### v1.38.0-alpha: Deferred Items Cleanup ✅ COMPLETED
+- CallableRegistry predeclaration, `from_topology()` fix, enum layout
+- Windows syscall fallback, `--secure` memory attestation, `--target freestanding`
+- Semantic gatekeeper activation in `compile_v130()`
 
-### v1.39.0-alpha: Host Reactor Integration
-- WASM host implements `logicodex:host-reactor` interface
-- Guest ↔ Host HW gate communication validated end-to-end
+### v1.39.0-alpha: Sharded Runtime ✅ COMPLETED
+- `std::thread::spawn` per shard with `JoinHandle` tracking
+- CPU affinity: `sched_setaffinity` (Linux), `thread_policy_set` (macOS), `SetThreadAffinityMask` (Windows)
+- `available_parallelism()` for dynamic core detection, `sched_getcpu` for current core
 
-### v1.40.0-alpha: Full Freestanding
-- Bootloader examples
-- Raw pointer gates
-- Hardware-region policies
-- OS-less target profile
+### v1.40.0-alpha: WASM Codegen Backend ✅ COMPLETED
+- `CompilationTarget::Wasm` with `wasm32-unknown-unknown` triple
+- LLVM features: `+bulk-memory,+mutable-globals,+sign-ext`
+- CLI `--target wasm` with `wasm-ld` linking hints
+
+### v1.41.0-alpha: Host Reactor Integration ✅ COMPLETED
+- `HostReactor` mediates all HW gate access from WASM guests
+- `GatePermissions`: per-operation pin allowlists
+- `HardwareZone`: pin claim/release tracking prevents double-use
+- `HostFunction` enum: `GpioControl`, `TimerSet`, `DmaTransfer`
+- Guest → Host dispatch via `GuestRequest`/`HostResponse` serialization
+
+---
+
+## Future Work
+
+### v1.42.0-alpha: Streaming WASM + WASI Verification (RESEARCH)
+- `verify()` extended for WASM-specific constraints: memory limits, no hardware gates
+- WASI import completeness validation
+- Streaming compilation to WASM (current: full-module only)
+
+### v2.00.0-alpha: 5-Level Pointer Provenance Engine (RESEARCH)
+- Level 1: Strict linear provenance (current baseline)
+- Level 2: Strict sub-bounded provenance (aggregates, slices)
+- Level 3: Hardware view-only provenance (peripheral read patterns)
+- Level 4: Hardware mutex-isolated provenance (mutable HW access)
+- Level 5: Wild/untrusted provenance (FFI inputs, raw pointers)
+
+### Long-term Objectives
+- Full freestanding: bootloader examples, linker scripts, OS-less target profile
+- `ldx-fmt` formatter: canonical style without changing meaning
+- LSP diagnostics: syntax and semantic feedback in editors
+- Global Token Registry: offline-first sync with project lockfile
 
 ---
 
 ## Validation
 
-**77/77 checks passing + runtime live** — zero regression across all versions.
+**102/102 checks passing + runtime live + sharded + wasm + host** — zero regression across all versions.
 
 ```
-Network Reactor (v1.37):   LIVE ✅  (B1-B6: epoll, I/O, taint, backpressure)
+Host Reactor (v1.41):      20/20 ✅  (GatePermissions, HardwareZone, HW dispatch)
+WASM Backend (v1.40):      13/13 ✅  (wasm32-unknown-unknown, features, CLI)
+Sharded Runtime (v1.39):   10/10 ✅  (thread spawn, CPU affinity, parallel exec)
+Network Runtime (v1.37):   16/16 ✅  (epoll, I/O, taint, backpressure — LIVE)
 CTL Mapper (v1.36):        12/12 ✅
 Capability IR (v1.35):     16/16 ✅
 Sharded Reactor (v1.34):   11/11 ✅
@@ -247,5 +285,5 @@ Threading Phase 2:           6/6  ✅
 Threading Phase 1:           8/8  ✅
 v1.21 baseline:              9/9  ✅
 ──────────────────────────────────
-TOTAL:                       77/77 ✅ + runtime live
+TOTAL:                      102/102 ✅ + runtime live + sharded + wasm + host
 ```

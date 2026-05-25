@@ -18,10 +18,13 @@ This roadmap describes how **Logicodex** progresses from an alpha compiler basel
 | v1.38 | **Deferred Items Cleanup — A6, D1, E1-E2, F1, G1, G2, I1** | ✅ **COMPLETED** |
 | v1.39 | **Sharded Runtime — C1-C5: thread spawn, CPU affinity** | ✅ **COMPLETED** |
 | v1.40 | **WASM Codegen Backend — wasm32-unknown-unknown** | ✅ **COMPLETED** |
+| v1.37 | **Network Runtime — epoll, socket I/O, taint FSM** | ✅ **COMPLETED** |
+| v1.38 | **Deferred Items Cleanup — A6, D1, E1-E2, F1, G1, G2, I1** | ✅ **COMPLETED** |
+| v1.39 | **Sharded Runtime — C1-C5: thread spawn, CPU affinity** | ✅ **COMPLETED** |
+| v1.40 | **WASM Codegen Backend — wasm32-unknown-unknown** | ✅ **COMPLETED** |
 | v1.41 | **Host Reactor Integration — Guest ↔ Host HW mediation** | ✅ **COMPLETED** |
-| v1.42 | Streaming WASM + Capability Verification at Runtime | 🔬 **RESEARCH** |
-| v1.41 | Host Reactor Integration | 📋 **PLANNED** |
-| v2.00 | Pointer provenance engine | 🔬 **RESEARCH** |
+| v1.42 | Streaming WASM + WASI Capability Verification at Runtime | 🔬 **RESEARCH** |
+| v2.00 | Pointer provenance engine (5-level) | 🔬 **RESEARCH** |
 
 ## Milestone 1: Stabilize the Alpha Compiler Core
 
@@ -141,16 +144,19 @@ Runtime memory attestation, Golden Hash planning, hard fail-stop behavior, and f
 | Freestanding support | Experimental target profile | Linker scripts, bootloader integration notes, hardware-region policies, and minimal examples are validated. |
 | Migration assistant | Conceptual roadmap | Translation output is reviewable, testable, and clearly marked as assisted migration rather than automatic proof of correctness. |
 
-## Milestone 5b: Future Platform Work (v1.37-v1.40)
+## Milestone 5b: Platform Targets (v1.37-v1.41) — ALL COMPLETED
 
-WASM codegen backend, host reactor integration, and full freestanding support.
+WASM codegen backend, host reactor integration, and freestanding target support — all completed across v1.37 through v1.41.
 
-| Objective | Current status | Practical acceptance signal |
+| Objective | Status | Practical acceptance signal |
 |---|---|---|
-| v1.37 — WASM Codegen Backend | Planned | LLVM backend generates `.wasm` from CapabilityGraph IR. `CompileTarget::Wasm` produces valid WebAssembly component. |
-| v1.38 — Host Reactor Integration | Planned | WASM host implements `logicodex:host-reactor` interface for HW gate mediation. Guest ↔ Host communication validated. |
-| v1.39 — WASM Capability Verification | Planned | `verify()` extended to validate WASM-specific constraints: memory limits, no hardware gates, WASI import completeness. |
-| v1.40 — Full freestanding support | Research objective | Bootloader examples, raw pointer gates, hardware-region policies, OS-less target profile with linker scripts. |
+| v1.37 — Network Runtime | ✅ **COMPLETED** | epoll event loop via direct syscall, `SYS_RECV`/`SYS_SEND` socket I/O, taint FSM at runtime, monotonic timestamps. |
+| v1.38 — Deferred Items Cleanup | ✅ **COMPLETED** | 8 deferred items resolved: callable predeclaration, topology fix, enum layout, Windows fallback, memory attestation, freestanding target, semantic gatekeeper. |
+| v1.39 — Sharded Runtime | ✅ **COMPLETED** | `std::thread::spawn` per shard, CPU affinity via `sched_setaffinity`, `available_parallelism()`, `sched_getcpu`. |
+| v1.40 — WASM Codegen Backend | ✅ **COMPLETED** | LLVM `wasm32-unknown-unknown` with `+bulk-memory,+mutable-globals,+sign-ext`. CLI `--target wasm`. |
+| v1.41 — Host Reactor Integration | ✅ **COMPLETED** | `logicodex:host-reactor` interface for HW gate mediation. `GatePermissions` + `HardwareZone` for guest ↔ host access control. |
+| v1.42 — WASI Capability Verification | 🔬 **RESEARCH** | `verify()` extended for WASM-specific constraints: memory limits, no hardware gates, WASI import completeness. |
+| v2.00 — Pointer Provenance Engine | 🔬 **RESEARCH** | 5-level provenance: linear → sub-bounded → hardware view-only → hardware mutex-isolated → wild/untrusted. |
 
 ## Milestone 6: Prepare the Logicodex v2.0 Pointer Provenance Research Track
 
