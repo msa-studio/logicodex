@@ -1,24 +1,26 @@
 // =========================================================================
-// Logicodex v1.31.0-alpha — Tier 2: Streaming Semantic Compiler
+// Logicodex v1.32.0-alpha — Tier 2: Streaming Semantic Compiler + Capability Fabric
 //
-// The "brain" that replaces keeping full AST in RAM.
-// 
 // Architecture:
 //   Tier 1 (Parser)    → Full AST per function (temporary, discarded after Pass 2)
-//   Tier 2 (This mod)  → MetadataGraph with SemanticSummary (persistent, lightweight)
+//   Tier 2 (This mod)  → MetadataGraph + SemanticSummary + CapabilityTopology
 //   Tier 3 (Codegen)   → LLVM IR chunks (streamed, one function at a time)
 //
 // Flow:
-//   Program → Pass 1 (pre-declare) → MetadataGraph → Pass 2 (stream) → Results
-//                ↑ lightweight index       ↑ deep analysis per function
-//                                           ↑ discard AST after each function
+//   Program → Pass 1 (pre-declare) → MetadataGraph + CapabilityTopology
+//                                          ↓
+//                Pass 2 (stream + verify gates) → Results + .cap file
 // =========================================================================
 
 pub mod metadata;
 pub mod pass;
+pub mod gate;
+pub mod topology;
 
 // Re-exports for convenience
 pub use metadata::{
     Capability, InlineCost, MemoryReport, MetadataGraph, SemanticSummary,
 };
 pub use pass::{compile_streaming, pass1_predeclare, pass2_streaming, CompileMode, StreamingResult};
+pub use gate::{GateRef, GateType, GateContract, GateDomain, GateParseError};
+pub use topology::{CapabilityTopology, CapabilityDiff, TopologyVerifyResult, TopologyViolation, diff_topology};

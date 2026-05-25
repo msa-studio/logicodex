@@ -13,6 +13,7 @@
 // =========================================================================
 
 use crate::ast::{Param, Stmt, Type};
+use super::gate::GateRef;
 use std::collections::HashMap;
 
 // ─── Capability ───
@@ -152,6 +153,11 @@ pub struct SemanticSummary {
     pub is_recursive: bool,
     /// Symbols this function calls (for dependency tracking)
     pub callees: Vec<u32>,
+    // v1.32.0-alpha: Static Capability Fabric — Gate contract fields
+    /// Gates that this symbol REQUIRES (must be provided by another module)
+    pub requires_gates: Vec<GateRef>,
+    /// Gates that this symbol PROVIDES (available for other modules to use)
+    pub provides_gates: Vec<GateRef>,
 }
 
 impl SemanticSummary {
@@ -173,6 +179,8 @@ impl SemanticSummary {
             channels_used: Vec::new(),
             is_recursive: false,
             callees: Vec::new(),
+            requires_gates: Vec::new(),
+            provides_gates: Vec::new(),
         }
     }
 
@@ -195,6 +203,8 @@ impl SemanticSummary {
             channels_used,
             is_recursive: false,
             callees: Vec::new(),
+            requires_gates: Vec::new(),
+            provides_gates: Vec::new(),
         }
     }
 

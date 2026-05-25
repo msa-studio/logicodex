@@ -132,6 +132,11 @@ pub enum SemanticError {
     ChannelFull { name: String },
     #[error("KRITIKAL: Timeout menunggu recv dari Channel `{name}` selepas {timeout_ms}ms / CRITICAL: Timeout waiting for recv from Channel `{name}` after {timeout_ms}ms")]
     RecvTimeout { name: String, timeout_ms: i64 },
+    // v1.32.0-alpha: Static Capability Fabric — Zero Runtime Mediation
+    #[error("KRITIKAL: Pelanggaran Kontrak Keupayaan — '{symbol}' memerlukan Gate '{gate}' tetapi tiada modul yang menyediakannya / CRITICAL: Capability Contract Violation — '{symbol}' requires Gate '{gate}' but no module provides it")]
+    CapabilityContractViolation { symbol: String, gate: String },
+    #[error("KRITIKAL: Peningkatan Keistimewaan Dikesan — '{symbol}' kini memerlukan Gate '{gate}' (akses sensitif) / CRITICAL: Privilege Escalation Detected — '{symbol}' now requires Gate '{gate}' (sensitive access)")]
+    PrivilegeEscalation { symbol: String, gate: String },
 }
 
 #[derive(Debug, Default)]
