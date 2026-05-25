@@ -7,18 +7,20 @@
 
 ## KATEGORI A: Codegen / Backend — Stubs Paling Kritikal
 
-### A1. HIR Function Codegen — LLVM Emission (v1.30)
-- **Fail**: `src/codegen.rs:813`
-- **Isu**: `emit_hir_function()` — cuma print eprintln stub, tak generate LLVM IR sebenar
-- **Kesan**: Fungsi v1.30 tak dapat dikompil ke object — hanya v1.21 path yang berfungsi
-- **Prioriti**: **KRITIKAL** — blok complete codegen untuk semua feature v1.30+
-- **Nota**: "full LLVM emission is a future milestone"
+### ✅ A1. HIR Function Codegen — LLVM Emission (v1.30) — **SELESAI 2026-05-25**
+- **Commit**: `b680e9f`
+- **Perubahan**: `emit_v130_function()` — full HIR → LLVM lowering dengan:
+  - Parameter handling (alloca + store), local variables (HashMap<LocalId, PointerValue>)
+  - Control flow: If/While/Loop/Break/Continue dengan proper basic blocks
+  - Expressions: Literal, Local, Binary (semua ops), Unary, Call, Cast
+  - Implicit return untuk function tanpa explicit return
+- **Commit message**: "A1 Critical: HIR Function Codegen — Full LLVM IR Emission"
 
-### A2. Extern Function Codegen — FFI Declaration (v1.30)
-- **Fail**: `src/codegen.rs:821`
-- **Isu**: `emit_hir_extern_function()` — stub, tak declare `extern` dalam LLVM IR
-- **Kesan**: Raylib FFI dll tak dapat di-link — semua FFI call gagal
-- **Prioriti**: **KRITIKAL**
+### ✅ A2. Extern Function Codegen — FFI Declaration (v1.30) — **SELESAI 2026-05-25**
+- **Commit**: `b680e9f` (selesai bersama A1)
+- **Perubahan**: `emit_v130_extern_function()` — CallableId → `declare_extern_func()` melalui CallableRegistry
+- **Files modified**: `src/codegen.rs`, `src/hir.rs` (added `name` field), `src/semantic_gate.rs`, `src/codegen_contract.rs`
+- **Tests**: `tests/hir_codegen_function.rs` — 6 assertions (empty, let+return, if, while, binary, extern call)
 
 ### A3. Threading Expressions Codegen (v1.30)
 - **Fail**: `src/codegen.rs:623-629`
@@ -203,38 +205,35 @@
 
 | Prioriti | Bilangan | Items |
 |---|---|---|
-| **KRITIKAL** | 2 | A1 (HIR codegen), A2 (Extern codegen) |
-| **TINGGI** | 11 | A3-A5, B1-B6, C1-C3, D1 |
+| ~~**KRITIKAL**~~ | ~~2~~ | ~~A1 (HIR codegen)~~ ✅, ~~A2 (Extern codegen)~~ ✅ |
+| **TINGGI** | 9 | A3-A5, B1-B6, C1-C3, D1 |
 | **SEDERHANA** | 6 | A6, B6, C4-C5, E1-E2, F1 |
 | **RENDAH / RESEARCH** | 5 | D2, G1-G2, I1 |
 | **BY DESIGN** | 1 | H1 (Edition Routing) |
 
-| Modul | Bilangan Stub |
-|---|---|
-| `src/codegen.rs` | 7 (A1-A6) |
-| `src/net/reactor.rs` | 4 (B1-B2, B4-B6) |
-| `src/net/connection.rs` | 2 (B3) |
-| `src/net/sharded_reactor.rs` | 2 (C1-C2) |
-| `src/net/affinity.rs` | 3 (C3-C5) |
-| `src/tier2/capability_ir.rs` | 2 (D1-D2) |
-| `src/semantic/type_checker.rs` | 1 (E1) |
-| `src/layout.rs` | 1 (E2) |
-| `src/os/syscall.rs` | 1 (F1) |
-| `src/main.rs` | 2 (G1-G2) |
-| `src/semantic_gate.rs` | 1 (I1) |
-| **JUMLAH** | **26** |
+| Modul | Bilangan Stub | Selesai |
+|---|---|---|
+| `src/codegen.rs` | ~~7~~ 5 (A1-A5) | ✅ A1, ✅ A2 |
+| `src/net/reactor.rs` | 4 (B1-B2, B4-B6) | |
+| `src/net/connection.rs` | 2 (B3) | |
+| `src/net/sharded_reactor.rs` | 2 (C1-C2) | |
+| `src/net/affinity.rs` | 3 (C3-C5) | |
+| `src/tier2/capability_ir.rs` | 2 (D1-D2) | |
+| `src/semantic/type_checker.rs` | 1 (E1) | |
+| `src/layout.rs` | 1 (E2) | |
+| `src/os/syscall.rs` | 1 (F1) | |
+| `src/main.rs` | 2 (G1-G2) | |
+| `src/semantic_gate.rs` | 1 (I1) | |
+| **JUMLAH** | ~~26~~ **24** | **2 selesai** |
 
 ---
 
 ## Cadangan Urutan Pelaksanaan
 
-1. **Pusingan 1 (Codegen)**: A1-A5 — Buat v1.30+ features betul-betul generate LLVM IR
+1. ~~**Pusingan 1a (Codegen)**: ✅ A1-A2 — HIR Function + Extern codegen selesai (2026-05-25, commit `b680e9f`)~~
+1. **Pusingan 1b (Codegen)**: A3-A5 — Threading expr, Backpressure, Struct constructor
 2. **Pusingan 2 (Network Runtime)**: B1-B6 — Implement epoll + syscall + event loop
 3. **Pusingan 3 (Sharded Runtime)**: C1-C5 — Spawn threads + affinity pin
 4. **Pusingan 4 (IR Integration)**: D1 — Fix `from_topology()` — add accessor ke CapabilityTopology
 5. **Pusingan 5 (Cross-platform)**: C4-C5, F1 — macOS/Windows support
-6. **Pusingan 6 (Research)**: G1-G2, I1 — Security attestation + freestanding
-
----
-
-*Dokumen terakhir dikemaskini: 2026-05-25 untuk v1.36.0-alpha*
+6. **Pusingan 6 (Research)**: G1
