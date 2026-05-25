@@ -44,39 +44,56 @@ Setiap daripada 9 keputusan utama telah terbukti melalui data:
 
 ---
 
-## Masa Depan: v1.46+ dan v2.00 Pointer Provenance {#masadepan}
+## Masa Depan: Peta Jalan Selepas v1.45 {#masadepan}
 
-### v1.46: Streaming WASM + WASI Capability Verification
+Dokumen ini menggunakan tiga tier status: **SELESAI** (dihantar dan disahkan), **KAJIAN** (diteroka secara aktif dengan bukti separa), dan **JANGKA PANJANG** (ditakrifkan sebagai arah arkitektur tetapi belum di bawah pelaksanaan aktif).
 
-| Objektif | Status | Huraian |
-|---|---|---|
-| Streaming compilation to WASM | 🔬 Research | Kompilasi modul besar secara streaming (bukan full-module) |
-| WASI import completeness | 🔬 Research | Pastikan semua WASI imports lengkap |
-| Runtime capability verification | 🔬 Research | Verify capability constraints pada masa runtime untuk WASM |
+### Apa yang Telah Selesai (v1.21 – v1.45)
 
-### v2.00: Pointer Provenance Engine (5-Level)
-
-Ini adalah misi jangka panjang untuk sistem keupayaan pointer yang paling maju:
-
-| Level | Nama | Apa | Status |
+| Fasa | Nama | Status | Bukti Penerimaan |
 |---|---|---|---|
-| **Level 1** | Strict Linear Provenance | Ownership dasar — satu pemilik, satu masa | ✅ Baseline v1.21 |
-| **Level 2** | Strict Sub-Bounded Provenance | Aggregate fields, slices, array sub-ranges | 🔬 v2.0 objective |
-| **Level 3** | Hardware View-Only Provenance | Peripheral read patterns — gated by target profile | 🔬 v2.0 objective |
-| **Level 4** | Hardware Mutex-Isolated Provenance | Mutable HW access dengan synchronization policy | 🔬 v2.0 objective |
-| **Level 5** | Wild/Untrusted Provenance | FFI inputs, raw pointers — isolated behind explicit syntax | 🔬 v2.0 objective |
+| **v1.21** | Core Compiler | ✅ **SELESAI** | 148/148 checks; lexer, parser, AST, semantic, LLVM |
+| **v1.30** | Threading + IO + Audio | ✅ **SELESAI** | 400+ tests; actor-model, zero-copy, 4-Ketuk IO |
+| **v1.32** | Capability Fabric | ✅ **SELESAI** | 10/10 checks; Gate/Door, topology verify, `.cap` |
+| **v1.37** | Network Runtime | ✅ **SELESAI** | 29/29 checks; epoll, taint FSM, direct syscalls |
+| **v1.39** | Sharded Runtime | ✅ **SELESAI** | 21/21 checks; per-core shards, CPU affinity |
+| **v1.41** | WASM + Host Reactor | ✅ **SELESAI** | 33/33 checks; 3 backends dari satu CapabilityGraph IR |
+| **v1.43** | Raylib FFI + Audio | ✅ **SELESAI** | 89/89 checks; 54 gfx + 22 audio + StrictAudioContext |
+| **v1.44** | Freestanding Compiler | ✅ **SELESAI** | 15/15 checks; 3 arkitektur, bare-metal verified |
+| **v1.45** | Benchmark Framework | ✅ **SELESAI** | 20 benchmarks, BASELINE.json, RFC template |
 
-### Matlamat Jangka Panjang
+**Jumlah: 14 releases, 0 regression, semua deferred items (25/25) diselesaikan.**
 
-| Matlamat | Jangka Masa | Huraian |
+### Sedang Dikaji (Aktif Diteroka)
+
+| Matlamat | Status | Huraian | Risiko |
+|---|---|---|---|
+| **v1.46 — Streaming WASM** | 🔬 **KAJIAN** | Runtime capability verification dalam WASM sandbox; WASI import completeness | WASM threads belum stabil |
+| **v2.00 — Pointer Provenance (5-Level)** | 🔬 **KAJIAN** | Level 1 ✅ (ownership dasar). Level 2-4 memerlukan spec + diagnostics. Level 5 (wild/untrusted) sudah sebahagian melalui FFI gates. | Memerlukan 12-18 bulan R&D |
+| **Benchmark Layer 4 (Security)** | 🔬 **KAJIAN** | Stubs created (slowloris, syn_flood, malformed, fd_exhaustion) — memerlukan pengesahan penuh | Infrastructure sedia; validation belum lengkap |
+
+| Level Provenance | Nama | Status |
 |---|---|---|
-| **ldx-fmt** | v1.46+ | Formatter automatik — canonical style tanpa mengubah makna |
-| **LSP diagnostics** | v1.46+ | Syntax dan semantic feedback dalam editors (VS Code, Neovim) |
-| **Global Token Registry** | v2.0 | Offline-first sync dengan project lockfile |
-| **Logicodex Migrator** | v2.0+ | Source-to-source transpilation dari Python/Java/C/C++ ke Logicodex |
-| **Pointer Provenance Engine** | v2.0 | 5-level provenance tracking |
-| **Full Freestanding Bootloader** | v2.0+ | Bootable image generation, bukan sekadar object file |
-| **AI Repair Loop** | v2.0+ | Compiler yang boleh cadangkan pembetulan untuk ralat |
+| **Level 1** | Strict Linear Provenance (ownership) | ✅ Selesai — v1.21 baseline |
+| **Level 2** | Strict Sub-Bounded Provenance (aggregates, slices) | 🔬 Spec dalam penyediaan |
+| **Level 3** | Hardware View-Only Provenance | 🔬 Gated by freestanding profile |
+| **Level 4** | Hardware Mutex-Isolated Provenance | 🔬 Memerlukan policy sync |
+| **Level 5** | Wild/Untrusted Provenance (FFI) | ✅ Sebahagian — isolated melalui `unsafe` gates |
+
+### Jangka Panjang (Arah Arkitektur, Belum Aktif)
+
+Item-item ini ditakrifkan sebagai arah arkitektur yang sah tetapi **tidak di bawah pelaksanaan aktif** dan **memerlukan RFC** sebelum pembangunan bermula (Architecture Freeze v1.45+):
+
+| Matlamat | Tier | Huraian | Dependensi |
+|---|---|---|---|
+| **ldx-fmt** | Tools | Formatter automatik dengan canonical style | RFC + parser snapshot |
+| **LSP Server** | Tools | Syntax/semantic feedback dalam editors | ldx-fmt + HIR stabil |
+| **Global Token Registry** | Ekosistem | Offline-first `global_map.json` sync | Network runtime stabil |
+| **Logicodex Migrator** | Ekosistem | Source-to-source dari Python/Java/C/C++ | Pointer provenance Level 5 |
+| **Runtime Self-Attestation** | Keselamatan | SHA/AES-NI continuous attestation loop | Freestanding runtime matang |
+| **Browser Playground** | Ekosistem | Educational cloud compiler, sandboxed | WASM streaming stabil |
+| **Full Bootloader** | Freestanding | Bootable image generation (bukan object) | 3-arch freestanding matang |
+| **AI Repair Loop** | AI | Compiler cadangkan pembetulan untuk ralat | LSP + Migrator siap |
 
 ---
 

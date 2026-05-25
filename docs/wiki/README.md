@@ -10,7 +10,11 @@ Direktori ini mengandungi **2 wiki berasingan** yang melengkapi satu sama lain u
 
 **Untuk siapa:** Jurutera sistem, pengkaji bahasa pengaturcaraan, kontributor, dan sesiapa yang ingin memahami **kenapa** Logicodex direka begitu rupa — serta bagaimana falsafah compiler eksperimental ini berevolusi melalui 14 alpha releases.
 
-> **Hubungan dengan White Paper Asal:** Dokumen ini adalah **evolusi hidup** daripada [`WHITE_PAPER.md`](../../WHITE_PAPER.md) di root repositori. White Paper asal (v1.21) adalah spesifikasi baseline formal — dokumen ini merangkumi semua perbincangan, justifikasi, dan keputusan arkitektur dari v1.21 sehingga v1.45.
+> **Hubungan dengan White Paper Asal:** Dokumen ini adalah **evolusi hidup** daripada [`WHITE_PAPER.md`](../../WHITE_PAPER.md) di root repositori. Kedua-dua dokumen telah **disejajarkan** (aligned) secara sistematik:
+> - WHITE_PAPER.md = spesifikasi baseline formal v1.21 dengan nota evolusi dan peta jalan bertier (COMPLETED/RESEARCH/LONG-TERM)
+> - Wiki ini = evolusi v1.21–v1.45 dengan justifikasi setiap keputusan dan peta jalan masa depan yang sama tier
+>
+> Tiada percanggahan antara kedua-dua dokumen. Setiap tuntutan dalam WHITE_PAPER.md yang ditanda **COMPLETED** mempunyai bukti validator dalam repositori ini.
 
 **Kandungan:**
 - Falsafah rekabentuk (5 prinsip utama)

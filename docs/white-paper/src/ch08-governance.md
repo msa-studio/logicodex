@@ -2,6 +2,8 @@
 
 > *"Projek matang bukan projek yang tidak berubah — ia adalah projek yang berubah secara terkawal."*
 
+> **Nota Hubungan Dokumen:** Pengurusan projek ini dibina di atas asas yang ditetapkan dalam [`WHITE_PAPER.md`](../../WHITE_PAPER.md) (v1.21 baseline) — khususnya Seksyen 14 (Open-Source Governance, Dual Licensing, dan Trademark Safeguards) dan Seksyen 15 (Research Roadmap). Architecture Freeze, RFC process, dan validator tiering yang dibincangkan di sini adalah **pelaksanaan operasi** daripada prinsip governance yang dibentangkan dalam baseline document. Kedua-dua dokumen selaras: baseline menetapkan prinsip; wiki ini merakam pelaksanaan dan keputusan praktikal.
+
 ---
 
 ## Architecture Freeze Policy: Apa dan Mengapa? {#freeze}

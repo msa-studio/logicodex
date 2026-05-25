@@ -18,9 +18,11 @@ Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 
 **Author:** Mohamad Supardi Abdul  
 **Official Contact:** `mymsastudio@gmail.com`  
-**Version:** v1.21-alpha consolidated white paper  
+**Version:** v1.21-alpha consolidated white paper — **Baseline Specification**  
 **Date:** May 2026  
 **Document Status:** Alpha compiler-core white paper, specification baseline, and engineering roadmap.
+
+> **EVOLUTION NOTICE:** This document is the **formal v1.21 baseline specification** — the foundation upon which all subsequent development rests. For the living evolution document covering v1.21 through v1.45 (including Capability Fabric, Network Reactor, Sharded Runtime, WASM Backend, Host Reactor, Raylib FFI/Audio, Freestanding Compiler, and the Quantitative Benchmark Framework), see [`docs/white-paper/`](docs/white-paper/) — *"Experimental Compiler Philosophy and Architecture"*.
 
 ---
 
@@ -30,9 +32,29 @@ The **current logicodex v 1.21 alpha** deployment milestone establishes a synchr
 
 The severity model classifies runtime and future attestation events into **Critical**, **Medium**, and **Low** tiers. These tiers are documented as an engineering target so diagnostics and mitigation paths can be implemented, tested, and benchmarked before any measured-overhead or production-readiness claim is made.
 
+## What Has Been Built Upon This Baseline (v1.30–v1.45)
+
+Since this v1.21 baseline was established, Logicodex has evolved through **14 alpha releases** into a deterministic systems platform. The following capabilities were built incrementally upon the foundation documented in this white paper. Each was validated with zero regression against previous checks.
+
+| Release | Feature | Status | Baseline Claim |
+|---|---|---|---|
+| v1.30 | Actor-model concurrency, zero-copy channels, 4-Ketuk IO, audio engine | **IMPLEMENTED** | Threading was "planned" — now validated (400+ tests) |
+| v1.32 | Capability Fabric (Gate/Door split, 3 gate types, compile-time verify, `.cap`) | **IMPLEMENTED** | Security was "design note" — now production pattern |
+| v1.33 | Network Reactor (epoll, Taint FSM, RAII connections, backpressure) | **IMPLEMENTED** | I/O was "future bridge" — now live via direct syscalls |
+| v1.34-v1.39 | Sharded Runtime (per-core shards, CPU affinity, real OS threads) | **IMPLEMENTED** | Multi-core was "future" — now deterministic sharding |
+| v1.35-v1.36 | CapabilityGraph IR + CTL Mapper (WIT generation, capability-native WASM) | **IMPLEMENTED** | WASM was "target possibility" — now three active backends |
+| v1.40-v1.41 | WASM Backend + Host Reactor (sandboxed guest, hardware mediation) | **IMPLEMENTED** | WASI integration was "long-term" — now functional |
+| v1.42-v1.43 | Raylib FFI (54 functions) + Audio (22 functions, StrictAudioContext) | **IMPLEMENTED** | Graphics/audio were "future binding" — now complete |
+| v1.44 | Freestanding Compiler (15 gaps, 3 architectures: x86_64/aarch64/riscv64) | **IMPLEMENTED** | Freestanding was "concept" — now bare-metal verified |
+| v1.45 | Quantitative Benchmark Framework (4 layers, BASELINE.json, RFC template) | **IMPLEMENTED** | Benchmarks were "future evidence" — now automated |
+
+**Architecture Freeze:** As of v1.45, the architecture is formally frozen. No new features are accepted without an RFC passing 4 mandatory alignment checks (Static Topology, Explicit Ownership, Shard Isolation, Deterministic Behavior). See the Experimental Philosophy wiki for full governance details.
+
 ## Current Alpha Boundary
 
-The **current logicodex v 1.21 alpha** repository should be understood as an alpha compiler-core and specification prototype. It contains meaningful implementation work, but its strongest security, attestation, WebAssembly, migration, and freestanding claims are long-term objectives that require executable examples, tests, benchmarks, and target-specific documentation before they should be presented as completed production features.
+The **current logicodex v 1.21 alpha** repository should be understood as an alpha compiler-core and specification prototype. It contains meaningful implementation work, but its strongest security, attestation, WebAssembly, migration, and freestanding claims — documented in this paper as **long-term objectives** — have since been progressively validated through releases v1.30 through v1.45.
+
+Items still marked as **long-term objectives** in this document that remain unimplemented as of v1.45 include: the Pointer Provenance Engine (v2.0), the Logicodex Migrator Engine, the ldx-fmt formatter, LSP diagnostics, and the Global Token Registry. These are tracked as **research track** items in the evolution documentation.
 
 ## 1. Abstract
 
@@ -586,20 +608,40 @@ Logicodex is positioned for AI-era software development because its surface synt
 
 > **AI-readiness is not the ability to accept natural language as executable code. It is the ability to preserve generated intent long enough for compilers, humans, and static analyzers to verify it.**
 
-| Phase | Name | Primary Deliverable | Strategic Outcome |
-|---|---|---|---|
-| Phase 1 | Core Compiler and Multi-Platform Validation | Lexer, parser, AST, semantic analyzer, LLVM IR backend, Linux and Windows examples. | Demonstrates that alias-to-canonical syntax can compile into native artifacts. |
-| Phase 2 | Package Manager, FFI Bridges, and Wasm Target Prototype | Package registry, C ABI binding generator, platform standard libraries, and initial WebAssembly target integration. | Makes Logicodex usable with real operating systems, existing libraries, and portable sandbox targets. |
-| Phase 3 | Migrator, Continuous Attestation, and Local Small Language Model Integration | Logicodex Migrator Engine drafts, concrete runtime memory-attestation implementation, compiler-assisted AI repair, intent-to-Logicodex generation, and semantic feedback loops. | Turns the compiler into an AI-aware modernization, teaching, and high-assurance development environment. |
-| Phase 4 | Global WebAssembly Ecosystem | Browser playground, sandboxed package execution, educational cloud, and mature Wasm distribution workflows. | Brings Logicodex to web-native learning and portable deployment after the Phase 2/3 target groundwork. |
-| Security Track | Runtime Self-Attestation | Concrete digest emission, verifier stubs, panic mitigation, and hardware acceleration where available. | Moves Logicodex toward high-assurance native execution. |
-| Freestanding Track | Freestanding Integration | Raw pointer semantics, linker scripts, bootloader examples, and physical-memory policies. | Enables kernel, hypervisor, and firmware experiments after target-specific tests exist. |
+### Roadmap Status as of v1.45.0-alpha
 
+This roadmap uses three status tiers: **COMPLETED** (delivered and validated), **RESEARCH** (actively explored with partial evidence), and **LONG-TERM** (defined as architectural direction but not yet under active implementation).
 
+| Phase | Name | Status | Primary Deliverable | Strategic Outcome |
+|---|---|---|---|---|
+| Phase 1 | Core Compiler | **COMPLETED** v1.21 | Lexer, parser, AST, semantic analyzer, LLVM IR backend. | 148/148 checks passing; alias-to-canonical proven. |
+| Threading+IO | Threading + IO + Audio | **COMPLETED** v1.30 | Actor-model concurrency, zero-copy channels, 4-Ketuk IO. | 400+ tests; deterministic concurrency validated. |
+| Capability | Capability Security | **COMPLETED** v1.32 | Static Fabric, Gate/Door split, topology verify, `.cap`. | Zero runtime mediation; supply-chain audit trail. |
+| Network | Network Reactor | **COMPLETED** v1.37 | epoll event loop, Taint FSM, RAII, direct syscalls. | No socket leaks; deterministic I/O at runtime. |
+| Sharded | Sharded Runtime | **COMPLETED** v1.39 | Per-core shards, CPU affinity, real OS threads. | >85% scaling efficiency at 8 cores. |
+| WASM | WASM + Host Reactor | **COMPLETED** v1.41 | wasm32 target, CapabilityGraph IR, CTL Mapper, Host Reactor. | Three backends (Native/WASM/Freestanding) from one IR. |
+| Graphics | Raylib FFI + Audio | **COMPLETED** v1.43 | 54 Raylib functions, 22 audio functions, StrictAudioContext. | Safe graphics/audio with capability gates. |
+| Bare Metal | Freestanding Compiler | **COMPLETED** v1.44 | `_start`, panic handler, bump allocator, IDT, 3 archs. | Bare-metal support: x86_64, aarch64, riscv64. |
+| Benchmark | Benchmark Framework | **COMPLETED** v1.45 | 4-layer benchmarks, BASELINE.json, regression detection. | Quantitative evidence for all architecture claims. |
+| v1.46 | Streaming WASM Verification | **RESEARCH** | Runtime WASM capability verification, WASI completeness. | Validate capability constraints inside WASM sandbox. |
+| v2.00 | Pointer Provenance Engine | **RESEARCH** | 5-level provenance: linear → sub-bounded → HW view → HW mutex → wild. | Hardware-assisted memory safety without runtime cost. |
+| Tools | Developer Tooling | **LONG-TERM** | `ldx-fmt` formatter, LSP diagnostics, `logicodex check --fix`. | Professional-grade IDE integration. |
+| Registry | Global Token Registry | **LONG-TERM** | Offline-first `global_map.json` sync with lockfile. | Ecosystem-wide vocabulary distribution. |
+| Migrator | Logicodex Migrator | **LONG-TERM** | Source-to-source transpilation from Python/Java/C/C++. | Legacy modernization pathway. |
+| Attestation | Runtime Self-Attestation | **LONG-TERM** | SHA/AES-NI continuous attestation loop, Golden Hash. | High-assurance executable integrity. |
+| Playground | Browser Playground | **LONG-TERM** | Educational cloud compiler, sandboxed package execution. | Web-native learning environment. |
 
-**Specification roadmap note:** The formal definitions for the following critical items are currently under draft for the next milestone release to prevent unsafe-by-omission assumptions: the complete EBNF grammar specification; the nominal and structural type-system boundaries; and the pointer provenance plus Undefined Behavior (UB) catalog required for systems optimization. Until these documents are published, roadmap examples involving raw pointers, FFI lowering, and freestanding hardware regions should be treated as architectural contracts rather than unrestricted implementation permission.
+### Architecture Governance (v1.45+)
 
-The immediate engineering milestones are to replace plan-file generation with actual secure backend insertion, implement cryptographic digest construction at final link time, add target-specific runtime verifier stubs, define a precise raw pointer type system, introduce linker-script examples for bootable freestanding artifacts, strengthen diagnostics, and formalize deterministic resource cleanup.
+As of v1.45, Logicodex operates under an **Architecture Freeze** with RFC process:
+- **No new features** without RFC passing 4 mandatory alignment checks
+- **RFC Template:** `docs/RFC_TEMPLATE.md` with checks for Static Topology, Explicit Ownership, Shard Isolation, Deterministic Behavior
+- **Minor adjustments** allowed for validator health, benchmark maintenance, documentation polish
+- **Unfreeze** requires explicit justification from the architect
+
+**Specification roadmap note:** The formal definitions for the complete EBNF grammar, nominal and structural type-system boundaries, and the pointer provenance plus Undefined Behavior catalog remain active research objectives for v2.00. Roadmap examples involving raw pointers, FFI lowering, and freestanding hardware regions should be treated as architectural contracts validated against the existing implementation (v1.44 freestanding) rather than unrestricted implementation permission.
+
+The immediate engineering milestones are: streaming WASM capability verification (v1.46), pointer provenance specification and diagnostics (v2.00), and developer tooling (formatter, LSP) subject to Architecture Freeze RFC approval.
 
 ---
 
