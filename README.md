@@ -1,5 +1,9 @@
-# Logicodex Language — v1.21-alpha
-## v1.21-alpha Practical Compiler Baseline
+# Logicodex Language — v1.33.0-alpha
+## The Deterministic Systems Platform
+
+> v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor
+
+The **current logicodex v1.33 alpha** milestone transforms Logicodex from a practical compiler-core into a **"Hardware-Integrated Systems Platform"** combining deterministic concurrency, streaming compilation, capability-based security, and event-driven networking — all verified at compile time with **zero runtime mediation**.
 
 The **current logicodex v 1.21 alpha** milestone establishes a practical compiler-core baseline and a documented security research direction. It includes a four-layer grammar baseline, an Undefined Behavior and Pointer Provenance design note, and a Critical/Medium/Low severity taxonomy. The stronger security, freestanding, and measured-overhead goals are treated as **long-term engineering objectives** until they are implemented, benchmarked, and validated by repeatable tests.
 
@@ -35,9 +39,50 @@ The current **Phase 1** alpha focuses on a working compiler core: the `dict/core
 
 The dictionary is consumed strictly during lexing. Surface forms such as `MULA`, `BEGIN`, and `{` normalize into canonical token identities such as `TokenKind::Start` before parsing begins. The parser therefore consumes a uniform token stream rather than performing macro rewriting or grammar-level dialect conversion.
 
+## v1.30-v1.33 Capability Overview
+
+Logicodex has evolved from a compiler-core prototype into a **deterministic systems platform** through 4 consecutive alpha releases:
+
+| Release | Focus | Key Innovation |
+|---|---|---|
+| **v1.30.1-alpha** | Threading + IO + Audio | Actor-model concurrency (`actor`/`channel`), zero-copy ownership transfer, 4-Ketuk IO architecture, hardware-safe audio engine |
+| **v1.31.0-alpha** | Streaming Compiler | 2-Pass Engine — RAM stays flat regardless of program size; SemanticSummary (~64B/symbol) replaces full AST |
+| **v1.32.0-alpha** | Capability Security | Static Capability Fabric — Gate/Door split, compile-time topology verification, supply-chain `.cap` files, privilege escalation detection |
+| **v1.33.0-alpha** | Network Reactor | Deterministic event-driven networking — RAII auto-cleanup (no socket leaks), taint state machine, backpressure policies, service manifest syntax |
+
+### Architecture: Door + Gate + Service
+
+```
+┌─────────────┐    ┌──────────────┐    ┌─────────────┐
+│    DOOR     │    │     GATE     │    │   SERVICE   │
+│  (SPSC Ring │    │  (Compile-   │    │  (Port Actor│
+│   Buffer)   │    │   time Cap)  │    │   + Reactor)│
+│ Zero-copy   │    │ Zero Runtime │    │ RAII Cleanup│
+│ Lock-free   │    │  Mediation   │    │ Taint FSM   │
+└─────────────┘    └──────────────┘    └─────────────┘
+```
+
+- **Door** = Data transport (v1.30 Phase 3) — `lib/core/ring_buffer.ldx`
+- **Gate** = Security contract (v1.32) — `src/tier2/gate.rs`, `src/tier2/topology.rs`
+- **Service** = Event loop + connection (v1.33) — `src/net/*.rs`
+
+**Validation: 60/60 checks passing — zero regression across all versions.**
+
+### Documentation
+
+| Document | Description |
+|---|---|
+| `docs/ARCHITECTURE.md` | Complete Door+Gate+Service architecture overview |
+| `docs/v1.30-THREADING.md` | Threading Phases 1-3 (Actor/Channel/Backpressure) |
+| `docs/v1.31-STREAMING.md` | Tier 2 Streaming Semantic Compiler |
+| `docs/v1.32-CAPABILITY.md` | Static Capability Fabric (Gate/Door/Topology) |
+| `docs/v1.33-REACTOR.md` | Deterministic Network Reactor (RAII/Service/Taint) |
+
+---
+
 ## Current Capability Boundary
 
-The project should be read as an **alpha compiler and specification prototype**. It is suitable for compiler-core experimentation, syntax design, semantic-analysis iteration, LLVM backend development, and documentation of future systems-programming goals. It should not yet be presented as a hardened production compiler, a complete freestanding operating-system toolchain, or a formally verified security platform.
+The project should be read as an **alpha systems platform and specification prototype**. It is suitable for compiler-core experimentation, deterministic concurrency design, capability-security architecture, network reactor development, and systems-programming research. The v1.30-v1.33 threading, streaming, capability, and reactor features are implemented and validated, but should be understood as a maturing alpha rather than a hardened production platform.
 
 | Area | Current v1.21-alpha status | Practical next objective |
 |---|---|---|
