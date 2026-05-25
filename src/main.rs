@@ -91,7 +91,7 @@ enum Commands {
             help = "Emit the planned runtime memory-integrity attestation notes for the current security roadmap"
         )]
         secure: bool,
-        #[arg(long, default_value = "native", value_parser = ["native", "host", "freestanding"], help = "Select host/native OS linkage or experimental freestanding object generation")]
+        #[arg(long, default_value = "native", value_parser = ["native", "host", "freestanding", "wasm"], help = "Select target: native, freestanding, or wasm (WebAssembly)")]
         target: String,
         #[arg(long, default_value = "v1.21", help = "Select compiler pipeline: v1.21 (stable) or v1.30 (experimental)")]
         pipeline: String,
@@ -210,6 +210,10 @@ fn compile(
         if target.is_freestanding() {
             write_freestanding_plan(&output_path)?;
         }
+        if target.is_wasm() {
+            println!("WASM module written to {} (use wasm-ld to link with WASI libc)",
+                artifact.object_path.display());
+        }
         return Ok(());
     }
 
@@ -222,6 +226,18 @@ fn compile(
         if secure {
             write_security_attestation_plan(&output_path)?;
         }
+        return Ok(());
+    }
+
+    // v1.40: WASM target — emit .wasm via LLVM wasm32-unknown-unknown backend
+    if target.is_wasm() {
+        println!(
+            "WASM module written to {}",
+            artifact.object_path.display()
+        );
+        println!("  Triple: {}", target.llvm_triple()); // wasm32-unknown-unknown
+        println!("  Use: wasm-ld --no-entry -o output.wasm {} --export-all",
+            artifact.object_path.display());
         return Ok(());
     }
 

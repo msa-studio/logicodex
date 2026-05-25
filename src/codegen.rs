@@ -130,18 +130,29 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
             let output_kind = if options.target.is_freestanding() {
                 OutputKind::FreestandingObject
+            } else if options.target.is_wasm() {
+                OutputKind::WasmModule
             } else {
                 OutputKind::Object
             };
             let target_machine = build_target_machine(output_kind)?;
+
+            // v1.40: WASM uses Object file type (LLVM WASM backend emits .o which is wasm)
+            let file_type = if options.target.is_wasm() {
+                inkwell::targets::FileType::Object
+            } else {
+                inkwell::targets::FileType::Object
+            };
             target_machine
                 .write_to_file(
                     &compiler.module,
-                    inkwell::targets::FileType::Object,
+                    file_type,
                     object_path,
                 )
                 .map_err(|e| {
-                    anyhow!("failed to emit object file {}: {e}", object_path.display())
+                    anyhow!("failed to emit {} file {}: {e}",
+                        if options.target.is_wasm() { "wasm" } else { "object" },
+                        object_path.display())
                 })?;
 
             let ir_path = if options.emit_ir {
@@ -820,6 +831,8 @@ pub fn compile_v130(
 
     let output_kind = if options.target.is_freestanding() {
         OutputKind::FreestandingObject
+    } else if options.target.is_wasm() {
+        OutputKind::WasmModule
     } else {
         OutputKind::Object
     };
@@ -830,7 +843,9 @@ pub fn compile_v130(
             inkwell::targets::FileType::Object,
             object_path,
         )
-        .map_err(|e| anyhow!("failed to emit object file {}: {e}", object_path.display()))?;
+        .map_err(|e| anyhow!("failed to emit {} file {}: {e}",
+            if options.target.is_wasm() { "wasm" } else { "object" },
+            object_path.display()))?;
 
     let ir_path = if options.emit_ir {
         let mut ir_path = object_path.to_path_buf();
