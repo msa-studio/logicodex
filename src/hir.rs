@@ -373,6 +373,26 @@ pub enum HirExprKind {
     ChannelRecv {
         channel_name: String,
     },
+    /// Non-blocking send (backpressure): `channel.try_send(value)` → bool
+    ChannelTrySend {
+        channel_name: String,
+        value: Box<HirExpr>,
+    },
+    /// Non-blocking receive (backpressure): `channel.try_recv()` → Option<T>
+    ChannelTryRecv {
+        channel_name: String,
+    },
+    /// Yield control to scheduler: `yield()`
+    Yield,
+    /// Sleep for milliseconds: `sleep(duration)`
+    Sleep {
+        duration_ms: Box<HirExpr>,
+    },
+    /// Receive with timeout: `channel.timeout_recv(timeout_ms)` → Result<T, Timeout>
+    ChannelTimeoutRecv {
+        channel_name: String,
+        timeout_ms: Box<HirExpr>,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -869,6 +889,20 @@ impl<'a> LoweringContext<'a> {
                 ty: unit_ref(self.types),
                 span,
             },
+            // ─── v1.30 Phase 3: Backpressure + Scheduler (A4) ───
+            ExprAst::ChannelTrySend { channel_name, value } => {
+                let lowered = self.lower_expr(*value, span);
+                HirExpr {
+                    kind: HirExprKind::ChannelTrySend { channel_name, value: Box::new(lowered) },
+                    ty: bool_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::ChannelTryRecv { channel_name } => HirExpr {
+                kind: HirExprKind::ChannelTryRecv { channel_name },
+                ty: i64_ref(self.types), // Option<T> represented as i64 (0=None, else=Some)
+                span,
+            },
         }
     }
 
@@ -1088,20 +1122,26 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             value: Box::new(lower_expr_ast(*value)),
         },
         ast::Expr::Recv { channel_name } => ExprAst::ChannelRecv { channel_name },
-        // Backpressure/scheduler — mapped to standard send/recv for now
-        ast::Expr::TrySend { channel_name, value } => ExprAst::ChannelSend {
+        // ─── v1.30 Phase 3: Backpressure + Scheduler (A4) ───
+        ast::Expr::TrySend { channel_name, value } => ExprAst::ChannelTrySend {
             channel_name,
             value: Box::new(lower_expr_ast(*value)),
         },
-        ast::Expr::TryRecv { channel_name } => ExprAst::ChannelRecv { channel_name },
-        ast::Expr::Yield => ExprAst::Literal(LiteralAst::Unit), // no-op for now
+        ast::Expr::TryRecv { channel_name } => ExprAst::ChannelTryRecv { channel_name },
+        ast::Expr::Yield => ExprAst::Variable("yield".to_string()), // marker for HIR lowering
         ast::Expr::Sleep { duration_ms } => {
-            let _ = lower_expr_ast(*duration_ms);
-            ExprAst::Literal(LiteralAst::Unit) // no-op for now
+            let dur = lower_expr_ast(*duration_ms);
+            ExprAst::Call {
+                callee: Box::new(ExprAst::Variable("logicodex_sleep".to_string())),
+                args: vec![dur],
+            }
         }
         ast::Expr::TimeoutRecv { channel_name, timeout_ms } => {
-            let _ = lower_expr_ast(*timeout_ms);
-            ExprAst::ChannelRecv { channel_name }
+            let to = lower_expr_ast(*timeout_ms);
+            ExprAst::Call {
+                callee: Box::new(ExprAst::Variable("logicodex_timeout_recv".to_string())),
+                args: vec![ExprAst::Literal(LiteralAst::String(channel_name)), to],
+            }
         }
     }
 }

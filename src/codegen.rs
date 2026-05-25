@@ -1160,6 +1160,105 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
                 }
             }
+            // ─── v1.30 Phase 3: Backpressure + Scheduler (A4) ───
+            HirExprKind::ChannelTrySend { channel_name, value } => {
+                let send_fn = self.declare_runtime_func(
+                    "logicodex_channel_try_send",
+                    self.i64_type.fn_type(&[
+                        self.context.i8_type().ptr_type(AddressSpace::default()).into(),
+                        self.i64_type.into(),
+                    ], false),
+                );
+                let val = self.emit_hir_expr(value, func)?;
+                let name_ptr = self.builder.build_global_string_ptr(channel_name, "trysend_channel_name")
+                    .context("trysend channel name")?
+                    .as_pointer_value();
+                let call_site = self.builder
+                    .build_call(send_fn, &[name_ptr.into(), val.into()], "trysend_call")
+                    .context("trysend call")?;
+                match call_site.try_as_basic_value() {
+                    inkwell::values::Either::Left(val) => match val {
+                        BasicValueEnum::IntValue(iv) => Ok(iv),
+                        _ => Ok(self.i64_type.const_int(1, false)), // default: true (success)
+                    }
+                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(1, false)),
+                }
+            }
+            HirExprKind::ChannelTryRecv { channel_name } => {
+                let recv_fn = self.declare_runtime_func(
+                    "logicodex_channel_try_recv",
+                    self.i64_type.fn_type(&[self.context.i8_type().ptr_type(AddressSpace::default()).into()], false),
+                );
+                let name_ptr = self.builder.build_global_string_ptr(channel_name, "tryrecv_channel_name")
+                    .context("tryrecv channel name")?
+                    .as_pointer_value();
+                let call_site = self.builder
+                    .build_call(recv_fn, &[name_ptr.into()], "tryrecv_call")
+                    .context("tryrecv call")?;
+                match call_site.try_as_basic_value() {
+                    inkwell::values::Either::Left(val) => match val {
+                        BasicValueEnum::IntValue(iv) => Ok(iv),
+                        _ => Ok(self.i64_type.const_int(0, false)), // default: 0 (None)
+                    }
+                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
+            HirExprKind::Yield => {
+                let yield_fn = self.declare_runtime_func(
+                    "logicodex_yield",
+                    self.i64_type.fn_type(&[], false),
+                );
+                let call_site = self.builder
+                    .build_call(yield_fn, &[], "yield_call")
+                    .context("yield call")?;
+                match call_site.try_as_basic_value() {
+                    inkwell::values::Either::Left(val) => match val {
+                        BasicValueEnum::IntValue(iv) => Ok(iv),
+                        _ => Ok(self.i64_type.const_int(0, false)),
+                    }
+                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
+            HirExprKind::Sleep { duration_ms } => {
+                let sleep_fn = self.declare_runtime_func(
+                    "logicodex_sleep",
+                    self.i64_type.fn_type(&[self.i64_type.into()], false),
+                );
+                let dur = self.emit_hir_expr(duration_ms, func)?;
+                let call_site = self.builder
+                    .build_call(sleep_fn, &[dur.into()], "sleep_call")
+                    .context("sleep call")?;
+                match call_site.try_as_basic_value() {
+                    inkwell::values::Either::Left(val) => match val {
+                        BasicValueEnum::IntValue(iv) => Ok(iv),
+                        _ => Ok(self.i64_type.const_int(0, false)),
+                    }
+                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
+            HirExprKind::ChannelTimeoutRecv { channel_name, timeout_ms } => {
+                let recv_fn = self.declare_runtime_func(
+                    "logicodex_timeout_recv",
+                    self.i64_type.fn_type(&[
+                        self.context.i8_type().ptr_type(AddressSpace::default()).into(),
+                        self.i64_type.into(),
+                    ], false),
+                );
+                let to = self.emit_hir_expr(timeout_ms, func)?;
+                let name_ptr = self.builder.build_global_string_ptr(channel_name, "torecv_channel_name")
+                    .context("torecv channel name")?
+                    .as_pointer_value();
+                let call_site = self.builder
+                    .build_call(recv_fn, &[name_ptr.into(), to.into()], "torecv_call")
+                    .context("timeout_recv call")?;
+                match call_site.try_as_basic_value() {
+                    inkwell::values::Either::Left(val) => match val {
+                        BasicValueEnum::IntValue(iv) => Ok(iv),
+                        _ => Ok(self.i64_type.const_int(0, false)),
+                    }
+                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
         }
     }
 
