@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Validator: v1.44.0 — Freestanding Compiler: All 15 Gaps Resolved
+Validator: v1.44.0-alpha — Freestanding Compiler: All 15 Gaps Resolved
 
 Validates Tier 1 (G1-G5), Tier 2 (G6-G10), and Tier 3 (G11-G15):
   - Source files exist and contain expected code
