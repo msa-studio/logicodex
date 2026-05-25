@@ -11,22 +11,77 @@ use inkwell::targets::{
 };
 use inkwell::OptimizationLevel;
 
+/// v1.44: CPU architecture for freestanding targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TargetArch {
+    X86_64,
+    Aarch64,
+    Riscv64,
+}
+
+impl TargetArch {
+    pub fn llvm_triple(self) -> &'static str {
+        match self {
+            Self::X86_64 => "x86_64-unknown-none",
+            Self::Aarch64 => "aarch64-unknown-none",
+            Self::Riscv64 => "riscv64gc-unknown-none-elf",
+        }
+    }
+
+    pub fn llvm_features(self) -> &'static str {
+        match self {
+            // v1.44 G9: x86_64 has SSE2 — no need for soft-float
+            Self::X86_64 => "+sse2",
+            // aarch64: default features include NEON
+            Self::Aarch64 => "",
+            // riscv64gc: includes IMAFD (integer, mult, atomics, float, double)
+            Self::Riscv64 => "",
+        }
+    }
+
+    pub fn code_model(self) -> CodeModel {
+        match self {
+            Self::X86_64 => CodeModel::Kernel,
+            Self::Aarch64 => CodeModel::Small,
+            Self::Riscv64 => CodeModel::Medium,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilationTarget {
     Native,
-    Freestanding,
+    /// v1.44: Freestanding with architecture selection
+    Freestanding { arch: TargetArch },
     /// v1.40: WebAssembly target — generates .wasm via LLVM WASM backend
     Wasm,
 }
 
 impl CompilationTarget {
     pub fn parse(value: &str) -> Result<Self> {
+        // v1.44 G8: Support freestanding-<arch> syntax
+        if value.starts_with("freestanding-") {
+            let arch_str = &value["freestanding-".len()..];
+            let arch = match arch_str {
+                "x86_64" | "x64" => TargetArch::X86_64,
+                "aarch64" | "arm64" => TargetArch::Aarch64,
+                "riscv64" | "riscv" | "rv64" => TargetArch::Riscv64,
+                other => return Err(anyhow!(
+                    "unsupported freestanding architecture `{other}`; \
+                     expected `x86_64`, `aarch64`, or `riscv64`"
+                )),
+            };
+            return Ok(Self::Freestanding { arch });
+        }
+
         match value {
             "native" | "host" => Ok(Self::Native),
-            "freestanding" => Ok(Self::Freestanding),
+            "freestanding" => Ok(Self::Freestanding { arch: TargetArch::X86_64 }),
             "wasm" | "wasm32" => Ok(Self::Wasm),
             other => Err(anyhow!(
-                "unsupported Logicodex target `{other}`; expected `native`, `host`, `freestanding`, or `wasm`"
+                "unsupported Logicodex target `{other}`; \
+                 expected `native`, `host`, `freestanding`, `freestanding-x86_64`, \
+                 `freestanding-aarch64`, `freestanding-riscv64`, or `wasm`"
             )),
         }
     }
@@ -34,13 +89,13 @@ impl CompilationTarget {
     pub fn entry_symbol(self) -> &'static str {
         match self {
             Self::Native => "main",
-            Self::Freestanding => "_start",
+            Self::Freestanding { .. } => "_start",
             Self::Wasm => "_start",
         }
     }
 
     pub fn is_freestanding(self) -> bool {
-        matches!(self, Self::Freestanding)
+        matches!(self, Self::Freestanding { .. })
     }
 
     /// Check if this target is WebAssembly.
@@ -52,8 +107,16 @@ impl CompilationTarget {
     pub fn llvm_triple(self) -> &'static str {
         match self {
             Self::Native => "native",
-            Self::Freestanding => "x86_64-unknown-none",
+            Self::Freestanding { arch } => arch.llvm_triple(),
             Self::Wasm => "wasm32-unknown-unknown",
+        }
+    }
+
+    /// Get the target architecture (for freestanding targets).
+    pub fn arch(self) -> Option<TargetArch> {
+        match self {
+            Self::Freestanding { arch } => Some(arch),
+            _ => None,
         }
     }
 }
@@ -67,40 +130,47 @@ pub enum OutputKind {
 }
 
 pub fn build_target_machine(kind: OutputKind) -> Result<TargetMachine> {
+    build_target_machine_with_arch(kind, TargetArch::X86_64)
+}
+
+/// v1.44 G8: Build target machine with architecture selection.
+/// Supports x86_64 (default), aarch64, and riscv64 for freestanding targets.
+pub fn build_target_machine_with_arch(kind: OutputKind, arch: TargetArch) -> Result<TargetMachine> {
     Target::initialize_all(&InitializationConfig::default());
-    let triple = match kind {
-        OutputKind::Object => TargetMachine::get_default_triple(),
-        OutputKind::FreestandingObject => TargetTriple::create("x86_64-unknown-none"),
-        OutputKind::WasmModule => TargetTriple::create("wasm32-unknown-unknown"),
+
+    let (triple, cpu, features, reloc, code_model, opt_level) = match kind {
+        OutputKind::Object => (
+            TargetMachine::get_default_triple(),
+            "generic",
+            "",
+            RelocMode::PIC,
+            CodeModel::Default,
+            OptimizationLevel::Aggressive,
+        ),
+        OutputKind::FreestandingObject => (
+            TargetTriple::create(arch.llvm_triple()),
+            match arch {
+                TargetArch::X86_64 => "x86-64",
+                TargetArch::Aarch64 => "generic",
+                TargetArch::Riscv64 => "generic-rv64",
+            },
+            // v1.44 G9: Architecture-specific features (not +soft-float for x86_64)
+            arch.llvm_features(),
+            RelocMode::Static,
+            arch.code_model(),
+            OptimizationLevel::Aggressive,
+        ),
+        OutputKind::WasmModule => (
+            TargetTriple::create("wasm32-unknown-unknown"),
+            "generic",
+            // v1.40: WASM features — bulk-memory for memcpy, mutable-globals
+            "+bulk-memory,+mutable-globals,+sign-ext",
+            RelocMode::Static,
+            CodeModel::Default,
+            OptimizationLevel::Default,
+        ),
     };
-    let cpu = match kind {
-        OutputKind::Object => "generic",
-        OutputKind::FreestandingObject => "x86-64",
-        OutputKind::WasmModule => "generic",
-    };
-    let features = match kind {
-        OutputKind::Object => "",
-        OutputKind::FreestandingObject => "+soft-float",
-        // v1.40: WASM features — bulk-memory for memcpy, mutable-globals
-        OutputKind::WasmModule => "+bulk-memory,+mutable-globals,+sign-ext",
-    };
-    let reloc = match kind {
-        OutputKind::Object => RelocMode::PIC,
-        OutputKind::FreestandingObject => RelocMode::Static,
-        // v1.40: WASM uses static PIC for embedded data
-        OutputKind::WasmModule => RelocMode::Static,
-    };
-    let code_model = match kind {
-        OutputKind::Object => CodeModel::Default,
-        OutputKind::FreestandingObject => CodeModel::Kernel,
-        // v1.40: WASM doesn't use code models
-        OutputKind::WasmModule => CodeModel::Default,
-    };
-    let opt_level = match kind {
-        // v1.40: WASM uses size optimization (Oz) for smaller bundles
-        OutputKind::WasmModule => OptimizationLevel::Default,
-        _ => OptimizationLevel::Aggressive,
-    };
+
     let target = Target::from_triple(&triple).map_err(|e| {
         anyhow!(
             "failed to load LLVM target for {}: {e}",
@@ -108,14 +178,7 @@ pub fn build_target_machine(kind: OutputKind) -> Result<TargetMachine> {
         )
     })?;
     target
-        .create_target_machine(
-            &triple,
-            cpu,
-            features,
-            opt_level,
-            reloc,
-            code_model,
-        )
+        .create_target_machine(&triple, cpu, features, opt_level, reloc, code_model)
         .ok_or_else(|| {
             anyhow!(
                 "failed to create LLVM target machine for {}",

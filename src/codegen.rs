@@ -7,7 +7,7 @@
 // =========================================================================
 use crate::ast::{BinaryOp, Expr, Program, Stmt};
 use crate::ffi::{CallableId, CallableRegistry, CallableSignature};
-use crate::os::target::{build_target_machine, CompilationTarget, OutputKind};
+use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind, TargetArch};
 use crate::types::{PrimitiveType, TypeId, TypeKind, TypeRegistry};
 use anyhow::{anyhow, Context as AnyhowContext, Result};
 use inkwell::basic_block::BasicBlock;
@@ -97,7 +97,8 @@ pub struct LlvmCompiler<'ctx> {
     hir_struct_names: HashMap<String, u32>, // name → symbol_id
     // v1.38 A6: CallableRegistry predeclaration tracking
     callables_predeclared: bool,
-}
+    // v1.44 G12: Hardware zone depth counter (MMIO volatile semantics)
+    hw_zone_depth: u32,
 }
 
 /// Backend trait for version-gated codegen. v1.21 uses direct compilation;
@@ -135,7 +136,12 @@ impl<'ctx> LlvmCompiler<'ctx> {
             } else {
                 OutputKind::Object
             };
-            let target_machine = build_target_machine(output_kind)?;
+            // v1.44 G8: Use architecture-specific target machine for freestanding
+            let target_machine = if let Some(arch) = options.target.arch() {
+                build_target_machine_with_arch(output_kind, arch)?
+            } else {
+                build_target_machine(output_kind)?
+            };
 
             // v1.40: WASM uses Object file type (LLVM WASM backend emits .o which is wasm)
             let file_type = if options.target.is_wasm() {
@@ -201,6 +207,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             hir_struct_types: HashMap::new(),
             hir_struct_names: HashMap::new(),
             callables_predeclared: false,
+            hw_zone_depth: 0,
         }
     }
 
@@ -309,6 +316,113 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
+    // v1.44 G12: Hardware zone — MMIO volatile read/write
+    /// Emit a hardware zone (`hw_unsafe { ... }`) block with volatile semantics.
+    /// All memory operations inside are volatile (bypass CPU cache).
+    fn emit_hardware_zone(&mut self, body: &[Stmt]) -> Result<()> {
+        // Enter hardware zone: increment depth counter
+        self.hw_zone_depth += 1;
+        let result = self.emit_block(body);
+        // Exit hardware zone
+        self.hw_zone_depth -= 1;
+        result
+    }
+
+    /// Emit a volatile MMIO write: `*(addr as *mut T) = value`.
+    /// Uses LLVM volatile store to bypass CPU cache.
+    fn emit_mmio_volatile_write(
+        &mut self,
+        addr_int: IntValue,
+        value: IntValue,
+        value_size: u32, // 1, 2, 4, or 8 bytes
+    ) -> Result<()> {
+        let ptr_type = match value_size {
+            1 => self.context.i8_type().ptr_type(inkwell::AddressSpace::from(0u16)),
+            2 => self.context.i16_type().ptr_type(inkwell::AddressSpace::from(0u16)),
+            4 => self.context.i32_type().ptr_type(inkwell::AddressSpace::from(0u16)),
+            8 => self.context.i64_type().ptr_type(inkwell::AddressSpace::from(0u16)),
+            _ => return Err(anyhow!("unsupported MMIO write size: {}", value_size)),
+        };
+
+        // Cast integer address to pointer
+        let ptr = self.builder
+            .build_int_to_ptr(addr_int, ptr_type, "mmio_ptr")
+            .context("MMIO address cast")?;
+
+        // Truncate value if needed
+        let value_typed = match value_size {
+            1 => self.builder.build_int_truncate(value, self.context.i8_type(), "mmio_val8")
+                .map_err(|_| anyhow!("MMIO truncate to i8"))?,
+            2 => self.builder.build_int_truncate(value, self.context.i16_type(), "mmio_val16")
+                .map_err(|_| anyhow!("MMIO truncate to i16"))?,
+            4 => self.builder.build_int_truncate(value, self.context.i32_type(), "mmio_val32")
+                .map_err(|_| anyhow!("MMIO truncate to i32"))?,
+            8 => value,
+            _ => unreachable!(),
+        };
+
+        // Volatile store — bypasses CPU cache
+        let store = self.builder.build_store(ptr, value_typed.into())
+            .context("MMIO volatile store")?;
+        store.set_volatile(true)
+            .map_err(|_| anyhow!("failed to set MMIO store as volatile"))?;
+
+        Ok(())
+    }
+
+    /// Emit a volatile MMIO read: `let x = *(addr as *mut T)`.
+    /// Uses LLVM volatile load to bypass CPU cache.
+    fn emit_mmio_volatile_read(
+        &mut self,
+        addr_int: IntValue,
+        value_size: u32, // 1, 2, 4, or 8 bytes
+    ) -> Result<IntValue> {
+        let ptr_type = match value_size {
+            1 => self.context.i8_type().ptr_type(inkwell::AddressSpace::from(0u16)),
+            2 => self.context.i16_type().ptr_type(inkwell::AddressSpace::from(0u16)),
+            4 => self.context.i32_type().ptr_type(inkwell::AddressSpace::from(0u16)),
+            8 => self.context.i64_type().ptr_type(inkwell::AddressSpace::from(0u16)),
+            _ => return Err(anyhow!("unsupported MMIO read size: {}", value_size)),
+        };
+
+        // Cast integer address to pointer
+        let ptr = self.builder
+            .build_int_to_ptr(addr_int, ptr_type, "mmio_ptr")
+            .context("MMIO address cast")?;
+
+        // Volatile load — bypasses CPU cache
+        let loaded = self.builder
+            .build_load(
+                match value_size {
+                    1 => self.context.i8_type().into(),
+                    2 => self.context.i16_type().into(),
+                    4 => self.context.i32_type().into(),
+                    8 => self.context.i64_type().into(),
+                    _ => unreachable!(),
+                },
+                ptr,
+                "mmio_val",
+            )
+            .context("MMIO volatile load")?;
+        let load_inst = loaded.as_instruction_value()
+            .ok_or_else(|| anyhow!("MMIO load is not an instruction"))?;
+        load_inst.set_volatile(true)
+            .map_err(|_| anyhow!("failed to set MMIO load as volatile"))?;
+
+        // Zero-extend to i64
+        let val = match value_size {
+            1 => self.builder.build_int_z_extend(
+                loaded.into_int_value(), self.i64_type, "mmio_read8"),
+            2 => self.builder.build_int_z_extend(
+                loaded.into_int_value(), self.i64_type, "mmio_read16"),
+            4 => self.builder.build_int_z_extend(
+                loaded.into_int_value(), self.i64_type, "mmio_read32"),
+            8 => Ok(loaded.into_int_value()),
+            _ => unreachable!(),
+        };
+        val.context("MMIO zero-extend")
+    }
+
     fn emit_stmt(&mut self, stmt: &Stmt) -> Result<()> {
         match stmt {
             Stmt::Use { .. } => Ok(()),
@@ -317,7 +431,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
             Stmt::EnumDecl { .. } => self.emit_v130_ast_in_v121("EnumDecl"),
             Stmt::UnsafeBlock { .. } => self.emit_v130_ast_in_v121("UnsafeBlock"),
             Stmt::ExternBlock { .. } => self.emit_v130_ast_in_v121("ExternBlock"),
-            Stmt::HardwareZone { body } => self.emit_block(body),
+            // v1.44 G12: Hardware zone — emit with MMIO volatile semantics
+            Stmt::HardwareZone { body } => self.emit_hardware_zone(body),
             Stmt::HardwareDecl { name, address, .. } => {
                 let current_fn = self.current_function()?;
                 let alloca = self.create_entry_alloca(current_fn, name);
@@ -856,7 +971,12 @@ pub fn compile_v130(
     } else {
         OutputKind::Object
     };
-    let target_machine = build_target_machine(output_kind)?;
+    // v1.44 G8: Use architecture-specific target machine for freestanding
+    let target_machine = if let Some(arch) = options.target.arch() {
+        build_target_machine_with_arch(output_kind, arch)?
+    } else {
+        build_target_machine(output_kind)?
+    };
     target_machine
         .write_to_file(
             &compiler.module,

@@ -1,9 +1,9 @@
 [package]
 name = "logicodex"
-version = "1.43.0-alpha"
+version = "1.44.0-alpha"
 edition = "2021"
 authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
-description = "v1.43-alpha: Raylib Audio — 22 audio functions + StrictAudioContext integration with capability gates"
+description = "v1.44-alpha: Freestanding Compiler — 15 gaps resolved (startup, panic, linker, allocator, UART, IDT, MMIO, multiboot)"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/msa-studio/logicodex"
 readme = "README.md"

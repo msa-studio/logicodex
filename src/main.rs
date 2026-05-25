@@ -390,18 +390,41 @@ fn compute_module_hash(path: &Path) -> u64 {
 }
 
 fn write_freestanding_plan(output_path: &Path) -> Result<()> {
+    use logicodex::os::target::TargetArch;
+
     let mut plan_path = output_path.to_path_buf();
     plan_path.set_extension("freestanding.md");
     let access_plan = PhysicalMemoryAccessPlan::freestanding_default();
 
-    // v1.38 G2: Select freestanding LLVM target triple
-    let target_triple = select_freestanding_target_triple();
+    // v1.44 G8: Auto-detect host architecture for freestanding target
+    let arch = detect_host_arch();
+    let target_triple = arch.llvm_triple();
+    let features = arch.llvm_features();
+    let code_model = format!("{:?}", arch.code_model());
 
     let content = format!(
-        "# Logicodex Freestanding Target Plan\n\nTarget artifact: `{}`\nLLVM target triple: `{}`\n\nCompilation profile: v1.38 freestanding specification.\n\nThe `--target freestanding` path emits a raw object for bootloader, kernel, hypervisor, or firmware integration. The backend selects:\n- Target triple: `{}`\n- Relocation: static\n- Code model: kernel\n- Entry symbol: `_start`\n- No platform startup (no crt0)\n\nPhysical memory access plan: `{:?}`\n\nRaw pointer representation (`*int`) is reserved for memory-mapped I/O (VGA `0xB8000`, UART `0x3F8`) under explicit backend safety gates.\n",
+        "# Logicodex Freestanding Target Plan\n\n\
+         Target artifact: `{}`\n\
+         LLVM target triple: `{}`\n\
+         Architecture: `{:?}`\n\
+         LLVM features: `{}`\n\
+         Code model: `{}`\n\n\
+         The `--target freestanding` path emits a raw object for bootloader, \
+         kernel, hypervisor, or firmware integration. The backend selects:\n\
+         - Target triple: `{}`\n\
+         - Relocation: static\n\
+         - Code model: `{}`\n\
+         - Entry symbol: `_start`\n\
+         - Features: `{}`\n\
+         - Startup: `_start` (stack init, BSS zero, data copy)\n\
+         - Allocator: bump allocator\n\
+         - Output: UART 0x3F8 + VGA 0xB8000\n\n\
+         Physical memory access plan: `{:?}`\n\n\
+         Raw pointer representation (`*int`) is reserved for memory-mapped I/O \
+         (VGA `0xB8000`, UART `0x3F8`) under explicit backend safety gates.\n",
         output_path.display(),
-        target_triple,
-        target_triple,
+        target_triple, arch, features, code_model,
+        target_triple, code_model, features,
         access_plan
     );
     fs::write(&plan_path, content).with_context(|| {
@@ -411,23 +434,23 @@ fn write_freestanding_plan(output_path: &Path) -> Result<()> {
         )
     })?;
     println!(
-        "Freestanding target plan written to {} (triple: {})",
-        plan_path.display(),
-        target_triple
+        "Freestanding target plan written to {} (arch: {:?}, triple: {})",
+        plan_path.display(), arch, target_triple
     );
     Ok(())
 }
 
-/// v1.38 G2: Select the appropriate freestanding LLVM target triple.
-fn select_freestanding_target_triple() -> &'static str {
+/// v1.44 G8: Auto-detect the host CPU architecture for freestanding target.
+fn detect_host_arch() -> logicodex::os::target::TargetArch {
+    use logicodex::os::target::TargetArch;
     if cfg!(target_arch = "x86_64") {
-        "x86_64-unknown-none-elf"
+        TargetArch::X86_64
     } else if cfg!(target_arch = "aarch64") {
-        "aarch64-unknown-none"
+        TargetArch::Aarch64
     } else if cfg!(target_arch = "riscv64") {
-        "riscv64gc-unknown-none-elf"
+        TargetArch::Riscv64
     } else {
-        "unknown-unknown-none"
+        TargetArch::X86_64 // Default fallback
     }
 }
 

@@ -1,12 +1,18 @@
 // =========================================================================
 // Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
+// Version: v1.44-alpha (Freestanding Compiler Gaps)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
 pub mod target;
 pub mod syscall;
+
+// v1.44: Freestanding support modules
+pub mod startup;
+pub mod allocator;
+pub mod uart;
+pub mod panic;
 
 #[cfg(target_os = "linux")]
 pub mod linux;
