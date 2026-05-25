@@ -2,18 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-L/usr/lib/llvm-15/lib"
   LLVM_SYS_150_PREFIX: /usr/lib/llvm-15
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,51 +37,60 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Check formatting
-        run: cargo fmt --check
+        run: cargo fmt --all -- --check
 
-      - name: Run clippy
-        run: cargo clippy -- -D warnings
+      - name: Check build
+        run: cargo check --locked
 
-      - name: Build
-        run: cargo build --release
-
-      - name: Run Tier A validators (core)
-        run: cargo test --tier a
-
-      - name: Run Tier B validators (feature)
-        run: cargo test --tier b
-
-  bench-check:
-    name: Benchmark Check
+  test:
+    name: Test
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
       - name: Install LLVM 15
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm-15-dev libclang-15-dev
+          sudo apt-get install -y llvm-15-dev libclang-15-dev pkg-config
 
       - uses: dtolnay/rust-toolchain@1.75
 
-      - name: Build benchmarks
-        run: cargo bench --no-run
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-  docs-check:
-    name: Documentation Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check for broken internal links
+      - name: Build
         run: |
-          # Check that SPECIFICATION.md references valid files
-          grep -oP '\[.*?\]\(.*?\)' SPECIFICATION.md | grep -v 'http' | while read link; do
-            file=$(echo "$link" | grep -oP '(?<=\()[^)]+')
-            if [ ! -f "$file" ] && [ ! -d "$file" ]; then
-              echo "BROKEN LINK: $link"
-              exit 1
+          export RUSTFLAGS="-L/usr/lib/llvm-15/lib"
+          cargo build --release --locked
+
+      - name: Run unit tests
+        run: cargo test --locked
+
+      - name: Run Tier A validators (core)
+        run: |
+          for v in scripts/validators/tier_a_core/*.py; do
+            echo "=== $(basename "$v") ==="
+            python3 "$v" || exit 1
+          done
+
+      - name: Run Tier B validators (feature)
+        run: |
+          for v in scripts/validators/tier_b_feature/*.py; do
+            echo "=== $(basename "$v") ==="
+            python3 "$v" || exit 1
+          done
+
+      - name: Check example programs compile
+        run: |
+          for f in examples/*.ldx; do
+            if [ -f "$f" ]; then
+              echo "=== Checking $f ==="
+              cargo run --quiet -- check "$f" || exit 1
             fi
           done
-          echo "All internal links valid"

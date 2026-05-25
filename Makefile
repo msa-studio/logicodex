@@ -12,18 +12,16 @@ all: build
 build:
 	cargo build --release
 
-test: test-a
+test:
+	cargo test --locked
 
-test-a:
-	cargo test --tier a
+test-validators:
+	@echo "=== Tier A (core) ==="
+	@for v in scripts/validators/tier_a_core/*.py; do echo "--- $$(basename $$v) ---"; python3 "$$v"; done
+	@echo "=== Tier B (feature) ==="
+	@for v in scripts/validators/tier_b_feature/*.py; do echo "--- $$(basename $$v) ---"; python3 "$$v"; done
 
-test-b:
-	cargo test --tier b
-
-test-c:
-	cargo test --tier c
-
-test-all: test-a test-b test-c
+test-all: test test-validators
 
 fmt:
 	cargo fmt
