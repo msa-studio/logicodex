@@ -1,0 +1,54 @@
+{
+  "_comment": "Logicodex v1.45 Gold Standard — Update on each significant merge",
+  "version": "1.45.0-alpha",
+  "date": "2026-05-25",
+  "machine": "qemu-x86_64-smp8-4GB",
+  "thresholds": {
+    "regression_warn_percent": 5.0,
+    "regression_fail_percent": 10.0,
+    "memory_creep_max_kb_per_hour": 0.001,
+    "scaling_efficiency_min_pct": 85.0
+  },
+  "layer1_micro": {
+    "gate_invoke_hit_ns":     { "mean": 45,  "p95": 52,  "p99": 68  },
+    "gate_invoke_miss_ns":    { "mean": 38,  "p95": 44,  "p99": 58  },
+    "door_send_8B_ns":        { "mean": 85,  "p95": 98,  "p99": 120 },
+    "door_send_1KB_ns":       { "mean": 95,  "p95": 110, "p99": 140 },
+    "door_recv_8B_ns":        { "mean": 82,  "p95": 95,  "p99": 115 },
+    "door_roundtrip_8B_ns":   { "mean": 180, "p95": 210, "p99": 280 },
+    "mempool_acquire_64B_ns": { "mean": 18,  "p95": 22,  "p99": 30  },
+    "mempool_acquire_4KB_ns": { "mean": 20,  "p95": 25,  "p99": 35  },
+    "callable_lookup_hit_ns": { "mean": 25,  "p95": 30,  "p99": 42  },
+    "callable_lookup_miss_ns":{ "mean": 22,  "p95": 26,  "p99": 38  },
+    "hir_lower_literal_ns":   { "mean": 30,  "p95": 35,  "p99": 48  },
+    "hir_lower_depth8_ns":    { "mean": 180, "p95": 210, "p99": 280 },
+    "llvm_emit_i64_add_ns":   { "mean": 420, "p95": 480, "p99": 620 },
+    "llvm_emit_extern_call_ns":{ "mean": 680, "p95": 780, "p99": 950 }
+  },
+  "layer2_reactor": {
+    "echo_1core_pps": 105000,
+    "echo_2core_pps": 195000,
+    "echo_4core_pps": 370000,
+    "echo_8core_pps": 720000,
+    "scaling_efficiency_2core_pct": 92.8,
+    "scaling_efficiency_4core_pct": 88.1,
+    "scaling_efficiency_8core_pct": 85.7
+  },
+  "layer3_stability": {
+    "rss_1h_delta_kb": 0,
+    "rss_6h_delta_kb": 0,
+    "rss_24h_delta_kb": 0,
+    "rss_slope_kb_per_hour": 0.0,
+    "valgrind_definitely_lost": "0bytes",
+    "valgrind_indirectly_lost": "0bytes",
+    "valgrind_errors": "0",
+    "fd_count_delta_1h": 0
+  },
+  "layer4_security": {
+    "slowloris_fail_stop": true,
+    "syn_flood_backpressure_triggered": true,
+    "malformed_cleanup_immediate": true,
+    "fd_exhaustion_graceful": true,
+    "callback_recursion_rejected": true
+  }
+}

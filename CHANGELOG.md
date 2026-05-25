@@ -6,6 +6,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [v1.45.0-alpha] — 2026-05-25 — Quantitative Benchmark Framework (Layers 1-3)
+
+### Summary
+Architecture-correlated benchmark framework with 4 layers. 20 new files (~2,200 LOC). Layer 4 (security) stubs created. 11/11 Tier C validator checks passing.
+
+### Layer 1: Micro-Benchmarks (6 criterion benchmarks)
+- `gate_latency.rs` — Capability Fabric gate check (target: < 50ns)
+- `door_latency.rs` — Channel<T> send/recv/roundtrip (target: < 100ns)
+- `mempool_latency.rs` — Bump allocator acquire (target: < 20ns)
+- `callable_lookup.rs` — CallableRegistry by-name lookup (target: < 30ns)
+- `hir_lower.rs` — AST → HIR expression lowering (target: < 200ns)
+- `llvm_emit.rs` — LLVM IR generation (target: < 500ns)
+
+### Layer 2: Reactor Throughput
+- `echo_server.rs` — epoll-based TCP echo server with CPU affinity
+- `flood_client.rs` — Multi-threaded flood generator
+- `throughput.sh` — 1/2/4/8 core scaling test with efficiency calculation
+- Target: > 85% scaling efficiency at 8 cores
+
+### Layer 3: System Stability
+- `rss_monitor.py` — /proc/[pid]/status snapshotter with linear regression creep detection
+- `valgrind_check.sh` — Full leak check (target: 0 leaks)
+- `longrun.sh` — 1h/6h/24h automated stability test
+- Acceptance: Linear regression slope ≤ 0.001 KB/hour
+
+### Layer 4: Security Stress (stubs)
+- `slowloris.py` — Partial read attack (tests Taint FSM)
+- `syn_flood.py` — Connection flood (tests backpressure)
+- `malformed.py` — Random byte injection (tests EPOLLERR cleanup)
+- `fd_exhaustion.py` — EMFILE boundary test (tests graceful degradation)
+
+### Infrastructure
+- `benches/BASELINE.json` — Gold standard with regression thresholds (5% warn, 10% fail)
+- `benches/harness/run_all.sh` — All-layers runner (quick/full/compare modes)
+- `benches/harness/compare_baseline.py` — Regression detection tool
+- `docs/RFC_TEMPLATE.md` — Architecture Freeze enforcement template
+
+### Validation: 148/148 ✅
+v1.45 Benchmark Framework: 11/11 | v1.44 Freestanding: 15/15 | v1.43 Raylib Audio: 80/80 | v1.42 Raylib Pending: 9/9 | Host Reactor: 20/20 | WASM: 13/13 | **Total: 148/148 ✅**
+
+---
+
 ## [v1.44.1-alpha] — 2026-05-25 — Foundation Polish: Validator Tiering + Maintenance Report
 
 ### Summary
