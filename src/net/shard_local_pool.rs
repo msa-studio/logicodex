@@ -86,7 +86,7 @@ impl ShardLocalPool {
                 requested: size,
                 available,
                 total: self.budget_total,
-            }));
+            });
         }
 
         self.budget_used += size;
