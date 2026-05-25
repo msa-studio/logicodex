@@ -445,13 +445,44 @@ impl Analyzer {
                 self.scopes.push(HashMap::new());
                 let result = self.block(body);
                 self.scopes.pop();
-                // Collect Pintu declarations within this Kotak
+                // Collect Channel declarations within this Actor
                 for stmt in body {
                     if let Stmt::Let { declared_type: Some(Type::Channel { from, to, message_type }), .. } = stmt {
                         self.channel_registry.push((from.clone(), to.clone(), message_type.clone()));
                     }
                 }
                 result
+            }
+            // v1.33.0-alpha: Service manifest validation
+            Stmt::Service { name, port, requires, handler, policy } => {
+                // Duplicate service name check
+                if self.actor_registry.contains(name) {
+                    // Service name clash dengan actor name
+                    return Err(SemanticError::DuplicateActor { name: name.clone() });
+                }
+                // Port validation (0 = invalid)
+                if *port == 0 {
+                    return Err(SemanticError::CapabilityContractViolation {
+                        symbol: name.clone(),
+                        gate: "invalid port 0".to_string(),
+                    });
+                }
+                // Well-known port check (require gate for ports < 1024)
+                if *port < 1024 && requires.is_none() {
+                    // Warning: well-known ports should have a requires gate
+                    // Dalam Pantas mode: log warning sahaja
+                    // Dalam Pakar mode: ini adalah error
+                }
+                // Policy validation
+                let valid_policies = ["Block", "DropOldest", "Error"];
+                if !valid_policies.contains(&policy.as_str()) {
+                    return Err(SemanticError::CapabilityContractViolation {
+                        symbol: name.clone(),
+                        gate: format!("invalid policy '{}'", policy),
+                    });
+                }
+                // Handler function must exist — deferred ke Pass 2 (tier2)
+                Ok(())
             }
             Stmt::Match { value, arms } => {
                 let val_ty = self.expression(value)?;

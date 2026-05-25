@@ -332,11 +332,65 @@ impl Parser {
 
     /// v1.30.1-alpha: Parse `kotak Name { ... }`
     fn actor_statement(&mut self) -> Result<Stmt, ParseError> {
-        let name = self.consume(TokenKind::Identifier, "Kotak name after 'kotak'")?.lexeme.clone();
-        self.consume(TokenKind::LeftBrace, "'{' after Kotak name")?;
+        let name = self.consume(TokenKind::Identifier, "Actor name after 'actor'")?.lexeme.clone();
+        self.consume(TokenKind::LeftBrace, "'{' after actor name")?;
         let body = self.block()?;
-        self.consume(TokenKind::RightBrace, "'}' after Kotak body")?;
+        self.consume(TokenKind::RightBrace, "'}' after actor body")?;
         Ok(Stmt::Actor { name, body })
+    }
+
+    // v1.33.0-alpha: Service manifest — deterministic network reactor
+    fn service_statement(&mut self) -> Result<Stmt, ParseError> {
+        let name = self.consume(TokenKind::Identifier, "Service name after 'service'")?.lexeme.clone();
+        self.consume(TokenKind::LeftBrace, "'{' after service name")?;
+        
+        // Parse service fields: port, requires, handler, policy
+        let mut port = 0u16;
+        let mut requires = None;
+        let mut handler = String::new();
+        let mut policy = "Block".to_string();
+        
+        while !self.check(TokenKind::RightBrace) {
+            let field = self.consume(TokenKind::Identifier, "service field name")?.lexeme.clone();
+            self.consume(TokenKind::Colon, "':' after service field")?;
+            
+            match field.as_str() {
+                "port" => {
+                    let val = self.consume(TokenKind::Integer, "port number")?.lexeme.clone();
+                    port = val.parse().unwrap_or(0);
+                }
+                "requires" => {
+                    let gate = self.expression()?;
+                    if let Expr::Variable(g) = gate {
+                        requires = Some(g);
+                    } else if let Expr::FieldAccess { base, field } = gate {
+                        // Handle Net.Admin format
+                        if let Expr::Variable(base_name) = *base {
+                            requires = Some(format!("{}.{}", base_name, field));
+                        }
+                    }
+                }
+                "handler" => {
+                    handler = self.consume(TokenKind::Identifier, "handler name")?.lexeme.clone();
+                }
+                "policy" => {
+                    let pol = self.consume(TokenKind::Identifier, "policy name")?.lexeme.clone();
+                    policy = pol;
+                }
+                _ => {
+                    // Abaikan field tak dikenali
+                    self.advance(); // skip value
+                }
+            }
+            
+            // Optional comma between fields
+            if self.matches(TokenKind::Comma) {
+                // consume comma
+            }
+        }
+        
+        self.consume(TokenKind::RightBrace, "'}' after service manifest")?;
+        Ok(Stmt::Service { name, port, requires, handler, policy })
     }
 
     /// BUGFIX #2: Parse `buf[index] = value` as Stmt::Assign
@@ -376,7 +430,9 @@ impl Parser {
         } else if self.matches(TokenKind::Match) {
             self.match_statement()?
         } else if self.matches(TokenKind::Actor) {
-            self.kotak_statement()?
+            self.actor_statement()?
+        } else if self.matches(TokenKind::Service) {
+            self.service_statement()?
         } else if self.matches(TokenKind::Break) {
             let beginner = self.allows_control_flow_line_terminator(&self.previous().lexeme);
             self.consume_statement_terminator("; after break statement", beginner)?;

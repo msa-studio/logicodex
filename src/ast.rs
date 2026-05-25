@@ -92,6 +92,15 @@ pub enum Stmt {
         name: String,
         body: Vec<Stmt>,
     },
+    /// v1.33.0-alpha: Service manifest — deterministic network reactor.
+    /// Syntax: `service WebServer { port: 443, requires: Net.Admin, handler: WebHandler, policy: Block }`
+    Service {
+        name: String,
+        port: u16,
+        requires: Option<String>,
+        handler: String,
+        policy: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

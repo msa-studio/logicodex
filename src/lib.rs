@@ -20,5 +20,6 @@ pub mod parser;
 pub mod semantic;
 pub mod semantic_gate;
 pub mod span;
+pub mod net;
 pub mod tier2;
 pub mod types;
