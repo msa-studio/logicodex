@@ -13,8 +13,10 @@ pub mod startup;
 pub mod allocator;
 pub mod uart;
 pub mod panic;
-pub mod interrupts;
-pub mod source_provider;
+
+// Future freestanding modules (not yet wired for hosted compilation)
+// pub mod interrupts;      // x86_64 IDT — needs #[cfg] gating
+// pub mod source_provider; // needs #[cfg] gating for hosted vs freestanding
 
 #[cfg(target_os = "linux")]
 pub mod linux;
