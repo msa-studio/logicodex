@@ -117,6 +117,9 @@ pub struct TypeRegistry {
     primitive_cache: PrimitiveTypeIds,
     /// Cached struct layouts, indexed by StructLayoutId.0
     struct_layouts: Vec<StructLayout>,
+    /// Cached enum layouts, indexed by EnumLayoutId.0
+    /// v1.38: Added for enum layout computation (E2)
+    enum_layouts: Vec<crate::layout::EnumLayout>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -182,6 +185,7 @@ impl TypeRegistry {
         Self {
             kinds,
             struct_layouts: Vec::new(),
+            enum_layouts: Vec::new(),
             primitive_cache: PrimitiveTypeIds {
                 bool_,
                 i8_,
@@ -386,6 +390,18 @@ impl TypeRegistry {
             .enumerate()
             .find(|(_, l)| l.name == name)
             .map(|(i, l)| (StructLayoutId(i as u32), l))
+    }
+
+    /// v1.38 E2: Register an enum layout, returning its EnumLayoutId.
+    pub fn register_enum_layout(&mut self, layout: crate::layout::EnumLayout) -> EnumLayoutId {
+        let id = EnumLayoutId(self.enum_layouts.len() as u32);
+        self.enum_layouts.push(layout);
+        id
+    }
+
+    /// v1.38 E2: Lookup a cached enum layout by its ID.
+    pub fn get_enum_layout(&self, id: EnumLayoutId) -> Option<&crate::layout::EnumLayout> {
+        self.enum_layouts.get(id.0 as usize)
     }
 
     // ─── FFI Type Aliases ───

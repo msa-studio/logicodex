@@ -29,6 +29,43 @@ pub struct CapabilityTopology {
     module_symbols: HashMap<String, u32>,
 }
 
+impl CapabilityTopology {
+    /// Get all gate contracts (provider → consumer relationships).
+    pub fn contracts(&self) -> &[GateContract] {
+        &self.contracts
+    }
+
+    /// Get providers for a given gate canonical name.
+    pub fn providers_of(&self, gate: &str) -> Option<&[u32]> {
+        self.providers.get(gate).map(|v| v.as_slice())
+    }
+
+    /// Get consumers for a given gate canonical name.
+    pub fn consumers_of(&self, gate: &str) -> Option<&[u32]> {
+        self.consumers.get(gate).map(|v| v.as_slice())
+    }
+
+    /// Iterate all registered gates with their provider symbol IDs.
+    pub fn all_providers(&self) -> &HashMap<String, Vec<u32>> {
+        &self.providers
+    }
+
+    /// Iterate all registered gates with their consumer symbol IDs.
+    pub fn all_consumers(&self) -> &HashMap<String, Vec<u32>> {
+        &self.consumers
+    }
+
+    /// Get module symbol ID by module name.
+    pub fn module_symbol(&self, name: &str) -> Option<u32> {
+        self.module_symbols.get(name).copied()
+    }
+
+    /// All registered module names.
+    pub fn module_names(&self) -> impl Iterator<Item = &str> {
+        self.module_symbols.keys().map(|s| s.as_str())
+    }
+}
+
 /// Hasil verifikasi topology.
 #[derive(Debug, Clone)]
 pub struct TopologyVerifyResult {

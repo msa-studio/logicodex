@@ -120,11 +120,18 @@ impl<'a> LayoutEngine<'a> {
                     )),
                 }
             }
-            Some(TypeKind::Enum(_)) => Err(layout_error(
-                span,
-                "Ralat: Layout Enum belum dilaksanakan".to_string(),
-                "Error: Enum layout not yet implemented (Sprint 2.5)".to_string(),
-            )),
+            Some(TypeKind::Enum(layout_id)) => {
+                // v1.38 E2: Enum layout lookup
+                match self.types.get_enum_layout(layout_id) {
+                    Some(layout) => {
+                        Ok((layout.total_size_bytes, layout.alignment_bytes))
+                    }
+                    None => {
+                        // Enum without registered layout: default to tag-only (u32)
+                        Ok((4, self.target.integer_alignment_bytes.min(4)))
+                    }
+                }
+            }
             Some(TypeKind::Never) | Some(TypeKind::Unknown) | None => Err(layout_error(
                 span,
                 format!("Ralat: Jenis '{ty:?}' belum mempunyai layout memori yang sah"),

@@ -302,13 +302,20 @@ impl CapabilityGraph {
     }
 
     /// Build dari CapabilityTopology (v1.32) — gate contracts.
+    /// v1.38: Fully implemented — imports all gate contracts as IRGateEdge.
     pub fn from_topology(
         &mut self,
         topology: &CapabilityTopology,
     ) {
-        // Topology providers/consumers map ke gate edges
-        // (Placeholder — topology internal fields are private)
-        let _ = topology; // acknowledge usage
+        // Convert each gate contract to an IRGateEdge
+        for contract in topology.contracts() {
+            let cap_ref = CapabilityRef::from(&contract.gate);
+            self.add_gate(IRGateEdge {
+                from: contract.provider,
+                to: contract.consumer,
+                capability: cap_ref,
+            });
+        }
     }
 
     /// Build dari ShardTopology (v1.34) — shards + services + doors.

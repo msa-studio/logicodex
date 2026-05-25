@@ -1,10 +1,11 @@
-#![allow(dead_code)]
-
 // =========================================================================
-// Logicodex v1.30 architecture simulation: semantic gatekeeper contract.
+// Logicodex v1.38 — Semantic Gatekeeper (I1: Activated)
 //
-// This module is dormant. It models the future final authority before codegen
-// without replacing the current v1.21-alpha semantic analyzer.
+// Final semantic validation pass before codegen.
+// Checks: break/continue in loops, unsafe block correctness,
+// FFI call safety, return path validity.
+//
+// Called after v1.21 semantic analysis and before LLVM codegen.
 // =========================================================================
 
 use crate::ffi::{CallableRegistry, FfiGatekeeper, SafetyContext};
@@ -323,5 +324,45 @@ mod tests {
         };
 
         assert!(ctx.check_module(&module).is_ok());
+    }
+}
+
+// =========================================================================
+// v1.38 I1: Public API for semantic gatekeeper validation
+// =========================================================================
+
+/// Run the semantic gatekeeper as a final validation pass before codegen.
+/// Returns Ok(()) if no issues found, or a list of diagnostics otherwise.
+pub fn validate_module(module: &HirModule, types: TypeRegistry) -> Result<(), Vec<Diagnostic>> {
+    let callables = CallableRegistry::default();
+    let mut ctx = SemanticContext {
+        types,
+        symbols: SymbolTable::default(),
+        callables,
+        diagnostics: Vec::new(),
+        loop_depth: 0,
+        safety_context: SafetyContext::Safe,
+    };
+    ctx.check_module(module)
+}
+
+/// Run the semantic gatekeeper and print any diagnostics.
+/// Returns true if validation passed.
+pub fn validate_module_with_reporting(
+    module: &HirModule,
+    types: TypeRegistry,
+) -> bool {
+    match validate_module(module, types) {
+        Ok(()) => {
+            println!("logicodex v1.38: Semantic gatekeeper validation passed");
+            true
+        }
+        Err(diagnostics) => {
+            eprintln!("logicodex v1.38: Semantic gatekeeper found {} issue(s):", diagnostics.len());
+            for d in &diagnostics {
+                eprintln!("  [{:?}] {}", d.severity, d.message);
+            }
+            false
+        }
     }
 }

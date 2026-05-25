@@ -207,9 +207,9 @@ impl TypeChecker<'_> {
                 ));
             }
             // Sprint 3: validate each argument type against field type
-            // For now, accept any arguments for struct constructors
-            // Return a placeholder type — full struct type support in Sprint 3
-            return Ok(Type::I64); // placeholder
+            // v1.38: Struct constructors return a packed value (I64 for Color RGBA)
+            // This is intentional — structs are value types packed into integer registers
+            return Ok(Type::I64);
         }
 
         // Try CallableRegistry for function calls

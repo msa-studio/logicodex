@@ -95,6 +95,9 @@ pub struct LlvmCompiler<'ctx> {
     // v1.36+: Struct registry — symbol_id → LLVM struct type
     hir_struct_types: HashMap<u32, inkwell::types::StructType<'ctx>>,
     hir_struct_names: HashMap<String, u32>, // name → symbol_id
+    // v1.38 A6: CallableRegistry predeclaration tracking
+    callables_predeclared: bool,
+}
 }
 
 /// Backend trait for version-gated codegen. v1.21 uses direct compilation;
@@ -186,6 +189,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             hir_callable_funcs: HashMap::new(),
             hir_struct_types: HashMap::new(),
             hir_struct_names: HashMap::new(),
+            callables_predeclared: false,
         }
     }
 
@@ -771,6 +775,24 @@ pub fn compile_v130(
     let context = Context::create();
     let mut compiler = LlvmCompiler::new(&context, &options.module_name)
         .with_callables(callables, types);
+
+    // v1.38 A6: Pre-declare all callable functions so they're available during HIR codegen
+    compiler.predeclare_callables()
+        .unwrap_or_else(|e| eprintln!("logicodex v1.38: predeclare_callables warning: {}", e));
+
+    // v1.38 I1: Run semantic gatekeeper as final validation pass before codegen
+    {
+        let types_clone = compiler.types.as_ref()
+            .map(|t| t.clone())
+            .unwrap_or_else(TypeRegistry::new);
+        if let Err(diagnostics) = crate::semantic_gate::validate_module(hir_module, types_clone) {
+            eprintln!("logicodex v1.38: Semantic gatekeeper warnings ({}):", diagnostics.len());
+            for d in &diagnostics {
+                eprintln!("  [{}] {}", d.code, d.message);
+            }
+            // Non-fatal: continue codegen even if gatekeeper has warnings
+        }
+    }
 
     // v1.30 uses HIR items instead of v1.21 AST statements
     for item in &hir_module.items {
@@ -1415,6 +1437,53 @@ impl<'ctx> LlvmCompiler<'ctx> {
         self.types.as_ref()
             .map(|t| t.primitive(PrimitiveType::Unit))
             .unwrap_or_else(|| TypeId(6)) // fallback
+    }
+
+    // ─── v1.38 A6: CallableRegistry Predeclaration ───
+
+    /// Pre-declare all callable functions from the CallableRegistry.
+    /// Must be called before codegen if CallableRegistry is attached.
+    fn predeclare_callables(&mut self) -> Result<()> {
+        if self.callables_predeclared {
+            return Ok(()); // already done
+        }
+        let callables = match self.callables.as_ref() {
+            Some(c) => c,
+            None => return Ok(()), // no registry attached — nothing to do
+        };
+        // Iterate through all registered callables and declare them
+        for (_idx, sig) in callables.signatures.iter().enumerate() {
+            let name = &sig.name;
+            if self.declared_funcs.contains_key(name) {
+                continue; // already declared
+            }
+            // Determine LLVM types
+            let ret_type = if let Some(types) = self.types.as_ref() {
+                match types.resolve(sig.return_type) {
+                    crate::types::TypeKind::Primitive(crate::types::PrimitiveType::Unit) => {
+                        self.context.void_type().fn_type(&[], false).return_type()
+                    }
+                    _ => Some(self.i64_type.into()),
+                }
+            } else {
+                Some(self.i64_type.into())
+            };
+            // Build parameter types
+            let mut param_types: Vec<BasicTypeEnum<'ctx>> = Vec::new();
+            for _ in &sig.params {
+                param_types.push(self.i64_type.into());
+            }
+            // Build function type
+            let fn_type = if let Some(ret) = ret_type {
+                ret.into_int_type().fn_type(&param_types, sig.is_variadic)
+            } else {
+                self.context.void_type().fn_type(&param_types, sig.is_variadic)
+            };
+            let func = self.module.add_function(name, fn_type, None);
+            self.declared_funcs.insert(name.clone(), func);
+        }
+        self.callables_predeclared = true;
+        Ok(())
     }
 
     // ─── v1.36 A5: Struct Registration ───

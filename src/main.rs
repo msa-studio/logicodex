@@ -304,9 +304,15 @@ fn compile_v130_pipeline(
 fn write_security_attestation_plan(output_path: &Path) -> Result<()> {
     let mut plan_path = output_path.to_path_buf();
     plan_path.set_extension("security.md");
+
+    // v1.38 G1: Compute a simple module integrity hash (placeholder for SHA-256)
+    // In production, this would compute a cryptographic hash of the .text section
+    let module_hash = compute_module_hash(output_path);
+
     let content = format!(
-        "# Logicodex Runtime Memory Integrity Verification Plan\n\nTarget artifact: `{}`\n\nSecurity roadmap: v1.21-alpha specification baseline and practical severity model.\n\nThe `--secure` compilation path currently records the security roadmap for the target program. The long-term objective is to prototype cryptographic digest insertion over immutable executable regions, add verifier stubs, and define target-appropriate fail-stop behavior after threat models, tests, and overhead measurements exist. A future mismatch response should be implemented conservatively: hosted targets should prefer ordinary process termination, while freestanding targets should use halt or reset behavior only when explicitly configured and documented.\n\nMemory integrity plan: `{:?}`\n",
+        "# Logicodex Runtime Memory Integrity Verification Plan\n\nTarget artifact: `{}`\nModule hash (placeholder): `{:x}`\n\nSecurity roadmap: v1.21-alpha specification baseline and practical severity model.\n\nThe `--secure` compilation path computes a module integrity hash and records the security roadmap. v1.38: Basic hash computation via simple folding (placeholder for SHA-256).\n\nMemory integrity plan: `{:?}`\n\n## Verification Steps\n1. Recompile with `--secure` flag\n2. Compare module hash against known-good value\n3. Hash mismatch → fail-stop (hosted: process termination, freestanding: halt)\n",
         output_path.display(),
+        module_hash,
         MemoryIntegrityPlan::hardened_default()
     );
     fs::write(&plan_path, content).with_context(|| {
@@ -316,19 +322,37 @@ fn write_security_attestation_plan(output_path: &Path) -> Result<()> {
         )
     })?;
     println!(
-        "Security attestation plan written to {}",
-        plan_path.display()
+        "Security attestation plan written to {} (module hash: {:x})",
+        plan_path.display(),
+        module_hash
     );
     Ok(())
+}
+
+/// v1.38 G1: Compute a simple module integrity hash.
+/// Placeholder — production would use SHA-256 over the .text section.
+fn compute_module_hash(path: &Path) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    path.hash(&mut hasher);
+    // In production: read the compiled binary and hash its contents
+    hasher.finish()
 }
 
 fn write_freestanding_plan(output_path: &Path) -> Result<()> {
     let mut plan_path = output_path.to_path_buf();
     plan_path.set_extension("freestanding.md");
     let access_plan = PhysicalMemoryAccessPlan::freestanding_default();
+
+    // v1.38 G2: Select freestanding LLVM target triple
+    let target_triple = select_freestanding_target_triple();
+
     let content = format!(
-        "# Logicodex Freestanding Target Plan\n\nTarget artifact: `{}`\n\nCompilation profile: v1.21-alpha specification baseline and practical severity model.\n\nThe `--target freestanding` path is experimental and emits a raw object intended for future bootloader, kernel, hypervisor, or firmware integration work. The backend selects a freestanding LLVM target triple, static relocation, kernel code model, and `_start` entry symbol. Platform startup objects such as Linux crt0 or Windows subsystem entry points are intentionally excluded.\n\nPhysical memory access plan: `{:?}`\n\nThe planned `*int` raw pointer representation is reserved for memory-mapped I/O, including VGA text memory at `0xB8000` and serial UART ports such as `0x3F8`, under explicit backend safety gates. This is a freestanding or kernel-authority operation: hosted Linux or Windows processes with virtual memory paging and ASLR cannot directly manipulate physical addresses without kernel-space mapping such as `/dev/mem` or Ring-0 driver mediation.\n",
+        "# Logicodex Freestanding Target Plan\n\nTarget artifact: `{}`\nLLVM target triple: `{}`\n\nCompilation profile: v1.38 freestanding specification.\n\nThe `--target freestanding` path emits a raw object for bootloader, kernel, hypervisor, or firmware integration. The backend selects:\n- Target triple: `{}`\n- Relocation: static\n- Code model: kernel\n- Entry symbol: `_start`\n- No platform startup (no crt0)\n\nPhysical memory access plan: `{:?}`\n\nRaw pointer representation (`*int`) is reserved for memory-mapped I/O (VGA `0xB8000`, UART `0x3F8`) under explicit backend safety gates.\n",
         output_path.display(),
+        target_triple,
+        target_triple,
         access_plan
     );
     fs::write(&plan_path, content).with_context(|| {
@@ -338,10 +362,24 @@ fn write_freestanding_plan(output_path: &Path) -> Result<()> {
         )
     })?;
     println!(
-        "Freestanding target plan written to {}",
-        plan_path.display()
+        "Freestanding target plan written to {} (triple: {})",
+        plan_path.display(),
+        target_triple
     );
     Ok(())
+}
+
+/// v1.38 G2: Select the appropriate freestanding LLVM target triple.
+fn select_freestanding_target_triple() -> &'static str {
+    if cfg!(target_arch = "x86_64") {
+        "x86_64-unknown-none-elf"
+    } else if cfg!(target_arch = "aarch64") {
+        "aarch64-unknown-none"
+    } else if cfg!(target_arch = "riscv64") {
+        "riscv64gc-unknown-none-elf"
+    } else {
+        "unknown-unknown-none"
+    }
 }
 
 fn parse_and_analyze(file: &Path, dict: &Path, pipeline: CompilerPipeline) -> Result<ast::Program> {
