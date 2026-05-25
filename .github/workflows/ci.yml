@@ -118,7 +118,15 @@ jobs:
           path: build-release.log
 
       - name: Run unit tests
-        run: cargo test
+        run: cargo test 2>&1 | tee test-output.log
+
+      - name: Show test failures
+        if: failure()
+        run: |
+          echo "=== TEST FAILURES ==="
+          grep -E "^test .* FAILED|^failures:|^thread '.*' panicked" test-output.log | head -30
+          echo "=== FULL TEST OUTPUT (last 100 lines) ==="
+          tail -100 test-output.log
 
       - name: Run Tier A validators (core)
         run: |
