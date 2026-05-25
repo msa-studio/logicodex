@@ -29,7 +29,12 @@ pub mod linux {
     pub const SYS_EPOLL_CTL: u64 = 233;
     pub const SYS_EPOLL_WAIT: u64 = 232;
     pub const SYS_CLOCK_GETTIME: u64 = 228;
+    pub const SYS_SCHED_SETAFFINITY: u64 = 203;
+    pub const SYS_SCHED_GETCPU: u64 = 309;
     pub const CLOCK_MONOTONIC: u64 = 1;
+
+    // CPU set size for sched_setaffinity (512 bytes = 4096 CPUs)
+    pub const CPU_SETSIZE: usize = 512;
 
     // epoll_ctl op codes
     pub const EPOLL_CTL_ADD: i32 = 1;
@@ -46,6 +51,18 @@ pub mod linux {
 
     /// Emit raw syscall via `syscall` instruction.
     /// Arguments: rax = syscall number, rdi, rsi, rdx, r10, r8, r9 = args
+    #[inline(always)]
+    pub unsafe fn syscall0(n: u64) -> i64 {
+        let ret: i64;
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") n => ret,
+            out("rcx") _, out("r11") _,
+            options(nostack, preserves_flags)
+        );
+        ret
+    }
+
     #[inline(always)]
     pub unsafe fn syscall2(n: u64, a1: u64, a2: u64) -> i64 {
         let ret: i64;

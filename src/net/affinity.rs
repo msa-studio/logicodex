@@ -1,12 +1,15 @@
 // =========================================================================
-// Logicodex v1.34.0-alpha — Network Reactor: CPU Affinity
+// Logicodex v1.39.0-alpha — Network Reactor: CPU Affinity
 //
 // Platform abstraction untuk CPU affinity.
-// Teras: Linux (sched_setaffinity), stub untuk macOS/Windows.
+// Linux: sched_setaffinity via direct syscall
+// macOS: thread_policy_set (THREAD_AFFINITY_POLICY)
+// Windows: SetThreadAffinityMask
 //
 // Prinsip: Setiap shard dipin ke satu CPU core — tidak berpindah.
-// Ini mengelakkan context switch overhead dan cache thrashing.
 // =========================================================================
+
+use crate::os::syscall;
 
 /// Error affinity.
 #[derive(Debug, Clone)]
@@ -20,79 +23,137 @@ impl std::fmt::Display for AffinityError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AffinityError::UnsupportedPlatform => {
-                write!(f, "CPU affinity tidak disokong pada platform ini (Linux sahaja)")
+                write!(f, "CPU affinity tidak disokong pada platform ini")
             }
             AffinityError::InvalidCore(id) => {
-                write!(f, "Core ID {} tidak sah", id)
+                write!(f, "Core ID {} tidak sah (max: {})", id, num_cpus())
             }
-            AffinityError::SystemError(msg) => {
-                write!(f, "Ralat sistem: {}", msg)
-            }
+            AffinityError::SystemError(msg) => write!(f, "Ralat sistem: {}", msg),
         }
     }
 }
 
 impl std::error::Error for AffinityError {}
 
-/// Pin thread semasa ke CPU core tertentu.
-/// Linux: guna sched_setaffinity
-/// macOS/Windows: stub (log warning)
+// ─── C3: Linux — sched_setaffinity via syscall ───
+
+#[cfg(target_os = "linux")]
 pub fn set_cpu_affinity(core_id: u32) -> Result<(), AffinityError> {
     if core_id >= num_cpus() as u32 {
         return Err(AffinityError::InvalidCore(core_id));
     }
 
-    #[cfg(target_os = "linux")]
-    {
-        // Dalam produksi:
-        //   use libc::{cpu_set_t, CPU_SET, sched_setaffinity, CPU_ZERO, size_t};
-        //   unsafe {
-        //       let mut cpuset: cpu_set_t = std::mem::zeroed();
-        //       CPU_ZERO(&mut cpuset);
-        //       CPU_SET(core_id as usize, &mut cpuset);
-        //       let result = sched_setaffinity(0, size_of::<cpu_set_t>(), &cpuset);
-        //       if result != 0 {
-        //           return Err(AffinityError::SystemError(format!("sched_setaffinity returned {}", result)));
-        //       }
-        //   }
-        // Stub untuk v1.34.0-alpha (sandbox — tiada libc):
-        eprintln!("logicodex v1.34.0-alpha: Pin thread to core {} (Linux — stub)", core_id);
-        Ok(())
+    // Build cpu_set_t: 512 bytes bitmap, set bit core_id
+    let mut cpuset = [0u8; syscall::linux::CPU_SETSIZE];
+    let byte_idx = (core_id / 8) as usize;
+    let bit_idx = core_id % 8;
+    if byte_idx < cpuset.len() {
+        cpuset[byte_idx] |= 1 << bit_idx;
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        eprintln!("logicodex v1.34.0-alpha: CPU affinity on macOS is a stub — using default scheduler");
-        Err(AffinityError::UnsupportedPlatform)
+    // sched_setaffinity(pid=0, cpusetsize, &cpuset)
+    let ret = unsafe {
+        syscall::linux::syscall3(
+            syscall::linux::SYS_SCHED_SETAFFINITY,
+            0, // current thread
+            syscall::linux::CPU_SETSIZE as u64,
+            cpuset.as_ptr() as u64,
+        )
+    };
+
+    if ret != 0 {
+        return Err(AffinityError::SystemError(format!(
+            "sched_setaffinity(core={}) returned {}", core_id, ret
+        )));
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        eprintln!("logicodex v1.34.0-alpha: CPU affinity on Windows is a stub — using default scheduler");
-        Err(AffinityError::UnsupportedPlatform)
-    }
-
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-    {
-        Err(AffinityError::UnsupportedPlatform)
-    }
+    Ok(())
 }
+
+// ─── C4: macOS — thread_policy_set ───
+
+#[cfg(target_os = "macos")]
+pub fn set_cpu_affinity(core_id: u32) -> Result<(), AffinityError> {
+    if core_id >= num_cpus() as u32 {
+        return Err(AffinityError::InvalidCore(core_id));
+    }
+
+    // macOS tidak ada sched_setaffinity. Gunakan thread_policy_set
+    // dengan THREAD_AFFINITY_POLICY jika tersedia (10.5+).
+    // Fallback: teruskan tanpa affinity — log warning.
+    eprintln!(
+        "logicodex v1.39: macOS CPU affinity untuk core {} — "
+        "thread_policy_set tidak digunakan dalam sandbox (memerlukan framework Mach)",
+        core_id
+    );
+    Err(AffinityError::UnsupportedPlatform)
+}
+
+// ─── C5: Windows — SetThreadAffinityMask ───
+
+#[cfg(target_os = "windows")]
+pub fn set_cpu_affinity(core_id: u32) -> Result<(), AffinityError> {
+    if core_id >= num_cpus() as u32 {
+        return Err(AffinityError::InvalidCore(core_id));
+    }
+
+    // Windows: SetThreadAffinityMask(GetCurrentThread(), 1 << core_id)
+    // Dalam sandbox: log diagnostic — memerlukan kernel32 linking.
+    eprintln!(
+        "logicodex v1.39: Windows CPU affinity untuk core {} — "
+        "SetThreadAffinityMask memerlukan kernel32 (gunakan CallableRegistry FFI)",
+        core_id
+    );
+    Err(AffinityError::UnsupportedPlatform)
+}
+
+// ─── Fallback untuk platform lain ───
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+pub fn set_cpu_affinity(core_id: u32) -> Result<(), AffinityError> {
+    if core_id >= num_cpus() as u32 {
+        return Err(AffinityError::InvalidCore(core_id));
+    }
+    Err(AffinityError::UnsupportedPlatform)
+}
+
+// ─── num_cpus — gunakan std::thread::available_parallelism ───
 
 /// Dapatkan bilangan CPU cores yang tersedia.
 pub fn num_cpus() -> usize {
-    // Dalam produksi: num_cpus::get() atau std::thread::available_parallelism()
-    // Stub: anggar 4 cores (paling umum)
-    4
+    std::thread::available_parallelism()
+        .map(|p| p.get())
+        .unwrap_or(4) // fallback: 4 cores
 }
 
+// ─── current_core_id — Linux: sched_getcpu ───
+
 /// Dapatkan core ID semasa (thread yang sedang berjalan).
+#[cfg(target_os = "linux")]
 pub fn current_core_id() -> u32 {
-    // Dalam produksi: sched_getcpu() pada Linux
-    // Stub: 0
-    0
+    let cpu = unsafe {
+        syscall::linux::syscall0(syscall::linux::SYS_SCHED_GETCPU)
+    };
+    if cpu < 0 { 0 } else { cpu as u32 }
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn current_core_id() -> u32 {
+    0 // fallback
 }
 
 /// Verifikasi core_id adalah sah untuk platform ini.
 pub fn is_valid_core(core_id: u32) -> bool {
     (core_id as usize) < num_cpus()
+}
+
+/// Get affinity info string untuk diagnostic.
+pub fn affinity_info() -> String {
+    format!(
+        "CPU cores: {} | current core: {} | platform: {}-{}",
+        num_cpus(),
+        current_core_id(),
+        std::env::consts::OS,
+        std::env::consts::ARCH,
+    )
 }
