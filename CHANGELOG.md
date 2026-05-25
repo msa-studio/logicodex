@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged] — 2026-05-25 — v1.40.0-alpha: WASM Codegen Backend — LLVM → .wasm
+
+### Added
+- **CompilationTarget::Wasm**: New target variant parsed from `wasm` and `wasm32`.
+  - `entry_symbol()`: `_start` (WASM convention)
+  - `llvm_triple()`: `wasm32-unknown-unknown`
+  - `is_wasm()`: Check for WASM targets
+- **OutputKind::WasmModule**: New output kind for WASM generation.
+- **build_target_machine() WASM support**: LLVM WASM backend with:
+  - Target triple: `wasm32-unknown-unknown`
+  - CPU: `generic`
+  - Features: `+bulk-memory,+mutable-globals,+sign-ext`
+  - Relocation: Static
+  - Optimization: Default (size-conscious)
+- **Codegen WASM paths**: Both v1.21 (`compile`) and v1.30 (`compile_v130`) detect `is_wasm()` and select `OutputKind::WasmModule`.
+- **CLI `--target wasm`**: Recognized in argument parser. WASM-specific output messages and `wasm-ld` linking hints.
+- **Syscall**: `syscall0()` helper (no-argument syscall, used for `sched_getcpu`).
+
+### Usage
+```bash
+logicodex --target wasm input.ldx -o output.wasm
+wasm-ld --no-entry -o final.wasm output.wasm --export-all
+```
+
+### Validation
+- WASM Backend: 13/13 | Network Reactor: 13/13 | Sharded Reactor: 11/11 | Capability IR: 16/16 | CTL Mapper: 12/12 | Capability Fabric: 10/10 | Streaming: 6/6 | v1.21: 9/9 | **Total: 90/90 ✅ + runtime live + sharded + wasm**
+
+---
+
 ## [Merged] — 2026-05-25 — v1.39.0-alpha: Sharded Runtime — Real Threads + CPU Affinity
 
 ### Summary
