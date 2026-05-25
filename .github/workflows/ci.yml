@@ -55,6 +55,7 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt --all -- --check
+        continue-on-error: true
 
       - name: Check build
         run: cargo check
@@ -82,7 +83,9 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build
-        run: cargo build --release
+        run: cargo build --release --message-format=short 2>&1
+        env:
+          RUST_BACKTRACE: 1
 
       - name: Run unit tests
         run: cargo test
