@@ -106,7 +106,7 @@ sudo apt-get install llvm-15-dev libclang-15-dev
 RUSTFLAGS="-L/usr/lib/llvm-15/lib" cargo build --release
 
 # Verify
-cargo test --tier a
+cargo test --locked
 ```
 
 ### macOS
@@ -120,7 +120,7 @@ export RUSTFLAGS="-L$(brew --prefix llvm@15)/lib"
 cargo build --release
 
 # Verify
-cargo test --tier a
+cargo test --locked
 ```
 
 ### Windows (MSYS2)
@@ -134,7 +134,7 @@ export RAYLIB_DIR=/mingw64
 RUSTFLAGS="-L/mingw64/lib" cargo build --release
 
 # Verify
-cargo test --tier a
+cargo test --locked
 ```
 
 ---
@@ -142,6 +142,9 @@ cargo test --tier a
 ## Optimisasi dan Debug {#optimisasi}
 
 ### Profile Build
+
+Tier A/B/C dijalankan melalui Python scripts dalam `scripts/validators/` — bukan melalui `cargo test --locked`.
+Lihat `scripts/validate_v130_main_readiness.sh` untuk command sebenar yang digunakan.
 
 ```toml
 # Cargo.toml
@@ -214,13 +217,13 @@ build:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release
 
 test:
-	cargo test --tier a
-	cargo test --tier b
+	cargo test --locked
+	python3 scripts/validators/tier_b_feature/*.py
 
 test-all:
-	cargo test --tier a
-	cargo test --tier b
-	cargo test --tier c
+	cargo test --locked
+	python3 scripts/validators/tier_b_feature/*.py
+	python3 scripts/validators/tier_c_stress/*.py
 
 install:
 	cp target/release/logicodex /usr/local/bin/

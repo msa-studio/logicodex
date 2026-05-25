@@ -178,7 +178,7 @@ Validator tiering adalah sistem pengelasan validators ke dalam 3 tier berdasarka
 
 ```bash
 # Tier A — mesti lulus sebelum commit
-$ cargo test --tier a
+$ cargo test --locked
    Compiling logicodex v1.45.0-alpha
    Running 7 tests
    test validate_build ... ok
@@ -192,12 +192,12 @@ $ cargo test --tier a
    test result: ok. 7 passed; 0 failed
 
 # Tier B — warning jika gagal, tetapi build diteruskan
-$ cargo test --tier b
+$ python3 scripts/validators/tier_b_feature/*.py
    Running 13 tests
    ... (13 passed)
 
 # Tier C — hanya di CI
-$ cargo test --tier c
+$ python3 scripts/validators/tier_c_stress/*.py
    Running 8 tests
    ... (8 passed)
 ```
@@ -351,9 +351,9 @@ v1.21.0-alpha ──► v1.30.0-alpha ──► v1.31.0-alpha ──► v1.32.0-
 
 | Peraturan | Implementasi |
 |---|---|
-| **Tiada commit tanpa lulus Tier A** | Pre-commit hook menjalankan `cargo test --tier a` |
-| **Tier B mesti lulus sebelum merge** | PR gate menjalankan `cargo test --tier b` |
-| **Tier C hanya di CI** | GitHub Actions menjalankan `cargo test --tier c` |
+| **Tiada commit tanpa lulus Tier A** | Pre-commit hook menjalankan `cargo test --locked` + `scripts/validators/tier_a_core/*.py` |
+| **Tier B mesti lulus sebelum merge** | PR gate menjalankan `scripts/validators/tier_b_feature/*.py` |
+| **Tier C hanya di CI** | GitHub Actions menjalankan `scripts/validators/tier_c_stress/*.py` |
 | **Benchmark sebelum release** | Setiap minor release mesti lulus semua 4 layer benchmark |
 | **Update BASELINE.json** | Jika benchmark meningkat, kemas kini BASELINE.json |
 | **CHANGELOG.md** | Setiap commit mesti ada catatan dalam CHANGELOG |

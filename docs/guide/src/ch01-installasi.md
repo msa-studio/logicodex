@@ -94,8 +94,8 @@ RUSTFLAGS="-L/usr/lib/llvm-15/lib" cargo build --release
 ### 5. Verifikasi Pemasangan
 
 ```bash
-# Jalankan validator Tier A
-cargo test --tier a
+# Jalankan unit tests
+cargo test --locked
 
 # Jalankan semua tests
 cargo test

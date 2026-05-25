@@ -13,7 +13,7 @@ Brief description of the changes.
 
 ## Checklist
 
-- [ ] Tier A validators pass: `cargo test --tier a`
+- [ ] Tier A validators pass: `python3 scripts/validators/tier_a_core/*.py`
 - [ ] Code is formatted: `cargo fmt`
 - [ ] Clippy is clean: `cargo clippy -- -D warnings`
 - [ ] Documentation is updated (if applicable)

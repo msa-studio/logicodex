@@ -243,4 +243,4 @@ wasm-strip output.wasm
 | **Email** | mymsastudio@gmail.com |
 | **Dokumentasi** | docs/white-paper/ dan docs/guide/ |
 | **Contoh Kod** | examples/ dalam repositori |
-| **Validator** | `cargo test --tier a` untuk semak integriti |
+| **Validator** | `cargo test --locked` + `scripts/validators/tier_a_core/*.py` untuk semak integriti |

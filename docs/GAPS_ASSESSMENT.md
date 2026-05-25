@@ -70,7 +70,7 @@ categories = ["compilers", "development-tools::build-utils", "no-std"]
 
 **Impact:**
 - Contributors may push code that breaks builds without knowing
-- No automated validation that `cargo test --tier a` passes
+- No automated validation that `cargo test --locked` passes
 - No automated benchmark regression detection
 - No automated documentation build verification
 
@@ -87,7 +87,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.75
       - run: sudo apt-get install -y llvm-15-dev libclang-15-dev
       - run: RUSTFLAGS="-L/usr/lib/llvm-15/lib" cargo build --release
-      - run: cargo test --tier a
+      - run: cargo test --locked
       - run: cargo clippy -- -D warnings
       - run: cargo fmt --check
 ```
@@ -169,12 +169,12 @@ build:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release
 
 test:
-	cargo test --tier a
+	cargo test --locked
 
 test-all:
-	cargo test --tier a
-	cargo test --tier b
-	cargo test --tier c
+	cargo test --locked
+	python3 scripts/validators/tier_b_feature/*.py
+	python3 scripts/validators/tier_c_stress/*.py
 
 fmt:
 	cargo fmt
@@ -340,7 +340,7 @@ ENTRYPOINT ["./target/release/logicodex"]
 set -e
 cargo fmt --check
 cargo clippy -- -D warnings
-cargo test --tier a
+cargo test --locked
 ```
 
 ---
