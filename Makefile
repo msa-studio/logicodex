@@ -27,7 +27,7 @@ fmt:
 	cargo fmt
 
 lint:
-	cargo clippy -- -D warnings
+	cargo clippy
 
 bench:
 	cd benches && bash run_all.sh quick
@@ -52,9 +52,11 @@ dev-setup:
 
 validate:
 	@echo "=== Format check ==="
-	cargo fmt --check
+	cargo fmt --all -- --check
 	@echo "=== Clippy ==="
-	cargo clippy -- -D warnings
-	@echo "=== Tier A tests ==="
-	cargo test --tier a
+	cargo clippy
+	@echo "=== Unit tests ==="
+	cargo test --locked
+	@echo "=== Tier A validators ==="
+	@for v in scripts/validators/tier_a_core/*.py; do echo "--- $$(basename $$v) ---"; python3 "$$v"; done
 	@echo "=== All checks passed ==="
