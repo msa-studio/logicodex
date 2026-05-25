@@ -320,6 +320,54 @@ impl Color {
     }
 }
 
+// ─── Audio Types ───
+// v1.43: Raylib audio types for sound, music, and streaming.
+
+/// Raw audio data (samples + format info)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Wave {
+    pub frame_count: u32,
+    pub sample_rate: u32,
+    pub sample_size: u32,
+    pub channels: u32,
+    pub data: *mut u8,
+}
+
+/// Loaded sound (short audio, fully in memory)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Sound {
+    pub stream: AudioStream,
+    pub frame_count: u32,
+}
+
+/// Streaming music (long audio, decoded on the fly)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Music {
+    pub stream: AudioStream,
+    pub frame_count: u32,
+    pub looping: bool,
+    pub ctx_type: i32,
+    pub ctx_data: *mut u8,
+}
+
+/// Custom audio stream for real-time audio generation
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct AudioStream {
+    pub buffer: *mut u8,
+    pub processor: *mut u8,
+    pub sample_rate: u32,
+    pub sample_size: u32,
+    pub channels: u32,
+}
+
+/// Audio callback signature for `SetAudioStreamCallback`.
+/// Receives a pointer to float buffer and frame count.
+pub type AudioCallback = extern "C" fn(buffer_data: *mut f32, frames: u32);
+
 // ─── Raw FFI Declarations ───
 // These are the actual C function signatures from Raylib.
 // They are unsafe to call directly — use the wrapper layer in raylib.rs.
@@ -360,6 +408,43 @@ extern "C" {
     pub fn GetMouseX() -> i32;
     pub fn GetMouseY() -> i32;
     pub fn GetMousePosition() -> Vector2;
+
+    // ─── Audio (v1.43) ───
+    // Device
+    pub fn InitAudioDevice();
+    pub fn CloseAudioDevice();
+    pub fn IsAudioDeviceReady() -> bool;
+    pub fn SetMasterVolume(volume: f32);
+    // Sound (short audio)
+    pub fn LoadSound(fileName: *const i8) -> Sound;
+    pub fn UnloadSound(sound: Sound);
+    pub fn PlaySound(sound: Sound);
+    pub fn StopSound(sound: Sound);
+    pub fn PauseSound(sound: Sound);
+    pub fn ResumeSound(sound: Sound);
+    pub fn IsSoundPlaying(sound: Sound) -> bool;
+    pub fn SetSoundVolume(sound: Sound, volume: f32);
+    pub fn SetSoundPitch(sound: Sound, pitch: f32);
+    // Music (streaming)
+    pub fn LoadMusicStream(fileName: *const i8) -> Music;
+    pub fn UnloadMusicStream(music: Music);
+    pub fn PlayMusicStream(music: Music);
+    pub fn StopMusicStream(music: Music);
+    pub fn PauseMusicStream(music: Music);
+    pub fn ResumeMusicStream(music: Music);
+    pub fn IsMusicStreamPlaying(music: Music) -> bool;
+    pub fn UpdateMusicStream(music: Music);
+    pub fn SetMusicVolume(music: Music, volume: f32);
+    pub fn SetMusicPitch(music: Music, pitch: f32);
+    pub fn SeekMusicStream(music: Music, position: f32);
+    // Audio stream (real-time / callback)
+    pub fn LoadAudioStream(sampleRate: u32, sampleSize: u32, channels: u32) -> AudioStream;
+    pub fn UnloadAudioStream(stream: AudioStream);
+    pub fn PlayAudioStream(stream: AudioStream);
+    pub fn StopAudioStream(stream: AudioStream);
+    pub fn IsAudioStreamPlaying(stream: AudioStream) -> bool;
+    /// Set callback for audio stream — triggers StrictAudioContext validation.
+    pub fn SetAudioStreamCallback(stream: AudioStream, callback: AudioCallback);
 }
 
 /// Mouse button constants

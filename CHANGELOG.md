@@ -6,6 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged] — 2026-05-25 — v1.43.0-alpha: Raylib Audio — 22 Functions + StrictAudioContext Integration
+
+### Summary
+Added 22 Raylib audio functions to the FFI layer, integrated with the existing bare metal audio capability system. No conflict between the two systems — they are complementary: Raylib provides the **implementation** (how to play audio), the capability system provides **security** (who can access audio).
+
+### Audio Types (`src/ffi/raylib_sys.rs`)
+- `Wave` — raw audio data (samples + format)
+- `Sound` — loaded short audio (fully in memory)
+- `Music` — streaming long audio (decoded on the fly)
+- `AudioStream` — custom real-time audio stream
+- `AudioCallback` — function pointer signature for `SetAudioStreamCallback`
+
+### Audio Functions — 22 Registered in CallableRegistry
+
+| Category | Functions | Count |
+|---|---|---|
+| Device | `InitAudioDevice`, `CloseAudioDevice`, `IsAudioDeviceReady`, `SetMasterVolume` | 4 |
+| Sound | `LoadSound`, `UnloadSound`, `PlaySound`, `StopSound`, `IsSoundPlaying` | 5 |
+| Music | `LoadMusicStream`, `UnloadMusicStream`, `PlayMusicStream`, `StopMusicStream`, `IsMusicStreamPlaying`, `UpdateMusicStream`, `SetMusicVolume`, `SeekMusicStream` | 8 |
+| Stream | `LoadAudioStream`, `UnloadAudioStream`, `PlayAudioStream`, `StopAudioStream`, `IsAudioStreamPlaying` | 5 |
+
+All audio functions: `UnsafeRequired`, C ABI. Sound/Music/Stream use `i64` handles (opaque).
+
+### Integration with StrictAudioContext
+- `SetAudioStreamCallback(stream, callback)` → triggers `Analyzer::register_audio_callback(func_name)`
+- Callback function validated by `verify_audio_safety()` against 4 violation types:
+  - `AudioViolationIo` — no Print/DrawText/InitWindow in audio ISR
+  - `AudioViolationRecursion` — no self-calling
+  - `AudioViolationUnboundedLoop` — no unbounded `loop { }`
+  - `AudioViolationForbiddenCall` — no malloc/free/spawn
+
+### Integration with Capability System
+- Audio functions map to `Audio.Main` capability gate (`lib/core/capability.ldx`)
+- CTL Mapper: `Audio` domain → `wasi:io/custom` for WASM targets
+- Host Reactor mediates audio access for WASM guests
+
+### Safe Wrappers (`src/ffi/raylib.rs`)
+22 safe wrapper functions with proper documentation and safety notes.
+
+### Validation
+- v1.43 Audio Integration: 80/80 | v1.42 Raylib Pending: 9/9 | Host Reactor: 20/20 | WASM Backend: 13/13 | **Total: 122/122 ✅**
+
+---
+
 ## [Merged] — 2026-05-25 — v1.42.0-alpha: Raylib FFI — 8 Pending Items Resolved
 
 ### Summary

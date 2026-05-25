@@ -119,15 +119,20 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
 }
 
 pub use raylib_sys::{
-    Color, Image, Rectangle, Texture2D, Vector2, Vector3, KEY_A, KEY_B, KEY_BACKSPACE,
-    KEY_C, KEY_D, KEY_DELETE, KEY_DOWN, KEY_E, KEY_EIGHT, KEY_ENTER, KEY_ESCAPE, KEY_F,
-    KEY_FIVE, KEY_FOUR, KEY_G, KEY_H, KEY_I, KEY_INSERT, KEY_J, KEY_K, KEY_L, KEY_LEFT,
-    KEY_LEFT_ALT, KEY_LEFT_CONTROL, KEY_LEFT_SHIFT, KEY_LEFT_SUPER, KEY_M, KEY_MINUS,
-    KEY_N, KEY_NINE, KEY_O, KEY_ONE, KEY_P, KEY_PERIOD, KEY_Q, KEY_R, KEY_RIGHT,
-    KEY_RIGHT_ALT, KEY_RIGHT_CONTROL, KEY_RIGHT_SHIFT, KEY_RIGHT_SUPER, KEY_S, KEY_SEMICOLON,
-    KEY_SEVEN, KEY_SIX, KEY_SLASH, KEY_SPACE, KEY_T, KEY_TAB, KEY_THREE, KEY_TWO, KEY_U,
-    KEY_UP, KEY_V, KEY_W, KEY_X, KEY_Y, KEY_Z, KEY_ZERO, MOUSE_BUTTON_LEFT,
-    MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT,
+    // Core types
+    Color, Image, Rectangle, Texture2D, Vector2, Vector3,
+    // Audio types (v1.43)
+    AudioCallback, AudioStream, Music, Sound, Wave,
+    // Key constants
+    KEY_A, KEY_B, KEY_BACKSPACE, KEY_C, KEY_D, KEY_DELETE, KEY_DOWN, KEY_E,
+    KEY_EIGHT, KEY_ENTER, KEY_ESCAPE, KEY_F, KEY_FIVE, KEY_FOUR, KEY_G, KEY_H,
+    KEY_I, KEY_INSERT, KEY_J, KEY_K, KEY_L, KEY_LEFT, KEY_LEFT_ALT,
+    KEY_LEFT_CONTROL, KEY_LEFT_SHIFT, KEY_LEFT_SUPER, KEY_M, KEY_MINUS, KEY_N,
+    KEY_NINE, KEY_O, KEY_ONE, KEY_P, KEY_PERIOD, KEY_Q, KEY_R, KEY_RIGHT,
+    KEY_RIGHT_ALT, KEY_RIGHT_CONTROL, KEY_RIGHT_SHIFT, KEY_RIGHT_SUPER, KEY_S,
+    KEY_SEMICOLON, KEY_SEVEN, KEY_SIX, KEY_SLASH, KEY_SPACE, KEY_T, KEY_TAB,
+    KEY_THREE, KEY_TWO, KEY_U, KEY_UP, KEY_V, KEY_W, KEY_X, KEY_Y, KEY_Z,
+    KEY_ZERO, MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT,
 };
 
 /// Type IDs for all Raylib constructible struct types.
@@ -299,6 +304,157 @@ pub unsafe fn get_mouse_position() -> Vector2 {
     raylib_sys::GetMousePosition()
 }
 
+// ─── Audio (v1.43) ───
+// Safe wrappers for Raylib audio functions.
+// All audio functions require the Audio.Main capability gate.
+
+/// Initialize the audio device. Must be called before any audio function.
+pub unsafe fn init_audio_device() {
+    raylib_sys::InitAudioDevice();
+}
+
+/// Close the audio device and release all audio resources.
+pub unsafe fn close_audio_device() {
+    raylib_sys::CloseAudioDevice();
+}
+
+/// Check if the audio device is ready.
+pub unsafe fn is_audio_device_ready() -> bool {
+    raylib_sys::IsAudioDeviceReady()
+}
+
+/// Set master volume (0.0 to 1.0).
+pub unsafe fn set_master_volume(volume: f32) {
+    raylib_sys::SetMasterVolume(volume);
+}
+
+// ─── Sound (short audio) ───
+
+/// Load a sound from a file.
+pub unsafe fn load_sound(file_name: &str) -> Sound {
+    let c_name = std::ffi::CString::new(file_name).expect("filename contains null byte");
+    raylib_sys::LoadSound(c_name.as_ptr())
+}
+
+/// Unload a sound and free its memory.
+pub unsafe fn unload_sound(sound: Sound) {
+    raylib_sys::UnloadSound(sound);
+}
+
+/// Play a sound.
+pub unsafe fn play_sound(sound: Sound) {
+    raylib_sys::PlaySound(sound);
+}
+
+/// Stop a playing sound.
+pub unsafe fn stop_sound(sound: Sound) {
+    raylib_sys::StopSound(sound);
+}
+
+/// Check if a sound is currently playing.
+pub unsafe fn is_sound_playing(sound: Sound) -> bool {
+    raylib_sys::IsSoundPlaying(sound)
+}
+
+/// Set sound volume (0.0 to 1.0).
+pub unsafe fn set_sound_volume(sound: Sound, volume: f32) {
+    raylib_sys::SetSoundVolume(sound, volume);
+}
+
+/// Set sound pitch (1.0 = normal).
+pub unsafe fn set_sound_pitch(sound: Sound, pitch: f32) {
+    raylib_sys::SetSoundPitch(sound, pitch);
+}
+
+// ─── Music (streaming) ───
+
+/// Load music from a file (streams from disk).
+pub unsafe fn load_music_stream(file_name: &str) -> Music {
+    let c_name = std::ffi::CString::new(file_name).expect("filename contains null byte");
+    raylib_sys::LoadMusicStream(c_name.as_ptr())
+}
+
+/// Unload music stream and free resources.
+pub unsafe fn unload_music_stream(music: Music) {
+    raylib_sys::UnloadMusicStream(music);
+}
+
+/// Play a music stream.
+pub unsafe fn play_music_stream(music: Music) {
+    raylib_sys::PlayMusicStream(music);
+}
+
+/// Stop a music stream.
+pub unsafe fn stop_music_stream(music: Music) {
+    raylib_sys::StopMusicStream(music);
+}
+
+/// Pause a music stream.
+pub unsafe fn pause_music_stream(music: Music) {
+    raylib_sys::PauseMusicStream(music);
+}
+
+/// Resume a paused music stream.
+pub unsafe fn resume_music_stream(music: Music) {
+    raylib_sys::ResumeMusicStream(music);
+}
+
+/// Check if music is playing.
+pub unsafe fn is_music_stream_playing(music: Music) -> bool {
+    raylib_sys::IsMusicStreamPlaying(music)
+}
+
+/// Update music stream (call every frame).
+pub unsafe fn update_music_stream(music: Music) {
+    raylib_sys::UpdateMusicStream(music);
+}
+
+/// Set music volume (0.0 to 1.0).
+pub unsafe fn set_music_volume(music: Music, volume: f32) {
+    raylib_sys::SetMusicVolume(music, volume);
+}
+
+/// Seek to a position in the music (seconds).
+pub unsafe fn seek_music_stream(music: Music, position: f32) {
+    raylib_sys::SeekMusicStream(music, position);
+}
+
+// ─── Audio Stream (real-time / callback) ───
+
+/// Load an audio stream for real-time audio.
+pub unsafe fn load_audio_stream(sample_rate: u32, sample_size: u32, channels: u32) -> AudioStream {
+    raylib_sys::LoadAudioStream(sample_rate, sample_size, channels)
+}
+
+/// Unload an audio stream.
+pub unsafe fn unload_audio_stream(stream: AudioStream) {
+    raylib_sys::UnloadAudioStream(stream);
+}
+
+/// Play an audio stream.
+pub unsafe fn play_audio_stream(stream: AudioStream) {
+    raylib_sys::PlayAudioStream(stream);
+}
+
+/// Stop an audio stream.
+pub unsafe fn stop_audio_stream(stream: AudioStream) {
+    raylib_sys::StopAudioStream(stream);
+}
+
+/// Check if an audio stream is playing.
+pub unsafe fn is_audio_stream_playing(stream: AudioStream) -> bool {
+    raylib_sys::IsAudioStreamPlaying(stream)
+}
+
+/// Set a callback for real-time audio generation.
+/// # Safety
+/// The callback runs on the audio thread (ISR-like).
+/// The callback function name should be registered with StrictAudioContext
+/// via `Analyzer::register_audio_callback()` for safety validation.
+pub unsafe fn set_audio_stream_callback(stream: AudioStream, callback: AudioCallback) {
+    raylib_sys::SetAudioStreamCallback(stream, callback);
+}
+
 // ─── Struct Constructor Registry ───
 
 /// Return true if the given name is a Raylib struct constructor
@@ -396,6 +552,35 @@ pub fn register_raylib_functions(
     register_fn!("IsMouseButtonPressed", &[ids.i32_], ids.bool_);
     register_fn!("GetMouseX", &[], ids.i32_);
     register_fn!("GetMouseY", &[], ids.i32_);
+
+    // ─── Audio (v1.43: Sound + Music + AudioStream) ───
+    // All audio functions require Audio.Main capability gate.
+    // Audio stream callbacks are validated by StrictAudioContext.
+    register_fn!("InitAudioDevice", &[], ids.unit);
+    register_fn!("CloseAudioDevice", &[], ids.unit);
+    register_fn!("IsAudioDeviceReady", &[], ids.bool_);
+    register_fn!("SetMasterVolume", &[ids.f32_], ids.unit);
+    // Sound
+    register_fn!("LoadSound", &[c_string], ids.i64_); // returns Sound handle
+    register_fn!("UnloadSound", &[ids.i64_], ids.unit);
+    register_fn!("PlaySound", &[ids.i64_], ids.unit);
+    register_fn!("StopSound", &[ids.i64_], ids.unit);
+    register_fn!("IsSoundPlaying", &[ids.i64_], ids.bool_);
+    // Music
+    register_fn!("LoadMusicStream", &[c_string], ids.i64_); // returns Music handle
+    register_fn!("UnloadMusicStream", &[ids.i64_], ids.unit);
+    register_fn!("PlayMusicStream", &[ids.i64_], ids.unit);
+    register_fn!("StopMusicStream", &[ids.i64_], ids.unit);
+    register_fn!("IsMusicStreamPlaying", &[ids.i64_], ids.bool_);
+    register_fn!("UpdateMusicStream", &[ids.i64_], ids.unit);
+    register_fn!("SetMusicVolume", &[ids.i64_, ids.f32_], ids.unit);
+    register_fn!("SeekMusicStream", &[ids.i64_, ids.f32_], ids.unit);
+    // Audio Stream
+    register_fn!("LoadAudioStream", &[ids.i32_, ids.i32_, ids.i32_], ids.i64_); // returns stream handle
+    register_fn!("UnloadAudioStream", &[ids.i64_], ids.unit);
+    register_fn!("PlayAudioStream", &[ids.i64_], ids.unit);
+    register_fn!("StopAudioStream", &[ids.i64_], ids.unit);
+    register_fn!("IsAudioStreamPlaying", &[ids.i64_], ids.bool_);
 
     // ─── Math Utilities (v1.42 P4: safe functions, no unsafe required) ───
     register_math_functions(registry, callables);
