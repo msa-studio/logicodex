@@ -10,6 +10,7 @@ env:
   CARGO_TERM_COLOR: always
   LLVM_SYS_150_PREFIX: /usr/lib/llvm-15
   RUSTFLAGS: "-L/usr/lib/llvm-15/lib"
+  RAYLIB_NO_LINK: "1"
 
 jobs:
   check:
