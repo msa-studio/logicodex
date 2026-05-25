@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged via PR #35] — 2026-05-25 — v1.34.0-alpha: The Sharded Deterministic Reactor
+
+### Added
+- **Shard Topology** (`src/tier2/shard.rs`): Service Graph + Shard Mapping
+  - `ShardAssignment` — satu shard = satu CPU core + set servis + memory budget
+  - `ServiceGraph` — nodes = servis, edges = komunikasi (Door/Direct)
+  - `ShardTopology` — assignments + graph + verifikasi
+  - `ShardTopology::verify()` — 6 compile-time safety checks
+  - `ShardTopology::to_manifest_json()` — JSON untuk visualisasi/audit
+- **ShardedReactor** (`src/net/sharded_reactor.rs`): Multi-core deterministic reactor
+  - `ShardedReactor { shards: Vec<ShardInstance> }` — satu instance per CPU core
+  - `ShardInstance { reactor, pool, core_id }` — isolate per core
+  - RAII Drop — graceful shutdown semua shards
+- **ShardLocalPool** (`src/net/shard_local_pool.rs`): Per-shard memory budget tracking
+- **CPU Affinity** (`src/net/affinity.rs`): Linux sched_setaffinity (macOS/Windows stub)
+- **Library** (`lib/core/shard_manifest.ldx`): Contoh manifest (WebShard/MetricsShard/AdminShard + Door)
+- **Tests**: `tests/shard_topology.rs` (11 assertions) + `tests/sharded_reactor.rs` (13 assertions)
+- **Validator**: `scripts/validate_v134_sharded_reactor.py` (12 sections)
+
+### Validation: 72/72 ✅
+
+---
+
 ## [Merged via PR #31] — 2026-05-25 — v1.31.0-alpha: Tier 2 — 2-Pass Streaming Engine
 
 ### Added

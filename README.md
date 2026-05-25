@@ -1,5 +1,5 @@
-# Logicodex Language — v1.33.0-alpha
-## The Deterministic Systems Platform
+# Logicodex Language — v1.34.0-alpha
+## The Sharded Deterministic Systems Platform
 
 > v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor
 
@@ -49,6 +49,7 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 | **v1.31.0-alpha** | Streaming Compiler | 2-Pass Engine — RAM stays flat regardless of program size; SemanticSummary (~64B/symbol) replaces full AST |
 | **v1.32.0-alpha** | Capability Security | Static Capability Fabric — Gate/Door split, compile-time topology verification, supply-chain `.cap` files, privilege escalation detection |
 | **v1.33.0-alpha** | Network Reactor | Deterministic event-driven networking — RAII auto-cleanup (no socket leaks), taint state machine, backpressure policies, service manifest syntax |
+| **v1.34.0-alpha** | **Sharded Reactor** | **Multi-core deterministic reactor — per-CPU-core instance, static affinity, shard-local memory pool, cross-shard Door-only communication. Near-linear CPU scaling.** |
 
 ### Architecture: Door + Gate + Service
 
@@ -65,8 +66,9 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 - **Door** = Data transport (v1.30 Phase 3) — `lib/core/ring_buffer.ldx`
 - **Gate** = Security contract (v1.32) — `src/tier2/gate.rs`, `src/tier2/topology.rs`
 - **Service** = Event loop + connection (v1.33) — `src/net/*.rs`
+- **Shard** = Multi-core reactor instance (v1.34) — `src/net/sharded_reactor.rs`, `src/tier2/shard.rs`
 
-**Validation: 60/60 checks passing — zero regression across all versions.**
+**Validation: 72/72 checks passing — zero regression across all versions.**
 
 ### Documentation
 
@@ -77,6 +79,7 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 | `docs/v1.31-STREAMING.md` | Tier 2 Streaming Semantic Compiler |
 | `docs/v1.32-CAPABILITY.md` | Static Capability Fabric (Gate/Door/Topology) |
 | `docs/v1.33-REACTOR.md` | Deterministic Network Reactor (RAII/Service/Taint) |
+| `docs/v1.34-SHARDED.md` | Sharded Deterministic Reactor (Multi-core/Shard/Affinity) |
 
 ---
 

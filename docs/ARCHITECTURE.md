@@ -132,6 +132,34 @@ Healthy → Suspicious → Closing
 
 ---
 
+## Shard — Multi-Core Reactor Instance
+
+| Attribute | Value |
+|---|---|
+| **What** | Per-CPU-core reactor instance + local memory pool |
+| **When** | Multi-core scaling — satu core = satu shard |
+| **Isolation** | Zero sharing — tiada shared state antara shards |
+| **Cross-Shard** | Door Only (SPSC) — forbidden by default |
+| **Files** | `src/net/sharded_reactor.rs`, `src/tier2/shard.rs` |
+| **Introduced** | v1.34.0-alpha |
+
+**Manifest:**
+```ldx
+shard WebShard {
+    core: 0,
+    services: [WebServer, ApiGateway],
+    budget_mb: 256,
+}
+```
+
+**The Sharded Reactor Manifesto:**
+1. **Shard Isolation** — Setiap CPU Core = satu ReactorInstance + LocalPool
+2. **Affinity-Pinned** — Kompiler static mapping service → core
+3. **Deterministic Budgeting** — Setiap shard ada memory quota
+4. **Cross-Shard = Door Only** — SPSC Message Passing — forbidden by default
+
+---
+
 ## Complete Component Map
 
 | Version | Component | Status | Tests |
@@ -153,16 +181,12 @@ Healthy → Suspicious → Closing
 | v1.31 | Tier 2 Streaming Engine | ✅ Merged | 6/6 |
 | v1.32 | Static Capability Fabric | ✅ Merged | 10/10 |
 | v1.33 | Deterministic Network Reactor | ✅ Merged | 13/13 |
-| | **TOTAL** | | **260+** |
+| **v1.34** | **Sharded Deterministic Reactor** | ✅ **Merged** | **12/12** |
+| | **TOTAL** | | **285+** |
 
 ---
 
 ## Future Work
-
-### v1.34.0-alpha: Sharded Multi-Core Reactor
-- Per-CPU-core reactor instance
-- Static CPU affinity untuk servis
-- Cross-core communication melalui dedicated Door
 
 ### v1.35.0-alpha: WebAssembly Target
 - Wasm code generation daripada LLVM IR
@@ -178,7 +202,7 @@ Healthy → Suspicious → Closing
 
 ## Validation
 
-**60/60 checks passing** — zero regression across all versions.
+**72/72 checks passing** — zero regression across all versions.
 
 ```
 Network Reactor:     13/13 ✅

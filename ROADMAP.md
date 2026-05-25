@@ -11,7 +11,9 @@ This roadmap describes how **Logicodex** progresses from an alpha compiler basel
 | v1.31 | Streaming compiler | ✅ **COMPLETED** — 6/6 checks passing |
 | v1.32 | Capability security | ✅ **COMPLETED** — 10/10 checks passing |
 | v1.33 | Network reactor | ✅ **COMPLETED** — 13/13 checks passing |
-| v1.34 | Sharded multi-core reactor | 📋 **PLANNED** |
+| v1.34 | Sharded multi-core reactor | ✅ **COMPLETED** — 12/12 checks passing |
+| v1.35 | WebAssembly target | 📋 **PLANNED** |
+| v1.40 | Full freestanding support | 📋 **PLANNED** |
 | v1.35 | WebAssembly target | 📋 **PLANNED** |
 | v2.00 | Pointer provenance engine | 🔬 **RESEARCH** |
 
@@ -52,6 +54,7 @@ Transform Logicodex from a compiler into a hardware-integrated systems platform.
 | v1.31 — Tier 2 Streaming Engine (2-Pass Engine, SemanticSummary ~64B, MetadataGraph) | **[X] COMPLETED / MERGED #31** | Mohamad Supardi Abdul | 6/6 validator checks, `src/tier2/`. RAM stays flat regardless of program size. See `docs/v1.31-STREAMING.md`. |
 | v1.32 — Static Capability Fabric (Gate/Door split, 3 gate types, topology verify, .cap file, privilege escalation detection) | **[X] COMPLETED / MERGED #32** | Mohamad Supardi Abdul | 10/10 validator checks, `src/tier2/gate.rs`, `src/tier2/topology.rs`. Zero runtime mediation. See `docs/v1.32-CAPABILITY.md`. |
 | v1.33 — Deterministic Network Reactor (RAII Connection, Taint FSM, Service manifest, backpressure policies) | **[X] COMPLETED / MERGED #33** | Mohamad Supardi Abdul | 13/13 validator checks, `src/net/`. No socket leaks. See `docs/v1.33-REACTOR.md`. |
+| v1.34 — Sharded Deterministic Reactor (ShardTopology, ShardedReactor, CPU affinity, ShardLocalPool, cross-shard Door-only) | **[X] COMPLETED / MERGED #35** | Mohamad Supardi Abdul | 12/12 validator checks, `src/net/sharded_reactor.rs`, `src/tier2/shard.rs`. Per-CPU-core reactor. See `docs/v1.34-SHARDED.md`. |
 
 ## Milestone 2: Tighten Language Semantics and Diagnostics
 
@@ -95,15 +98,14 @@ Runtime memory attestation, Golden Hash planning, hard fail-stop behavior, and f
 | Freestanding support | Experimental target profile | Linker scripts, bootloader integration notes, hardware-region policies, and minimal examples are validated. |
 | Migration assistant | Conceptual roadmap | Translation output is reviewable, testable, and clearly marked as assisted migration rather than automatic proof of correctness. |
 
-## Milestone 5b: Future Platform Work (v1.34-v1.40)
+## Milestone 5b: Future Platform Work (v1.35-v1.40)
 
-Sharded multi-core reactor, WebAssembly target, and full freestanding support.
+WebAssembly target and full freestanding support.
 
 | Objective | Current status | Practical acceptance signal |
 |---|---|---|
-| v1.34 — Sharded multi-core reactor | Planned | Per-CPU-core reactor instance with static affinity. Near-linear scaling. Cross-core communication via dedicated Door. |
-| v1.35 — WebAssembly target | Long-term objective | A documented `.wasm` generation path can compile and run one representative Logicodex program. Capability gates for browser APIs. |
-| v1.40 — Full freestanding support | Research objective | Bootloader examples, raw pointer gates, hardware-region policies, OS-less target profile with linker scripts. |
+| v1.35 — WebAssembly target | 📋 Planned | A documented `.wasm` generation path can compile and run one representative Logicodex program. Capability gates for browser APIs. |
+| v1.40 — Full freestanding support | 🔬 Research objective | Bootloader examples, raw pointer gates, hardware-region policies, OS-less target profile with linker scripts. |
 
 ## Milestone 6: Prepare the Logicodex v2.0 Pointer Provenance Research Track
 
