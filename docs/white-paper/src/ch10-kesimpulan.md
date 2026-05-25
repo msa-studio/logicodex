@@ -148,8 +148,8 @@ Logicodex membuktikan bahawa kebolehcapaian dan kawalan sistem boleh wujud dalam
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
 ============================================================
-     White Paper — Compiler Philosophy & Architecture
-         Version 1.45.0-alpha — May 2026
+     Experimental Compiler Philosophy & Architecture
+         Logicodex Language — v1.45.0-alpha
          Architect: Mohamad Supardi Abdul
          Contact: mymsastudio@gmail.com
 ============================================================

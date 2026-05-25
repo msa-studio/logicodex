@@ -1,4 +1,4 @@
-# White Paper: Compiler Philosophy and Architecture
+# Experimental Compiler Philosophy and Architecture
 
 ## Logicodex — Deterministic Systems Programming Language
 
@@ -15,7 +15,9 @@
 
 ## Abstrak
 
-Dokumen ini ialah **white paper falsafah dan arkitektur** untuk bahasa pengaturcaraan sistem Logicodex. Ia bukan manual pengguna, bukan rujukan API, dan bukan tutorial — ia adalah **rekod perbincangan dan justifikasi** mengapa setiap keputusan arkitektur dibuat, dari compiler core v1.21 hingga framework benchmark v1.45.
+Dokumen ini ialah **dokumen eksperimental falsafah dan arkitektur compiler** untuk bahasa pengaturcaraan sistem Logicodex. Ia bukan manual pengguna, bukan rujukan API, dan bukan tutorial — ia adalah **rekod perbincangan dan justifikasi** mengapa setiap keputusan arkitektur dibuat, dari compiler core v1.21 hingga framework benchmark v1.45.
+
+> **Nota:** Dokumen ini merangkumi evolusi arkitektur **v1.21 hingga v1.45**. Untuk spesifikasi asas (baseline) v1.21, rujuklah [`WHITE_PAPER.md`](../../WHITE_PAPER.md) di root repositori — dokumen formal yang menjadi asas kepada semua pembangunan berikutnya.
 
 Logicodex lahir dari satu keyakinan: **syntax seharusnya menjadi antara muka manusia, dan semantik seharusnya menjadi kontrak mesin**. Dokumen ini merakam:
 
@@ -39,6 +41,6 @@ Logicodex lahir dari satu keyakinan: **syntax seharusnya menjadi antara muka man
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
 ============================================================
-     White Paper — Compiler Philosophy & Architecture
+     Experimental Compiler Philosophy & Architecture
 ============================================================
 ```

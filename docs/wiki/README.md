@@ -4,11 +4,13 @@ Direktori ini mengandungi **2 wiki berasingan** yang melengkapi satu sama lain u
 
 ---
 
-## Wiki 1: White Paper — Compiler Philosophy and Architecture
+## Wiki 1: Experimental Compiler Philosophy and Architecture
 
 **Lokasi:** [`docs/white-paper/`](./white-paper/)
 
-**Untuk siapa:** Jurutera sistem, pengkaji bahasa pengaturcaraan, kontributor, dan sesiapa yang ingin memahami **kenapa** Logicodex direka begitu rupa.
+**Untuk siapa:** Jurutera sistem, pengkaji bahasa pengaturcaraan, kontributor, dan sesiapa yang ingin memahami **kenapa** Logicodex direka begitu rupa — serta bagaimana falsafah compiler eksperimental ini berevolusi melalui 14 alpha releases.
+
+> **Hubungan dengan White Paper Asal:** Dokumen ini adalah **evolusi hidup** daripada [`WHITE_PAPER.md`](../../WHITE_PAPER.md) di root repositori. White Paper asal (v1.21) adalah spesifikasi baseline formal — dokumen ini merangkumi semua perbincangan, justifikasi, dan keputusan arkitektur dari v1.21 sehingga v1.45.
 
 **Kandungan:**
 - Falsafah rekabentuk (5 prinsip utama)
@@ -73,7 +75,7 @@ mdbook build
 
 ## Perbezaan antara 2 Wiki
 
-| Aspek | White Paper | Functions And Guide |
+| Aspek | Experimental Philosophy | Functions And Guide |
 |---|---|---|
 | **Fokus** | "Kenapa" | "Cara" |
 | **Pembaca** | Jurutera, pengkaji, kontributor | Pembangun, pelajar, pengguna |
@@ -92,7 +94,7 @@ mdbook build
 # Pasang mdbook
 cargo install mdbook
 
-# Bina White Paper
+# Bina Experimental Philosophy Wiki
 cd docs/white-paper
 mdbook build
 mdbook serve  # Buka http://localhost:3000
@@ -106,7 +108,7 @@ mdbook serve  # Buka http://localhost:3000
 ### Cara 2: Markdown Langsung
 
 Semua fail adalah Markdown biasa. Anda boleh membaca terus:
-- `docs/white-paper/src/SUMMARY.md` — kandungan White Paper
+- `docs/white-paper/src/SUMMARY.md` — kandungan Experimental Philosophy
 - `docs/guide/src/SUMMARY.md` — kandungan Functions Guide
 
 ### Cara 3: GitHub Wiki (Masa Depan)
@@ -121,7 +123,7 @@ Fail-fail ini direka untuk dipindahkan ke GitHub Wiki apabila projek mencapai ta
 docs/
 ├── wiki/
 │   └── README.md          # Dokumen ini
-├── white-paper/           # Wiki 1: White Paper
+├── white-paper/           # Wiki 1: Experimental Compiler Philosophy
 │   ├── book.toml          # Konfigurasi MDBook
 │   └── src/               # Sumber Markdown
 │       ├── SUMMARY.md     # Kandungan
@@ -171,7 +173,7 @@ docs/
 
 ## Statistik
 
-| Metric | White Paper | Functions Guide | Total |
+| Metric | Exp. Philosophy | Functions Guide | Total |
 |---|---|---|---|
 | **Chapters** | 10 | 19 | 29 |
 | **Appendices** | 3 | 2 | 5 |

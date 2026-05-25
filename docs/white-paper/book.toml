@@ -1,5 +1,5 @@
 [book]
-title = "White Paper: Compiler Philosophy and Architecture"
+title = "Experimental Compiler Philosophy and Architecture"
 authors = ["Mohamad Supardi Abdul"]
 description = "Logicodex compiler philosophy, architecture evolution, and design justifications"
 language = "ms"
