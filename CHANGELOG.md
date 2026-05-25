@@ -6,6 +6,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged] — 2026-05-25 — v1.41.0-alpha: Host Reactor Integration — Guest ↔ Host HW Mediation
+
+### Added
+- **HostReactor** (`src/net/host_reactor.rs`): Central struct mediating all HW gate access.
+  - `GatePermissions`: Per-operation pin allowlists — which pins each WASM guest can access.
+  - `HardwareZone`: Pin claim/release tracking — prevents double-use conflicts.
+  - `with_hardware_zone()`: Validates permission → claims pin → executes callback → releases pin (always, even on error).
+- **HW Gate Implementations**:
+  - `gpio_control(pin, mode)`: GPIO pin control — input/output/pullup/pulldown/high/low.
+  - `timer_set(pin, micros)`: Hardware timer configuration.
+  - `dma_transfer(channel, src, dst, len)`: DMA data movement between addresses.
+- **Guest → Host Dispatch Protocol**:
+  - `HostFunction` enum: `GpioControl`, `TimerSet`, `DmaTransfer`.
+  - `register_host_function(name)`: Maps WIT import name to `HostFunction`.
+  - `dispatch(func, args)`: Called by WASM runtime when guest imports are invoked.
+  - `GuestRequest` / `HostResponse`: Serialization envelopes for guest-host communication.
+- **Permission Denied Handling**: All HW operations check `GatePermissions` before execution. Unauthorized access returns `HostReactorError::PermissionDenied` — HW is never exposed to unprivileged guests.
+
+### Architecture
+```
+WASM Guest                      Host (Native)
+──────────                      ─────────────
+import "logicodex:host-reactor/gpio-control"
+        │
+        ▼
+WASM Runtime (wasmtime/wasmer) ──► HostFunction::GpioControl
+                                          │
+                                          ▼
+                                   HostReactor.gpio_control()
+                                          │
+                                          ▼
+                                   GatePermissions.check()
+                                   HardwareZone.claim()
+                                   [actual GPIO driver]
+                                   HardwareZone.release()
+                                          │
+                                          ▼
+                                   Return u32 to guest
+```
+
+### Validation
+- Host Reactor: 12/12 | WASM Backend: 13/13 | Sharded Reactor: 11/11 | Capability IR: 16/16 | CTL Mapper: 12/12 | Capability Fabric: 10/10 | Streaming: 6/6 | v1.21: 9/9 | **Total: 102/102 ✅ + runtime live + sharded + wasm + host**
+
+---
+
 ## [Merged] — 2026-05-25 — v1.40.0-alpha: WASM Codegen Backend — LLVM → .wasm
 
 ### Added
