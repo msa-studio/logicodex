@@ -5,7 +5,7 @@ Validator: v1.30.1-alpha — Phase 3: Backpressure + Scheduler
 from pathlib import Path
 import sys
 
-root = Path(__file__).resolve().parents[1]
+root = Path(__file__).resolve().parents[3]
 errors = []
 
 def check_code(path, pattern, description):

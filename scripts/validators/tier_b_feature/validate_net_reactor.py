@@ -5,7 +5,7 @@ Validator: v1.33.0-alpha — Network Reactor Foundation
 from pathlib import Path
 import sys
 
-root = Path(__file__).resolve().parents[1]
+root = Path(__file__).resolve().parents[3]
 errors = []
 
 def check(path, pattern, desc):

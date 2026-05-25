@@ -14,7 +14,7 @@ from pathlib import Path
 import sys
 import subprocess
 
-root = Path(__file__).resolve().parents[1]
+root = Path(__file__).resolve().parents[3]
 errors = []
 
 def check_code(path, pattern, description):

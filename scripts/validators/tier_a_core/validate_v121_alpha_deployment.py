@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 
-root = Path(__file__).resolve().parents[1]
+root = Path(__file__).resolve().parents[3]
 # v1.44.1: Check that source files have the standard Logicodex header
 required_header_markers = [
     "Logicodex Language Engine",

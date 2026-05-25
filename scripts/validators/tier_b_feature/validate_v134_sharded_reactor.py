@@ -5,7 +5,7 @@ Validator: v1.34.0-alpha — The Sharded Deterministic Reactor
 from pathlib import Path
 import sys
 
-root = Path(__file__).resolve().parents[1]
+root = Path(__file__).resolve().parents[3]
 errors = []
 
 def check(path, pattern, desc):

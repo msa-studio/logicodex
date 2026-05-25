@@ -1,4 +1,4 @@
-# Logicodex Practical Roadmap — v1.36.0-alpha The Capability Translation Layer
+# Logicodex Practical Roadmap — v1.45.0-alpha Quantitative Benchmark Framework
 
 This roadmap describes how **Logicodex** progresses from an alpha compiler baseline toward a deterministic systems platform with WASM integration, combining actor-model concurrency, streaming compilation, capability-based security, sharded event-driven networking, and capability-native WIT generation.
 
@@ -18,12 +18,13 @@ This roadmap describes how **Logicodex** progresses from an alpha compiler basel
 | v1.38 | **Deferred Items Cleanup — A6, D1, E1-E2, F1, G1, G2, I1** | ✅ **COMPLETED** |
 | v1.39 | **Sharded Runtime — C1-C5: thread spawn, CPU affinity** | ✅ **COMPLETED** |
 | v1.40 | **WASM Codegen Backend — wasm32-unknown-unknown** | ✅ **COMPLETED** |
-| v1.37 | **Network Runtime — epoll, socket I/O, taint FSM** | ✅ **COMPLETED** |
-| v1.38 | **Deferred Items Cleanup — A6, D1, E1-E2, F1, G1, G2, I1** | ✅ **COMPLETED** |
-| v1.39 | **Sharded Runtime — C1-C5: thread spawn, CPU affinity** | ✅ **COMPLETED** |
-| v1.40 | **WASM Codegen Backend — wasm32-unknown-unknown** | ✅ **COMPLETED** |
 | v1.41 | **Host Reactor Integration — Guest ↔ Host HW mediation** | ✅ **COMPLETED** |
-| v1.42 | Streaming WASM + WASI Capability Verification at Runtime | 🔬 **RESEARCH** |
+| v1.42 | **Raylib FFI — 8 pending items resolved** | ✅ **COMPLETED** |
+| v1.43 | **Raylib Audio — 22 functions + StrictAudioContext** | ✅ **COMPLETED** |
+| v1.44 | **Freestanding Compiler — 15 gaps, 3 architectures** | ✅ **COMPLETED** |
+| v1.44.1 | **Foundation Polish — Validator tiering, maintenance report** | ✅ **COMPLETED** |
+| v1.45 | **Quantitative Benchmark Framework — 4 layers, BASELINE.json** | ✅ **COMPLETED** |
+| v1.46 | Streaming WASM + WASI Capability Verification at Runtime | 🔬 **RESEARCH** |
 | v2.00 | Pointer provenance engine (5-level) | 🔬 **RESEARCH** |
 
 ## Milestone 1: Stabilize the Alpha Compiler Core

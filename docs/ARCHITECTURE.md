@@ -285,5 +285,20 @@ Threading Phase 2:           6/6  ✅
 Threading Phase 1:           8/8  ✅
 v1.21 baseline:              9/9  ✅
 ──────────────────────────────────
-TOTAL:                       137/137 ✅ + all platforms
+TOTAL:                       148/148 ✅ + all platforms
 ```
+
+### v1.45: Quantitative Benchmark Framework
+Architecture-correlated benchmarks across 4 layers:
+- **Layer 1 Micro (6):** Gate invoke (<50ns), Door send/recv (<100ns), MemoryPool (<20ns), Callable lookup (<30ns), HIR lower (<200ns), LLVM emit (<500ns)
+- **Layer 2 Reactor:** Echo server + flood client, 1/2/4/8 core scaling (target: >85% efficiency)
+- **Layer 3 Stability:** RSS monitor with linear regression (0KB creep target), valgrind (0 leaks), 1h/6h/24h longrun
+- **Layer 4 Security:** Slowloris, SYN flood, malformed packet, FD exhaustion (all: fail-stop target)
+- **BASELINE.json:** Gold standard with 5% warn / 10% fail regression thresholds
+- **RFC_TEMPLATE.md:** Architecture Freeze enforcement (4 mandatory alignment checks)
+
+### v1.44.1: Maintenance — Validator Tiering
+All 27 validators organized into 3 tiers:
+- **Tier A Core (7):** Baseline integrity — build stops on failure
+- **Tier B Feature (13):** Feature correctness — warning on failure  
+- **Tier C Platform (8):** Platform/stress/performance — CI only

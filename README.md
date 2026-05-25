@@ -1,5 +1,5 @@
-# Logicodex Language — v1.44.0-alpha
-## The Freestanding Compiler
+# Logicodex Language — v1.45.0-alpha
+## Quantitative Benchmark Framework
 
 > v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor → v1.34 Sharded Reactor → v1.35 Capability IR → v1.36 CTL Mapper → v1.37 Network Runtime → v1.38 Deferred Cleanup → v1.39 Sharded Runtime → v1.40 WASM Codegen → v1.41 Host Reactor → v1.42 Raylib FFI → v1.43 Raylib Audio → **v1.44 Freestanding Compiler**
 
@@ -15,10 +15,10 @@ Logicodex is a systems programming language with **zero runtime mediation** — 
 
 | Metric | Value |
 |---|---|
-| **Total LOC** | ~40,700 |
-| **Validators** | **137/137 ✅** |
+| **Total LOC** | ~43,600 |
+| **Validators** | **148/148 ✅** |
 | **Deferred Items** | **25/25 resolved** (1 by design) |
-| **Releases** | v1.21 → v1.44 (13 releases) |
+| **Releases** | v1.21 → v1.45 (14 releases) |
 | **Backends** | Native (ELF), WASM (wasm32-unknown-unknown), Freestanding (x86_64/aarch64/riscv64) |
 
 ---
@@ -43,7 +43,9 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 | **v1.41.0-alpha** | Host Reactor | Guest ↔ Host HW mediation: GPIO, Timer, DMA. Permission-based pin allowlists. HostFunction dispatch protocol |
 | **v1.42.0-alpha** | Raylib FFI — 8 Pending Items | Struct-by-value Color, Vector2/Rectangle constructors, math utilities (clamp/lerp/remap), StrictAudioContext, WASM blocks Raylib, FfiGatekeeper coercion |
 | **v1.43.0-alpha** | Raylib Audio — 22 Functions | Sound/Music/Wave/AudioStream types, 22 audio functions, StrictAudioContext integration with capability gates |
-| **v1.44.0-alpha** | **Freestanding Compiler** | **Bare-metal support: _start, panic handler, linker script, bump allocator, UART/VGA, IDT/PIC, MMIO volatile codegen, multiboot. 3 architectures: x86_64/aarch64/riscv64** |
+| **v1.44.0-alpha** | Freestanding Compiler | Bare-metal support: _start, panic handler, linker script, bump allocator, UART/VGA, IDT/PIC, MMIO volatile codegen, multiboot. 3 architectures: x86_64/aarch64/riscv64 |
+| **v1.44.1-alpha** | Foundation Polish | Validator tiering (A/B/C), maintenance report, dead code audit, security micro-audit, documentation drift fix |
+| **v1.45.0-alpha** | **Quantitative Benchmark Framework** | **Architecture-correlated benchmarks: 6 micro (criterion), reactor throughput, RSS stability, security stress. BASELINE.json + regression detection + RFC template** |
 
 ---
 
