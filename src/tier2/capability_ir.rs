@@ -20,7 +20,7 @@
 //   - NO hidden scheduling — all async = explicit Reactor Events
 // =========================================================================
 
-use super::gate::{GateRef, GateType};
+use super::gate::{GateContract, GateRef, GateType};
 use super::metadata::{Capability, InlineCost, SemanticSummary};
 use super::shard::{DoorRef, ServiceGraph, ServiceNode, ShardAssignment, ShardTopology};
 use super::topology::{CapabilityTopology, TopologyViolation};
