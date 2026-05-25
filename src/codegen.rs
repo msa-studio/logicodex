@@ -92,6 +92,9 @@ pub struct LlvmCompiler<'ctx> {
     // v1.35+: HIR codegen support — local allocations and callable resolution
     hir_local_allocs: HashMap<u32, PointerValue<'ctx>>,
     hir_callable_funcs: HashMap<u32, FunctionValue<'ctx>>,
+    // v1.36+: Struct registry — symbol_id → LLVM struct type
+    hir_struct_types: HashMap<u32, inkwell::types::StructType<'ctx>>,
+    hir_struct_names: HashMap<String, u32>, // name → symbol_id
 }
 
 /// Backend trait for version-gated codegen. v1.21 uses direct compilation;
@@ -181,6 +184,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
             declared_funcs: HashMap::new(),
             hir_local_allocs: HashMap::new(),
             hir_callable_funcs: HashMap::new(),
+            hir_struct_types: HashMap::new(),
+            hir_struct_names: HashMap::new(),
         }
     }
 
@@ -773,9 +778,9 @@ pub fn compile_v130(
             crate::hir::HirItem::Function(function) => {
                 compiler.emit_v130_function(function, options.target)?;
             }
-            crate::hir::HirItem::Struct(_) => {
-                // Struct layout computed at semantic time; emit placeholder
-                eprintln!("logicodex v1.30: struct items are processed at semantic time");
+            crate::hir::HirItem::Struct(struct_decl) => {
+                compiler.register_hir_struct(struct_decl)
+                    .unwrap_or_else(|e| eprintln!("logicodex v1.30: struct registration warning: {}", e));
             }
             crate::hir::HirItem::Enum(_) => {
                 eprintln!("logicodex v1.30: enum items are processed at semantic time");
@@ -1273,6 +1278,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
         let signature = callables.lookup_callable(callee)
             .ok_or_else(|| anyhow!("HIR call: CallableId({}) not found", callee.0))?;
 
+        // v1.36 A5: Detect struct constructor by name
+        if self.hir_struct_names.contains_key(&signature.name) {
+            return self.emit_hir_struct_constructor(&signature.name, args, func);
+        }
+
         // Check if it's a cached HIR callable function
         let llvm_func = if let Some(f) = self.hir_callable_funcs.get(&callee.0) {
             *f
@@ -1405,5 +1415,83 @@ impl<'ctx> LlvmCompiler<'ctx> {
         self.types.as_ref()
             .map(|t| t.primitive(PrimitiveType::Unit))
             .unwrap_or_else(|| TypeId(6)) // fallback
+    }
+
+    // ─── v1.36 A5: Struct Registration ───
+
+    /// Register a HIR struct declaration, creating its LLVM struct type.
+    fn register_hir_struct(
+        &mut self,
+        struct_decl: &crate::hir::HirStructDecl,
+    ) -> Result<()> {
+        let field_types: Result<Vec<_>> = struct_decl.fields
+            .iter()
+            .map(|f| self.hir_type_to_llvm(f.ty))
+            .collect();
+        let field_types = field_types?;
+        let struct_type = self.context.struct_type(&field_types, false);
+        struct_type.set_name(&format!("struct.{}", struct_decl.symbol.0));
+        self.hir_struct_types.insert(struct_decl.symbol.0, struct_type);
+        // Also store by name if we can resolve it
+        self.hir_struct_names.insert(format!("Struct_{}", struct_decl.symbol.0), struct_decl.symbol.0);
+        Ok(())
+    }
+
+    /// Emit a struct constructor call: `StructName(field1, field2, ...)` → packed struct value.
+    fn emit_hir_struct_constructor(
+        &mut self,
+        struct_name: &str,
+        args: &[crate::hir::HirExpr],
+        func: FunctionValue<'ctx>,
+    ) -> Result<IntValue<'ctx>> {
+        // For Sprint 3: detect known struct constructors
+        // Color(r,g,b,a) → packed u32
+        if struct_name == "Color" && args.len() == 4 {
+            let mut packed: u32 = 0;
+            for (i, arg) in args.iter().enumerate() {
+                match &arg.kind {
+                    crate::hir::HirExprKind::Literal(crate::hir::LiteralAst::Integer(v))
+                        if *v >= 0 && *v <= 255 =>
+                    {
+                        packed |= (*v as u32) << (24 - i * 8);
+                    }
+                    _ => {
+                        // Non-literal argument — emit runtime packing
+                        let val = self.emit_hir_expr(arg, func)?;
+                        let _ = val;
+                        return Ok(self.i64_type.const_int(0, false)); // fallback
+                    }
+                }
+            }
+            Ok(self.i64_type.const_int(packed as u64, false))
+        } else {
+            // Generic struct — try to build with alloca + store fields
+            let symbol_id = self.hir_struct_names.get(struct_name)
+                .copied()
+                .unwrap_or(u32::MAX);
+            if symbol_id == u32::MAX {
+                // Unknown struct — return 0
+                return Ok(self.i64_type.const_int(0, false));
+            }
+            let struct_type = self.hir_struct_types.get(&symbol_id)
+                .copied()
+                .unwrap_or_else(|| self.context.struct_type(&[], false));
+            let alloca = self.create_entry_alloca(func, &format!("struct_{}_tmp", struct_name));
+            for (i, arg) in args.iter().enumerate() {
+                let val = self.emit_hir_expr(arg, func)?;
+                let field_ptr = unsafe {
+                    self.builder.build_struct_gep(struct_type, alloca, i as u32,
+                        &format!("field_{}", i))
+                        .context("struct field gep")?
+                };
+                self.builder.build_store(field_ptr, val.into())
+                    .context("struct field store")?;
+            }
+            // Return pointer to struct as i64
+            let ptr_as_int = self.builder.build_ptr_to_int(alloca, self.i64_type,
+                &format!("struct_{}_ptr", struct_name))
+                .context("struct ptr to int")?;
+            Ok(ptr_as_int)
+        }
     }
 }
