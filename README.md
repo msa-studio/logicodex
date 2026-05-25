@@ -74,7 +74,7 @@ RUSTFLAGS="-L/usr/lib/llvm-15/lib" cargo build --release
 # → Hello, Logicodex!
 
 # Run validators
-cargo test --locked                               # Unit tests (must pass)
+cargo test                                        # Unit tests (must pass)
 python3 scripts/validators/tier_a_core/*.py       # Core validators
 python3 scripts/validators/tier_b_feature/*.py    # Feature validators
 python3 scripts/validators/tier_c_stress/*.py     # Stress validators (CI only)

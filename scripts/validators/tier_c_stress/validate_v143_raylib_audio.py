@@ -13,8 +13,9 @@ Usage: python3 scripts/validate_v143_raylib_audio.py
 """
 
 import os
+from pathlib import Path
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = str(Path(__file__).resolve().parents[3])
 
 def check(name, condition):
     status = "PASS" if condition else "FAIL"

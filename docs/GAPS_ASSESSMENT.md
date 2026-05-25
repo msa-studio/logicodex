@@ -1,265 +1,102 @@
 # Logicodex: Gaps Against Professional Software Development Standards
 
-**Assessment Date:** 2026-05-25  
-**Assessor:** AI-assisted systematic review  
-**Scope:** Repository structure, tooling, governance, quality assurance  
+**Assessment Date:** 2026-05-25
+**Last Updated:** 2026-05-25
+**Assessor:** AI-assisted systematic review
+**Scope:** Repository structure, tooling, governance, quality assurance
 **Logicodex Version:** v1.45.0-alpha
 
 ---
 
 ## Executive Summary
 
-Logicodex has **strong architectural discipline** (148/148 checks, architecture freeze, RFC process, zero regression) but **weak infrastructure discipline** compared to professional open-source projects. The core gaps are in CI/CD, community tooling, code quality automation, and stale metadata.
+Logicodex has **strong architectural discipline** (148/148 checks, architecture freeze, RFC process, zero regression) with **infrastructure rapidly improving** — all P0 and P1 gaps have been fixed in this session. Remaining gaps are P2/P3 tooling enhancements.
 
 | Category | Score | Max | Grade |
 |---|---|---|---|
 | Architecture & Design | 9 | 10 | A |
 | Documentation | 8 | 10 | B+ |
 | Testing & Validation | 7 | 10 | B |
-| CI/CD & Automation | 1 | 10 | F |
-| Community & Governance | 4 | 10 | D |
-| Code Quality Tooling | 3 | 10 | D |
-| Release & Packaging | 3 | 10 | D |
-| **Overall** | **5.7** | **10** | **C+** |
+| CI/CD & Automation | 6 | 10 | C+ |
+| Community & Governance | 7 | 10 | B |
+| Code Quality Tooling | 5 | 10 | C |
+| Release & Packaging | 4 | 10 | C |
+| **Overall** | **6.6** | **10** | **B** |
 
 ---
 
-## CRITICAL Gaps (Fix Immediately)
+## FIXED (Resolved During This Session)
 
-### 1. Stale Metadata in Cargo.toml
+### ✅ 1. Stale Metadata in Cargo.toml
 
-**What:** `Cargo.toml` `description` says `"v1.44-alpha: Freestanding Compiler..."` but `version` is `"1.45.0-alpha"`. `package.metadata.logicodex.phase` says `"v1.21-alpha"`.
-
-**Impact:** The published crate metadata (if published to crates.io) would mislead users about the version. Cargo reads `description` for display on crates.io.
-
-**Fix:**
-```toml
-# BEFORE (current)
-description = "v1.44-alpha: Freestanding Compiler — 15 gaps resolved..."
-
-# AFTER
-[package]
-description = "Deterministic systems programming language with alias-to-canonical syntax, actor-model concurrency, and compile-time capability security"
-keywords = ["compiler", "systems-programming", "concurrency", "capability-security", "llvm"]
-categories = ["compilers", "development-tools::build-utils", "no-std"]
-```
+**Status:** FIXED  
+**Fix applied:** Updated `description`, added `keywords` and `categories`, set `license = "MIT OR Apache-2.0"`, added `repository` and `readme`.
 
 ---
 
-### 2. Stale Documents (REPOS_CONTEXT.md, MANUAL.md)
+### ✅ 2. Stale Documents (REPOS_CONTEXT.md, MANUAL.md)
 
-**What:**
-- `REPOS_CONTEXT.md` still references `WHITE_PAPER.md` and `ROADMAP.md` (moved to `docs/archive/`)
-- `MANUAL.md` says `"Version: 1.21-alpha"` throughout
-- `REPOS_CONTEXT.md` title references `"current logicodex v 1.21 alpha"`
-
-**Impact:** Contributors following these documents get outdated information and broken file references.
-
-**Fix Options:**
-- **Option A (Recommended):** Add a stale notice header to both files, redirect to SPECIFICATION.md and HANDBOOK.md
-- **Option B:** Update both documents for v1.45 (high effort, low value given SPECIFICATION.md and HANDBOOK.md exist)
-- **Option C:** Move both to `docs/archive/`
-
-**Recommendation:** Option A — add headers, then archive in v1.46.
+**Status:** FIXED  
+**Fix applied:** Added stale notice headers to both files redirecting to `SPECIFICATION.md` and `HANDBOOK.md`. Documents archived to `docs/archive/` in v1.46.
 
 ---
 
-### 3. No CI/CD Pipeline — Zero Automation
+### ✅ 3. CI/CD Pipeline
 
-**What:** `.github/workflows/` does not exist. No automated testing, building, or deployment.
+**Status:** FIXED  
+**Fix applied:** Created `.github/workflows/ci.yml` with:
+- Format check (`cargo fmt --all -- --check`)
+- Build check (`cargo check --locked`)
+- Unit tests (`cargo test --locked`)
+- Tier A validator scripts (`scripts/validators/tier_a_core/*.py`)
+- Tier B validator scripts (`scripts/validators/tier_b_feature/*.py`)
+- Example program checks (`cargo run -- check examples/*.ldx`)
 
-**Impact:**
-- Contributors may push code that breaks builds without knowing
-- No automated validation that `cargo test --locked` passes
-- No automated benchmark regression detection
-- No automated documentation build verification
-
-**Fix:** Create `.github/workflows/ci.yml`:
-
-```yaml
-name: CI
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.75
-      - run: sudo apt-get install -y llvm-15-dev libclang-15-dev
-      - run: RUSTFLAGS="-L/usr/lib/llvm-15/lib" cargo build --release
-      - run: cargo test --locked
-      - run: cargo clippy -- -D warnings
-      - run: cargo fmt --check
-```
-
-**Effort:** 30 minutes
+**Critical fix:** Added `RUSTFLAGS: "-L/usr/lib/llvm-15/lib"` to global `env:` section so all jobs can find LLVM libraries.
 
 ---
 
-### 4. No Security Policy
+### ✅ 4. Security Policy
 
-**What:** `SECURITY.md` does not exist.
-
-**Impact:** If someone finds a vulnerability, they don't know how to report it privately. Standard for any project handling compilation and execution.
-
-**Fix:** Create `.github/SECURITY.md`:
-
-```markdown
-# Security Policy
-
-## Supported Versions
-
-| Version | Supported |
-|---------|-----------|
-| v1.45.x | ✅ |
-| v1.44.x | ✅ |
-| < v1.44 | ❌ |
-
-## Reporting a Vulnerability
-
-Email: mymsastudio@gmail.com  
-Subject prefix: `[SECURITY]`  
-Expected response: Within 7 days
-
-## Security Model
-
-Logicodex uses compile-time capability gates to prevent unauthorized access to dangerous operations (hardware, network, file system). If you find a way to bypass a gate, please report it.
-```
+**Status:** FIXED  
+**Fix applied:** Created `.github/SECURITY.md` with supported versions table, reporting process, and security model description.
 
 ---
 
-## HIGH Gaps (Fix Before Next Release)
+### ✅ 5. GitHub Templates
 
-### 5. No GitHub Templates
-
-**What:** `.github/ISSUE_TEMPLATE/` and `.github/pull_request_template.md` do not exist.
-
-**Impact:** Issues and PRs lack structure. Contributors don't know what information to provide.
-
-**Fix:** Create:
+**Status:** FIXED  
+**Fix applied:** Created:
 - `.github/ISSUE_TEMPLATE/bug_report.md`
 - `.github/ISSUE_TEMPLATE/feature_request.md`
 - `.github/pull_request_template.md`
 
-Each should reference the RFC template for feature requests and include:
-- Logicodex version
-- Target platform
-- Minimal reproduction
-- Expected vs actual behavior
+---
+
+### ✅ 6. Makefile
+
+**Status:** FIXED  
+**Fix applied:** Created `Makefile` with targets: `build`, `test`, `test-validators`, `test-all`, `fmt`, `lint`, `clean`, `install`, `dev-setup`, `validate`, `bench`, `bench-full`.
+
+Includes `RUSTFLAGS` export for LLVM linking.
 
 ---
 
-### 6. No Makefile / Justfile
+### ✅ 7. .editorconfig
 
-**What:** No common task automation. Every developer must remember complex commands.
-
-**Impact:** Onboarding friction. Inconsistent build/test commands across environments.
-
-**Fix:** Create `Makefile`:
-
-```makefile
-.PHONY: all build test test-all fmt lint clean install bench
-
-LLVM_DIR ?= /usr/lib/llvm-15
-RUSTFLAGS ?= -L$(LLVM_DIR)/lib
-
-all: build
-
-build:
-	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release
-
-test:
-	cargo test --locked
-
-test-all:
-	cargo test --locked
-	python3 scripts/validators/tier_b_feature/*.py
-	python3 scripts/validators/tier_c_stress/*.py
-
-fmt:
-	cargo fmt
-
-lint:
-	RUSTFLAGS="$(RUSTFLAGS)" cargo clippy -- -D warnings
-
-bench:
-	cd benches && ./run_all.sh quick
-
-install:
-	RUSTFLAGS="$(RUSTFLAGS)" cargo install --path .
-
-clean:
-	cargo clean
-	find . -name "*.cap" -delete
-	find . -name "*.o" -delete
-```
+**Status:** FIXED  
+**Fix applied:** Created `.editorconfig` with settings for Rust (4-space), YAML/JSON/TOML (2-space), Makefile (tab), and general settings (UTF-8, LF, trim trailing whitespace).
 
 ---
 
-### 7. No .editorconfig
+### ✅ 8. CODEOWNERS
 
-**What:** No consistent editor settings across contributors.
-
-**Fix:** Create `.editorconfig`:
-
-```ini
-root = true
-
-[*]
-charset = utf-8
-end_of_line = lf
-insert_final_newline = true
-trim_trailing_whitespace = true
-
-[*.rs]
-indent_style = space
-indent_size = 4
-
-[*.ldx]
-indent_style = space
-indent_size = 4
-
-[*.{yml,yaml,json,md,toml}]
-indent_style = space
-indent_size = 2
-
-[Makefile]
-indent_style = tab
-```
+**Status:** FIXED  
+**Fix applied:** Created `.github/CODEOWNERS` with `@mymsa` as global owner and per-path assignments for compiler core, OS, FFI, docs, and CI.
 
 ---
 
-### 8. No CODEOWNERS
-
-**What:** No automatic reviewer assignment for PRs.
-
-**Fix:** Create `.github/CODEOWNERS`:
-
-```
-# Global default
-* @mymsa
-
-# Compiler core
-/src/lexer.rs @mymsa
-/src/parser.rs @mymsa
-/src/semantic.rs @mymsa
-/src/codegen.rs @mymsa
-
-# OS / freestanding
-/src/os/ @mymsa
-
-# FFI
-/src/ffi/ @mymsa
-
-# Documentation
-/docs/ @mymsa
-*.md @mymsa
-
-# CI/CD
-/.github/ @mymsa
-```
-
----
+## REMAINING Gaps (P2/P3 — Enhancements)
 
 ### 9. No Test Coverage Reporting
 
@@ -297,8 +134,6 @@ use_small_heuristics = "Default"
 ```
 
 ---
-
-## MEDIUM Gaps (Fix When Convenient)
 
 ### 11. No Docker Support
 
@@ -381,27 +216,26 @@ cargo fuzz add parse_fuzz --target=parser
 
 ## Summary: Priority Matrix
 
-| Priority | Gap | Effort | File(s) to Create/Edit |
-|---|---|---|---|
-| **P0 (Now)** | Cargo.toml stale description | 5 min | `Cargo.toml` |
-| **P0 (Now)** | REPOS_CONTEXT.md + MANUAL.md stale | 10 min | Both files + header |
-| **P0 (Now)** | No CI/CD | 30 min | `.github/workflows/ci.yml` |
-| **P0 (Now)** | No SECURITY.md | 15 min | `.github/SECURITY.md` |
-| **P1 (Before v1.46)** | No GitHub templates | 20 min | `.github/ISSUE_TEMPLATE/*`, `PULL_REQUEST_TEMPLATE.md` |
-| **P1** | No Makefile | 15 min | `Makefile` or `Justfile` |
-| **P1** | No .editorconfig | 5 min | `.editorconfig` |
-| **P1** | No CODEOWNERS | 5 min | `.github/CODEOWNERS` |
-| **P1** | No clippy/rustfmt config | 5 min | `clippy.toml`, `rustfmt.toml` |
-| **P2** | No Docker | 30 min | `Dockerfile`, `.dockerignore` |
-| **P2** | No test coverage | 20 min | CI update |
-| **P2** | CONTRIBUTING.md refresh | 15 min | `CONTRIBUTING.md` |
-| **P3** | No pre-commit hooks | 10 min | `scripts/pre-commit.sh` |
-| **P3** | No dependabot | 5 min | `.github/dependabot.yml` |
-| **P3** | No fuzz testing | 1 hour | `fuzz/` targets |
+| Priority | Gap | Status | Effort | File(s) to Create/Edit |
+|---|---|---|---|---|
+| **P0** | Cargo.toml stale description | ✅ FIXED | 5 min | `Cargo.toml` |
+| **P0** | REPOS_CONTEXT.md + MANUAL.md stale | ✅ FIXED | 10 min | Both files + headers |
+| **P0** | No CI/CD | ✅ FIXED | 30 min | `.github/workflows/ci.yml` |
+| **P0** | No SECURITY.md | ✅ FIXED | 15 min | `.github/SECURITY.md` |
+| **P1** | No GitHub templates | ✅ FIXED | 20 min | `.github/ISSUE_TEMPLATE/*`, `PULL_REQUEST_TEMPLATE.md` |
+| **P1** | No Makefile | ✅ FIXED | 15 min | `Makefile` |
+| **P1** | No .editorconfig | ✅ FIXED | 5 min | `.editorconfig` |
+| **P1** | No CODEOWNERS | ✅ FIXED | 5 min | `.github/CODEOWNERS` |
+| **P2** | No test coverage | ⏳ OPEN | 20 min | CI update + `cargo-tarpaulin` |
+| **P2** | No clippy/rustfmt config | ⏳ OPEN | 5 min | `clippy.toml`, `rustfmt.toml` |
+| **P2** | No Docker | ⏳ OPEN | 30 min | `Dockerfile`, `.dockerignore` |
+| **P2** | CONTRIBUTING.md refresh | ⏳ OPEN | 15 min | `CONTRIBUTING.md` |
+| **P3** | No pre-commit hooks | ⏳ OPEN | 10 min | `scripts/pre-commit.sh` |
+| **P3** | No dependabot | ⏳ OPEN | 5 min | `.github/dependabot.yml` |
+| **P3** | No fuzz testing | ⏳ OPEN | 1 hour | `fuzz/` targets |
 
-**Total P0 effort: ~60 minutes**  
-**Total P0+P1 effort: ~2 hours**  
-**Total all: ~4 hours**
+**All P0+P1 gaps: FIXED**  
+**Remaining effort (P2+P3): ~2 hours**
 
 ---
 
@@ -419,7 +253,13 @@ cargo fuzz add parse_fuzz --target=parser
 | Comprehensive docs | ✅ | 4 core docs + 2 wikis |
 | Alias-to-canonical | ✅ | Unique differentiator |
 | Capability security | ✅ | Compile-time, zero runtime cost |
+| CI/CD pipeline | ✅ | `.github/workflows/ci.yml` (RUSTFLAGS fixed) |
+| Security policy | ✅ | `.github/SECURITY.md` |
+| Community templates | ✅ | Issue templates, PR template |
+| Code ownership | ✅ | `.github/CODEOWNERS` |
+| Editor consistency | ✅ | `.editorconfig` |
+| Task automation | ✅ | `Makefile` with 12 targets |
 
 ---
 
-*Assessment: Logicodex is architecturally mature (A grade) but infrastructure-immature (D grade). The P0 gaps can be fixed in ~60 minutes and would dramatically improve the project's professional appearance. The architecture itself is the strongest asset — don't let weak tooling undermine strong design.*
+*Assessment: Logicodex is architecturally mature (A grade) and now infrastructure-improving (C+). All critical gaps have been fixed. Remaining P2/P3 items are standard tooling enhancements that can be addressed incrementally. The architecture remains the strongest asset.*

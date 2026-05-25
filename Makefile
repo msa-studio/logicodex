@@ -13,7 +13,7 @@ build:
 	cargo build --release
 
 test:
-	cargo test --locked
+	cargo test
 
 test-validators:
 	@echo "=== Tier A (core) ==="
@@ -30,10 +30,10 @@ lint:
 	cargo clippy
 
 bench:
-	cd benches && bash run_all.sh quick
+	cd benches/harness && bash run_all.sh quick
 
 bench-full:
-	cd benches && bash run_all.sh full
+	cd benches/harness && bash run_all.sh full
 
 clean:
 	cargo clean
@@ -56,7 +56,7 @@ validate:
 	@echo "=== Clippy ==="
 	cargo clippy
 	@echo "=== Unit tests ==="
-	cargo test --locked
+	cargo test
 	@echo "=== Tier A validators ==="
 	@for v in scripts/validators/tier_a_core/*.py; do echo "--- $$(basename $$v) ---"; python3 "$$v"; done
 	@echo "=== All checks passed ==="

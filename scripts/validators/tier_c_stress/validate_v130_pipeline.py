@@ -343,9 +343,9 @@ check_code(
     "REPOS_CONTEXT documents version gate"
 )
 check_code(
-    root / "ROADMAP.md",
-    "Version gate (Edition Routing) architecture",
-    "ROADMAP tracks version gate"
+    root / "SPECIFICATION.md",
+    "Compiler Pipeline",
+    "SPECIFICATION tracks compiler pipeline"
 )
 # v1.44.1: Check README documents compiler pipeline (version-agnostic)
 check_code(

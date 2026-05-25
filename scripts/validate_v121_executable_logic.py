@@ -278,7 +278,9 @@ def validate_versions() -> None:
         raise AssertionError(f"Version {major}.{minor}.{patch} below baseline 1.21.0")
 
     # Check key project files exist (version-agnostic)
-    active_paths = ["README.md", "ROADMAP.md", "src/main.rs"]
+    # NOTE: ROADMAP.md was consolidated into SPECIFICATION.md in v1.45.
+    # We check README.md, SPECIFICATION.md, and src/main.rs.
+    active_paths = ["README.md", "SPECIFICATION.md", "src/main.rs"]
     for rel in active_paths:
         path = ROOT / rel
         if not path.exists():

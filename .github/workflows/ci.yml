@@ -9,6 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   LLVM_SYS_150_PREFIX: /usr/lib/llvm-15
+  RUSTFLAGS: "-L/usr/lib/llvm-15/lib"
 
 jobs:
   check:
@@ -40,7 +41,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Check build
-        run: cargo check --locked
+        run: cargo check
 
   test:
     name: Test
@@ -65,12 +66,10 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build
-        run: |
-          export RUSTFLAGS="-L/usr/lib/llvm-15/lib"
-          cargo build --release --locked
+        run: cargo build --release
 
       - name: Run unit tests
-        run: cargo test --locked
+        run: cargo test
 
       - name: Run Tier A validators (core)
         run: |

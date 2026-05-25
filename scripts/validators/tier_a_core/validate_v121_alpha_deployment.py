@@ -22,11 +22,13 @@ for path in header_files:
         errors.append(f"missing project identity in {path.relative_to(root)}")
 
 # v1.44.1: Version-agnostic checks — verify key files exist and contain project identity
+# NOTE: Documents consolidated in v1.45. WHITE_PAPER + ROADMAP → SPECIFICATION.md;
+# MANUAL → docs/HANDBOOK.md. Archived versions live in docs/archive/.
 checks = {
     "Cargo.toml": ["Logicodex"],
     "src/main.rs": ["Logicodex", "compile"],
-    "README.md": ["Logicodex", "ROADMAP"],
-    "ROADMAP.md": ["Logicodex", "Mohamad Supardi Abdul"],
+    "README.md": ["Logicodex", "roadmap"],
+    "SPECIFICATION.md": ["Logicodex", "Mohamad Supardi Abdul"],
 }
 for rel, markers in checks.items():
     path = root / rel
@@ -48,8 +50,21 @@ if spec_dir.exists():
 else:
     errors.append("spec/ directory missing")
 
-for rel in ["Cargo.toml", "NOTICE", "README.md", "WHITE_PAPER.md", "MANUAL.md", "ROADMAP.md", "scripts/update_release_archives.sh", "src/main.rs"]:
-    text = (root / rel).read_text(encoding="utf-8")
+# Check active root files for legacy version strings
+for rel in ["Cargo.toml", "NOTICE", "README.md", "SPECIFICATION.md", "src/main.rs"]:
+    path = root / rel
+    if not path.exists():
+        continue
+    text = path.read_text(encoding="utf-8")
+    if "1.11-alpha" in text or "v1.11-alpha" in text or "V1.11-alpha" in text or "1.0.1-alpha" in text or "v1.0.1-alpha" in text or "V1.0.1-alpha" in text:
+        errors.append(f"legacy version remains in {rel}")
+
+# Also check archived originals for legacy version strings
+for rel in ["docs/archive/WHITE_PAPER_v121.md", "docs/archive/ROADMAP_v145.md"]:
+    path = root / rel
+    if not path.exists():
+        continue
+    text = path.read_text(encoding="utf-8")
     if "1.11-alpha" in text or "v1.11-alpha" in text or "V1.11-alpha" in text or "1.0.1-alpha" in text or "v1.0.1-alpha" in text or "V1.0.1-alpha" in text:
         errors.append(f"legacy version remains in {rel}")
 
