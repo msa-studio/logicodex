@@ -21,7 +21,7 @@ jobs:
       - name: Install LLVM 15
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm-15-dev libclang-15-dev pkg-config
+          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.75
@@ -52,7 +52,7 @@ jobs:
       - name: Install LLVM 15
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm-15-dev libclang-15-dev pkg-config
+          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
 
       - uses: dtolnay/rust-toolchain@1.75
 
