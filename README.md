@@ -1,7 +1,7 @@
-# Logicodex Language — v1.41.0-alpha
-## The Host Reactor Integration
+# Logicodex Language — v1.44.0
+## The Freestanding Compiler
 
-> v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor → v1.34 Sharded Reactor → v1.35 Capability IR → v1.36 CTL Mapper → v1.37 Network Runtime → v1.38 Deferred Cleanup → v1.39 Sharded Runtime → v1.40 WASM Codegen → **v1.41 Host Reactor**
+> v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor → v1.34 Sharded Reactor → v1.35 Capability IR → v1.36 CTL Mapper → v1.37 Network Runtime → v1.38 Deferred Cleanup → v1.39 Sharded Runtime → v1.40 WASM Codegen → v1.41 Host Reactor → v1.42 Raylib FFI → v1.43 Raylib Audio → **v1.44 Freestanding Compiler**
 
 Logicodex is a systems programming language with **zero runtime mediation** — all security, scheduling, and hardware access verified at compile time. It compiles to both **Native (ELF)** and **WebAssembly (WASM)** via LLVM.
 
@@ -15,11 +15,11 @@ Logicodex is a systems programming language with **zero runtime mediation** — 
 
 | Metric | Value |
 |---|---|
-| **Total LOC** | ~37,500 |
-| **Validators** | **102/102 ✅** |
-| **Deferred Items** | **25/26 resolved** (1 by design) |
-| **Releases** | v1.21 → v1.41 (10 alpha) |
-| **Backends** | Native (ELF), WASM (wasm32-unknown-unknown), Freestanding |
+| **Total LOC** | ~40,700 |
+| **Validators** | **137/137 ✅** |
+| **Deferred Items** | **25/25 resolved** (1 by design) |
+| **Releases** | v1.21 → v1.44 (13 releases) |
+| **Backends** | Native (ELF), WASM (wasm32-unknown-unknown), Freestanding (x86_64/aarch64/riscv64) |
 
 ---
 
@@ -40,7 +40,10 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 | **v1.38.0-alpha** | Deferred Cleanup | CallableRegistry predeclare, topology fix, enum layout, Windows fallback, secure attestation, freestanding target, semantic gatekeeper |
 | **v1.39.0-alpha** | Sharded Runtime | Real OS thread per shard, parallel execution, CPU affinity via direct syscall (Linux: sched_setaffinity) |
 | **v1.40.0-alpha** | WASM Codegen Backend | LLVM → .wasm via wasm32-unknown-unknown target — `--target wasm` CLI |
-| **v1.41.0-alpha** | **Host Reactor** | **Guest ↔ Host HW mediation: GPIO, Timer, DMA. Permission-based pin allowlists. HostFunction dispatch protocol** |
+| **v1.41.0-alpha** | Host Reactor | Guest ↔ Host HW mediation: GPIO, Timer, DMA. Permission-based pin allowlists. HostFunction dispatch protocol |
+| **v1.42.0-alpha** | Raylib FFI — 8 Pending Items | Struct-by-value Color, Vector2/Rectangle constructors, math utilities (clamp/lerp/remap), StrictAudioContext, WASM blocks Raylib, FfiGatekeeper coercion |
+| **v1.43.0-alpha** | Raylib Audio — 22 Functions | Sound/Music/Wave/AudioStream types, 22 audio functions, StrictAudioContext integration with capability gates |
+| **v1.44.0** | **Freestanding Compiler** | **Bare-metal support: _start, panic handler, linker script, bump allocator, UART/VGA, IDT/PIC, MMIO volatile codegen, multiboot. 3 architectures: x86_64/aarch64/riscv64** |
 
 ---
 

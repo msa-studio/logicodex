@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
-## [Merged] — 2026-05-25 — v1.44.0-alpha: Freestanding Compiler — All 15 Gaps Resolved
+## [v1.44.0] — 2026-05-25 — Freestanding Compiler — All 15 Gaps Resolved
 
 ### Summary
 Resolved all 15 gaps preventing Logicodex from being a true freestanding (bare-metal) compiler. Freestanding readiness: **100%** (Tier 1: 5/5, Tier 2: 5/5, Tier 3: 5/5). Total: ~2,000+ new LOC across 11 new files.
