@@ -17,6 +17,7 @@ pub mod pass;
 pub mod gate;
 pub mod shard;
 pub mod topology;
+pub mod capability_ir;
 
 // Re-exports for convenience
 pub use metadata::{
@@ -28,4 +29,9 @@ pub use topology::{CapabilityTopology, CapabilityDiff, TopologyVerifyResult, Top
 pub use shard::{
     ShardAssignment, ShardTopology, ShardVerifyResult, ShardViolation,
     ServiceGraph, ServiceNode, CommEdge, CommType, DoorRef,
+};
+pub use capability_ir::{
+    CapabilityGraph, CapabilityRef, CompileTarget,
+    IRServiceNode, IRShardNode, IRDoorEdge, IRGateEdge,
+    IRVerifyResult, IRViolation,
 };
