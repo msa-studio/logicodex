@@ -147,12 +147,20 @@ jobs:
       # NOT checked here — they have their own dormant check step below.
       - name: Check v1.21 examples (ACTIVE pipeline)
         run: |
+          failed=0
           for f in examples/*.ldx; do
             if [ -f "$f" ]; then
               echo "=== Checking $f (v1.21) ==="
-              cargo run --quiet -- check "$f" || exit 1
+              if ! cargo run -- check "$f" 2>&1; then
+                echo "FAILED: $f"
+                failed=1
+              fi
             fi
           done
+          if [ $failed -eq 1 ]; then
+            echo "=== One or more v1.21 examples failed ==="
+            exit 1
+          fi
 
       # v1.30 DORMANT: Subsystem self-check + dormant examples
       # Uses --pipeline v1.30 to activate dormant parser/codegen
