@@ -744,6 +744,26 @@ impl<'ctx> LlvmCompiler<'ctx> {
             .expect("alloca in entry block is valid")
     }
 
+    /// v1.42 P3: Create an alloca of a specific type (for struct construction).
+    fn create_entry_alloca_typed(
+        &self,
+        function: FunctionValue<'ctx>,
+        name: &str,
+        ty: inkwell::types::BasicTypeEnum<'ctx>,
+    ) -> PointerValue<'ctx> {
+        let entry_builder = self.context.create_builder();
+        let entry = function
+            .get_first_basic_block()
+            .expect("function has entry block");
+        match entry.get_first_instruction() {
+            Some(first) => entry_builder.position_before(&first),
+            None => entry_builder.position_at_end(entry),
+        }
+        entry_builder
+            .build_alloca(ty, name)
+            .expect("typed alloca in entry block is valid")
+    }
+
     fn lookup_variable(&self, name: &str) -> Option<PointerValue<'ctx>> {
         for scope in self.variables.iter().rev() {
             if let Some(ptr) = scope.get(name) {
@@ -1521,61 +1541,124 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
-    /// Emit a struct constructor call: `StructName(field1, field2, ...)` → packed struct value.
+    /// v1.42: Emit a struct constructor call: `StructName(field1, ...)` → struct value.
+    /// Supports: Color(r,g,b,a) → packed u32, Vector2(x,y) → 8-byte struct,
+    ///           Rectangle(x,y,w,h) → 16-byte struct.
     fn emit_hir_struct_constructor(
         &mut self,
         struct_name: &str,
         args: &[crate::hir::HirExpr],
         func: FunctionValue<'ctx>,
     ) -> Result<IntValue<'ctx>> {
-        // For Sprint 3: detect known struct constructors
-        // Color(r,g,b,a) → packed u32
-        if struct_name == "Color" && args.len() == 4 {
-            let mut packed: u32 = 0;
-            for (i, arg) in args.iter().enumerate() {
-                match &arg.kind {
-                    crate::hir::HirExprKind::Literal(crate::hir::LiteralAst::Integer(v))
-                        if *v >= 0 && *v <= 255 =>
-                    {
-                        packed |= (*v as u32) << (24 - i * 8);
-                    }
-                    _ => {
-                        // Non-literal argument — emit runtime packing
-                        let val = self.emit_hir_expr(arg, func)?;
-                        let _ = val;
-                        return Ok(self.i64_type.const_int(0, false)); // fallback
+        match struct_name {
+            // ─── Color(r,g,b,a) → packed u32 → i64 ───
+            "Color" if args.len() == 4 => {
+                let mut packed: u32 = 0;
+                for (i, arg) in args.iter().enumerate() {
+                    match &arg.kind {
+                        crate::hir::HirExprKind::Literal(crate::hir::LiteralAst::Integer(v))
+                            if *v >= 0 && *v <= 255 =>
+                        {
+                            packed |= (*v as u32) << (24 - i * 8);
+                        }
+                        _ => {
+                            let _val = self.emit_hir_expr(arg, func)?;
+                            return Ok(self.i64_type.const_int(0, false));
+                        }
                     }
                 }
+                Ok(self.i64_type.const_int(packed as u64, false))
             }
-            Ok(self.i64_type.const_int(packed as u64, false))
-        } else {
-            // Generic struct — try to build with alloca + store fields
-            let symbol_id = self.hir_struct_names.get(struct_name)
-                .copied()
-                .unwrap_or(u32::MAX);
-            if symbol_id == u32::MAX {
-                // Unknown struct — return 0
-                return Ok(self.i64_type.const_int(0, false));
+
+            // ─── Vector2(x: f32, y: f32) → 8-byte struct → i64 ───
+            "Vector2" if args.len() == 2 => {
+                let vec2_type = self.context.f32_type().vec_type(2);
+                let alloca = self.create_entry_alloca_typed(
+                    func,
+                    &format!("vec2_{}_tmp", struct_name),
+                    vec2_type.as_basic_type_enum(),
+                );
+                for (i, arg) in args.iter().enumerate() {
+                    let val = self.emit_hir_expr(arg, func)?;
+                    let f32_val = self.builder
+                        .build_int_truncate(val, self.context.f32_type().into_int_type(),
+                            &format!("vec2_f32_{}", i))
+                        .unwrap_or(val);
+                    let field_ptr = unsafe {
+                        self.builder.build_struct_gep(
+                            vec2_type.into_struct_type(), alloca, i as u32,
+                            &format!("vec2_field_{}", i))
+                            .context("Vector2 field gep")?
+                    };
+                    self.builder.build_store(field_ptr, f32_val.into())
+                        .context("Vector2 field store")?;
+                }
+                // For by-value return on x86_64: pack into i64
+                let ptr_as_int = self.builder.build_ptr_to_int(
+                    alloca, self.i64_type, "vec2_ptr")
+                    .context("Vector2 ptr to int")?;
+                Ok(ptr_as_int)
             }
-            let struct_type = self.hir_struct_types.get(&symbol_id)
-                .copied()
-                .unwrap_or_else(|| self.context.struct_type(&[], false));
-            let alloca = self.create_entry_alloca(func, &format!("struct_{}_tmp", struct_name));
-            for (i, arg) in args.iter().enumerate() {
-                let val = self.emit_hir_expr(arg, func)?;
-                let field_ptr = unsafe {
-                    self.builder.build_struct_gep(struct_type, alloca, i as u32,
-                        &format!("field_{}", i))
-                        .context("struct field gep")?
-                };
-                self.builder.build_store(field_ptr, val.into())
-                    .context("struct field store")?;
+
+            // ─── Rectangle(x, y, width, height: f32) → 16-byte struct ───
+            "Rectangle" if args.len() == 4 => {
+                let rect_type = self.context.struct_type(
+                    &[self.context.f32_type().into(),
+                      self.context.f32_type().into(),
+                      self.context.f32_type().into(),
+                      self.context.f32_type().into()], false);
+                let alloca = self.create_entry_alloca_typed(
+                    func, "rect_tmp", rect_type.as_basic_type_enum());
+                for (i, arg) in args.iter().enumerate() {
+                    let val = self.emit_hir_expr(arg, func)?;
+                    let f32_val = self.builder
+                        .build_int_truncate(val, self.context.f32_type().into_int_type(),
+                            &format!("rect_f32_{}", i))
+                        .unwrap_or(val);
+                    let field_ptr = unsafe {
+                        self.builder.build_struct_gep(rect_type, alloca, i as u32,
+                            &format!("rect_field_{}", i))
+                            .context("Rectangle field gep")?
+                    };
+                    self.builder.build_store(field_ptr, f32_val.into())
+                        .context("Rectangle field store")?;
+                }
+                // Return pointer as i64 (pass-by-reference pattern)
+                let ptr_as_int = self.builder.build_ptr_to_int(
+                    alloca, self.i64_type, "rect_ptr")
+                    .context("Rectangle ptr to int")?;
+                Ok(ptr_as_int)
             }
-            // Return pointer to struct as i64
-            let ptr_as_int = self.builder.build_ptr_to_int(alloca, self.i64_type,
-                &format!("struct_{}_ptr", struct_name))
-                .context("struct ptr to int")?;
-            Ok(ptr_as_int)
+
+            // ─── Generic struct ───
+            _ => {
+                let symbol_id = self.hir_struct_names.get(struct_name)
+                    .copied()
+                    .unwrap_or(u32::MAX);
+                if symbol_id == u32::MAX {
+                    return Ok(self.i64_type.const_int(0, false));
+                }
+                let struct_type = self.hir_struct_types.get(&symbol_id)
+                    .copied()
+                    .unwrap_or_else(|| self.context.struct_type(&[], false));
+                let alloca = self.create_entry_alloca(func,
+                    &format!("struct_{}_tmp", struct_name));
+                for (i, arg) in args.iter().enumerate() {
+                    let val = self.emit_hir_expr(arg, func)?;
+                    let field_ptr = unsafe {
+                        self.builder.build_struct_gep(struct_type, alloca, i as u32,
+                            &format!("field_{}", i))
+                            .context("struct field gep")?
+                    };
+                    self.builder.build_store(field_ptr, val.into())
+                        .context("struct field store")?;
+                }
+                let ptr_as_int = self.builder.build_ptr_to_int(
+                    alloca, self.i64_type,
+                    &format!("struct_{}_ptr", struct_name))
+                    .context("struct ptr to int")?;
+                Ok(ptr_as_int)
+            }
         }
     }
 }

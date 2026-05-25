@@ -1,9 +1,9 @@
 [package]
 name = "logicodex"
-version = "1.21.0-alpha"
+version = "1.42.0-alpha"
 edition = "2021"
 authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
-description = "v1.21-alpha compiler for the Logicodex programming language with executable grammar and provenance safety checks"
+description = "v1.42-alpha: Raylib FFI complete — struct-by-value, math utilities, audio guards, WASM safety, coercion"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/msa-studio/logicodex"
 readme = "README.md"

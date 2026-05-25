@@ -11,6 +11,9 @@ pub mod raylib;
 pub mod raylib_sys;
 pub mod math;
 
+// v1.42: Re-export Raylib helpers for external use
+pub use raylib::{is_struct_constructor, struct_constructor_arity};
+
 use crate::hir::HirExpr;
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span};
 use crate::types::{CallableId, TypeId, TypeRegistry};
@@ -77,6 +80,15 @@ pub struct FfiGatekeeper<'a> {
 }
 
 impl<'a> FfiGatekeeper<'a> {
+    /// v1.42 P8: Validate an FFI call with coercion support.
+    ///
+    /// Coercion rules (widening allowed, narrowing rejected):
+    /// - I32 → I64 (widening): allowed
+    /// - I32 → F64 (int-to-float): allowed
+    /// - I64 → I32 (narrowing): requires explicit cast — error
+    /// - I64 → F64 (widening): allowed
+    /// - Struct types: exact match only (no struct coercion)
+    /// - Bool: exact match only
     pub fn validate_call(
         &self,
         signature: &CallableSignature,
@@ -84,6 +96,7 @@ impl<'a> FfiGatekeeper<'a> {
         context: SafetyContext,
         call_span: Span,
     ) -> Result<(), Diagnostic> {
+        // v1.42 P8: Check unsafe context
         if (signature.is_extern || signature.safety == CallableSafety::UnsafeRequired)
             && context != SafetyContext::Unsafe
         {
@@ -100,6 +113,7 @@ impl<'a> FfiGatekeeper<'a> {
             ));
         }
 
+        // v1.42 P8: Check argument count
         if !signature.is_variadic && args.len() != signature.params.len() {
             return Err(ffi_error(
                 call_span,
@@ -134,28 +148,78 @@ impl<'a> FfiGatekeeper<'a> {
             ));
         }
 
+        // v1.42 P8: Type checking with coercion
         for (index, expected) in signature.params.iter().enumerate() {
             let Some(actual) = args.get(index) else {
                 break;
             };
-            if !self.types.is_equivalent(*expected, actual.ty.id) {
+            if !self.is_compatible_with_coercion(actual.ty.id, *expected) {
                 return Err(ffi_error(
                     actual.span,
                     format!(
-                        "Ralat: Argumen {} untuk fungsi '{}' mempunyai jenis yang tidak sepadan",
+                        "Ralat: Argumen {} untuk fungsi '{}' mempunyai jenis yang tidak sepadan (diperlukan: {}, diterima: {})",
                         index + 1,
-                        signature.name
+                        signature.name,
+                        self.types.type_name(*expected),
+                        self.types.type_name(actual.ty.id),
                     ),
                     format!(
-                        "Error: Argument {} for function '{}' has an incompatible type",
+                        "Error: Argument {} for function '{}' has an incompatible type (expected: {}, got: {})",
                         index + 1,
-                        signature.name
+                        signature.name,
+                        self.types.type_name(*expected),
+                        self.types.type_name(actual.ty.id),
                     ),
                 ));
             }
         }
 
         Ok(())
+    }
+
+    /// v1.42 P8: Check if `actual` type can be coerced to `expected` type.
+    /// Implements the widening coercion matrix for numeric types.
+    fn is_compatible_with_coercion(&self, actual: crate::types::TypeId, expected: crate::types::TypeId) -> bool {
+        // Exact match always OK
+        if self.types.is_equivalent(actual, expected) {
+            return true;
+        }
+
+        // Get the primitive kinds
+        let actual_kind = self.types.resolve(actual);
+        let expected_kind = self.types.resolve(expected);
+
+        use crate::types::PrimitiveType;
+        let actual_prim = match actual_kind {
+            crate::types::TypeKind::Primitive(p) => *p,
+            _ => return false, // Struct, pointer, etc: exact match only
+        };
+        let expected_prim = match expected_kind {
+            crate::types::TypeKind::Primitive(p) => *p,
+            _ => return false,
+        };
+
+        // v1.42 P8: Widening coercion matrix
+        match (actual_prim, expected_prim) {
+            // I32 can widen to I64 or F64
+            (PrimitiveType::I32, PrimitiveType::I64) => true,
+            (PrimitiveType::I32, PrimitiveType::F64) => true,
+            (PrimitiveType::I32, PrimitiveType::F32) => true,
+            // I64 can widen to F64
+            (PrimitiveType::I64, PrimitiveType::F64) => true,
+            // F32 can widen to F64
+            (PrimitiveType::F32, PrimitiveType::F64) => true,
+            // F32 can convert to I32 (truncation — allowed with warning)
+            (PrimitiveType::F32, PrimitiveType::I32) => true,
+            // F64 can convert to I32/I64 (truncation)
+            (PrimitiveType::F64, PrimitiveType::I32) => true,
+            (PrimitiveType::F64, PrimitiveType::I64) => true,
+            // U8 (Color channel) → I32
+            (PrimitiveType::U8, PrimitiveType::I32) => true,
+            (PrimitiveType::U8, PrimitiveType::I64) => true,
+            // All other combinations: no implicit coercion
+            _ => false,
+        }
     }
 
     pub fn lookup_callable(&self, callable: CallableId) -> Option<&CallableSignature> {

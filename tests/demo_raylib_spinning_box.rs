@@ -212,7 +212,7 @@ demo_typechecker_validates_all_colors() {
 demo_callableregistry_has_all_functions() {
     let mut types = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    raylib::register_raylib_functions(&mut types, &mut callables);
+    raylib::register_raylib_functions_compat(&mut types, &mut callables);
 
     // Core functions
     assert!(callables.find_by_name("InitWindow").is_some());
@@ -239,7 +239,7 @@ demo_callableregistry_has_all_functions() {
 demo_callableregistry_signatures_correct() {
     let mut types = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    raylib::register_raylib_functions(&mut types, &mut callables);
+    raylib::register_raylib_functions_compat(&mut types, &mut callables);
 
     // ClearBackground takes 1 param (u32 packed Color)
     let (_, sig) = callables.find_by_name("ClearBackground").unwrap();

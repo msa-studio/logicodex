@@ -30,15 +30,21 @@ pub struct RaylibTypeIds {
 ///
 /// Must be called *before* `register_raylib_functions()` so that
 /// function signatures can reference struct types.
-pub fn register_raylib_types(registry: &mut TypeRegistry) -> RaylibTypeIds {
+/// v1.42: Register Raylib C struct types (Color, Vector2, Rectangle, Texture2D)
+/// with the TypeRegistry. Computes layouts via LayoutEngine.
+///
+/// Must be called *before* `register_raylib_functions()` so that
+/// function signatures can reference struct types.
+///
+/// Returns both the TypeRegistry struct type IDs (for codegen) and
+/// a mapping for struct constructor detection.
+pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, RaylibStructIds) {
     let ids = registry.primitive_ids();
 
-    // Helper: create a LayoutEngine for computing layouts
     let target = crate::layout::TargetLayout::native();
     let engine = LayoutEngine::new(registry, target);
 
-    // ─── Color { r: u8, g: u8, b: u8, a: u8 } ───
-    // Size: 4, Align: 1 (packed in C)
+    // ─── Color { r: u8, g: u8, b: u8, a: u8 } — 4 bytes, align 1 ───
     let color_layout = engine
         .compute_struct_layout(
             "Color",
@@ -48,13 +54,12 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> RaylibTypeIds {
                 StructField { name: "b".into(), ty: ids.u8_ },
                 StructField { name: "a".into(), ty: ids.u8_ },
             ],
-            false, // natural alignment (C compiler doesn't pack Color)
+            false,
         )
-        .expect("Color layout must compute successfully");
+        .expect("Color layout must compute");
     let color = registry.intern_struct(color_layout);
 
-    // ─── Vector2 { x: f32, y: f32 } ───
-    // Size: 8, Align: 4
+    // ─── Vector2 { x: f32, y: f32 } — 8 bytes, align 4 ───
     let vector2_layout = engine
         .compute_struct_layout(
             "Vector2",
@@ -64,11 +69,10 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> RaylibTypeIds {
             ],
             false,
         )
-        .expect("Vector2 layout must compute successfully");
+        .expect("Vector2 layout must compute");
     let vector2 = registry.intern_struct(vector2_layout);
 
-    // ─── Rectangle { x: f32, y: f32, width: f32, height: f32 } ───
-    // Size: 16, Align: 4
+    // ─── Rectangle { x: f32, y: f32, w: f32, h: f32 } — 16 bytes, align 4 ───
     let rectangle_layout = engine
         .compute_struct_layout(
             "Rectangle",
@@ -80,11 +84,10 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> RaylibTypeIds {
             ],
             false,
         )
-        .expect("Rectangle layout must compute successfully");
+        .expect("Rectangle layout must compute");
     let rectangle = registry.intern_struct(rectangle_layout);
 
-    // ─── Texture2D { id: u32, width: i32, height: i32, mipmaps: i32, format: i32 } ───
-    // Size: 20, Align: 4
+    // ─── Texture2D { id: u32, width: i32, height: i32, mipmaps: i32, format: i32 } — 20 bytes ───
     let texture2d_layout = engine
         .compute_struct_layout(
             "Texture2D",
@@ -97,15 +100,22 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> RaylibTypeIds {
             ],
             false,
         )
-        .expect("Texture2D layout must compute successfully");
+        .expect("Texture2D layout must compute");
     let texture2d = registry.intern_struct(texture2d_layout);
 
-    RaylibTypeIds {
+    let type_ids = RaylibTypeIds {
         color,
         vector2,
         rectangle,
         texture2d,
-    }
+    };
+    let struct_ids = RaylibStructIds {
+        color,
+        vector2,
+        rectangle,
+        texture2d,
+    };
+    (type_ids, struct_ids)
 }
 
 pub use raylib_sys::{
@@ -119,6 +129,16 @@ pub use raylib_sys::{
     KEY_UP, KEY_V, KEY_W, KEY_X, KEY_Y, KEY_Z, KEY_ZERO, MOUSE_BUTTON_LEFT,
     MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT,
 };
+
+/// Type IDs for all Raylib constructible struct types.
+/// Populated by `register_raylib_types()`.
+#[derive(Debug, Clone, Copy)]
+pub struct RaylibStructIds {
+    pub color: crate::types::TypeId,
+    pub vector2: crate::types::TypeId,
+    pub rectangle: crate::types::TypeId,
+    pub texture2d: crate::types::TypeId,
+}
 
 // ─── Safe Wrapper Functions ───
 // Each wrapper validates inputs, translates types, then calls the raw FFI.
@@ -279,16 +299,44 @@ pub unsafe fn get_mouse_position() -> Vector2 {
     raylib_sys::GetMousePosition()
 }
 
+// ─── Struct Constructor Registry ───
+
+/// Return true if the given name is a Raylib struct constructor
+/// that can be called as `StructName(x, y, ...)` from .ldx code.
+pub fn is_struct_constructor(name: &str) -> bool {
+    matches!(name, "Color" | "Vector2" | "Rectangle")
+}
+
+/// Get the parameter count for a struct constructor.
+/// Returns None if not a known constructor.
+pub fn struct_constructor_arity(name: &str) -> Option<usize> {
+    match name {
+        "Color" => Some(4),      // r, g, b, a
+        "Vector2" => Some(2),    // x, y
+        "Rectangle" => Some(4),  // x, y, width, height
+        _ => None,
+    }
+}
+
 // ─── CallableRegistry Integration ───
 
-/// Register all Raylib core functions with the Logicodex CallableRegistry.
+/// v1.42: Register all Raylib core functions with the Logicodex CallableRegistry.
 /// This allows .ldx code to call Raylib functions through the FFI layer.
 ///
-/// Each function is registered with:
+/// Changes from v1.30:
+/// - Drawing functions now take Color struct type (not packed u32)
+/// - Texture2D functions use Texture2D struct type (not i64 handle)
+/// - Math utilities (clamp, lerp, remap) registered as safe functions
+///
+/// Each Raylib function is registered with:
 /// - UnsafeRequired safety (must be inside UnsafeBlock)
 /// - C calling convention
 /// - Correct parameter and return types from TypeRegistry
-pub fn register_raylib_functions(registry: &mut TypeRegistry, callables: &mut CallableRegistry) {
+pub fn register_raylib_functions(
+    registry: &mut TypeRegistry,
+    callables: &mut CallableRegistry,
+    struct_ids: &RaylibTypeIds,
+) {
     let ids = registry.primitive_ids();
 
     // Helper to create C string pointer type
@@ -312,7 +360,7 @@ pub fn register_raylib_functions(registry: &mut TypeRegistry, callables: &mut Ca
         };
     }
 
-    // ─── Windowing (10 functions) ───
+    // ─── Windowing (9 functions) ───
     register_fn!("InitWindow", &[ids.i32_, ids.i32_, c_string], ids.unit);
     register_fn!("CloseWindow", &[], ids.unit);
     register_fn!("WindowShouldClose", &[], ids.bool_);
@@ -324,37 +372,22 @@ pub fn register_raylib_functions(registry: &mut TypeRegistry, callables: &mut Ca
     register_fn!("GetScreenHeight", &[], ids.i32_);
 
     // ─── Drawing (9 functions) ───
+    // v1.42: Color passed as struct type (struct-by-value), not packed u32
     register_fn!("BeginDrawing", &[], ids.unit);
     register_fn!("EndDrawing", &[], ids.unit);
-    // ClearBackground, DrawText, DrawRectangle, DrawCircle, DrawLine,
-    // DrawRectangleLines, DrawPixel — these take Color structs
-    // For now, register them as taking I64 (hex color value)
-    // Sprint 3: proper struct passing
-    register_fn!("ClearBackground", &[ids.u32_], ids.unit); // Color as packed RGBA
-    register_fn!("DrawText", &[c_string, ids.i32_, ids.i32_, ids.i32_, ids.u32_], ids.unit); // Color as packed RGBA
-    register_fn!(
-        "DrawRectangle",
-        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, ids.u32_], // Color as packed RGBA
-        ids.unit
-    );
-    register_fn!("DrawCircle", &[ids.i32_, ids.i32_, ids.f32_, ids.u32_], ids.unit); // Color as packed RGBA
-    register_fn!(
-        "DrawLine",
-        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, ids.u32_], // Color as packed RGBA
-        ids.unit
-    );
-    register_fn!(
-        "DrawRectangleLines",
-        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, ids.u32_], // Color as packed RGBA
-        ids.unit
-    );
-    register_fn!("DrawPixel", &[ids.i32_, ids.i32_, ids.u32_], ids.unit); // Color as packed RGBA
+    register_fn!("ClearBackground", &[struct_ids.color], ids.unit);
+    register_fn!("DrawText", &[c_string, ids.i32_, ids.i32_, ids.i32_, struct_ids.color], ids.unit);
+    register_fn!("DrawRectangle", &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, struct_ids.color], ids.unit);
+    register_fn!("DrawCircle", &[ids.i32_, ids.i32_, ids.f32_, struct_ids.color], ids.unit);
+    register_fn!("DrawLine", &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, struct_ids.color], ids.unit);
+    register_fn!("DrawRectangleLines", &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, struct_ids.color], ids.unit);
+    register_fn!("DrawPixel", &[ids.i32_, ids.i32_, struct_ids.color], ids.unit);
 
     // ─── Textures (3 functions) ───
-    // Sprint 3: Texture2D will be a proper struct type
-    register_fn!("LoadTexture", &[c_string], ids.i64_); // returns handle
-    register_fn!("DrawTexture", &[ids.i64_, ids.i32_, ids.i32_, ids.i64_], ids.unit);
-    register_fn!("UnloadTexture", &[ids.i64_], ids.unit);
+    // v1.42: Texture2D passed as struct type
+    register_fn!("LoadTexture", &[c_string], struct_ids.texture2d);
+    register_fn!("DrawTexture", &[struct_ids.texture2d, ids.i32_, ids.i32_, struct_ids.color], ids.unit);
+    register_fn!("UnloadTexture", &[struct_ids.texture2d], ids.unit);
 
     // ─── Input (6 functions) ───
     register_fn!("IsKeyDown", &[ids.i32_], ids.bool_);
@@ -363,6 +396,83 @@ pub fn register_raylib_functions(registry: &mut TypeRegistry, callables: &mut Ca
     register_fn!("IsMouseButtonPressed", &[ids.i32_], ids.bool_);
     register_fn!("GetMouseX", &[], ids.i32_);
     register_fn!("GetMouseY", &[], ids.i32_);
+
+    // ─── Math Utilities (v1.42 P4: safe functions, no unsafe required) ───
+    register_math_functions(registry, callables);
+}
+
+/// Backward-compatible wrapper for tests that don't have struct IDs.
+/// Looks up struct types from TypeRegistry by name.
+pub fn register_raylib_functions_compat(registry: &mut TypeRegistry, callables: &mut CallableRegistry) {
+    let (_, struct_ids) = register_raylib_types(registry);
+    register_raylib_functions(registry, callables, &struct_ids);
+}
+
+/// v1.42: Register math utility functions as safe (no unsafe required).
+/// These are pure Rust functions that mirror raymath.h operations.
+fn register_math_functions(registry: &mut TypeRegistry, callables: &mut CallableRegistry) {
+    let ids = registry.primitive_ids();
+
+    macro_rules! register_fn {
+        ($name:expr, $params:expr, $ret:expr, $safety:expr) => {
+            callables.register(CallableSignature {
+                name: $name.to_string(),
+                params: $params.to_vec(),
+                return_type: $ret,
+                abi: CallingConvention::C,
+                safety: $safety,
+                is_extern: false, // pure Rust, not FFI
+                is_variadic: false,
+            })
+        };
+    }
+
+    // clamp(v: F32, min: F32, max: F32) → F32
+    register_fn!("clamp", &[ids.f32_, ids.f32_, ids.f32_], ids.f32_, CallableSafety::Safe);
+
+    // lerp(a: F32, b: F32, t: F32) → F32
+    register_fn!("lerp", &[ids.f32_, ids.f32_, ids.f32_], ids.f32_, CallableSafety::Safe);
+
+    // remap(value: F32, low1: F32, high1: F32, low2: F32, high2: F32) → F32
+    register_fn!(
+        "remap",
+        &[ids.f32_, ids.f32_, ids.f32_, ids.f32_, ids.f32_],
+        ids.f32_,
+        CallableSafety::Safe
+    );
+
+    // normalize(value: F32, low: F32, high: F32) → F32
+    register_fn!("normalize", &[ids.f32_, ids.f32_, ids.f32_], ids.f32_, CallableSafety::Safe);
+}
+
+/// v1.42 P4: Math utility implementations exposed as extern-C shims
+/// so they can be called from LLVM-generated code via the CallableRegistry.
+pub mod math_shims {
+    use super::*;
+
+    /// Shim: clamp(v: f32, min: f32, max: f32) → f32
+    #[no_mangle]
+    pub extern "C" fn logicodex_clamp_f32(v: f32, min: f32, max: f32) -> f32 {
+        super::super::math::clamp(v, min, max)
+    }
+
+    /// Shim: lerp(a: f32, b: f32, t: f32) → f32
+    #[no_mangle]
+    pub extern "C" fn logicodex_lerp_f32(a: f32, b: f32, t: f32) -> f32 {
+        super::super::math::lerp(a, b, t)
+    }
+
+    /// Shim: remap(value: f32, low1: f32, high1: f32, low2: f32, high2: f32) → f32
+    #[no_mangle]
+    pub extern "C" fn logicodex_remap_f32(value: f32, low1: f32, high1: f32, low2: f32, high2: f32) -> f32 {
+        super::super::math::remap(value, low1, high1, low2, high2)
+    }
+
+    /// Shim: normalize(value: f32, low: f32, high: f32) → f32
+    #[no_mangle]
+    pub extern "C" fn logicodex_normalize_f32(value: f32, low: f32, high: f32) -> f32 {
+        super::super::math::normalize(value, low, high)
+    }
 }
 
 #[cfg(test)]

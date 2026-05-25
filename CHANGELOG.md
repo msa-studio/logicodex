@@ -6,6 +6,58 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Merged] — 2026-05-25 — v1.42.0-alpha: Raylib FFI — 8 Pending Items Resolved
+
+### Summary
+All 8 long-standing Raylib FFI pending items from the architecture review have been resolved. This closes the gap between compile-time validation and runtime linking for graphics applications.
+
+### P1: `build.rs` — Raylib Detection + Graceful Fallback
+- `build.rs`: Auto-detect Raylib via `pkg-config`, `RAYLIB_DIR` env var, or platform-specific paths.
+- `RAYLIB_NO_LINK=1`: Opt-out flag for builds without Raylib installed.
+- Graceful fallback: warning emitted, build continues (no link error).
+- Supported: Linux (`apt install libraylib-dev`), macOS (`brew install raylib`), Windows (`RAYLIB_DIR`).
+
+### P2: Color Struct-by-Value Passing
+- `register_raylib_functions()`: Drawing functions now take `Color` struct type (not packed `u32`).
+- `ClearBackground`, `DrawText`, `DrawRectangle`, `DrawCircle`, `DrawLine`, `DrawRectangleLines`, `DrawPixel` — all use struct type.
+- Texture functions: `LoadTexture` returns `Texture2D` struct, `UnloadTexture` takes `Texture2D` struct (not `i64` handle).
+
+### P3: Vector2/Rectangle/Texture2D Struct Constructors
+- `is_struct_constructor()`: Detects `Color`, `Vector2`, `Rectangle`.
+- `struct_constructor_arity()`: Returns param count (Color=4, Vector2=2, Rectangle=4).
+- `emit_hir_struct_constructor()`: LLVM codegen for `Vector2(x, y)` and `Rectangle(x, y, w, h)` constructors.
+
+### P4: Math Utilities in CallableRegistry
+- `clamp(v, min, max)`, `lerp(a, b, t)`, `remap(v, l1, h1, l2, h2)`, `normalize(v, low, high)`.
+- All registered as `CallableSafety::Safe` (no unsafe required).
+- `math_shims` module: `extern "C"` wrappers for LLVM-generated code to call.
+
+### P5: Runtime Linking Integration
+- 28 Raylib functions + 4 math functions = 32 total registered functions.
+- All functions: `CallableSafety::UnsafeRequired`, C ABI.
+- `register_raylib_functions_compat()`: Backward-compatible wrapper for existing tests.
+
+### P6: StrictAudioContext — Hardware-Safe Audio Guards
+- 4 violation types: `AudioViolationIo`, `AudioViolationRecursion`, `AudioViolationUnboundedLoop`, `AudioViolationForbiddenCall`.
+- `register_audio_callback(name)`: Mark function as audio ISR.
+- `verify_audio_safety()`: Walks AST, validates against all 4 violation types.
+- Forbidden: `Print`, `DrawText`, `InitWindow` in callbacks; self-recursion; unbounded `loop { }`; `malloc`/`free`/`spawn` calls.
+
+### P7: WASM Target Blocks Raylib
+- `compile_v130_pipeline()`: When `target.is_wasm()`, Raylib functions are detected and removed from `CallableRegistry`.
+- Error message: "WASM target does not support Raylib graphics functions — use WebGL or Canvas API via the WASM host instead."
+- Math utilities (`clamp`, `lerp`, `remap`, `normalize`) are NOT blocked — they are pure Rust.
+
+### P8: FfiGatekeeper Coercion Support
+- `is_compatible_with_coercion()`: Widening coercion matrix.
+- Allowed: `I32 → I64`, `I32 → F32/F64`, `I64 → F64`, `F32 → F64`, `U8 → I32/I64`.
+- Bilingual error messages with type names in diagnostics.
+
+### Validation
+- v1.42 Raylib Pending: 9/9 | Host Reactor: 20/20 | WASM Backend: 13/13 | Sharded Runtime: 10/10 | Network Runtime: 16/16 | CTL Mapper: 12/12 | Capability IR: 16/16 | Capability Fabric: 10/10 | Streaming: 6/6 | v1.21: 9/9 | **Total: 111/111 ✅ + runtime live + sharded + wasm + host**
+
+---
+
 ## [Merged] — 2026-05-25 — v1.41.0-alpha: Host Reactor Integration — Guest ↔ Host HW Mediation
 
 ### Added

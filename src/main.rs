@@ -272,7 +272,7 @@ fn compile_v130_pipeline(
 
     // Step 2: Set up TypeRegistry with Raylib struct types
     let mut types = types::TypeRegistry::new();
-    ffi::raylib::register_raylib_types(&mut types);
+    let (raylib_type_ids, raylib_struct_ids) = ffi::raylib::register_raylib_types(&mut types);
 
     // Step 3: Lower AST → HIR
     let mut symbols = hir::SymbolTable::default();
@@ -287,7 +287,25 @@ fn compile_v130_pipeline(
 
     // Step 4: Set up CallableRegistry with Raylib functions
     let mut callables = ffi::CallableRegistry::default();
-    ffi::raylib::register_raylib_functions(&mut types, &mut callables);
+    ffi::raylib::register_raylib_functions(&mut types, &mut callables, &raylib_struct_ids);
+
+    // v1.42 P7: WASM target — Raylib is native-desktop only, block all Raylib functions
+    if target.is_wasm() {
+        let raylib_names: Vec<String> = callables.signatures.iter()
+            .filter(|sig| ffi::raylib::is_struct_constructor(&sig.name) || is_raylib_function(&sig.name))
+            .map(|sig| sig.name.clone())
+            .collect();
+        if !raylib_names.is_empty() {
+            return Err(anyhow::anyhow!(
+                "WASM target does not support Raylib graphics functions ({} found: {}). \
+                 Use WebGL or Canvas API via the WASM host instead.",
+                raylib_names.len(),
+                raylib_names.join(", ")
+            ));
+        }
+        // Remove all Raylib functions from the callable registry
+        callables.signatures.retain(|sig| !is_raylib_function(&sig.name));
+    }
 
     // Step 5: Semantic check
     let mut semantic = semantic_gate::SemanticContext {
@@ -315,6 +333,21 @@ fn compile_v130_pipeline(
         callables,
         semantic.types,
     )
+}
+
+/// v1.42 P7: Check if a function name is a Raylib function.
+/// Used to filter out Raylib functions when targeting WASM.
+fn is_raylib_function(name: &str) -> bool {
+    const RAYLIB_FUNCTIONS: &[&str] = &[
+        "InitWindow", "CloseWindow", "WindowShouldClose", "SetTargetFPS",
+        "GetFPS", "GetFrameTime", "GetTime", "GetScreenWidth", "GetScreenHeight",
+        "BeginDrawing", "EndDrawing", "ClearBackground", "DrawText",
+        "DrawRectangle", "DrawCircle", "DrawLine", "DrawRectangleLines", "DrawPixel",
+        "LoadTexture", "DrawTexture", "UnloadTexture",
+        "IsKeyDown", "IsKeyPressed", "GetKeyPressed",
+        "IsMouseButtonPressed", "GetMouseX", "GetMouseY", "GetMousePosition",
+    ];
+    RAYLIB_FUNCTIONS.contains(&name)
 }
 
 fn write_security_attestation_plan(output_path: &Path) -> Result<()> {

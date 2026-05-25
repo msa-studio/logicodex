@@ -111,7 +111,7 @@ fn texture2d_layout_is_20_bytes() {
 fn all_core_functions_are_registered() {
     let mut registry = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    raylib::register_raylib_functions(&mut registry, &mut callables);
+    raylib::register_raylib_functions_compat(&mut registry, &mut callables);
 
     // Windowing functions
     assert!(callables.find_by_name("InitWindow").is_some(), "InitWindow");
@@ -194,7 +194,7 @@ fn all_core_functions_are_registered() {
 fn registered_functions_have_correct_signatures() {
     let mut registry = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    raylib::register_raylib_functions(&mut registry, &mut callables);
+    raylib::register_raylib_functions_compat(&mut registry, &mut callables);
     let ids = registry.primitive_ids();
 
     // InitWindow(width: I32, height: I32, title: *const I8) -> Unit
@@ -224,7 +224,7 @@ fn registered_functions_have_correct_signatures() {
 fn all_functions_require_unsafe_block() {
     let mut registry = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    raylib::register_raylib_functions(&mut registry, &mut callables);
+    raylib::register_raylib_functions_compat(&mut registry, &mut callables);
 
     for (_, signature) in callables.signatures.iter().enumerate() {
         assert_eq!(
@@ -250,7 +250,7 @@ fn all_functions_require_unsafe_block() {
 fn init_window_params_are_i32_i32_string() {
     let mut registry = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    raylib::register_raylib_functions(&mut registry, &mut callables);
+    raylib::register_raylib_functions_compat(&mut registry, &mut callables);
     let ids = registry.primitive_ids();
 
     let (_, sig) = callables.find_by_name("InitWindow").unwrap();
@@ -276,7 +276,7 @@ fn init_window_params_are_i32_i32_string() {
 fn drawable_functions_take_color_as_last_param() {
     let mut registry = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    raylib::register_raylib_functions(&mut registry, &mut callables);
+    raylib::register_raylib_functions_compat(&mut registry, &mut callables);
     let ids = registry.primitive_ids();
 
     // All drawing functions should have I64 (hex color) as last param
@@ -305,7 +305,7 @@ fn drawable_functions_take_color_as_last_param() {
 fn draw_text_params_are_correct() {
     let mut registry = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    raylib::register_raylib_functions(&mut registry, &mut callables);
+    raylib::register_raylib_functions_compat(&mut registry, &mut callables);
     let ids = registry.primitive_ids();
 
     // DrawText(text: *const I8, posX: I32, posY: I32, fontSize: I32, color: I64)

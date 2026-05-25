@@ -137,6 +137,15 @@ pub enum SemanticError {
     CapabilityContractViolation { symbol: String, gate: String },
     #[error("KRITIKAL: Peningkatan Keistimewaan Dikesan — '{symbol}' kini memerlukan Gate '{gate}' (akses sensitif) / CRITICAL: Privilege Escalation Detected — '{symbol}' now requires Gate '{gate}' (sensitive access)")]
     PrivilegeEscalation { symbol: String, gate: String },
+    // ─── v1.42 P6: StrictAudioContext — Hardware-Safe Audio Guards ───
+    #[error("KRITIKAL: AudioViolationIo — '{function}' dilarang dalam audio callback / CRITICAL: '{function}' is forbidden inside an audio callback")]
+    AudioViolationIo { function: String },
+    #[error("KRITIKAL: AudioViolationRecursion — '{function}' memanggil dir sendiri dalam audio callback / CRITICAL: '{function}' calls itself inside an audio callback")]
+    AudioViolationRecursion { function: String },
+    #[error("KRITIKAL: AudioViolationUnboundedLoop — loop tanpa batas dilarang dalam audio callback / CRITICAL: unbounded loop is forbidden inside an audio callback")]
+    AudioViolationUnboundedLoop,
+    #[error("KRITIKAL: AudioViolationForbiddenCall — '{function}' memanggil fungsi tidak selamat '{callee}' dalam audio callback / CRITICAL: '{function}' calls unsafe function '{callee}' in audio callback")]
+    AudioViolationForbiddenCall { function: String, callee: String },
 }
 
 #[derive(Debug, Default)]
@@ -167,6 +176,11 @@ pub struct Analyzer {
     // v1.30.1-alpha Phase 2: Zero-Copy Ownership Transfer
     /// Variables moved via Channel hantar() — cannot use after send
     moved_via_channel: HashSet<String>,
+    // v1.42 P6: StrictAudioContext — Audio callback safety tracking
+    /// Set of function names that are audio callbacks (ISR-like)
+    audio_callbacks: HashSet<String>,
+    /// Currently analyzing an audio callback?
+    in_audio_callback: bool,
 }
 
 impl Default for SeverityPolicy {
@@ -1002,5 +1016,149 @@ fn integer_fits(value: i64, ty: &Type) -> bool {
         Type::F64 => true,
         Type::Bool => value == 0 || value == 1,
         Type::Pointer(_) | Type::String => false,
+    }
+}
+
+// =========================================================================
+// v1.42 P6: StrictAudioContext — Hardware-Safe Audio Guards
+//
+// Validates that audio callback functions (ISR-like) do not contain:
+//   1. AudioViolationIo — I/O operations (Print, DrawText, InitWindow)
+//   2. AudioViolationRecursion — self-calling (recursive callbacks)
+//   3. AudioViolationUnboundedLoop — unbounded `loop { }` (watchdog risk)
+//   4. AudioViolationForbiddenCall — calls to unsafe functions
+//
+// Pattern: `SetAudioStreamCallback(audio_func)` → mark `audio_func` as
+// audio callback → validate `audio_func` body against all 4 violation types.
+// =========================================================================
+
+/// Functions that are forbidden inside audio callbacks (I/O operations).
+const AUDIO_FORBIDDEN_IO: &[&str] = &["Print", "DrawText", "InitWindow", "ClearBackground"];
+
+/// Functions considered unsafe for audio callbacks.
+const AUDIO_FORBIDDEN_CALLS: &[&str] = &[
+    "malloc", "free", "fopen", "fclose", "pthread_create", "spawn",
+];
+
+impl Analyzer {
+    /// Mark a function as an audio callback. Called when
+    /// `SetAudioStreamCallback(func_name)` is detected.
+    pub fn register_audio_callback(&mut self, func_name: &str) {
+        self.audio_callbacks.insert(func_name.to_string());
+    }
+
+    /// v1.42 P6: Validate all registered audio callbacks for safety violations.
+    /// Call this after the full program has been analyzed.
+    pub fn verify_audio_callbacks(&self, program: &Program) -> Result<(), SemanticError> {
+        for callback_name in &self.audio_callbacks {
+            // Find the function body
+            if let Some(func_body) = self.find_function_body(program, callback_name) {
+                self.verify_audio_safety(callback_name, func_body)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// v1.42 P6: Validate a single audio callback function body.
+    /// Walks the AST and checks for all 4 violation types.
+    fn verify_audio_safety(
+        &self,
+        func_name: &str,
+        stmts: &[Stmt],
+    ) -> Result<(), SemanticError> {
+        for stmt in stmts {
+            self.verify_audio_stmt(func_name, stmt)?;
+        }
+        Ok(())
+    }
+
+    fn verify_audio_stmt(
+        &self,
+        func_name: &str,
+        stmt: &Stmt,
+    ) -> Result<(), SemanticError> {
+        match stmt {
+            Stmt::Print { .. } => Err(SemanticError::AudioViolationIo {
+                function: func_name.to_string(),
+            }),
+            Stmt::ExprStmt { value } => self.verify_audio_expr(func_name, value),
+            Stmt::Let { value, .. } => self.verify_audio_expr(func_name, value),
+            Stmt::If { condition, then_branch, else_branch } => {
+                self.verify_audio_expr(func_name, condition)?;
+                for s in then_branch { self.verify_audio_stmt(func_name, s)?; }
+                for s in else_branch { self.verify_audio_stmt(func_name, s)?; }
+                Ok(())
+            }
+            Stmt::While { condition, body } => {
+                self.verify_audio_expr(func_name, condition)?;
+                for s in body { self.verify_audio_stmt(func_name, s)?; }
+                Ok(())
+            }
+            Stmt::Loop { body } => {
+                // P6: Unbounded loop detected in audio callback
+                Err(SemanticError::AudioViolationUnboundedLoop)
+            }
+            Stmt::For { body, .. } => {
+                for s in body { self.verify_audio_stmt(func_name, s)?; }
+                Ok(())
+            }
+            Stmt::Block(stmts) | Stmt::UnsafeBlock(stmts) | Stmt::HardwareZone(stmts) => {
+                for s in stmts { self.verify_audio_stmt(func_name, s)?; }
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn verify_audio_expr(
+        &self,
+        func_name: &str,
+        expr: &Expr,
+    ) -> Result<(), SemanticError> {
+        match expr {
+            Expr::Call { callee, .. } => {
+                if let Expr::Variable(name) = callee.as_ref() {
+                    // P6: Check for forbidden I/O functions
+                    if AUDIO_FORBIDDEN_IO.contains(&name.as_str()) {
+                        return Err(SemanticError::AudioViolationIo {
+                            function: func_name.to_string(),
+                        });
+                    }
+                    // P6: Check for recursion (self-calling)
+                    if name == func_name {
+                        return Err(SemanticError::AudioViolationRecursion {
+                            function: func_name.to_string(),
+                        });
+                    }
+                    // P6: Check for forbidden unsafe calls
+                    if AUDIO_FORBIDDEN_CALLS.contains(&name.as_str()) {
+                        return Err(SemanticError::AudioViolationForbiddenCall {
+                            function: func_name.to_string(),
+                            callee: name.clone(),
+                        });
+                    }
+                }
+                Ok(())
+            }
+            Expr::Binary { left, right, .. } => {
+                self.verify_audio_expr(func_name, left)?;
+                self.verify_audio_expr(func_name, right)
+            }
+            Expr::Unary { operand, .. } => self.verify_audio_expr(func_name, operand),
+            Expr::Grouped(inner) => self.verify_audio_expr(func_name, inner),
+            _ => Ok(()),
+        }
+    }
+
+    /// Helper: find function body by name in the AST.
+    fn find_function_body(&self, program: &Program, name: &str) -> Option<Vec<Stmt>> {
+        for stmt in &program.statements {
+            if let Stmt::Function { name: func_name, body, .. } = stmt {
+                if func_name == name {
+                    return Some(body.clone());
+                }
+            }
+        }
+        None
     }
 }

@@ -83,7 +83,7 @@ fn raylib_types_registered_in_registry() {
 fn raylib_functions_registered_in_callable_registry() {
     let mut types = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    raylib::register_raylib_functions(&mut types, &mut callables);
+    raylib::register_raylib_functions_compat(&mut types, &mut callables);
 
     // Core functions
     assert!(callables.find_by_name("InitWindow").is_some(), "InitWindow must be registered");
@@ -114,7 +114,7 @@ fn raylib_functions_registered_in_callable_registry() {
 fn callable_registry_signature_params_match() {
     let mut types = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    raylib::register_raylib_functions(&mut types, &mut callables);
+    raylib::register_raylib_functions_compat(&mut types, &mut callables);
 
     // ClearBackground takes 1 Color param (U32 packed)
     let (_, sig) = callables.find_by_name("ClearBackground").unwrap();

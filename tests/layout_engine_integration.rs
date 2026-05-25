@@ -198,7 +198,7 @@ fn type_registry_find_struct_by_name() {
 #[test]
 fn raylib_color_type_registered() {
     let mut registry = TypeRegistry::new();
-    let raylib_ids = register_raylib_types(&mut registry);
+    let (raylib_ids, _) = register_raylib_types(&mut registry);
 
     // Color should resolve to a Struct kind
     match registry.resolve(raylib_ids.color) {
@@ -217,7 +217,7 @@ fn raylib_color_type_registered() {
 #[test]
 fn raylib_vector2_type_registered() {
     let mut registry = TypeRegistry::new();
-    let raylib_ids = register_raylib_types(&mut registry);
+    let (raylib_ids, _) = register_raylib_types(&mut registry);
 
     let size = registry.get_size(raylib_ids.vector2);
     let align = registry.get_align(raylib_ids.vector2);
@@ -229,7 +229,7 @@ fn raylib_vector2_type_registered() {
 #[test]
 fn raylib_texture2d_type_registered() {
     let mut registry = TypeRegistry::new();
-    let raylib_ids = register_raylib_types(&mut registry);
+    let (raylib_ids, _) = register_raylib_types(&mut registry);
 
     let size = registry.get_size(raylib_ids.texture2d);
     let align = registry.get_align(raylib_ids.texture2d);
@@ -241,7 +241,7 @@ fn raylib_texture2d_type_registered() {
 #[test]
 fn raylib_rectangle_type_registered() {
     let mut registry = TypeRegistry::new();
-    let raylib_ids = register_raylib_types(&mut registry);
+    let (raylib_ids, _) = register_raylib_types(&mut registry);
 
     let size = registry.get_size(raylib_ids.rectangle);
     let align = registry.get_align(raylib_ids.rectangle);

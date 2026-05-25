@@ -91,7 +91,7 @@ fn lerp_basic_interpolation() {
 fn stage1_functions_are_registered() {
     let mut registry = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    logicodex::ffi::raylib::register_raylib_functions(&mut registry, &mut callables);
+    logicodex::ffi::raylib::register_raylib_functions_compat(&mut registry, &mut callables);
 
     // Core windowing
     assert!(
@@ -144,7 +144,7 @@ fn stage1_functions_are_registered() {
 fn color_functions_take_u32_not_i64() {
     let mut registry = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    logicodex::ffi::raylib::register_raylib_functions(&mut registry, &mut callables);
+    logicodex::ffi::raylib::register_raylib_functions_compat(&mut registry, &mut callables);
 
     let ids = registry.primitive_ids();
 
@@ -177,7 +177,7 @@ fn color_functions_take_u32_not_i64() {
 fn all_stage1_functions_require_unsafe() {
     let mut registry = TypeRegistry::new();
     let mut callables = CallableRegistry::default();
-    logicodex::ffi::raylib::register_raylib_functions(&mut registry, &mut callables);
+    logicodex::ffi::raylib::register_raylib_functions_compat(&mut registry, &mut callables);
 
     let stage1_functions = [
         "InitWindow",
@@ -228,7 +228,7 @@ fn user_story_types_check_out() {
     // InitWindow(800, 600, "Hello!") — args should be (I32, I32, *const I8)
     let (_, sig) = {
         let mut callables = CallableRegistry::default();
-        logicodex::ffi::raylib::register_raylib_functions(&mut registry.clone(), &mut callables);
+        logicodex::ffi::raylib::register_raylib_functions_compat(&mut registry.clone(), &mut callables);
         callables.find_by_name("InitWindow").unwrap()
     };
     assert_eq!(sig.params.len(), 3, "InitWindow takes 3 params");
@@ -238,7 +238,7 @@ fn user_story_types_check_out() {
     // SetTargetFPS(60) — arg should be I32
     let (_, sig) = {
         let mut callables = CallableRegistry::default();
-        logicodex::ffi::raylib::register_raylib_functions(&mut registry.clone(), &mut callables);
+        logicodex::ffi::raylib::register_raylib_functions_compat(&mut registry.clone(), &mut callables);
         callables.find_by_name("SetTargetFPS").unwrap()
     };
     assert_eq!(sig.params, &[registry.c_int()]);
@@ -246,7 +246,7 @@ fn user_story_types_check_out() {
     // IsKeyDown(KEY_LEFT) → Bool
     let (_, sig) = {
         let mut callables = CallableRegistry::default();
-        logicodex::ffi::raylib::register_raylib_functions(&mut registry.clone(), &mut callables);
+        logicodex::ffi::raylib::register_raylib_functions_compat(&mut registry.clone(), &mut callables);
         callables.find_by_name("IsKeyDown").unwrap()
     };
     assert_eq!(sig.params, &[registry.c_int()], "key code is I32");
