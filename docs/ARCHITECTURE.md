@@ -206,11 +206,19 @@ The CTL Mapper auto-generates WIT from CapabilityGraph, projecting Logicodex's c
 
 ## Future Work
 
-### v1.37.0-alpha: WASM Codegen Backend
+### v1.37.0-alpha: Deterministic Network Runtime ✅ IN PROGRESS
+- epoll event loop: `epoll_create1`, `epoll_ctl`, `epoll_wait`
+- Live socket I/O: `SYS_RECV`, `SYS_SEND` via `src/os/syscall.rs`
+- Monotonic timestamp: `clock_gettime(CLOCK_MONOTONIC)` for taint timeout
+- Event processing: `EPOLLIN`/`EPOLLOUT`/`EPOLLERR` dispatch
+- Taint FSM: `Healthy→Suspicious→Closing` transitions at runtime
+- Backpressure: `Block`/`DropOldest`/`Error` policies applied to ring buffer
+
+### v1.38.0-alpha: WASM Codegen Backend
 - LLVM backend generates `.wasm` from CapabilityGraph IR
 - `CompileTarget::Wasm` produces valid WebAssembly component
 
-### v1.38.0-alpha: Host Reactor Integration
+### v1.39.0-alpha: Host Reactor Integration
 - WASM host implements `logicodex:host-reactor` interface
 - Guest ↔ Host HW gate communication validated end-to-end
 
@@ -224,19 +232,20 @@ The CTL Mapper auto-generates WIT from CapabilityGraph, projecting Logicodex's c
 
 ## Validation
 
-**88/88 checks passing** — zero regression across all versions.
+**77/77 checks passing + runtime live** — zero regression across all versions.
 
 ```
-CTL Mapper (v1.36):       12/12 ✅
-Capability IR (v1.35):    16/16 ✅
-Sharded Reactor (v1.34):  11/11 ✅
-Network Reactor (v1.33):  13/13 ✅
-Capability Fabric (v1.32): 10/10 ✅
-Streaming Engine (v1.31):   6/6  ✅
-Threading Phase 3:         10/10 ✅
-Threading Phase 2:          6/6  ✅
-Threading Phase 1:          8/8  ✅
-v1.21 baseline:             9/9  ✅
-─────────────────────────────────
-TOTAL:                      88/88 ✅
+Network Reactor (v1.37):   LIVE ✅  (B1-B6: epoll, I/O, taint, backpressure)
+CTL Mapper (v1.36):        12/12 ✅
+Capability IR (v1.35):     16/16 ✅
+Sharded Reactor (v1.34):   11/11 ✅
+Network Reactor (v1.33):   13/13 ✅
+Capability Fabric (v1.32):  10/10 ✅
+Streaming Engine (v1.31):    6/6  ✅
+Threading Phase 3:          10/10 ✅
+Threading Phase 2:           6/6  ✅
+Threading Phase 1:           8/8  ✅
+v1.21 baseline:              9/9  ✅
+──────────────────────────────────
+TOTAL:                       77/77 ✅ + runtime live
 ```

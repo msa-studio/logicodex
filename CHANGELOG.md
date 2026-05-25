@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [IN PROGRESS] — v1.37.0-alpha: Deterministic Network Runtime — From Compile-Time to Live
+
+### The Gap Being Closed
+The v1.33 Network Reactor provided compile-time verification (syntax, topology, taint analysis, backpressure policies) but all runtime operations were stubs. v1.37 closes this gap — the reactor now runs live with real syscalls.
+
+### Implemented
+- **B1 — epoll Event Loop** (`src/net/reactor.rs`): Real epoll via `epoll_create1(0)`, `epoll_ctl` for ADD/MOD/DEL, `epoll_wait` for event collection. Event loop runs until `stop()` called.
+- **B2 — Connection I/O** (`src/net/connection.rs`): `read()` → `SYS_RECV`, `write()` → `SYS_SEND` via `src/os/syscall.rs`.
+- **B3 — Monotonic Timestamp** (`src/net/connection.rs`): `clock_gettime(CLOCK_MONOTONIC)` → millisecond timestamp for taint timeout.
+- **B4 — Event Processing** (`src/net/reactor.rs`): `process_events()` dispatches `EPOLLIN`/`EPOLLOUT`/`EPOLLERR` to connection handlers.
+- **B5 — Taint FSM** (`src/net/reactor.rs`): `Healthy→Suspicious→Closing` transitions on error threshold + idle timeout. `is_trustworthy()` gates all I/O.
+- **B6 — Backpressure** (`src/net/reactor.rs`): Runtime policies — `Block` (spin-wait on full), `DropOldest` (overwrite oldest), `Error` (return false).
+
+### Validation
+- Network Reactor: 13/13 | Sharded Reactor: 11/11 | Capability IR: 16/16 | CTL Mapper: 12/12 | Capability Fabric: 10/10 | Streaming: 6/6 | v1.21: 9/9 | **Total: 77/77 ✅ + runtime live**
+
+### Deferred Items Closed
+- B1-B6: All 6 network runtime stubs from DEFERRED.md resolved.
+
+---
+
 ## [Merged via PR #38] — 2026-05-25 — v1.36.0-alpha: CTL Mapper — WIT Auto-Generation (Fasa B)
 
 ### Added

@@ -14,8 +14,9 @@ This roadmap describes how **Logicodex** progresses from an alpha compiler basel
 | v1.34 | Sharded multi-core reactor | ✅ **COMPLETED** — 11/11 checks passing |
 | v1.35 | CapabilityGraph IR (Fasa A) | ✅ **COMPLETED** — 16/16 checks passing |
 | v1.36 | CTL Mapper — WIT Generation (Fasa B) | ✅ **COMPLETED** — 12/12 checks passing |
-| v1.37 | WASM Codegen Backend | 📋 **PLANNED** |
-| v1.38 | Host Reactor Integration | 📋 **PLANNED** |
+| v1.37 | **Network Runtime — epoll, socket I/O, taint FSM** | 🚧 **IN PROGRESS** |
+| v1.38 | WASM Codegen Backend | 📋 **PLANNED** |
+| v1.39 | Host Reactor Integration | 📋 **PLANNED** |
 | v2.00 | Pointer provenance engine | 🔬 **RESEARCH** |
 
 ## Milestone 1: Stabilize the Alpha Compiler Core
@@ -65,6 +66,19 @@ Project Logicodex's capability-native world INTO the WASM ecosystem. "Project IN
 |---|---|---|---|
 | v1.35 — CapabilityGraph IR (CompileTarget, CapabilityRef, IRServiceNode, IRShardNode, verify, to_cap, to_wit_stub) | **[X] COMPLETED / MERGED #37** | Mohamad Supardi Abdul | 16/16 validator checks, `src/tier2/capability_ir.rs`. Single Source of Truth unifying v1.31+v1.32+v1.34. See `docs/v1.35-CAPABILITY-IR.md`. |
 | v1.36 — CTL Mapper (WitDomain, WitOperation, CtlMapper, 6 domain mappings, manual overrides, host reactor stubs) | **[X] COMPLETED / MERGED #38** | Mohamad Supardi Abdul | 12/12 validator checks, `src/tier2/ctl_mapper.rs`. Auto-generates WIT from CapabilityGraph. See `docs/v1.36-CTL-MAPPER.md`. |
+
+## Milestone 1e: The Deterministic Network Runtime (v1.37)
+
+Close the compile-time → runtime gap. The v1.33 reactor had compile-time verification (syntax, topology, taint analysis) but all runtime operations were stubs. v1.37 makes the reactor live.
+
+| Issue | Status | Owner | Practical acceptance signal |
+|---|---|---|---|
+| v1.37 B1 — epoll event loop (`epoll_create1`, `epoll_ctl` ADD/MOD/DEL, `epoll_wait`) | **[X] IMPLEMENTED** | Mohamad Supardi Abdul | `epoll_fd` is a real file descriptor, not -1. Event loop runs until `stop()` called. |
+| v1.37 B2 — Connection read/write (`recv`, `send` syscalls) | **[X] IMPLEMENTED** | Mohamad Supardi Abdul | `Connection::read()` calls `SYS_RECV`, `Connection::write()` calls `SYS_SEND`. |
+| v1.37 B3 — Timestamp (`clock_gettime` CLOCK_MONOTONIC) | **[X] IMPLEMENTED** | Mohamad Supardi Abdul | `current_timestamp_ms()` returns actual wall-clock ms, not 0. |
+| v1.37 B4 — Event processing (`process_events` processes epoll events) | **[X] IMPLEMENTED** | Mohamad Supardi Abdul | `Reactor::run()` loops, calling `process_events()` which dispatches to handler. |
+| v1.37 B5 — Connection taint FSM (Healthy→Suspicious→Closing transitions) | **[X] IMPLEMENTED** | Mohamad Supardi Abdul | `check_taint()` transitions state based on error count + timeout. `is_trustworthy()` gates I/O. |
+| v1.37 B6 — Backpressure at runtime (`Block`/`DropOldest`/`Error` policies) | **[X] IMPLEMENTED** | Mohamad Supardi Abdul | `enqueue()` applies policy: Block (spin-wait), DropOldest (overwrite), Error (return false). |
 
 ## Milestone 2: Tighten Language Semantics and Diagnostics
 

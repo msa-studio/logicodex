@@ -59,41 +59,19 @@
 
 ## KATEGORI B: Network / Runtime — Stubs Sistem Operasi
 
-### B1. Reactor epoll_fd — System Call (v1.33)
-- **Fail**: `src/net/reactor.rs:61`
-- **Isu**: `epoll_fd: -1` — placeholder, tak panggil `epoll_create1(0)`
-- **Kesan**: Reactor tak dapat register/poll sockets — event loop tak jalan
-- **Prioriti**: **TINGGI** — perlu untuk networking berfungsi
+### 🚧 B1-B6: Network Runtime — v1.37.0-alpha (IN PROGRESS)
 
-### B2. Connection Syscall — Read/Write (v1.33)
-- **Fail**: `src/net/connection.rs:115`
-- **Isu**: `read()`, `write()` — stub, tak guna syscall sebenar
-- **Kesan**: Data tak dapat dihantar/diterima melalui socket
-- **Prioriti**: **TINGGI**
+Semua 6 item B1-B6 sedang dikerjakan sebagai **v1.37.0-alpha: Deterministic Network Runtime**.
+Lihat `docs/v1.37-NETWORK-RUNTIME.md` untuk spesifikasi penuh.
 
-### B3. Connection Timestamp (v1.33)
-- **Fail**: `src/net/connection.rs:272-275`
-- **Isu**: `current_timestamp_ms()` — return 0, tak guna `clock_gettime`
-- **Kesan**: Taint FSM timeout tak berfungsi — semua connection dianggap aktif
-- **Prioriti**: **TINGGI**
-
-### B4. Reactor Event Loop — Single Iteration (v1.33)
-- **Fail**: `src/net/reactor.rs:171`
-- **Isu**: `self.running = false` — event loop hanya jalan sekali
-- **Kesan**: Reactor tak dapat proses multiple events
-- **Prioriti**: **TINGGI**
-
-### B5. Reactor Event Processing (v1.33)
-- **Fail**: `src/net/reactor.rs:142,160`
-- **Isu**: `process_events()` dan `process_next_event()` — stub
-- **Kesan**: epoll events tak diproses
-- **Prioriti**: **TINGGI**
-
-### B6. Connection Last Activity (v1.33)
-- **Fail**: `src/net/reactor.rs:128`
-- **Isu**: `last_activity_ms = 0` — placeholder
-- **Kesan**: Idle timeout detection tak berfungsi
-- **Prioriti**: **SEDERHANA**
+| Item | Fail | Isu | Status |
+|---|---|---|---|
+| **B1** — epoll event loop | `reactor.rs:61` | `epoll_fd: -1` placeholder | 🚧 IN PROGRESS (v1.37) |
+| **B2** — Connection I/O | `connection.rs:115` | `read/write` stub | 🚧 IN PROGRESS (v1.37) |
+| **B3** — Timestamp | `connection.rs:272` | `current_timestamp_ms()` returns 0 | 🚧 IN PROGRESS (v1.37) |
+| **B4** — Event loop single iter | `reactor.rs:171` | `running = false` after 1 iter | 🚧 IN PROGRESS (v1.37) |
+| **B5** — Event processing | `reactor.rs:142` | `process_events()` stub | 🚧 IN PROGRESS (v1.37) |
+| **B6** — Last activity | `reactor.rs:128` | `last_activity_ms = 0` | 🚧 IN PROGRESS (v1.37) |
 
 ---
 
@@ -215,7 +193,7 @@
 | Prioriti | Bilangan | Items |
 |---|---|---|
 | ~~**KRITIKAL**~~ | ~~2~~ | ~~A1 (HIR codegen)~~ ✅, ~~A2 (Extern codegen)~~ ✅ |
-| **TINGGI** | 6 | B1-B6, C1-C3, D1 |
+| **TINGGI** | 4 | C1-C3, D1 | (B1-B6: 🚧 v1.37 in progress)
 | **SEDERHANA** | 6 | A6, B6, C4-C5, E1-E2, F1 |
 | **RENDAH / RESEARCH** | 5 | D2, G1-G2, I1 |
 | **BY DESIGN** | 1 | H1 (Edition Routing) |
@@ -233,7 +211,7 @@
 | `src/os/syscall.rs` | 1 (F1) | |
 | `src/main.rs` | 2 (G1-G2) | |
 | `src/semantic_gate.rs` | 1 (I1) | |
-| **JUMLAH** | ~~26~~ **21** | **5 selesai** |
+| **JUMLAH** | ~~26~~ **21** | **5 selesai** | (B1-B6: 🚧 v1.37 in progress)
 
 ---
 

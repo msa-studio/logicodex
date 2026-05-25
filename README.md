@@ -1,7 +1,9 @@
-# Logicodex Language — v1.36.0-alpha
-## The Capability Translation Layer
+# Logicodex Language — v1.37.0-alpha
+## The Deterministic Network Runtime
 
-> v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor → v1.34 Sharded Reactor → v1.35 Capability IR → v1.36 CTL Mapper
+> v1.21 Compiler Baseline → v1.30 Threading + IO + Audio → v1.31 Streaming Engine → v1.32 Capability Fabric → v1.33 Network Reactor → v1.34 Sharded Reactor → v1.35 Capability IR → v1.36 CTL Mapper → **v1.37 Network Runtime**
+
+The **current logicodex v1.37 alpha** milestone implements the **Deterministic Network Runtime** — transforming the compile-time network reactor (v1.33) into a fully operational runtime with live epoll event loops, syscall-based socket I/O, taint-state FSM, and backpressure policies. This closes the gap between compile-time verification and runtime execution.
 
 The **current logicodex v1.36 alpha** milestone completes the **Capability Translation Layer (CTL)** — a unified IR that projects Logicodex's capability-native world INTO the WASM ecosystem. It combines deterministic concurrency, streaming compilation, capability-based security, sharded event-driven networking, and now **WIT auto-generation** — all verified at compile time with **zero runtime mediation**.
 
@@ -52,6 +54,7 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 | **v1.34.0-alpha** | Sharded Multi-Core Reactor | Per-CPU-core reactor instances, static affinity mapping, cross-shard SPSC doors, memory budgeting |
 | **v1.35.0-alpha** | CapabilityGraph IR | Single Source of Truth IR — unifies SemanticSummary + CapabilityTopology + ShardTopology; generates Native/`.cap`/WIT |
 | **v1.36.0-alpha** | CTL Mapper | Auto-generates WIT from CapabilityGraph — 6 domain mappings, manual overrides, HW gate host reactor stubs |
+| **v1.37.0-alpha** | **Network Runtime** | **Deterministic event loop — epoll, live socket I/O, taint FSM, RAII auto-cleanup, backpressure at runtime** |
 
 ### Architecture: Door + Gate + Service + IR + CTL
 
@@ -98,7 +101,7 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 - **CapabilityGraph IR** = Unified IR (v1.35) — `src/tier2/capability_ir.rs`
 - **CTL Mapper** = WIT generator (v1.36) — `src/tier2/ctl_mapper.rs`
 
-**Validation: 88/88 checks passing — zero regression across all versions.**
+**Validation: 77/77 checks passing + runtime live — zero regression across all versions.**
 
 ### Documentation
 
@@ -112,6 +115,7 @@ Logicodex has evolved from a compiler-core prototype into a **deterministic syst
 | `docs/v1.34-SHARDED.md` | Sharded Deterministic Reactor (Per-core/Doors/Budget) |
 | `docs/v1.35-CAPABILITY-IR.md` | CapabilityGraph IR — Single Source of Truth |
 | `docs/v1.36-CTL-MAPPER.md` | CTL Mapper — WIT Auto-Generation from CapabilityGraph |
+| `docs/v1.37-NETWORK-RUNTIME.md` | **Network Runtime — epoll, socket I/O, taint FSM, RAII cleanup** |
 
 ---
 
