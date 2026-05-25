@@ -58,7 +58,14 @@ jobs:
         continue-on-error: true
 
       - name: Check build
-        run: cargo check
+        run: cargo check 2>&1 | tee build-check.log
+
+      - name: Upload build check log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-check-log
+          path: build-check.log
 
   test:
     name: Test
@@ -83,9 +90,16 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build
-        run: cargo build --release --message-format=short 2>&1
+        run: cargo build --release --message-format=short 2>&1 | tee build-release.log
         env:
           RUST_BACKTRACE: 1
+
+      - name: Upload build release log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-release-log
+          path: build-release.log
 
       - name: Run unit tests
         run: cargo test
