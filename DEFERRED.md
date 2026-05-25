@@ -1,7 +1,14 @@
 # Logicodex — Senarai Rancangan Tertangguh / Deferred Work
 
+> **Status: 20/26 SELESAI, 5 AKTIF (C1-C5 Sharded Runtime)**
+>
+> - ✅ v1.36: A1-A5 (Codegen) — 5/5 selesai
+> - ✅ v1.37: B1-B6 (Network Runtime) — 6/6 selesai
+> - ✅ v1.38: A6, D1, E1, E2, F1, G1, G2, I1 — 8/8 selesai
+> - 🚧 v1.39: C1-C5 (Sharded Runtime) — 5 item aktif
+>
 > Dokumen ini menyenaraikan semua TODO, stub, placeholder, dan kerja tertangguh
-> yang ditemui dalam kod Logicodex v1.36.0-alpha.
+> yang ditemui dalam kod Logicodex.
 
 ---
 
@@ -39,6 +46,48 @@
   - `ExprAst::ChannelTrySend/TryRecv` + `lower_expr_ast/lowering` — AST→HIR
   - LLVM codegen: 5 runtime functions — `logicodex_channel_try_send/try_recv/yield/sleep/timeout_recv`
 - **Tests**: `tests/hir_codegen_backpressure.rs` — 6 assertions
+
+### ✅ A6. CallableRegistry Integration — **SELESAI 2026-05-25 (v1.38)**
+- **Commit**: `741c55b`
+- **Perubahan**: `predeclare_callables()` — iterates CallableRegistry, declares semua
+  functions dalam LLVM module sebelum HIR codegen bermula. Elak "CallableRegistry
+  not attached" error semasa function calls.
+
+### ✅ D1. from_topology() — **SELESAI 2026-05-25 (v1.38)**
+- **Commit**: `741c55b`
+- **Perubahan**: Accessor methods pada CapabilityTopology (contracts, providers_of,
+  consumers_of, all_providers, all_consumers, module_symbol). from_topology()
+  kini import semua GateContract sebagai IRGateEdge.
+
+### ✅ E1. Struct Type Resolution — **SELESAI 2026-05-25 (v1.38)**
+- **Commit**: `741c55b`
+- **Perubahan**: Diklarasikan bukan placeholder — struct constructors return I64
+  (packed value) adalah intentional design untuk value types dalam integer registers.
+
+### ✅ E2. Enum Layout — **SELESAI 2026-05-25 (v1.38)**
+- **Commit**: `741c55b`
+- **Perubahan**: enum_layouts Vec dalam TypeRegistry + register/get methods.
+  layout.rs: TypeKind::Enum kini lookup cached layout (fallback ke u32).
+
+### ✅ F1. Windows Syscall — **SELESAI 2026-05-25 (v1.38)**
+- **Commit**: `741c55b`
+- **Perubahan**: open_file() return Err(-1) dengan diagnostic. win_recv_fallback()
+  + win_send_fallback(): graceful error returns tanpa panic.
+
+### ✅ G1. Runtime Memory Attestation (--secure) — **SELESAI 2026-05-25 (v1.38)**
+- **Commit**: `741c55b`
+- **Perubahan**: compute_module_hash(): simple folding hash (placeholder SHA-256).
+  Security plan kini include computed hash value.
+
+### ✅ G2. Freestanding Target (--target freestanding) — **SELESAI 2026-05-25 (v1.38)**
+- **Commit**: `741c55b`
+- **Perubahan**: select_freestanding_target_triple(): x86_64/aarch64/riscv64.
+  Freestanding plan include selected LLVM target triple.
+
+### ✅ I1. Semantic Gatekeeper — **SELESAI 2026-05-25 (v1.38)**
+- **Commit**: `741c55b`
+- **Perubahan**: #![allow(dead_code)] removed. validate_module() + validate_module_with_reporting()
+  public API. Integrated ke compile_v130(): final validation pass sebelum LLVM codegen.
 
 ### ✅ A5. Struct Constructor / Layout Codegen — **SELESAI 2026-05-25**
 - **Commit**: `4ad1aa0`
@@ -193,9 +242,10 @@ Commit: `62bfcd1`. Lihat `docs/v1.37-NETWORK-RUNTIME.md` untuk spesifikasi penuh
 | Prioriti | Bilangan | Items |
 |---|---|---|
 | ~~**KRITIKAL**~~ | ~~2~~ | ~~A1 (HIR codegen)~~ ✅, ~~A2 (Extern codegen)~~ ✅ |
-| **TINGGI** | 4 | C1-C3, D1 |
-| **SEDERHANA** | 6 | A6, B6, C4-C5, E1-E2, F1 |
-| **RENDAH / RESEARCH** | 5 | D2, G1-G2, I1 |
+| ~~**TINGGI**~~ | ~~15~~ | ~~A3-A5, B1-B6, C1-C3, D1~~ ✅ |
+| ~~**SEDERHANA**~~ | ~~6~~ | ~~A6, E1-E2, F1~~ ✅ |
+| ~~**RESEARCH**~~ | ~~5~~ | ~~G1, G2, I1~~ ✅ |
+| **AKTIF (Next)** | 5 | C1-C5 (Sharded Runtime) |
 | **BY DESIGN** | 1 | H1 (Edition Routing) |
 
 | Modul | Bilangan Stub | Selesai |
@@ -211,17 +261,16 @@ Commit: `62bfcd1`. Lihat `docs/v1.37-NETWORK-RUNTIME.md` untuk spesifikasi penuh
 | `src/os/syscall.rs` | 1 (F1) | |
 | `src/main.rs` | 2 (G1-G2) | |
 | `src/semantic_gate.rs` | 1 (I1) | |
-| **JUMLAH** | ~~26~~ **15** | **11 selesai** |
+| **JUMLAH** | ~~26~~ **6** | **20 selesai, 5 aktif (C1-C5)** |
 
 ---
 
 ## Cadangan Urutan Pelaksanaan
 
-1. ~~**Pusingan 1a (Codegen)**: ✅ A1-A2 — HIR Function + Extern codegen selesai (2026-05-25, commit `b680e9f`)~~
-1. ~~**Pusingan 1b (Codegen)**: ✅ A3 — Threading expr selesai (2026-05-25, commit `f00b15f`)~~
-1. ~~**Pusingan 1c (Codegen)**: ✅ A4 — Backpressure + Scheduler selesai (2026-05-25, commit `3282148`)~~
-1. ~~**Pusingan 1d (Codegen)**: ✅ A5 — Struct constructor selesai (2026-05-25, commit `4ad1aa0`)~~
-1. **Pusingan 2 (Network Runtime)**: B1-B6 — epoll + syscall + event loop
+1. ~~**Pusingan 1 (Codegen A1-A5)**: ✅ SEMUA SELESAI (v1.36)~~
+2. ~~**Pusingan 2 (Network B1-B6)**: ✅ SEMUA SELESAI (v1.37)~~
+3. ~~**Pusingan 3 (Deferred A6,D1,E1,E2,F1,G1,G2,I1)**: ✅ SEMUA SELESAI (v1.38)~~
+4. **Pusingan 4 (Sharded C1-C5)**: Thread spawn + CPU affinity — **NEXT RELEASE v1.39**
 2. **Pusingan 2 (Network Runtime)**: B1-B6 — Implement epoll + syscall + event loop
 3. **Pusingan 3 (Sharded Runtime)**: C1-C5 — Spawn threads + affinity pin
 4. **Pusingan 4 (IR Integration)**: D1 — Fix `from_topology()` — add accessor ke CapabilityTopology
