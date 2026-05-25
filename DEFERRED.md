@@ -40,11 +40,14 @@
   - LLVM codegen: 5 runtime functions — `logicodex_channel_try_send/try_recv/yield/sleep/timeout_recv`
 - **Tests**: `tests/hir_codegen_backpressure.rs` — 6 assertions
 
-### A5. Struct Constructor / Layout Codegen
-- **Fail**: `src/codegen.rs:757`
-- **Isu**: Struct layout computed tapi emit placeholder sahaja
-- **Kesan**: `Color(255,0,0,255)` tak di-compile ke packed u32 — hanya type check
-- **Prioriti**: **TINGGI**
+### ✅ A5. Struct Constructor / Layout Codegen — **SELESAI 2026-05-25**
+- **Commit**: `4ad1aa0`
+- **Perubahan**: Struct definition + constructor codegen:
+  - `register_hir_struct()`: Register LLVM struct type dari HIR declaration
+  - `emit_hir_struct_constructor()`: Color(r,g,b,a) → packed u32 RGBA (const)
+  - `emit_hir_call()`: Auto-detect struct constructor by CallableRegistry name
+  - Generic struct: alloca + build_struct_gep + store + ptr_to_int
+- **Tests**: `tests/hir_codegen_struct.rs` — 2 assertions
 
 ### A6. CallableRegistry — Codegen Integration
 - **Fail**: `src/codegen.rs:532`
@@ -212,14 +215,14 @@
 | Prioriti | Bilangan | Items |
 |---|---|---|
 | ~~**KRITIKAL**~~ | ~~2~~ | ~~A1 (HIR codegen)~~ ✅, ~~A2 (Extern codegen)~~ ✅ |
-| **TINGGI** | 7 | A5, B1-B6, C1-C3, D1 |
+| **TINGGI** | 6 | B1-B6, C1-C3, D1 |
 | **SEDERHANA** | 6 | A6, B6, C4-C5, E1-E2, F1 |
 | **RENDAH / RESEARCH** | 5 | D2, G1-G2, I1 |
 | **BY DESIGN** | 1 | H1 (Edition Routing) |
 
 | Modul | Bilangan Stub | Selesai |
 |---|---|---|
-| `src/codegen.rs` | ~~7~~ 1 (A5) | ✅ A1, ✅ A2, ✅ A3, ✅ A4 |
+| `src/codegen.rs` | ~~7~~ ✅ SEMUA SELESAI | ✅ A1, ✅ A2, ✅ A3, ✅ A4, ✅ A5 |
 | `src/net/reactor.rs` | 4 (B1-B2, B4-B6) | |
 | `src/net/connection.rs` | 2 (B3) | |
 | `src/net/sharded_reactor.rs` | 2 (C1-C2) | |
@@ -230,7 +233,7 @@
 | `src/os/syscall.rs` | 1 (F1) | |
 | `src/main.rs` | 2 (G1-G2) | |
 | `src/semantic_gate.rs` | 1 (I1) | |
-| **JUMLAH** | ~~26~~ **22** | **4 selesai** |
+| **JUMLAH** | ~~26~~ **21** | **5 selesai** |
 
 ---
 
@@ -239,7 +242,8 @@
 1. ~~**Pusingan 1a (Codegen)**: ✅ A1-A2 — HIR Function + Extern codegen selesai (2026-05-25, commit `b680e9f`)~~
 1. ~~**Pusingan 1b (Codegen)**: ✅ A3 — Threading expr selesai (2026-05-25, commit `f00b15f`)~~
 1. ~~**Pusingan 1c (Codegen)**: ✅ A4 — Backpressure + Scheduler selesai (2026-05-25, commit `3282148`)~~
-1. **Pusingan 1d (Codegen)**: A5 — Struct constructor
+1. ~~**Pusingan 1d (Codegen)**: ✅ A5 — Struct constructor selesai (2026-05-25, commit `4ad1aa0`)~~
+1. **Pusingan 2 (Network Runtime)**: B1-B6 — epoll + syscall + event loop
 2. **Pusingan 2 (Network Runtime)**: B1-B6 — Implement epoll + syscall + event loop
 3. **Pusingan 3 (Sharded Runtime)**: C1-C5 — Spawn threads + affinity pin
 4. **Pusingan 4 (IR Integration)**: D1 — Fix `from_topology()` — add accessor ke CapabilityTopology
@@ -249,3 +253,4 @@
 ---
 
 *Dokumen terakhir dikemaskini: 2026-05-25 untuk v1.36.0-alpha*
+ha*
