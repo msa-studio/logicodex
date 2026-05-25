@@ -1,6 +1,6 @@
 // =========================================================================
 // Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
+// Version: v1.45.0-alpha (Deterministic Systems Platform)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
@@ -38,8 +38,8 @@ const LOGICODEX_LOGO: &str = r#"================================================
  | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
-             [ LOGICODEX COMPILER v1.21-alpha ]
-             [ PRACTICAL LLVM COMPILER CORE  ]
+             [ LOGICODEX COMPILER v1.45.0-alpha ]
+             [ DETERMINISTIC SYSTEMS PLATFORM   ]
 =========================================================
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)"#;
 
@@ -50,17 +50,17 @@ const LOGICODEX_LONG_VERSION: &str = r#"========================================
  | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
-             [ LOGICODEX COMPILER v1.21-alpha ]
-             [ PRACTICAL LLVM COMPILER CORE  ]
+             [ LOGICODEX COMPILER v1.45.0-alpha ]
+             [ DETERMINISTIC SYSTEMS PLATFORM   ]
 =========================================================
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
-logicodex 1.21-alpha
-Security Roadmap: specification baseline and practical severity model"#;
+logicodex 1.45.0-alpha
+Security Roadmap: deterministic systems platform with capability fabric"#;
 
 #[derive(Debug, ClapParser)]
 #[command(
     name = "logicodex",
-    version = "1.21-alpha",
+    version = "1.45.0-alpha",
     long_version = LOGICODEX_LONG_VERSION,
     about = "Native compiler for the Logicodex programming language by Mohamad Supardi Abdul",
     before_help = LOGICODEX_LOGO
