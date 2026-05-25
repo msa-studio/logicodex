@@ -1,0 +1,72 @@
+// =========================================================================
+// Logicodex v1.34.0-alpha — Shard Manifest Example
+//
+// Contoh deklarasi shard dan door dalam kod Logicodex.
+// Kompiler akan:
+//   1. Baca shard {} blocks
+//   2. Assign servis ke core (static mapping)
+//   3. Verify: cross-shard = Door only
+//   4. Generate topology IR
+//   5. Output manifest JSON untuk visualisasi
+//
+// Prinsip: "Tiada servis tanpa shard. Tiada cross-shard tanpa Door."
+// =========================================================================
+
+// ─── Shard 0: Web Services ───
+// Core 0 — menerima trafik luar, menghantar ke servis dalaman
+shard WebShard {
+    core: 0,
+    services: [WebServer, ApiGateway],
+    budget_mb: 256,
+    gates: [Net.Recv, Net.Send, Storage.Baca],
+}
+
+// ─── Shard 1: Metrics & Monitoring ───
+// Core 1 — mengumpul metrik, tidak perlu storage
+shard MetricsShard {
+    core: 1,
+    services: [MetricsCollector, HealthCheck],
+    budget_mb: 64,
+    gates: [Net.Recv],
+}
+
+// ─── Shard 2: Admin & Control ───
+// Core 2 — panel pentadbiran, akses penuh
+shard AdminShard {
+    core: 2,
+    services: [AdminPanel, ConfigManager],
+    budget_mb: 128,
+    gates: [Net.Recv, Net.Send, Storage.Baca, Storage.Tulis],
+}
+
+// ─── Cross-Shard Doors ───
+// HANYA cara servis dalam shard berbeza boleh berkomunikasi
+
+// WebShard → MetricsShard: WebServer hantar metrik
+// Jenis: Message (SPSC async)
+// Kapasiti: 1024 mesej
+door WebShard → MetricsShard {
+    message_type: MetricPayload,
+    capacity: 1024,
+}
+
+// AdminShard → WebShard: AdminPanel arah ApiGateway reload
+door AdminShard → WebShard {
+    message_type: ControlCommand,
+    capacity: 16,
+}
+
+// ─── Anti-Pattern: Direct Cross-Shard ───
+// INI KESALAHAN — akan ditolak oleh kompiler:
+//
+// function bad_call() {
+//     // ❌ ERROR: Cross-shard direct call forbidden!
+//     // WebServer dan MetricsCollector dalam shard berbeza
+//     let data = metrics_collector.get_data()  // Direct call cross-shard = REJECTED
+// }
+//
+// Cara betul:
+// function good_call() {
+//     // ✅ OK: Hantar melalui Door
+//     metrics_door.send(MetricPayload { ... })  // SPSC message passing
+// }

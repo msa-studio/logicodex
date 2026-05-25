@@ -17,11 +17,14 @@
 // Fasa 3 (v1.34.0): Sharded multi-core
 // =========================================================================
 
+pub mod affinity;
 pub mod connection;
 pub mod event;
 pub mod policy;
 pub mod reactor;
 pub mod service;
+pub mod shard_local_pool;
+pub mod sharded_reactor;
 
 // Re-exports
 pub use connection::{Connection, ConnectionError, ConnectionStats, TaintState};
@@ -29,3 +32,5 @@ pub use event::{Action, Event, EventKind};
 pub use policy::{BackpressureDecision, BackpressurePolicy, PolicyConfig};
 pub use reactor::{Interest, Reactor, ReactorError};
 pub use service::{GateVerificationError, Service, ServiceRegistry, ServiceRegistryError, ServiceRegistryStats};
+pub use shard_local_pool::{AcquireResult, BudgetError, PoolStats, ShardLocalPool};
+pub use sharded_reactor::{ShardInstance, ShardStats, ShardedReactor, ShardedReactorError};
