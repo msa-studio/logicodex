@@ -15,6 +15,7 @@
 pub mod metadata;
 pub mod pass;
 pub mod gate;
+pub mod shard;
 pub mod topology;
 
 // Re-exports for convenience
@@ -24,3 +25,7 @@ pub use metadata::{
 pub use pass::{compile_streaming, pass1_predeclare, pass2_streaming, CompileMode, StreamingResult};
 pub use gate::{GateRef, GateType, GateContract, GateDomain, GateParseError};
 pub use topology::{CapabilityTopology, CapabilityDiff, TopologyVerifyResult, TopologyViolation, diff_topology};
+pub use shard::{
+    ShardAssignment, ShardTopology, ShardVerifyResult, ShardViolation,
+    ServiceGraph, ServiceNode, CommEdge, CommType, DoorRef,
+};
