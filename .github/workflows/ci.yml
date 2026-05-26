@@ -147,20 +147,30 @@ jobs:
       # NOT checked here — they have their own dormant check step below.
       - name: Check v1.21 examples (ACTIVE pipeline)
         run: |
+          set -x
           failed=0
           for f in examples/*.ldx; do
             if [ -f "$f" ]; then
               echo "=== Checking $f (v1.21) ==="
-              if ! cargo run -- check "$f" 2>&1; then
+              if ! cargo run -- check "$f" 2>&1 | tee -a example-check.log; then
                 echo "FAILED: $f"
                 failed=1
               fi
             fi
           done
+          echo "=== FULL EXAMPLE CHECK LOG ==="
+          cat example-check.log
           if [ $failed -eq 1 ]; then
             echo "=== One or more v1.21 examples failed ==="
             exit 1
           fi
+
+      - name: Upload example check log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: example-check-log
+          path: example-check.log
 
       # v1.30 DORMANT: Subsystem self-check + dormant examples
       # Uses --pipeline v1.30 to activate dormant parser/codegen
