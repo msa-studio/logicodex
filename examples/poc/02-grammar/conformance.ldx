@@ -1,0 +1,450 @@
+// ============================================
+// POC-02: Grammar Conformance Test Suite
+// ============================================
+// This single file exercises EVERY grammar rule
+// in the Logicodex v1.21 language specification.
+// Each section is clearly labeled with the rule being tested.
+// Expected: compiles without errors.
+// ============================================
+
+// ============================================
+// GRAMMAR RULE: variable_declaration
+// Forms: BINA name = expr;  /  let name = expr;
+// Types: I32, I64, F32, F64, Bool
+// ============================================
+
+// --- I32 (32-bit signed integer) ---
+BINA i32_zero = 0;
+BINA i32_pos = 42;
+BINA i32_neg = -7;
+BINA i32_expr = 1 + 2;
+
+// --- I64 (64-bit signed integer) ---
+BINA i64_val = 10000000000;
+
+// --- F32 (32-bit float) ---
+BINA f32_val = 3.14;
+
+// --- F64 (64-bit double) ---
+BINA f64_val = 2.718281828459;
+
+// --- Bool (boolean) ---
+BINA bool_benar = benar;
+BINA bool_palsu = palsu;
+
+// --- Multiple declarations ---
+BINA a = 1;
+BINA b = 2;
+BINA c = 3;
+
+
+// ============================================
+// GRAMMAR RULE: print_statement
+// Form: PAPAR expr;  /  print expr;
+// Prints to stdout, no parentheses.
+// ============================================
+
+PAPAR 42;
+PAPAR a;
+PAPAR i32_pos;
+PAPAR bool_benar;
+
+
+// ============================================
+// GRAMMAR RULE: binary_operators_arithmetic
+// Operators: +, -, *, /, %
+// ============================================
+
+BINA op_add = a + b;          // Penambahan / Addition
+BINA op_sub = a - b;          // Penolakan / Subtraction
+BINA op_mul = a * b;          // Pendaraban / Multiplication
+BINA op_div = a / b;          // Pembahagian / Division
+BINA op_mod = a % b;          // Modulo
+
+PAPAR op_add;                 // 1 + 2 = 3
+PAPAR op_sub;                 // 1 - 2 = -1
+PAPAR op_mul;                 // 1 * 2 = 2
+PAPAR op_div;                 // 1 / 2 = 0
+PAPAR op_mod;                 // 1 % 2 = 1
+
+
+// ============================================
+// GRAMMAR RULE: binary_operators_comparison
+// Operators: <, >, ==, !=, <=, >=
+// ============================================
+
+BINA op_lt = a < b;           // Kurang dari / Less than
+BINA op_gt = a > b;           // Lebih dari / Greater than
+BINA op_eq = a == b;          // Sama dengan / Equal
+BINA op_ne = a != b;          // Tidak sama / Not equal
+BINA op_le = a <= b;          // Kurang atau sama / Less-equal
+BINA op_ge = a >= b;          // Lebih atau sama / Greater-equal
+
+PAPAR op_lt;                  // true (1 < 2)
+PAPAR op_gt;                  // false (1 > 2)
+PAPAR op_eq;                  // false (1 == 2)
+PAPAR op_ne;                  // true (1 != 2)
+PAPAR op_le;                  // true (1 <= 2)
+PAPAR op_ge;                  // false (1 >= 2)
+
+
+// ============================================
+// GRAMMAR RULE: binary_operators_bitwise
+// Operators: &, |, ^, <<, >>
+// ============================================
+
+BINA op_and = 5 & 3;          // AND bit:  0101 & 0011 = 0001 = 1
+BINA op_or  = 5 | 3;          // OR bit:   0101 | 0011 = 0111 = 7
+BINA op_xor = 5 ^ 3;          // XOR bit:  0101 ^ 0011 = 0110 = 6
+BINA op_shl = 1 << 3;         // Shift kiri:  1 << 3 = 8
+BINA op_shr = 8 >> 2;         // Shift kanan: 8 >> 2 = 2
+
+PAPAR op_and;                 // Expected: 1
+PAPAR op_or;                  // Expected: 7
+PAPAR op_xor;                 // Expected: 6
+PAPAR op_shl;                 // Expected: 8
+PAPAR op_shr;                 // Expected: 2
+
+
+// ============================================
+// GRAMMAR RULE: unary_operator
+// Operator: ~ (bitwise NOT)
+// ============================================
+
+BINA op_not = ~0;             // NOT bit: ~0000...0000 = 1111...1111 = -1
+PAPAR op_not;                 // Expected: -1
+
+
+// ============================================
+// GRAMMAR RULE: boolean_literals
+// Literals: benar / true, palsu / false
+// ============================================
+
+BINA lit_true = benar;
+BINA lit_false = palsu;
+PAPAR lit_true;               // Expected: true
+PAPAR lit_false;              // Expected: false
+
+
+// ============================================
+// GRAMMAR RULE: if_statement
+// Form: JIKA cond MAKA MULA ... TAMAT
+//       if cond { ... }
+// ============================================
+
+BINA nilai_if = 10;
+
+JIKA nilai_if == 10 MAKA MULA
+    PAPAR 100;                // Dijangka tercetak
+TAMAT
+
+JIKA nilai_if != 10 MAKA MULA
+    PAPAR 999;                // Tidak dijangka tercetak
+TAMAT
+
+
+// ============================================
+// GRAMMAR RULE: if_else_statement
+// Form: JIKA cond MAKA MULA ... TAMAT MELAINKAN MULA ... TAMAT
+//       if cond { ... } else { ... }
+// ============================================
+
+BINA nilai_else = 5;
+
+JIKA nilai_else > 10 MAKA MULA
+    PAPAR 200;                // Tidak dijangka
+TAMAT
+MELAINKAN MULA
+    PAPAR 201;                // Dijangka tercetak
+TAMAT
+
+
+// ============================================
+// GRAMMAR RULE: if_elseif_statement
+// Form: JIKA ... SEBALIKNYA JIKA ... SEBALIKNYA ...
+//       if ... else if ... else ...
+// ============================================
+
+BINA gred = 75;
+
+JIKA gred >= 90 MAKA MULA
+    PAPAR 1;                  // A
+TAMAT
+SEBALIKNYA JIKA gred >= 80 MAKA MULA
+    PAPAR 2;                  // B
+TAMAT
+SEBALIKNYA JIKA gred >= 70 MAKA MULA
+    PAPAR 3;                  // C - dijangka
+TAMAT
+SEBALIKNYA JIKA gred >= 60 MAKA MULA
+    PAPAR 4;                  // D
+TAMAT
+MELAINKAN MULA
+    PAPAR 5;                  // F
+TAMAT
+
+
+// ============================================
+// GRAMMAR RULE: while_statement
+// Form: SELAGI cond DAN benar MULA ... TAMAT
+//       while cond { ... }
+// ============================================
+
+BINA w_count = 0;
+BINA w_total = 0;
+
+SELAGI w_count < 5 DAN benar MULA
+    w_total = w_total + w_count;
+    w_count = w_count + 1;
+TAMAT
+
+PAPAR w_total;                // 0+1+2+3+4 = 10
+
+
+// ============================================
+// GRAMMAR RULE: while_true_infinite_loop
+// Form: SELAGI benar DAN benar MULA ... TAMAT
+//       while true { ... }
+// Uses break (HENTI) for termination.
+// ============================================
+
+BINA inf_count = 0;
+BINA inf_total = 0;
+
+SELAGI benar DAN benar MULA
+    JIKA inf_count >= 5 MAKA MULA
+        HENTI;                // Break dari gelung
+    TAMAT
+    inf_total = inf_total + inf_count;
+    inf_count = inf_count + 1;
+TAMAT
+
+PAPAR inf_total;              // 0+1+2+3+4 = 10
+
+
+// ============================================
+// GRAMMAR RULE: break_statement
+// Keyword: HENTI / break
+// Immediately exits the innermost loop.
+// ============================================
+
+BINA b_count = 0;
+SELAGI benar DAN benar MULA
+    PAPAR 300;
+    b_count = b_count + 1;
+    JIKA b_count == 1 MAKA MULA
+        HENTI;                // Keluar selepas iterasi pertama
+    TAMAT
+TAMAT
+
+
+// ============================================
+// GRAMMAR RULE: continue_statement
+// Keyword: TERUS / continue
+// Skips to next loop iteration.
+// ============================================
+
+BINA c_count = 0;
+BINA c_sum = 0;
+
+SELAGI c_count < 5 DAN benar MULA
+    c_count = c_count + 1;
+    JIKA c_count == 3 MAKA MULA
+        TERUS;                // Langkau nilai 3
+    TAMAT
+    c_sum = c_sum + c_count;
+TAMAT
+
+PAPAR c_sum;                  // 1+2+4+5 = 12 (3 dilangkau)
+
+
+// ============================================
+// GRAMMAR RULE: function_definition
+// Form: FUNGSI name(params) -> ReturnType MULA ... TAMAT
+//       fn name(params) -> ReturnType { ... }
+// ============================================
+
+// --- Function: no params, returns I32 ---
+FUNGSI dapat_lima() -> I32 MULA
+    PULANG 5;
+TAMAT
+
+// --- Function: single param ---
+FUNGSI ganda(BINA x = 0) -> I32 MULA
+    PULANG x * 2;
+TAMAT
+
+// --- Function: two params ---
+FUNGSI tambah(BINA x = 0, BINA y = 0) -> I32 MULA
+    PULANG x + y;
+TAMAT
+
+// --- Function: returns Bool ---
+FUNGSI adalah_positif(BINA n = 0) -> Bool MULA
+    PULANG n > 0;
+TAMAT
+
+// --- Function: returns I64 ---
+FUNGSI besar() -> I64 MULA
+    PULANG 9999999999;
+TAMAT
+
+
+// ============================================
+// GRAMMAR RULE: function_call
+// Call a defined function and use its result.
+// ============================================
+
+BINA hasil_lima = dapat_lima();
+PAPAR hasil_lima;             // Expected: 5
+
+BINA hasil_ganda = ganda(7);
+PAPAR hasil_ganda;            // Expected: 14
+
+BINA hasil_tambah = tambah(3, 4);
+PAPAR hasil_tambah;           // Expected: 7
+
+BINA hasil_positif = adalah_positif(-5);
+PAPAR hasil_positif;          // Expected: false
+
+
+// ============================================
+// GRAMMAR RULE: return_statement
+// Keyword: PULANG expr; / return expr;
+// Exits function with a value.
+// ============================================
+
+FUNGSI pulang_awal(BINA n = 0) -> I32 MULA
+    JIKA n < 0 MAKA MULA
+        PULANG 0;             // Pulang awal
+    TAMAT
+    PULANG n * n;             // Pulang normal
+TAMAT
+
+PAPAR pulang_awal(5);         // Expected: 25
+PAPAR pulang_awal(-3);        // Expected: 0
+
+
+// ============================================
+// GRAMMAR RULE: nested_blocks
+// Blocks inside blocks: variable scope isolation.
+// ============================================
+
+BINA scoped_outer = 1;
+PAPAR scoped_outer;           // Expected: 1
+
+JIKA benar MAKA MULA
+    BINA scoped_inner = 2;
+    PAPAR scoped_inner;       // Expected: 2
+
+    // Block dalam block / block inside block
+    JIKA benar MAKA MULA
+        BINA scoped_deep = 3;
+        PAPAR scoped_deep;    // Expected: 3
+    TAMAT
+TAMAT
+
+PAPAR scoped_outer;           // Expected: 1 (unchanged)
+
+
+// ============================================
+// GRAMMAR RULE: function_with_while
+// Combine functions and loops.
+// ============================================
+
+FUNGSI jumlah_n(BINA n = 10) -> I32 MULA
+    BINA jumlah = 0;
+    BINA i = 1;
+    SELAGI i <= n DAN benar MULA
+        jumlah = jumlah + i;
+        i = i + 1;
+    TAMAT
+    PULANG jumlah;
+TAMAT
+
+PAPAR jumlah_n(10);           // 1+2+...+10 = 55
+
+
+// ============================================
+// GRAMMAR RULE: nested_function_calls
+// Call functions within expressions.
+// ============================================
+
+FUNGSI kuasa_dua(BINA x = 0) -> I32 MULA
+    PULANG x * x;
+TAMAT
+
+FUNGSI kuasa_tiga(BINA x = 0) -> I32 MULA
+    PULANG x * x * x;
+TAMAT
+
+// Panggilan bersarang / nested calls
+BINA nested = kuasa_dua(ganda(3));
+PAPAR nested;                 // ganda(3)=6, kuasa_dua(6)=36
+
+
+// ============================================
+// GRAMMAR RULE: operator_precedence
+// Verify correct precedence: * before +, etc.
+// ============================================
+
+BINA prec1 = 2 + 3 * 4;       // 2 + 12 = 14 (not 20)
+BINA prec2 = 10 - 6 / 2;      // 10 - 3 = 7 (not 2)
+BINA prec3 = (2 + 3) * 4;     // 5 * 4 = 20
+
+PAPAR prec1;                  // Expected: 14
+PAPAR prec2;                  // Expected: 7
+PAPAR prec3;                  // Expected: 20
+
+
+// ============================================
+// GRAMMAR RULE: compound_assignment
+// Assignment within expressions: a = a + b
+// ============================================
+
+BINA comp = 5;
+comp = comp + 3;              // comp = 8
+comp = comp - 2;              // comp = 6
+comp = comp * 2;              // comp = 12
+comp = comp / 3;              // comp = 4
+PAPAR comp;                   // Expected: 4
+
+
+// ============================================
+// GRAMMAR RULE: all_types_integration
+// Use every type in a single coherent program.
+// ============================================
+
+FUNGSI uji_semua_jenis() -> I32 MULA
+    BINA vi32 = 42;
+    BINA vi64 = 100000;
+    BINA vf32 = 1.5;
+    BINA vf64 = 2.5;
+    BINA vbool = benar;
+
+    PAPAR vi32;
+    PAPAR vi64;
+    PAPAR vf32;
+    PAPAR vf64;
+    PAPAR vbool;
+
+    PULANG 0;
+TAMAT
+
+uji_semua_jenis();
+
+
+// ============================================
+// GRAMMAR RULE: program_structure
+// A complete program with all top-level constructs.
+// ============================================
+
+// Entry point logic (implicit main)
+BINA keputusan_akhir = 42;
+PAPAR keputusan_akhir;        // Dijangka: 42
+
+// ============================================
+// AKHIR UJIAN KELAKUAN GRAMATIK
+// Semua peraturan tatabahasa telah diuji.
+// Jika ini berkompil, tatabahasa v1.21 disokong.
+// ============================================

@@ -1,0 +1,163 @@
+// ============================================
+// POC-01: Dual-Syntax Calculator (Malay)
+// ============================================
+// Ini adalah bukti konsep kalkulator dalam sintaks Melayu.
+// Ia menguji pemboleh ubah, aritmetik, if/else, dan gelung while.
+// Sasaran: Menghasilkan IR LLVM yang sama seperti calc_expert.ldx
+// ============================================
+
+// --- Bahagian 1: Aritmetik Asas ---
+// Kira: (10 + 5) * 2 - 3 / 2
+// Dijangka: (10 + 5) * 2 - 3 / 2 = 15 * 2 - 1 = 30 - 1 = 29
+
+BINA a = 10;
+BINA b = 5;
+BINA c = 2;
+BINA d = 3;
+
+BINA tambah = a + b;        // 10 + 5 = 15
+PAPAR tambah;
+
+BINA darab = tambah * c;    // 15 * 2 = 30
+PAPAR darab;
+
+BINA bahagi = d / c;        // 3 / 2 = 1 (pembahagian integer)
+PAPAR bahagi;
+
+BINA keputusan1 = darab - bahagi;  // 30 - 1 = 29
+PAPAR keputusan1;
+
+// --- Bahagian 2: Fungsi Faktorial ---
+// Fungsi: factorial(n) = n * (n-1) * ... * 1
+// Dijangka: factorial(5) = 120
+
+FUNGSI factorial(BINA n = 5) -> I32 MULA
+    BINA keputusan = 1;
+    BINA i = n;
+
+    // Gelung while: pendaraban menurun
+    SELAGI i > 1 DAN benar MULA
+        keputusan = keputusan * i;
+        i = i - 1;
+    TAMAT
+
+    PULANG keputusan;
+TAMAT
+
+// Panggil fungsi faktorial
+BINA f5 = factorial(5);
+PAPAR f5;
+
+// --- Bahagian 3: Semakan Nombor Perdana ---
+// Periksa sama ada 17 adalah nombor perdana
+// Dijangka: 17 adalah perdana (benar)
+
+FUNGSI semak_perdana(BINA nombor = 17) -> Bool MULA
+    // Nombor kurang dari 2 bukan perdana
+    JIKA nombor < 2 MAKA MULA
+        PULANG palsu;
+    TAMAT
+
+    // 2 adalah perdana
+    JIKA nombor == 2 MAKA MULA
+        PULANG benar;
+    TAMAT
+
+    // Nombor genap bukan perdana
+    JIKA nombor % 2 == 0 MAKA MULA
+        PULANG palsu;
+    TAMAT
+
+    // Semak pembahagi ganjil dari 3 hingga sqrt(nombor)
+    BINA pembahagi = 3;
+    SELAGI pembahagi * pembahagi <= nombor DAN benar MULA
+        JIKA nombor % pembahagi == 0 MAKA MULA
+            PULANG palsu;
+        TAMAT
+        pembahagi = pembahagi + 2;
+    TAMAT
+
+    PULANG benar;
+TAMAT
+
+// Semak sama ada 17 perdana
+BINA adakah_perdana = semak_perdana(17);
+PAPAR adakah_perdana;
+
+// --- Bahagian 4: Logik bersyarat ---
+// Uji rantaian if-else if-else
+BINA skor = 75;
+
+JIKA skor >= 90 MAKA MULA
+    PAPAR 1;    // Gred A
+TAMAT
+SEBALIKNYA JIKA skor >= 80 MAKA MULA
+    PAPAR 2;    // Gred B
+TAMAT
+SEBALIKNYA JIKA skor >= 70 MAKA MULA
+    PAPAR 3;    // Gred C
+TAMAT
+SEBALIKNYA JIKA skor >= 60 MAKA MULA
+    PAPAR 4;    // Gred D
+TAMAT
+MELAINKAN MULA
+    PAPAR 5;    // Gred F
+TAMAT
+
+// --- Bahagian 5: Operasi aritmetik lanjutan ---
+// Campuran pelbagai operator
+BINA x = 7;
+BINA y = 3;
+BINA z = 2;
+
+BINA campur1 = (x + y) * z;     // (7 + 3) * 2 = 20
+PAPAR campur1;
+
+BINA campur2 = x * y + z;       // 7 * 3 + 2 = 23
+PAPAR campur2;
+
+BINA campur3 = x - y / z;       // 7 - 3 / 2 = 7 - 1 = 6
+PAPAR campur3;
+
+// --- Bahagian 6: Gelung while dengan HENTI ---
+// Kira jumlah 1 hingga 10 menggunakan gelung while dan HENTI
+BINA jumlah = 0;
+BINA penghitung = 1;
+
+SELAGI benar DAN benar MULA
+    JIKA penghitung > 10 MAKA MULA
+        HENTI;
+    TAMAT
+    jumlah = jumlah + penghitung;
+    penghitung = penghitung + 1;
+TAMAT
+
+PAPAR jumlah;   // Dijangka: 55
+
+// --- Bahagian 7: Fungsi matematik tambahan ---
+// Fungsi kuasa dua
+FUNGSI kuasa_dua(BINA nilai = 8) -> I32 MULA
+    PULANG nilai * nilai;
+TAMAT
+
+BINA k2 = kuasa_dua(8);
+PAPAR k2;       // Dijangka: 64
+
+// --- Bahagian 8: Blok bersarang ---
+// Uji skop pemboleh ubah dalam blok bersarang
+BINA luar = 100;
+PAPAR luar;
+
+JIKA luar > 50 MAKA MULA
+    BINA dalam = 50;
+    PAPAR dalam;    // Dapat akses nilai luar dan dalam
+    luar = luar - dalam;
+TAMAT
+
+PAPAR luar;     // Dijangka: 50
+
+// ============================================
+// AKHIR KALKULATOR MELAYU
+// Semua keputusan dicetak. Bandingkan dengan calc_expert.ldx
+// untuk pengesahan IR LLVM yang identikal.
+// ============================================

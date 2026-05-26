@@ -1,0 +1,229 @@
+// ============================================
+// POC-01: Dual-Syntax Calculator (Expert)
+// ============================================
+// This is the EXACT SAME logic as calc_malay.ldx
+// written in Expert canonical syntax.
+// Every line is semantically identical.
+// Goal: Produce identical LLVM IR output.
+// ============================================
+
+// --- Part 1: Basic Arithmetic ---
+// Calculate: (10 + 5) * 2 - 3 / 2
+// Expected: (10 + 5) * 2 - 3 / 2 = 15 * 2 - 1 = 30 - 1 = 29
+// Malay: BINA a = 10;
+let a = 10;
+// Malay: BINA b = 5;
+let b = 5;
+// Malay: BINA c = 2;
+let c = 2;
+// Malay: BINA d = 3;
+let d = 3;
+
+// Malay: BINA tambah = a + b;
+let tambah = a + b;         // 10 + 5 = 15
+// Malay: PAPAR tambah;
+print tambah;
+
+// Malay: BINA darab = tambah * c;
+let darab = tambah * c;     // 15 * 2 = 30
+// Malay: PAPAR darab;
+print darab;
+
+// Malay: BINA bahagi = d / c;
+let bahagi = d / c;         // 3 / 2 = 1 (integer division)
+// Malay: PAPAR bahagi;
+print bahagi;
+
+// Malay: BINA keputusan1 = darab - bahagi;
+let keputusan1 = darab - bahagi;  // 30 - 1 = 29
+// Malay: PAPAR keputusan1;
+print keputusan1;
+
+// --- Part 2: Factorial Function ---
+// Function: factorial(n) = n * (n-1) * ... * 1
+// Expected: factorial(5) = 120
+// Malay: FUNGSI factorial(BINA n = 5) -> I32 MULA ... TAMAT
+fn factorial(let n = 5) -> I32 {
+    // Malay: BINA keputusan = 1;
+    let keputusan = 1;
+    // Malay: BINA i = n;
+    let i = n;
+
+    // Malay: SELAGI i > 1 DAN benar MULA ... TAMAT
+    while i > 1 {
+        // Malay: keputusan = keputusan * i;
+        keputusan = keputusan * i;
+        // Malay: i = i - 1;
+        i = i - 1;
+    }
+
+    // Malay: PULANG keputusan;
+    return keputusan;
+}
+
+// Malay: BINA f5 = factorial(5);
+let f5 = factorial(5);
+// Malay: PAPAR f5;
+print f5;
+
+// --- Part 3: Prime Number Check ---
+// Check whether 17 is a prime number
+// Expected: 17 is prime (true)
+// Malay: FUNGSI semak_perdana(BINA nombor = 17) -> Bool MULA ... TAMAT
+fn semak_perdana(let nombor = 17) -> Bool {
+    // Malay: JIKA nombor < 2 MAKA MULA ... TAMAT
+    if nombor < 2 {
+        // Malay: PULANG palsu;
+        return false;
+    }
+
+    // Malay: JIKA nombor == 2 MAKA MULA ... TAMAT
+    if nombor == 2 {
+        // Malay: PULANG benar;
+        return true;
+    }
+
+    // Malay: JIKA nombor % 2 == 0 MAKA MULA ... TAMAT
+    if nombor % 2 == 0 {
+        // Malay: PULANG palsu;
+        return false;
+    }
+
+    // Malay: BINA pembahagi = 3;
+    let pembahagi = 3;
+    // Malay: SELAGI pembahagi * pembahagi <= nombor DAN benar MULA ... TAMAT
+    while pembahagi * pembahagi <= nombor {
+        // Malay: JIKA nombor % pembahagi == 0 MAKA MULA ... TAMAT
+        if nombor % pembahagi == 0 {
+            // Malay: PULANG palsu;
+            return false;
+        }
+        // Malay: pembahagi = pembahagi + 2;
+        pembahagi = pembahagi + 2;
+    }
+
+    // Malay: PULANG benar;
+    return true;
+}
+
+// Malay: BINA adakah_perdana = semak_perdana(17);
+let adakah_perdana = semak_perdana(17);
+// Malay: PAPAR adakah_perdana;
+print adakah_perdana;
+
+// --- Part 4: Conditional Logic ---
+// Test if-else if-else chain
+// Malay: BINA skor = 75;
+let skor = 75;
+
+// Malay: JIKA skor >= 90 MAKA MULA ... TAMAT
+if skor >= 90 {
+    // Malay: PAPAR 1;
+    print 1;    // Grade A
+}
+// Malay: SEBALIKNYA JIKA skor >= 80 MAKA MULA ... TAMAT
+else if skor >= 80 {
+    // Malay: PAPAR 2;
+    print 2;    // Grade B
+}
+// Malay: SEBALIKNYA JIKA skor >= 70 MAKA MULA ... TAMAT
+else if skor >= 70 {
+    // Malay: PAPAR 3;
+    print 3;    // Grade C
+}
+// Malay: SEBALIKNYA JIKA skor >= 60 MAKA MULA ... TAMAT
+else if skor >= 60 {
+    // Malay: PAPAR 4;
+    print 4;    // Grade D
+}
+// Malay: MELAINKAN MULA ... TAMAT
+else {
+    // Malay: PAPAR 5;
+    print 5;    // Grade F
+}
+
+// --- Part 5: Advanced Arithmetic ---
+// Mix of various operators
+// Malay: BINA x = 7;
+let x = 7;
+// Malay: BINA y = 3;
+let y = 3;
+// Malay: BINA z = 2;
+let z = 2;
+
+// Malay: BINA campur1 = (x + y) * z;
+let campur1 = (x + y) * z;      // (7 + 3) * 2 = 20
+// Malay: PAPAR campur1;
+print campur1;
+
+// Malay: BINA campur2 = x * y + z;
+let campur2 = x * y + z;        // 7 * 3 + 2 = 23
+// Malay: PAPAR campur2;
+print campur2;
+
+// Malay: BINA campur3 = x - y / z;
+let campur3 = x - y / z;        // 7 - 3 / 2 = 7 - 1 = 6
+// Malay: PAPAR campur3;
+print campur3;
+
+// --- Part 6: While Loop with break ---
+// Calculate sum 1..10 using while loop with break
+// Malay: BINA jumlah = 0;
+let jumlah = 0;
+// Malay: BINA penghitung = 1;
+let penghitung = 1;
+
+// Malay: SELAGI benar DAN benar MULA ... TAMAT
+while true {
+    // Malay: JIKA penghitung > 10 MAKA MULA ... TAMAT
+    if penghitung > 10 {
+        // Malay: HENTI;
+        break;
+    }
+    // Malay: jumlah = jumlah + penghitung;
+    jumlah = jumlah + penghitung;
+    // Malay: penghitung = penghitung + 1;
+    penghitung = penghitung + 1;
+}
+
+// Malay: PAPAR jumlah;
+print jumlah;   // Expected: 55
+
+// --- Part 7: Additional Math Function ---
+// Square function
+// Malay: FUNGSI kuasa_dua(BINA nilai = 8) -> I32 MULA ... TAMAT
+fn kuasa_dua(let nilai = 8) -> I32 {
+    // Malay: PULANG nilai * nilai;
+    return nilai * nilai;
+}
+
+// Malay: BINA k2 = kuasa_dua(8);
+let k2 = kuasa_dua(8);
+// Malay: PAPAR k2;
+print k2;       // Expected: 64
+
+// --- Part 8: Nested Blocks ---
+// Test variable scope in nested blocks
+// Malay: BINA luar = 100;
+let luar = 100;
+// Malay: PAPAR luar;
+print luar;
+
+// Malay: JIKA luar > 50 MAKA MULA ... TAMAT
+if luar > 50 {
+    // Malay: BINA dalam = 50;
+    let dalam = 50;
+    // Malay: PAPAR dalam;
+    print dalam;
+    // Malay: luar = luar - dalam;
+    luar = luar - dalam;
+}
+
+// Malay: PAPAR luar;
+print luar;     // Expected: 50
+
+// ============================================
+// END EXPERT CALCULATOR
+// All results printed. Compare with calc_malay.ldx
+// for identical LLVM IR verification.
+// ============================================

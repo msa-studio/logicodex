@@ -1,0 +1,617 @@
+# ============================================================================
+# GATEKEEPER — Logicodex PR Policy Enforcement
+#
+#   "The police force that blocks PRs violating roadmap policy."
+#
+# This workflow enforces the Architecture Freeze Policy defined in ROADMAP.md
+# and ensures all pull requests comply with phase governance before merging.
+#
+# Policies Enforced:
+#   1. Phase Compliance  — PR labels must match the current roadmap phase
+#   2. Documentation Gate — Feature PRs must include documentation updates
+#   3. Size Check        — PRs >500 lines require "rfc-required" label
+#   4. Architecture Freeze — Core files (ast.rs, semantic.rs) need approval
+#
+# Failures post detailed comments on the PR via GitHub Script.
+# ============================================================================
+
+name: Gatekeeper
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to audit (optional)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+env:
+  # Phase label taxonomy — must stay synchronized with ROADMAP.md
+  PHASE_LABELS: "phase-1,phase-2,v1.50.x,v2.0-vision"
+  # Files under architecture freeze (core structures)
+  FROZEN_FILES: "src/ast.rs,src/semantic.rs"
+  # Files that count as documentation
+  DOCS_PATHS: "docs/,README.md,SPECIFICATION.md,ROADMAP.md,CHANGELOG.md,CONTRIBUTING.md,.roadmap/"
+  # Maximum lines changed before RFC is required
+  SIZE_LIMIT: "500"
+
+jobs:
+  # ==========================================================================
+  # JOB: check_phase_compliance
+  # Verifies PR labels align with the current active phase in ROADMAP.md.
+  # If PR adds features, its label must match the current phase.
+  # ==========================================================================
+  check_phase_compliance:
+    name: Phase Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Determine current phase from ROADMAP.md
+        id: detect_phase
+        run: |
+          echo "=== Detecting current phase from ROADMAP.md ==="
+
+          # Extract current version/status line
+          CURRENT_VERSION=$(grep -m1 "Current Version" ROADMAP.md | sed 's/.*`\([^`]*\)`.*/\1/')
+          CURRENT_STATUS=$(grep -m1 "Status:" ROADMAP.md | sed 's/.*Status:[[:space:]]*\([^—]*\).*/\1/' | xargs)
+
+          echo "current_version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "current_status=${CURRENT_STATUS}" >> "$GITHUB_OUTPUT"
+
+          # Determine expected phase label
+          if echo "$CURRENT_STATUS" | grep -qi "alpha.*architecture freeze"; then
+            EXPECTED_LABEL="phase-1"
+            PHASE_NAME="Phase 1 (v1.45.x Maintenance / Architecture Freeze)"
+          elif echo "$CURRENT_STATUS" | grep -qi "phase 2\|v1.50"; then
+            EXPECTED_LABEL="phase-2"
+            PHASE_NAME="Phase 2 (v1.50.x Development)"
+          else
+            EXPECTED_LABEL="phase-1"
+            PHASE_NAME="Phase 1 (default fallback)"
+          fi
+
+          echo "expected_label=${EXPECTED_LABEL}" >> "$GITHUB_OUTPUT"
+          echo "phase_name=${PHASE_NAME}" >> "$GITHUB_OUTPUT"
+
+          echo "Current version : ${CURRENT_VERSION}"
+          echo "Current status  : ${CURRENT_STATUS}"
+          echo "Expected label  : ${EXPECTED_LABEL}"
+          echo "Phase name      : ${PHASE_NAME}"
+
+      - name: Fetch PR labels
+        id: fetch_labels
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = context.issue.number || '${{ github.event.inputs.pr_number }}';
+            if (!prNumber) {
+              core.info('No PR number available — skipping label fetch');
+              return '[]';
+            }
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: parseInt(prNumber)
+            });
+            const labels = pr.labels.map(l => l.name);
+            core.info(`PR #${prNumber} labels: ${labels.join(', ')}`);
+            return JSON.stringify(labels);
+
+      - name: Validate phase compliance
+        id: validate_phase
+        env:
+          EXPECTED_LABEL: ${{ steps.detect_phase.outputs.expected_label }}
+          PHASE_NAME: ${{ steps.detect_phase.outputs.phase_name }}
+        run: |
+          LABELS_JSON='${{ steps.fetch_labels.outputs.result }}'
+          # Strip quotes if result is a JSON string representation
+          LABELS=$(echo "$LABELS_JSON" | tr -d '[]"' | tr ',' '\n' | xargs -I{} echo {} | grep -v '^$' || true)
+
+          echo "=== Phase Compliance Check ==="
+          echo "Expected phase label: ${EXPECTED_LABEL}"
+          echo "PR labels: ${LABELS}"
+
+          # Check if this is a feature PR (not a bugfix, docs, or chore PR)
+          IS_FEATURE=false
+          if echo "$LABELS" | grep -qiE 'feature|enhancement|phase-'; then
+            IS_FEATURE=true
+          fi
+
+          # If PR title/body contains phase references, validate them
+          echo "is_feature=${IS_FEATURE}" >> "$GITHUB_OUTPUT"
+
+          if [ "$IS_FEATURE" = "true" ]; then
+            if echo "$LABELS" | grep -qx "$EXPECTED_LABEL"; then
+              echo "result=PASS" >> "$GITHUB_OUTPUT"
+              echo "✅ Phase compliance PASS: feature PR correctly labeled for ${PHASE_NAME}"
+            else
+              echo "result=FAIL" >> "$GITHUB_OUTPUT"
+              echo "❌ Phase compliance FAIL: feature PR missing required label '${EXPECTED_LABEL}'"
+              echo "   Current phase: ${PHASE_NAME}"
+              echo "   PR labels found: ${LABELS}"
+              exit 1
+            fi
+          else
+            echo "result=SKIP" >> "$GITHUB_OUTPUT"
+            echo "⏭️  Phase compliance SKIP: not a feature PR (no feature/enhancement/phase label detected)"
+          fi
+
+      - name: Post comment on failure
+        if: failure() && steps.validate_phase.outputs.result == 'FAIL'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = context.issue.number || '${{ github.event.inputs.pr_number }}';
+            if (!prNumber) return;
+
+            const expectedLabel = '${{ steps.detect_phase.outputs.expected_label }}';
+            const phaseName = '${{ steps.detect_phase.outputs.phase_name }}';
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            const body = `## 🚫 Gatekeeper: Phase Compliance Failed
+
+            This **feature PR** does not comply with the current roadmap phase.
+
+            | Check | Result |
+            |-------|--------|
+            | Current Phase | **${phaseName}** |
+            | Required Label | \`${expectedLabel}\` |
+            | PR Labels | (missing required label) |
+
+            ### Required Actions
+
+            1. Add the \`${expectedLabel}\` label to this PR
+            2. Ensure the PR scope aligns with [ROADMAP.md](${{ github.server_url }}/${{ github.repository }}/blob/main/ROADMAP.md)
+            3. If you believe this is an exception, request a **maintainer override** with justification
+
+            > 📖 **Policy Reference:** ROADMAP.md Architecture Freeze Policy (v1.45+)
+            > All feature work must be tagged with the current phase label.
+
+            <sub>🔍 [View workflow run](${runUrl})</sub>`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body
+            });
+
+  # ==========================================================================
+  # JOB: check_documentation
+  # If PR adds features, requires documentation updates.
+  # ==========================================================================
+  check_documentation:
+    name: Documentation Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Determine if feature PR
+        id: check_feature
+        env:
+          DOCS_PATHS: ${{ env.DOCS_PATHS }}
+        run: |
+          echo "=== Checking if this is a feature PR ==="
+
+          # Get PR labels from event payload
+          LABELS_JSON='${{ toJson(github.event.pull_request.labels) }}'
+          if [ "$LABELS_JSON" = "null" ] || [ -z "$LABELS_JSON" ]; then
+            echo "No labels found in event payload"
+            echo "is_feature=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Check for feature-related labels
+          IS_FEATURE=$(echo "$LABELS_JSON" | grep -oE '"name":\s*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"' | grep -iE 'feature|enhancement|phase-' | head -1 || true)
+
+          if [ -n "$IS_FEATURE" ]; then
+            echo "is_feature=true" >> "$GITHUB_OUTPUT"
+            echo "Feature label detected: ${IS_FEATURE}"
+          else
+            echo "is_feature=false" >> "$GITHUB_OUTPUT"
+            echo "Not a feature PR — skipping docs gate"
+          fi
+
+      - name: Check for documentation updates
+        id: check_docs
+        if: steps.check_feature.outputs.is_feature == 'true'
+        run: |
+          echo "=== Documentation Gate Check ==="
+
+          BASE_SHA='${{ github.event.pull_request.base.sha }}'
+          HEAD_SHA='${{ github.event.pull_request.head.sha }}'
+
+          if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+            echo "result=SKIP" >> "$GITHUB_OUTPUT"
+            echo "Cannot determine diff range — skipping"
+            exit 0
+          fi
+
+          # Check if any docs files were modified
+          DOCS_CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -iE '^(docs/|README\.md|SPECIFICATION\.md|ROADMAP\.md|CHANGELOG\.md|CONTRIBUTING\.md|\.roadmap/)' | wc -l)
+
+          # Also check for test updates as proxy for feature validation
+          TESTS_CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -iE '^(tests/|.*_test\.rs|.*\.ldx$)' | wc -l)
+
+          echo "docs_changed=${DOCS_CHANGED}" >> "$GITHUB_OUTPUT"
+          echo "tests_changed=${TESTS_CHANGED}" >> "$GITHUB_OUTPUT"
+
+          if [ "$DOCS_CHANGED" -gt 0 ]; then
+            echo "result=PASS" >> "$GITHUB_OUTPUT"
+            echo "✅ Documentation gate PASS: ${DOCS_CHANGED} docs file(s) updated"
+          else
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "❌ Documentation gate FAIL: feature PR must include documentation updates"
+            echo "   Expected changes in: docs/, README.md, SPECIFICATION.md, ROADMAP.md, CHANGELOG.md, CONTRIBUTING.md, or .roadmap/"
+            exit 1
+          fi
+
+      - name: Post comment on failure
+        if: failure() && steps.check_docs.outputs.result == 'FAIL'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = context.issue.number || '${{ github.event.inputs.pr_number }}';
+            if (!prNumber) return;
+
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            const body = `## 🚫 Gatekeeper: Documentation Gate Failed
+
+            This **feature PR** does not include required documentation updates.
+
+            ### Policy
+            All feature PRs must update at least one documentation file.
+
+            ### Required Actions
+
+            Update **one or more** of the following:
+
+            - [ ] \`docs/\` — Language reference, architecture docs, or API docs
+            - [ ] \`README.md\` — User-facing features or installation changes
+            - [ ] \`SPECIFICATION.md\` — Language semantics or syntax changes
+            - [ ] \`ROADMAP.md\` — If this PR advances or affects roadmap items
+            - [ ] \`CHANGELOG.md\` — Entry describing the feature/fix
+            - [ ] \`CONTRIBUTING.md\` — If changing contributor workflows
+            - [ ] \`.roadmap/\` — Checklists or tracking documents
+
+            > 💡 **Tip:** Even a small CHANGELOG.md entry satisfies this gate.
+
+            <sub>🔍 [View workflow run](${runUrl})</sub>`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body
+            });
+
+  # ==========================================================================
+  # JOB: check_size
+  # Blocks large PRs (>500 lines changed) without "rfc-required" label.
+  # ==========================================================================
+  check_size:
+    name: PR Size Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Calculate PR size
+        id: calc_size
+        run: |
+          echo "=== PR Size Calculation ==="
+
+          BASE_SHA='${{ github.event.pull_request.base.sha }}'
+          HEAD_SHA='${{ github.event.pull_request.head.sha }}'
+          SIZE_LIMIT='${{ env.SIZE_LIMIT }}'
+
+          if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+            echo "result=SKIP" >> "$GITHUB_OUTPUT"
+            echo "total_lines=0" >> "$GITHUB_OUTPUT"
+            echo "Cannot determine diff range — skipping size check"
+            exit 0
+          fi
+
+          # Calculate total lines changed (additions + deletions)
+          # Exclude generated files, lockfiles, and binary assets
+          TOTAL_LINES=$(git diff --numstat "$BASE_SHA" "$HEAD_SHA" | \
+            grep -vE '^(Cargo\.lock|.*\.lock|.*\.snap|.*\.bin|.*\.wasm|.*\.so|.*\.dylib|.*\.dll|target/|vendor/|\.git/|\.github/workflows/)' | \
+            awk '{sum+=$1+$2} END {print sum+0}')
+
+          echo "total_lines=${TOTAL_LINES}" >> "$GITHUB_OUTPUT"
+          echo "size_limit=${SIZE_LIMIT}" >> "$GITHUB_OUTPUT"
+
+          echo "Total lines changed: ${TOTAL_LINES}"
+          echo "Size limit: ${SIZE_LIMIT}"
+
+          if [ "$TOTAL_LINES" -gt "$SIZE_LIMIT" ]; then
+            echo "result=LARGE" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Large PR detected: ${TOTAL_LINES} lines > ${SIZE_LIMIT} limit"
+          else
+            echo "result=PASS" >> "$GITHUB_OUTPUT"
+            echo "✅ Size check PASS: ${TOTAL_LINES} lines within ${SIZE_LIMIT} limit"
+          fi
+
+      - name: Check RFC label
+        id: check_rfc_label
+        if: steps.calc_size.outputs.result == 'LARGE'
+        run: |
+          echo "=== Checking for RFC label on large PR ==="
+
+          LABELS_JSON='${{ toJson(github.event.pull_request.labels) }}'
+          if [ "$LABELS_JSON" = "null" ] || [ -z "$LABELS_JSON" ]; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "❌ Size gate FAIL: large PR without 'rfc-required' label"
+            exit 1
+          fi
+
+          HAS_RFC=$(echo "$LABELS_JSON" | grep -oE '"name":\s*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"' | grep -x "rfc-required" || true)
+
+          if [ -n "$HAS_RFC" ]; then
+            echo "result=PASS" >> "$GITHUB_OUTPUT"
+            echo "✅ Size gate PASS: large PR has 'rfc-required' label"
+          else
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "❌ Size gate FAIL: PR changes ${{ steps.calc_size.outputs.total_lines }} lines"
+            echo "   Limit: ${{ steps.calc_size.outputs.size_limit }} lines"
+            echo "   Missing required label: 'rfc-required'"
+            exit 1
+          fi
+
+      - name: Post comment on failure
+        if: failure() && steps.check_rfc_label.outputs.result == 'FAIL'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = context.issue.number || '${{ github.event.inputs.pr_number }}';
+            if (!prNumber) return;
+
+            const totalLines = '${{ steps.calc_size.outputs.total_lines }}';
+            const sizeLimit = '${{ steps.calc_size.outputs.size_limit }}';
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            const body = `## 🚫 Gatekeeper: PR Size Limit Exceeded
+
+            This PR exceeds the maximum size for non-RFC changes.
+
+            | Metric | Value |
+            |--------|-------|
+            | Lines Changed | **${totalLines}** |
+            | Limit | ${sizeLimit} |
+            | Excess | ${parseInt(totalLines) - parseInt(sizeLimit)} lines |
+
+            ### Required Actions
+
+            **Option A — Split the PR:**
+            Break into smaller, focused PRs each under ${sizeLimit} lines.
+
+            **Option B — Request RFC:**
+            1. Open a GitHub Discussion with the RFC template
+            2. Complete the 4 alignment checks (technical review, compatibility audit, performance impact, maintainer consensus)
+            3. Add the \`rfc-required\` label once approved
+
+            **Option C — Justify exception:**
+            Comment below with justification for maintainer override.
+
+            > 📖 **Policy Reference:** ROADMAP.md Architecture Freeze Policy §2
+            > "No new language features, compiler subsystems, or public APIs may be introduced without a published RFC."
+
+            <sub>🔍 [View workflow run](${runUrl})</sub>`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body
+            });
+
+  # ==========================================================================
+  # JOB: check_freeze
+  # Blocks changes to frozen architecture files without explicit approval.
+  # ==========================================================================
+  check_freeze:
+    name: Architecture Freeze Enforcement
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Detect frozen file changes
+        id: detect_frozen
+        env:
+          FROZEN_FILES: ${{ env.FROZEN_FILES }}
+        run: |
+          echo "=== Architecture Freeze Detection ==="
+
+          BASE_SHA='${{ github.event.pull_request.base.sha }}'
+          HEAD_SHA='${{ github.event.pull_request.head.sha }}'
+
+          if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+            echo "result=SKIP" >> "$GITHUB_OUTPUT"
+            echo "Cannot determine diff range — skipping freeze check"
+            exit 0
+          fi
+
+          # Parse frozen files list
+          IFS=',' read -ra FROZEN <<< "$FROZEN_FILES"
+
+          VIOLATIONS=""
+          VIOLATION_COUNT=0
+
+          for file in "${FROZEN[@]}"; do
+            file=$(echo "$file" | xargs) # trim whitespace
+            CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -x "$file" || true)
+            if [ -n "$CHANGED" ]; then
+              VIOLATIONS="${VIOLATIONS}\n- \`${CHANGED}\`"
+              VIOLATION_COUNT=$((VIOLATION_COUNT + 1))
+            fi
+          done
+
+          echo "violations<<EOF" >> "$GITHUB_OUTPUT"
+          printf "%s\n" "$VIOLATIONS" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "violation_count=${VIOLATION_COUNT}" >> "$GITHUB_OUTPUT"
+
+          # Check for freeze-override label
+          LABELS_JSON='${{ toJson(github.event.pull_request.labels) }}'
+          HAS_OVERRIDE=$(echo "$LABELS_JSON" | grep -oE '"name":\s*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"' | grep -x "freeze-override" || true)
+          if [ -n "$HAS_OVERRIDE" ]; then
+            echo "has_override=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_override=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "$VIOLATION_COUNT" -gt 0 ]; then
+            if [ -n "$HAS_OVERRIDE" ]; then
+              echo "result=OVERRIDE" >> "$GITHUB_OUTPUT"
+              echo "⚠️  Architecture freeze violation detected but override label present"
+              echo "   Violations:${VIOLATIONS}"
+            else
+              echo "result=FAIL" >> "$GITHUB_OUTPUT"
+              echo "❌ Architecture freeze FAIL: ${VIOLATION_COUNT} frozen file(s) modified"
+              echo "   Violations:${VIOLATIONS}"
+              exit 1
+            fi
+          else
+            echo "result=PASS" >> "$GITHUB_OUTPUT"
+            echo "✅ Architecture freeze PASS: no frozen files modified"
+          fi
+
+      - name: Post comment on freeze violation
+        if: always() && steps.detect_frozen.outputs.violation_count != '0'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = context.issue.number || '${{ github.event.inputs.pr_number }}';
+            if (!prNumber) return;
+
+            const result = '${{ steps.detect_frozen.outputs.result }}';
+            const violations = `${{ steps.detect_frozen.outputs.violations }}`;
+            const hasOverride = '${{ steps.detect_frozen.outputs.has_override }}' === 'true';
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            let title, body;
+            if (result === 'OVERRIDE') {
+              title = `⚠️ Gatekeeper: Architecture Freeze Override Applied`;
+              body = `${title}
+
+            This PR modifies **frozen architecture files** with maintainer override.
+
+            **Modified frozen files:**
+            ${violations}
+
+            **Override applied via:** \`freeze-override\` label
+
+            > 🔔 This override is logged for audit purposes. A phase transition audit must reference this override.
+
+            <sub>🔍 [View workflow run](${runUrl})</sub>`;
+            } else {
+              title = `🚫 Gatekeeper: Architecture Freeze Violation`;
+              body = `${title}
+
+            This PR modifies **frozen architecture files** without authorization.
+
+            **Modified frozen files:**
+            ${violations}
+
+            ### Architecture Freeze Policy (effective v1.45+)
+
+            The following core files are under architecture freeze:
+            - \`src/ast.rs\` — Abstract Syntax Tree core structures
+            - \`src/semantic.rs\` — Semantic analysis core structures
+
+            ### Required Actions
+
+            **For bug fixes:**
+            1. Ensure the fix is minimal and does not change structural definitions
+            2. Add \`bugfix\` label — cosmetic fixes may be exempt
+
+            **For structural changes:**
+            1. Publish an RFC discussing the proposed change
+            2. Complete 4 alignment checks (technical review, compatibility audit, performance impact, maintainer consensus)
+            3. Request a maintainer to apply \`freeze-override\` label after approval
+            3. Record approval in \`#rfcs\`
+
+            **To proceed:**
+            A maintainer must review and explicitly apply the \`freeze-override\` label.
+
+            > 📖 **Policy Reference:** ROADMAP.md Architecture Freeze Policy
+            > "No new language features, compiler subsystems, or public APIs may be introduced without a published RFC document and 4 alignment checks."
+
+            <sub>🔍 [View workflow run](${runUrl})</sub>`;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber),
+              body
+            });
+
+  # ==========================================================================
+  # JOB: summarize
+  # Posts a consolidated summary comment on PR open (optional, informative)
+  # ==========================================================================
+  summarize:
+    name: Policy Summary
+    runs-on: ubuntu-latest
+    needs: [check_phase_compliance, check_documentation, check_size, check_freeze]
+    if: github.event.action == 'opened' && github.event.pull_request
+    steps:
+      - name: Post welcome / policy reminder
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            if (!prNumber) return;
+
+            const body = `## 🛡️ Gatekeeper Active
+
+            This PR is being monitored by the **Logicodex Policy Enforcement** workflow.
+
+            ### Checks Running
+
+            | # | Check | What it verifies |
+            |---|-------|-----------------|
+            | 1 | **Phase Compliance** | Label matches current roadmap phase |
+            | 2 | **Documentation Gate** | Feature PRs include docs updates |
+            | 3 | **PR Size Check** | Large PRs (>500 lines) need \`rfc-required\` label |
+            | 4 | **Architecture Freeze** | Core files (\`src/ast.rs\`, \`src/semantic.rs\`) require override |
+
+            ### Quick Reference: Labels
+
+            | Label | Purpose |
+            |-------|---------|
+            | \`phase-1\` | Current: v1.45.x maintenance / architecture freeze |
+            | \`phase-2\` | For v1.50.x development items |
+            | \`rfc-required\` | Large PRs with approved RFC |
+            | \`freeze-override\` | Maintainer approval for frozen file changes |
+            | \`bugfix\` | Exempt from some feature-only gates |
+
+            All checks must pass before merge. Failures will be annotated with fix instructions.
+
+            > 📖 See [ROADMAP.md](${{ github.server_url }}/${{ github.repository }}/blob/main/ROADMAP.md) for full policy details.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body
+            });

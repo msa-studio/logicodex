@@ -1,0 +1,80 @@
+// ============================================
+// POC-03: Native Binary Generation
+// ============================================
+// This program demonstrates end-to-end compilation
+// from Logicodex source to a native ELF binary.
+//
+// It contains BOTH syntax versions:
+//   - Malay syntax (active by default)
+//   - Expert syntax (commented out, interchangeable)
+//
+// Compile with:
+//   logicodex compile hello_native.ldx -o hello_native.o
+//   ld hello_native.o -o hello_native  (or clang)
+//   ./hello_native
+//   echo $?   # Should print 42
+// ============================================
+
+// ============================================
+// VERSION A: Malay Syntax (Default)
+// ============================================
+
+// Fungsi utama - titik masuk program
+// Returns I32 per convention (0 = success)
+FUNGSI utama() -> I32 MULA
+    // Tetapkan nombor untuk dicetak
+    BINA nombor = 42;
+
+    // Cetak nombor ke konsol
+    PAPAR nombor;
+
+    // Pulang 0 menandakan kejayaan
+    PULANG 0;
+TAMAT
+
+// ============================================
+// VERSION B: Expert Syntax (Alternate)
+// ============================================
+// UNCOMMENT THE FOLLOWING AND COMMENT OUT
+// THE MALAY VERSION ABOVE TO USE EXPERT SYNTAX.
+// BOTH PRODUCE IDENTICAL MACHINE CODE.
+// ============================================
+
+// // Main function - program entry point
+// // Returns I32 per convention (0 = success)
+// fn utama() -> I32 {
+//     // Set number to print
+//     let nombor = 42;
+//
+//     // Print number to console
+//     print nombor;
+//
+//     // Return 0 indicates success
+//     return 0;
+// }
+
+// ============================================
+// NOTES ON NATIVE COMPILATION:
+// ============================================
+// Step 1: Compile .ldx to LLVM IR (.ll)
+//   $ logicodex compile --emit=llvm-ir hello_native.ldx -o hello_native.ll
+//
+// Step 2: Compile LLVM IR to object file (.o)
+//   $ llc -filetype=obj hello_native.ll -o hello_native.o
+//   OR: logicodex compile hello_native.ldx -o hello_native.o
+//
+// Step 3: Link object file to native binary
+//   $ clang hello_native.o -o hello_native
+//   OR: ld hello_native.o -o hello_native -lc
+//
+// Step 4: Run the binary
+//   $ ./hello_native
+//   42
+//   $ echo $?
+//   0
+//
+// The binary is a standard ELF executable that:
+// - Links against libc for printf
+// - Returns I32 exit code to the OS
+// - Has no Logicodex runtime dependency
+// ============================================
