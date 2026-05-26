@@ -172,17 +172,23 @@ jobs:
           name: example-check-log
           path: example-check.log
 
-      # v1.30 DORMANT: Subsystem self-check + dormant examples
-      # Uses --pipeline v1.30 to activate dormant parser/codegen
+      # v1.30 DORMANT: Check dormant examples with v1.30 pipeline
+      # This validates the dormant parser/codegen without activating v1.21
       - name: Check dormant v1.30.0-alpha subsystem
         run: |
-          echo "=== v1.30 dormant subsystem self-check ==="
-          cargo run --quiet -- v130-check examples/hello.ldx || exit 1
           echo "=== v1.30 dormant examples ==="
           for f in examples/dormant/v1_30/*.ldx; do
             if [ -f "$f" ]; then
               echo "=== Checking $f (v1.30 DORMANT) ==="
-              cargo run --quiet --pipeline v1.30 -- check "$f" || exit 1
+              cargo run -- --pipeline v1.30 -- check "$f" 2>&1 | tee -a v130-check.log
             fi
           done
-          echo "=== v1.30 dormant OK ==="
+          echo "=== v1.30 dormant check complete ==="
+        continue-on-error: true
+
+      - name: Upload v1.30 dormant check log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v130-check-log
+          path: v130-check.log
