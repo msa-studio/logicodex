@@ -147,29 +147,76 @@ jobs:
       # NOT checked here — they have their own dormant check step below.
       - name: Check v1.21 examples (ACTIVE pipeline)
         run: |
-          set -x
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║  LOGICODEX v1.21 EXAMPLE VALIDATOR — DEBUG MODE           ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          echo ""
           failed=0
+          fail_log=""
           for f in examples/*.ldx; do
             if [ -f "$f" ]; then
-              echo "=== Checking $f (v1.21) ==="
-              if ! cargo run -- check "$f" 2>&1 | tee -a example-check.log; then
-                echo "FAILED: $f"
+              name=$(basename "$f")
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "  [TEST] $name"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "  File: $f"
+              echo "  Size: $(wc -c < "$f") bytes, $(wc -l < "$f") lines"
+              echo "  --- SOURCE ---"
+              nl -ba "$f" | sed 's/^/  | /'
+              echo "  --- COMPILER OUTPUT ---"
+              
+              # Run check and capture both stdout and stderr
+              output=$(cargo run -- check "$f" 2>&1)
+              exit_code=$?
+              
+              if [ $exit_code -ne 0 ]; then
+                echo "  ❌ FAILED (exit code: $exit_code)"
+                echo "$output" | sed 's/^/  | ERROR: /'
+                echo ""
+                echo "  --- FAILURE ANALYSIS ---"
+                echo "  Possible causes:"
+                echo "  1. Parser rejected syntax (check token in error message)"
+                echo "  2. Missing semicolon after statement"
+                echo "  3. Beginner mode disabled (inside hardware zone?)"
+                echo "  4. v1.30-only feature used in v1.21 mode"
+                echo ""
                 failed=1
+                fail_log="$fail_log\n  ❌ $name"
+              else
+                echo "  ✅ PASSED"
+                echo "$output" | sed 's/^/  | OK: /'
               fi
+              echo "$output" >> example-check.log
+              echo "" >> example-check.log
             fi
           done
-          echo "=== FULL EXAMPLE CHECK LOG ==="
-          cat example-check.log
+          
+          echo ""
+          echo "════════════════════════════════════════════════════════════"
+          echo "  SUMMARY"
+          echo "════════════════════════════════════════════════════════════"
           if [ $failed -eq 1 ]; then
-            echo "=== One or more v1.21 examples failed ==="
+            echo "  ❌ FAILED — The following examples have errors:"
+            echo -e "$fail_log"
+            echo ""
+            echo "  Common fixes:"
+            echo "  - Use MULA/TAMAT (beginner) or { } (expert) consistently"
+            echo "  - Add semicolons after statements inside {} blocks"
+            echo "  - Check variable names match declared identifiers"
+            echo "  - Verify v1.21 features only (no struct/enum/unsafe)"
+            echo ""
+            cat example-check.log
             exit 1
+          else
+            echo "  ✅ ALL EXAMPLES PASSED"
+            echo "════════════════════════════════════════════════════════════"
           fi
 
       - name: Upload example check log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: example-check-log
+          name: example-check-debug-log
           path: example-check.log
 
       # v1.30 DORMANT: Check dormant examples with v1.30 pipeline
