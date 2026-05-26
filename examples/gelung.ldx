@@ -1,15 +1,10 @@
-// Logicodex v1.21 — Loops (expert/canonical syntax)
-{
-    let counter: I64 = 0;
-
-    while counter < 1 {
-        let pulse: I64 = counter + 1;
-        print pulse;
-        break;
-    }
-
-    loop {
-        print 7;
-        break;
-    }
-}
+MULA
+BINA x = 0
+SELAGI x < 3 DAN benar MULA
+PAPAR x
+HENTI
+TAMAT
+ULANG MULA
+LANGKAU
+TAMAT
+TAMAT

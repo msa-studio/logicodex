@@ -1,11 +1,11 @@
-// Logicodex v1.21 — Addition and conditional (expert/canonical syntax)
-{
-    let x = 5;
-    let y = 10;
-    let total = x + y;
-    if total > 12 {
-        print 1;
-    } else {
-        print 0;
-    }
-}
+MULA
+BINA x = 1
+JIKA x > 0 MAKA
+MULA
+PAPAR x
+TAMAT
+MELAINKAN
+MULA
+PAPAR 0
+TAMAT
+TAMAT
