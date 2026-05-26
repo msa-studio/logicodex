@@ -192,3 +192,53 @@ jobs:
         with:
           name: v130-check-log
           path: v130-check.log
+
+      - name: Upload v1.21 binary artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logicodex-v1.21-linux-x64
+          path: target/release/logicodex
+
+  deploy:
+    name: Deploy
+    needs: [check, test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LLVM 15
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
+
+      - uses: dtolnay/rust-toolchain@1.75
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary (v1.21)
+        run: cargo build --release
+
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          cp target/release/logicodex dist/logicodex-v1.21-linux-x64
+          cp -r examples dist/examples
+          cp README.md dist/README.md
+          cp SPECIFICATION.md dist/SPECIFICATION.md
+          tar -czf logicodex-v1.21-linux-x64.tar.gz -C dist .
+
+      - name: Upload release tarball
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logicodex-v1.21-linux-x64-release
+          path: logicodex-v1.21-linux-x64.tar.gz
