@@ -1,0 +1,116 @@
+// Level 5: Ultimate stress test — ALL v1.21 features combined
+// Tests: fn + SELAGI bersarang + JIKA berlapis + bitwise + hardware zone
+MULA
+fn is_even(x: I64) -> I64 MULA
+    BINA mask: I64 = x & 1
+    JIKA mask == 0 MAKA
+    MULA
+        PULANG 1
+    TAMAT
+    PULANG 0
+TAMAT
+
+fn is_power_of_two(x: I64) -> I64 MULA
+    JIKA x <= 0 MAKA
+    MULA
+        PULANG 0
+    TAMAT
+    BINA y: I64 = x & (x - 1)
+    JIKA y == 0 MAKA
+    MULA
+        PULANG 1
+    TAMAT
+    PULANG 0
+TAMAT
+
+fn count_bits(x: I64) -> I64 MULA
+    BINA bilang: I64 = 0
+    BINA nilai: I64 = x
+    SELAGI nilai > 0 MAKA
+    MULA
+        BINA bilang = bilang + 1
+        BINA nilai = nilai >> 1
+    TAMAT
+    PULANG bilang
+TAMAT
+
+fn fibonacci(n: I64) -> I64 MULA
+    JIKA n <= 0 MAKA
+    MULA
+        PULANG 0
+    TAMAT
+    JIKA n == 1 MAKA
+    MULA
+        PULANG 1
+    TAMAT
+    BINA a: I64 = 0
+    BINA b: I64 = 1
+    BINA i: I64 = 2
+    SELAGI i <= n MAKA
+    MULA
+        BINA sementara: I64 = a + b
+        BINA a = b
+        BINA b = sementara
+        BINA i = i + 1
+    TAMAT
+    PULANG b
+TAMAT
+
+fn factorial(n: I64) -> I64 MULA
+    JIKA n <= 1 MAKA
+    MULA
+        PULANG 1
+    TAMAT
+    BINA keputusan: I64 = 1
+    BINA i: I64 = 2
+    SELAGI i <= n MAKA
+    MULA
+        BINA keputusan = keputusan * i
+        BINA i = i + 1
+    TAMAT
+    PULANG keputusan
+TAMAT
+
+BINA nombor: I64 = 8
+BINA genap: I64 = is_even(nombor)
+PAPAR genap
+
+BINA kuasa_dua: I64 = is_power_of_two(nombor)
+PAPAR kuasa_dua
+
+BINA bit: I64 = count_bits(nombor)
+PAPAR bit
+
+BINA fib: I64 = fibonacci(10)
+PAPAR fib
+
+BINA fak: I64 = factorial(5)
+PAPAR fak
+
+BINA jumlah: I64 = 0
+BINA a: I64 = 0
+
+SELAGI a < 4 MAKA
+MULA
+    BINA b: I64 = 0
+    SELAGI b < 4 MAKA
+    MULA
+        JIKA is_even(a) == 1 DAN is_even(b) == 1 MAKA
+        MULA
+            BINA darab: I64 = a * b
+            BINA jumlah = jumlah + darab
+        TAMAT
+        BINA b = b + 1
+    TAMAT
+    BINA a = a + 1
+TAMAT
+
+PAPAR jumlah
+
+BINA sensor: I64 = 170
+BINA mask: I64 = 15
+BINA rendah: I64 = sensor & mask
+BINA tinggi: I64 = sensor >> 4
+BINA digabung: I64 = rendah | (tinggi << 4)
+PAPAR digabung
+TAMAT

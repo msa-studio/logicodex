@@ -3,10 +3,18 @@
 unsafe {
     InitWindow(800, 600, "Logicodex v1.30")
     SetTargetFPS(60)
-    while (!WindowShouldClose()) {
+    while (WindowShouldClose() == false) {
         BeginDrawing()
         ClearBackground(Color(0, 0, 0, 255))
         DrawRectangle(375, 275, 50, 50, Color(255, 0, 0, 255))
+        DrawRectangle(400, 300, 50, 50, Color(0, 255, 0, 255))
+        DrawRectangle(425, 325, 50, 50, Color(0, 0, 255, 255))
+        if (IsMouseButtonPressed(0)) {
+            break
+        }
+        if (IsKeyPressed(257)) {
+            break
+        }
         EndDrawing()
     }
     CloseWindow()
