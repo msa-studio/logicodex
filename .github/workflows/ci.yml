@@ -166,8 +166,13 @@ jobs:
               echo "  --- COMPILER OUTPUT ---"
               
               # Run check and capture both stdout and stderr
-              output=$(cargo run -- check "$f" 2>&1)
+              # Use --release to avoid rebuilding debug binary
+              set +e
+              output=$(cargo run --release -- check "$f" 2>&1)
               exit_code=$?
+              set -e
+              
+              echo "$output" >> example-check.log
               
               if [ $exit_code -ne 0 ]; then
                 echo "  ❌ FAILED (exit code: $exit_code)"
@@ -181,12 +186,12 @@ jobs:
                 echo "  4. v1.30-only feature used in v1.21 mode"
                 echo ""
                 failed=1
-                fail_log="$fail_log\n  ❌ $name"
+                fail_log="$fail_log
+  ❌ $name"
               else
                 echo "  ✅ PASSED"
                 echo "$output" | sed 's/^/  | OK: /'
               fi
-              echo "$output" >> example-check.log
               echo "" >> example-check.log
             fi
           done
