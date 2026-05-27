@@ -1,9 +1,20 @@
-Logicodex Language Engine
+Logicodex Programming Language
+Copyright (c) 2025 Mohamad Supardi Abdul <mymsastudio@gmail.com>
 
-Version: v1.21-alpha (Formal Specifications & Zero-Overhead Severity Model)
-Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
-Copyright (c) 2026. All Rights Reserved.
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-This distribution includes source code made available under a permissive dual-license model: MIT and Apache License 2.0. See `LICENSE-MIT` and `LICENSE-APACHE` for the applicable license texts.
+Logicodex is a deterministic systems programming language with
+compile-time capability security and bilingual (Malay/English) syntax.
 
-The Logicodex name, ASCII logo, and official project identity are governed separately by the trademark guidance in `TRADEMARK.md` and `NOTICE-TRADEMARK`. The copyright licenses do not grant permission to misrepresent derivative works as official Logicodex releases.
+Version: v1.45.0-alpha
+License: MPL-2.0
+SPDX-License-Identifier: MPL-2.0
+
+Previous distributions were licensed under MIT OR Apache-2.0.
+Those license files (LICENSE-MIT, LICENSE-APACHE) are retained for
+historical reference.
+
+Trademark: "Logicodex" is a trademark of Mohamad Supardi Abdul.
+See TRADEMARK.md for usage guidelines.

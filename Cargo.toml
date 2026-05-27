@@ -6,7 +6,7 @@ authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
 description = "Deterministic systems programming language with alias-to-canonical syntax, actor-model concurrency, and compile-time capability security"
 keywords = ["compiler", "systems-programming", "concurrency", "capability-security", "llvm"]
 categories = ["compilers", "development-tools"]
-license = "MIT OR Apache-2.0"
+license = "MPL-2.0"
 repository = "https://github.com/msa-studio/logicodex"
 readme = "README.md"
 

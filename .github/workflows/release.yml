@@ -1,0 +1,409 @@
+# Logicodex — Multi-Platform Release Workflow
+# ================================================================
+# Triggers on version tags (v*.*.*) or manual dispatch with a tag.
+# Builds `logicodex` binaries for Linux x86_64, macOS x86_64, and
+# macOS aarch64 (Apple Silicon), then publishes them as a GitHub
+# Release with auto-generated release notes.
+#
+# Security
+# --------
+# - All third-party actions are pinned to immutable SHA digests
+#   (tag comments are kept for readability).
+# - Global read-only permissions; write access is granted ONLY to
+#   the release job via a dedicated `permissions` block.
+# - The release job runs in an `alpha-releases` environment for gate-keeping.
+# ===================================================================
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build release for'
+        required: true
+        type: string
+
+# ------------------------------------------------------------------
+# Global environment variables
+# ------------------------------------------------------------------
+env:
+  CARGO_TERM_COLOR: always
+  LLVM_SYS_150_PREFIX: /usr/lib/llvm-15
+  RAYLIB_NO_LINK: "1"
+  RUSTFLAGS: "-L/usr/lib/llvm-15/lib"
+
+# ------------------------------------------------------------------
+# Default permissions — read-only everywhere
+# ------------------------------------------------------------------
+permissions:
+  contents: read
+
+jobs:
+  # ================================================================
+  # Job: Build — Linux x86_64
+  # ================================================================
+  build-linux:
+    name: Build (Linux x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag ref
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "REF=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "REF=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout source at tag
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ steps.vars.outputs.REF }}
+          fetch-depth: 0
+
+      - name: Install LLVM 15 dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            llvm-15-dev \
+            libclang-15-dev \
+            libpolly-15-dev \
+            pkg-config
+
+      - name: Install Rust 1.75.0
+        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7 # stable
+        with:
+          toolchain: "1.75.0"
+
+      - name: Cache Cargo registry & build
+        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4.0.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-release-
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Verify binary
+        run: |
+          file target/release/logicodex
+          ls -lh target/release/logicodex
+
+      - name: Package binary
+        run: |
+          VERSION="${{ steps.vars.outputs.REF }}"
+          tar czf "logicodex-${VERSION}-linux-x86_64.tar.gz" \
+            -C target/release logicodex
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@5d5d22a31266ced2688743886018615e06f6f9d0 # v4.3.1
+        with:
+          name: logicodex-linux-x86_64
+          path: logicodex-*.tar.gz
+          if-no-files-found: error
+
+  # ================================================================
+  # Job: Build — macOS x86_64
+  # ================================================================
+  build-macos-x86:
+    name: Build (macOS x86_64)
+    runs-on: macos-latest
+    steps:
+      - name: Resolve tag ref
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "REF=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "REF=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout source at tag
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ steps.vars.outputs.REF }}
+          fetch-depth: 0
+
+      - name: Install LLVM 15 (Homebrew)
+        run: brew install llvm@15
+
+      - name: Set LLVM environment (macOS)
+        run: |
+          echo "LLVM_SYS_150_PREFIX=$(brew --prefix llvm@15)" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$(brew --prefix llvm@15)/lib"       >> "$GITHUB_ENV"
+          echo "CPPFLAGS=-I$(brew --prefix llvm@15)/include"  >> "$GITHUB_ENV"
+
+      - name: Install Rust 1.75.0
+        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7 # stable
+        with:
+          toolchain: "1.75.0"
+
+      - name: Cache Cargo registry & build
+        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4.0.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-release-
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Verify binary
+        run: |
+          file target/release/logicodex
+          ls -lh target/release/logicodex
+
+      - name: Package binary
+        run: |
+          VERSION="${{ steps.vars.outputs.REF }}"
+          tar czf "logicodex-${VERSION}-macos-x86_64.tar.gz" \
+            -C target/release logicodex
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@5d5d22a31266ced2688743886018615e06f6f9d0 # v4.3.1
+        with:
+          name: logicodex-macos-x86_64
+          path: logicodex-*.tar.gz
+          if-no-files-found: error
+
+  # ================================================================
+  # Job: Build — macOS aarch64 (Apple Silicon)
+  # ================================================================
+  build-macos-aarch64:
+    name: Build (macOS aarch64)
+    runs-on: macos-14
+    steps:
+      - name: Resolve tag ref
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "REF=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "REF=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout source at tag
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ steps.vars.outputs.REF }}
+          fetch-depth: 0
+
+      - name: Install LLVM 15 (Homebrew)
+        run: brew install llvm@15
+
+      - name: Set LLVM environment (macOS)
+        run: |
+          echo "LLVM_SYS_150_PREFIX=$(brew --prefix llvm@15)" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$(brew --prefix llvm@15)/lib"       >> "$GITHUB_ENV"
+          echo "CPPFLAGS=-I$(brew --prefix llvm@15)/include"  >> "$GITHUB_ENV"
+
+      - name: Install Rust 1.75.0
+        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7 # stable
+        with:
+          toolchain: "1.75.0"
+
+      - name: Cache Cargo registry & build
+        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4.0.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-release-
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Verify binary
+        run: |
+          file target/release/logicodex
+          ls -lh target/release/logicodex
+
+      - name: Package binary
+        run: |
+          VERSION="${{ steps.vars.outputs.REF }}"
+          tar czf "logicodex-${VERSION}-macos-aarch64.tar.gz" \
+            -C target/release logicodex
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@5d5d22a31266ced2688743886018615e06f6f9d0 # v4.3.1
+        with:
+          name: logicodex-macos-aarch64
+          path: logicodex-*.tar.gz
+          if-no-files-found: error
+
+  # ================================================================
+  # Job: Create GitHub Release
+  # ================================================================
+  release:
+    name: Create GitHub Release
+    needs:
+      - build-linux
+      - build-macos-x86
+      - build-macos-aarch64
+    runs-on: ubuntu-latest
+
+    # Dedicated environment for release gate-keeping (alpha — not production)
+    environment: alpha-releases
+
+    # Write permission is required ONLY here to publish releases
+    permissions:
+      contents: write
+
+    steps:
+      - name: Resolve tag ref
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "REF=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "REF=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout source at tag
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ steps.vars.outputs.REF }}
+          fetch-depth: 0
+
+      # --------------------------------------------------------------
+      # Download all platform artifacts
+      # --------------------------------------------------------------
+      - name: Download Linux artifact
+        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
+        with:
+          name: logicodex-linux-x86_64
+          path: artifacts/linux/
+
+      - name: Download macOS x86_64 artifact
+        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
+        with:
+          name: logicodex-macos-x86_64
+          path: artifacts/macos-x86/
+
+      - name: Download macOS aarch64 artifact
+        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
+        with:
+          name: logicodex-macos-aarch64
+          path: artifacts/macos-aarch64/
+
+      # --------------------------------------------------------------
+      # Collect all tar.gz files into a single directory for upload
+      # --------------------------------------------------------------
+      - name: Stage release assets
+        run: |
+          mkdir -p release-assets
+          cp artifacts/linux/*.tar.gz         release-assets/ 2>/dev/null || true
+          cp artifacts/macos-x86/*.tar.gz     release-assets/ 2>/dev/null || true
+          cp artifacts/macos-aarch64/*.tar.gz release-assets/ 2>/dev/null || true
+          echo "--- Release assets ---"
+          ls -lh release-assets/
+
+      # --------------------------------------------------------------
+      # Generate release notes from CHANGELOG.md (section matching tag)
+      # --------------------------------------------------------------
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          TAG="${{ steps.vars.outputs.REF }}"
+          # Strip leading 'v' to match CHANGELOG section headers like "## 1.0.1-alpha"
+          VERSION="${TAG#v}"
+          CHANGELOG="CHANGELOG.md"
+
+          if [ -f "$CHANGELOG" ]; then
+            echo "Looking for section: ## [$VERSION] or ## $VERSION"
+
+            # Try "## [VERSION]" format first (e.g., "## [1.0.1-alpha]")
+            SECTION=$(awk '/^## \['"$VERSION"'\]/,/^## /{if(/^## / && !/'"$VERSION"'/)exit; print}' "$CHANGELOG" | sed '$d')
+
+            # Fallback to "## VERSION" format (e.g., "## 1.0.1-alpha")
+            if [ -z "$SECTION" ]; then
+              SECTION=$(awk '/^## '"$VERSION"'($| )/,/^## /{if(/^## / && !/'"$VERSION"'/)exit; print}' "$CHANGELOG" | sed '$d')
+            fi
+
+            if [ -n "$SECTION" ]; then
+              echo "Found CHANGELOG section for $VERSION"
+              {
+                echo "notes<<EOF"
+                echo "$SECTION"
+                echo "EOF"
+              } >> "$GITHUB_OUTPUT"
+            else
+              echo "No CHANGELOG section found for $VERSION — using minimal notes"
+              {
+                echo "notes<<EOF"
+                echo "Release ${{ steps.vars.outputs.REF }}"
+                echo ""
+                echo "Binaries built for:"
+                echo "- Linux x86_64"
+                echo "- macOS x86_64"
+                echo "- macOS aarch64 (Apple Silicon)"
+                echo "EOF"
+              } >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "No CHANGELOG.md found — using minimal notes"
+            {
+              echo "notes<<EOF"
+              echo "Release ${{ steps.vars.outputs.REF }}"
+              echo ""
+              echo "Binaries built for:"
+              echo "- Linux x86_64"
+              echo "- macOS x86_64"
+              echo "- macOS aarch64 (Apple Silicon)"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      # --------------------------------------------------------------
+      # Determine if this is a pre-release (alpha/beta/rc)
+      # --------------------------------------------------------------
+      - name: Detect pre-release
+        id: prerelease_check
+        run: |
+          TAG="${{ steps.vars.outputs.REF }}"
+          if echo "$TAG" | grep -qiE 'alpha|beta|rc'; then
+            echo "PRERELEASE=true" >> "$GITHUB_OUTPUT"
+            echo "Detected pre-release tag: $TAG"
+          else
+            echo "PRERELEASE=false" >> "$GITHUB_OUTPUT"
+            echo "Detected release tag: $TAG"
+          fi
+
+      # --------------------------------------------------------------
+      # Create the GitHub Release and attach binaries
+      # --------------------------------------------------------------
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+        with:
+          tag_name: ${{ steps.vars.outputs.REF }}
+          name: "Logicodex ${{ steps.vars.outputs.REF }}"
+          body: |
+            ${{ steps.release_notes.outputs.notes }}
+
+            ---
+
+            ⚠️ **Alpha Software** — This is a pre-release intended for testing and evaluation only.
+            The compiler core is functional but not all subsystems are complete.
+            See [README.md](https://github.com/msa-studio/logicodex/blob/main/README.md#maturity-matrix) for the current maturity status of each subsystem.
+            Not recommended for production use.
+          files: release-assets/*.tar.gz
+          prerelease: ${{ steps.prerelease_check.outputs.PRERELEASE == 'true' }}
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

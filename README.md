@@ -204,9 +204,28 @@ This project follows **strict phase-gated development**. Capabilities do not pro
 
 ## License
 
-Licensed under either of
+Logicodex is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**.
 
-- **Apache License, Version 2.0** ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- **MIT license** ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+> This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+> If a copy of the MPL was not distributed with this file, You can obtain one at
+> https://mozilla.org/MPL/2.0/.
 
-at your option.
+### Why MPL-2.0?
+
+MPL-2.0 is a **file-level copyleft** license that:
+
+- ✅ **Preserves open semantics** — modifications to Logicodex source files must be shared under MPL-2.0
+- ✅ **Allows ecosystem adoption** — you can use Logicodex in proprietary projects via separate files
+- ✅ **Protects core evolution** — prevents silent proprietary mutation of compiler core files
+- ✅ **Enables commercial growth** — compatible with proprietary tooling and extensions
+- ✅ **GPL-compatible** — can be combined with GPL v2+, LGPL 2.1+, AGPL 3.0+ projects
+
+### Historical Licenses
+
+Versions prior to this licensing update were distributed under MIT OR Apache-2.0.
+The previous license files (`LICENSE-MIT`, `LICENSE-APACHE`) are retained for
+historical reference but no longer apply to current or future distributions.
+
+SPDX-License-Identifier: MPL-2.0
+
+© 2025 Mohamad Supardi Abdul (mymsastudio@gmail.com). All rights reserved.
