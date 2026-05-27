@@ -80,7 +80,7 @@ jobs:
           toolchain: "1.75.0"
 
       - name: Cache Cargo registry & build
-        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4.0.0
+        uses: actions/cache@1bd1f32e3ce482545ee4aae00017683f82bfe4fa # v4.2.0
         with:
           path: |
             ~/.cargo/registry
@@ -148,7 +148,7 @@ jobs:
           toolchain: "1.75.0"
 
       - name: Cache Cargo registry & build
-        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4.0.0
+        uses: actions/cache@1bd1f32e3ce482545ee4aae00017683f82bfe4fa # v4.2.0
         with:
           path: |
             ~/.cargo/registry
@@ -216,7 +216,7 @@ jobs:
           toolchain: "1.75.0"
 
       - name: Cache Cargo registry & build
-        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4.0.0
+        uses: actions/cache@1bd1f32e3ce482545ee4aae00017683f82bfe4fa # v4.2.0
         with:
           path: |
             ~/.cargo/registry
