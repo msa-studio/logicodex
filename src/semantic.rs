@@ -95,7 +95,7 @@ pub enum SemanticError {
         index: i64,
         capacity: i64,
     },
-    #[error("KRITIKAL: Penggunaan penimbal `{name` selepas pemindahan (move) / CRITICAL: Use of buffer `{name}` after ownership move")]
+    #[error("KRITIKAL: Penggunaan penimbal `{name}` selepas pemindahan (move) / CRITICAL: Use of buffer `{name}` after ownership move")]
     UseAfterMove { name: String },
     #[error("penugasan kepada elemen {elem} memerlukan jenis {expected} tetapi menerima {actual} / assignment to element {elem} requires type {expected} but received {actual}")]
     ElementTypeMismatch {
@@ -113,7 +113,7 @@ pub enum SemanticError {
     // ─── Ketuk 3: File Handle ABI ───
     #[error("KRITIKAL: Handle fail `{name}` belum dibuka / CRITICAL: File handle `{name}` has not been opened")]
     HandleNotOpen { name: String },
-    #[error("KRITIKAL: Operasi `{operation` ditolak untuk handle `{name}` — kebenaran tidak mencukupi / CRITICAL: Operation `{operation}` denied for handle `{name}` — insufficient permission")]
+    #[error("KRITIKAL: Operasi `{operation}` ditolak untuk handle `{name}` — kebenaran tidak mencukupi / CRITICAL: Operation `{operation}` denied for handle `{name}` — insufficient permission")]
     HandlePermissionDenied { name: String, operation: String },
     // ─── v1.30.1-alpha: Threading Foundation ───
     #[error("KRITIKAL: Actor `{name}` does not exist — mesti diisytiharkan sebelum digunakan / CRITICAL: Actor `{name}` does not exist — must be declared before use")]
