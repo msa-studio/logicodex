@@ -186,8 +186,7 @@ jobs:
                 echo "  4. v1.30-only feature used in v1.21 mode"
                 echo ""
                 failed=1
-                fail_log="$fail_log
-  ❌ $name"
+                fail_log="${fail_log}\n  ❌ ${name}"
               else
                 echo "  ✅ PASSED"
                 echo "$output" | sed 's/^/  | OK: /'
