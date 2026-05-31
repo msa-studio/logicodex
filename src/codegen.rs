@@ -659,8 +659,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                             .build_call(func, &llvm_args, &format!("call_{}", callee_name))
                             .with_context(|| format!("failed to build call to '{}'", callee_name))?;
                         // Extract return value
-                        match call_site.try_as_basic_value() {
-                            inkwell::values::Either::Left(val) => {
+                        if let Some(val) = call_site.try_as_basic_value().left() {
                                 // Convert return value to i64 for the expression result
                                 match val {
                                     BasicValueEnum::IntValue(iv) => Ok(iv),
@@ -669,11 +668,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
                                         Ok(self.i64_type.const_int(0, false))
                                     }
                                 }
-                            }
-                            inkwell::values::Either::Right(_) => {
+                        } else {
                                 // Void return — return 0
                                 Ok(self.i64_type.const_int(0, false))
-                            }
+                        }
                         }
                     } else {
                         eprintln!(
@@ -1272,12 +1270,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 let call_site = self.builder
                     .build_call(spawn_fn, &[name_ptr.into()], "spawn_call")
                     .context("spawn call")?;
-                match call_site.try_as_basic_value() {
-                    inkwell::values::Either::Left(val) => match val {
+                if let Some(val) = call_site.try_as_basic_value().left() {
+                        match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
-                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                        }
+                } else {
+                    // Void return
+                    Ok(self.i64_type.const_int(0, false))
                 }
             }
             HirExprKind::Join { actor_name } => {
@@ -1291,12 +1291,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 let call_site = self.builder
                     .build_call(join_fn, &[name_ptr.into()], "join_call")
                     .context("join call")?;
-                match call_site.try_as_basic_value() {
-                    inkwell::values::Either::Left(val) => match val {
+                if let Some(val) = call_site.try_as_basic_value().left() {
+                        match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
-                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                        }
+                } else {
+                    // Void return
+                    Ok(self.i64_type.const_int(0, false))
                 }
             }
             HirExprKind::ChannelSend { channel_name, value } => {
@@ -1314,12 +1316,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 let call_site = self.builder
                     .build_call(send_fn, &[name_ptr.into(), val.into()], "send_call")
                     .context("send call")?;
-                match call_site.try_as_basic_value() {
-                    inkwell::values::Either::Left(val) => match val {
+                if let Some(val) = call_site.try_as_basic_value().left() {
+                        match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
-                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                        }
+                } else {
+                    // Void return
+                    Ok(self.i64_type.const_int(0, false))
                 }
             }
             HirExprKind::ChannelRecv { channel_name } => {
@@ -1333,12 +1337,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 let call_site = self.builder
                     .build_call(recv_fn, &[name_ptr.into()], "recv_call")
                     .context("recv call")?;
-                match call_site.try_as_basic_value() {
-                    inkwell::values::Either::Left(val) => match val {
+                if let Some(val) = call_site.try_as_basic_value().left() {
+                        match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
-                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                        }
+                } else {
+                    // Void return
+                    Ok(self.i64_type.const_int(0, false))
                 }
             }
             // ─── v1.30 Phase 3: Backpressure + Scheduler (A4) ───
@@ -1357,12 +1363,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 let call_site = self.builder
                     .build_call(send_fn, &[name_ptr.into(), val.into()], "trysend_call")
                     .context("trysend call")?;
-                match call_site.try_as_basic_value() {
-                    inkwell::values::Either::Left(val) => match val {
+                if let Some(val) = call_site.try_as_basic_value().left() {
+                        match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(1, false)), // default: true (success)
-                    }
-                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(1, false)),
+                        }
+                } else {
+                    // Void return
+                    Ok(self.i64_type.const_int(0, false))
                 }
             }
             HirExprKind::ChannelTryRecv { channel_name } => {
@@ -1376,12 +1384,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 let call_site = self.builder
                     .build_call(recv_fn, &[name_ptr.into()], "tryrecv_call")
                     .context("tryrecv call")?;
-                match call_site.try_as_basic_value() {
-                    inkwell::values::Either::Left(val) => match val {
+                if let Some(val) = call_site.try_as_basic_value().left() {
+                        match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)), // default: 0 (None)
-                    }
-                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                        }
+                } else {
+                    // Void return
+                    Ok(self.i64_type.const_int(0, false))
                 }
             }
             HirExprKind::Yield => {
@@ -1392,12 +1402,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 let call_site = self.builder
                     .build_call(yield_fn, &[], "yield_call")
                     .context("yield call")?;
-                match call_site.try_as_basic_value() {
-                    inkwell::values::Either::Left(val) => match val {
+                if let Some(val) = call_site.try_as_basic_value().left() {
+                        match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
-                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                        }
+                } else {
+                    // Void return
+                    Ok(self.i64_type.const_int(0, false))
                 }
             }
             HirExprKind::Sleep { duration_ms } => {
@@ -1409,12 +1421,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 let call_site = self.builder
                     .build_call(sleep_fn, &[dur.into()], "sleep_call")
                     .context("sleep call")?;
-                match call_site.try_as_basic_value() {
-                    inkwell::values::Either::Left(val) => match val {
+                if let Some(val) = call_site.try_as_basic_value().left() {
+                        match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
-                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                        }
+                } else {
+                    // Void return
+                    Ok(self.i64_type.const_int(0, false))
                 }
             }
             HirExprKind::ChannelTimeoutRecv { channel_name, timeout_ms } => {
@@ -1432,12 +1446,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 let call_site = self.builder
                     .build_call(recv_fn, &[name_ptr.into(), to.into()], "torecv_call")
                     .context("timeout_recv call")?;
-                match call_site.try_as_basic_value() {
-                    inkwell::values::Either::Left(val) => match val {
+                if let Some(val) = call_site.try_as_basic_value().left() {
+                        match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
-                    inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                        }
+                } else {
+                    // Void return
+                    Ok(self.i64_type.const_int(0, false))
                 }
             }
         }
@@ -1477,12 +1493,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
             .build_call(llvm_func, &llvm_args, &format!("call_{}", signature.name))
             .with_context(|| format!("failed to build call to '{}'", signature.name))?;
 
-        match call_site.try_as_basic_value() {
-            inkwell::values::Either::Left(val) => match val {
+        if let Some(val) = call_site.try_as_basic_value().left() {
+                match val {
                 BasicValueEnum::IntValue(iv) => Ok(iv),
                 _ => Ok(self.i64_type.const_int(0, false)),
-            }
-            inkwell::values::Either::Right(_) => Ok(self.i64_type.const_int(0, false)),
+                }
+        } else {
+            // Void return
+            Ok(self.i64_type.const_int(0, false))
         }
     }
 
