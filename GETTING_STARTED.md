@@ -1,7 +1,7 @@
 # Logicodex — Getting Started & Complete Syntax Reference
 
 > **Version:** v1.45.0-alpha  
-> **Engines:** v1.21 (default) | v1.30 (`--edition v1.30`)  
+> **Engines:** v1.21 (default) | v1.30 (`--pipeline v1.30`)  
 > **Syntax:** Bilingual — Malay aliases ↔ Expert canonical  
 > **Last Updated:** 2026-05-29
 
@@ -15,15 +15,15 @@
 4. [Control Flow](#4-control-flow)
 5. [Functions](#5-functions)
 6. [Comments](#6-comments)
-7. [Strings](#7-strings) — `--edition v1.30`
-8. [Structs](#8-structs) — `--edition v1.30`
-9. [Enums & Match](#9-enums--match) — `--edition v1.30`
-10. [Arrays](#10-arrays) — `--edition v1.30`
-11. [Pointers](#11-pointers) — `--edition v1.30`
-12. [Visibility](#12-visibility) — `--edition v1.30`
-13. [Attributes](#13-attributes) — `--edition v1.30`
-14. [Actor Runtime](#14-actor-runtime) — `--edition v1.30`
-15. [Backpressure & Scheduler](#15-backpressure--scheduler) — `--edition v1.30`
+7. [Strings](#7-strings) — `--pipeline v1.30`
+8. [Structs](#8-structs) — `--pipeline v1.30`
+9. [Enums & Match](#9-enums--match) — `--pipeline v1.30`
+10. [Arrays](#10-arrays) — `--pipeline v1.30`
+11. [Pointers](#11-pointers) — `--pipeline v1.30`
+12. [Visibility](#12-visibility) — `--pipeline v1.30`
+13. [Attributes](#13-attributes) — `--pipeline v1.30`
+14. [Actor Runtime](#14-actor-runtime) — `--pipeline v1.30`
+15. [Backpressure & Scheduler](#15-backpressure--scheduler) — `--pipeline v1.30`
 16. [Keyword Reference](#16-keyword-reference)
 
 ---
@@ -33,7 +33,7 @@
 | Marker | Meaning |
 |--------|---------|
 | ✅ | Available in v1.21 (default) |
-| 🔷 | Available in `--edition v1.30` |
+| 🔷 | Available in `--pipeline v1.30` |
 | 📝 | Both Malay + Expert syntax shown |
 
 ---
@@ -361,7 +361,7 @@ print hasil;
 
 ---
 
-## 7. Strings 🔷 `--edition v1.30`
+## 7. Strings 🔧 `--pipeline v1.30`
 
 ```
 // Malay: String literal with ""
@@ -383,7 +383,7 @@ let penuh = "Hello" + " " + "World";   // "Hello World"
 
 ---
 
-## 8. Structs 🔷 `--edition v1.30`
+## 8. Structs 🔧 `--pipeline v1.30`
 
 ### Struct Definition
 
@@ -470,7 +470,7 @@ print bulat.pusat.x;   // 0.0
 
 ---
 
-## 9. Enums & Match 🔷 `--edition v1.30`
+## 9. Enums & Match 🔧 `--pipeline v1.30`
 
 ### Enum Definition
 
@@ -569,7 +569,7 @@ match m {
 
 ---
 
-## 10. Arrays 🔷 `--edition v1.30`
+## 10. Arrays 🔧 `--pipeline v1.30`
 
 ### Array Declaration
 
@@ -611,7 +611,7 @@ print nombor.length;    // 5
 
 ---
 
-## 11. Pointers 🔷 `--edition v1.30`
+## 11. Pointers 🔧 `--pipeline v1.30`
 
 ```
 // Malay: petunjuk = pointer, @ = address-of, ^ = dereference
@@ -639,7 +639,7 @@ print b;                     // 20
 
 ---
 
-## 12. Visibility 🔷 `--edition v1.30`
+## 12. Visibility 🔧 `--pipeline v1.30`
 
 ```
 // Malay: terbuka = public, tertutup = private (default)
@@ -667,7 +667,7 @@ pub fn get_nama(c: Config) -> String {
 
 ---
 
-## 13. Attributes 🔷 `--edition v1.30`
+## 13. Attributes 🔧 `--pipeline v1.30`
 
 ```
 // Malay: #[atribut] before declarations
@@ -714,7 +714,7 @@ fn raw_alloc(saiz: I64) -> Pointer {
 
 ---
 
-## 14. Actor Runtime 🔷 `--edition v1.30`
+## 14. Actor Runtime 🔧 `--pipeline v1.30`
 
 ### Spawn an Actor
 
@@ -820,7 +820,7 @@ fn main() -> I32 {
 
 ---
 
-## 15. Backpressure & Scheduler 🔷 `--edition v1.30`
+## 15. Backpressure & Scheduler 🔧 `--pipeline v1.30`
 
 ```
 // Malay: tekanan = backpressure, jadual = scheduler
@@ -903,7 +903,7 @@ actor PenghantarMesej {
 | GESERKANAN | `>>` | Right shift |
 | JANGKAU | `~` | Bitwise NOT |
 
-### v1.30 Keywords (`--edition v1.30`)
+### v1.30 Keywords (`--pipeline v1.30`)
 
 | Malay | Expert | Meaning |
 |-------|--------|---------|
@@ -937,15 +937,149 @@ logicodex compile hello.ldx
 # Compiles basic types, functions, control flow
 ```
 
-### v1.30 (upgraded)
+### v1.30 Option Engine
 ```bash
-logicodex --edition v1.30 compile hello_v130.ldx
-# Compiles strings, structs, enums, arrays, actors
+logicodex --pipeline v1.30 compile hello_v130.ldx
+# Parses + checks: strings, structs, enums, arrays, actors
+# HIR lowering: active for all features above
+# LLVM codegen: structs, functions, calls (extending to full set)
 ```
 
 ---
 
-## Summary: What v1.30 Unlocks
+
+## Type Inference 🔧 `--pipeline v1.30`
+
+Type annotation is **optional** in Logicodex. The compiler infers types from literals.
+
+### Rule
+
+```
+If type is declared:
+  compiler follows declared type and validates value compatibility.
+
+If type is not declared:
+  compiler infers type from literal or expression.
+
+Once declared/inferred: variable type is fixed.
+```
+
+### Examples
+
+```
+// Malay: Type declared explicitly
+BINA x: I32 = 1           // I32 (declared)
+BINA y: I64 = 9999999999  // I64 (declared, large value)
+
+// Malay: Type inferred from literal
+BINA a = 1        // I32 (integer literal, fits I32)
+BINA b = 3.14     // F64 (float literal, default F64)
+BINA c = 2.5f     // F32 (suffix 'f' forces F32)
+BINA d = 100000   // I64 (auto-upgraded: exceeds I32 range)
+
+// Expert canonical:
+let x: i32 = 1;
+let a = 1;        // inferred: i32
+let b = 3.14;     // inferred: f64
+let c = 2.5f32;   // inferred: f32
+```
+
+### Inference Rules
+
+| Literal | Inferred Type | Reason |
+|---------|---------------|--------|
+| `42` | I32 | Integer default |
+| `2147483648` | I64 | Exceeds I32 max (auto-upgrade) |
+| `3.14` | F64 | Float default |
+| `2.5f` | F32 | `f` suffix forces F32 |
+| `"text"` | String | String literal |
+| `true` / `false` | Bool | Boolean literal |
+
+### Compatibility Rules
+
+```
+VALID:   BINA x: I32 = 1        // 1 fits in I32
+VALID:   BINA y: I64 = 1        // 1 fits in I64 (widen)
+VALID:   BINA z: F64 = 1        // int → float allowed
+
+ERROR:   BINA x: I32 = 9999999999   // exceeds I32 max
+ERROR:   BINA y: I32 = 3.14         // float → int prohibited
+ERROR:   BINA z: F32 = 3.14         // F64 literal → F32 narrowing
+```
+
+### Fixed Type After Inference
+
+```
+// Malay:
+BINA x = 1        // inferred: I32
+x = 2             // OK: still I32
+x = 3.14          // ERROR: cannot change I32 to F64
+
+// Expert:
+let x = 1;        // inferred: i32
+x = 2;            // OK
+x = 3.14;         // ERROR: type mismatch
+```
+
+> **Scope:** Type inference applies to v1.30+ (`--pipeline v1.30`).
+> See `docs/design/TYPE-INFERENCE-RULES.md` for full specification.
+
+
+## The v1.30 Option Engine
+
+Logicodex has **two compiler pipelines**:
+
+| Pipeline | Activation | Status | Use Case |
+|----------|-----------|--------|----------|
+| **v1.21** (default) | No flag needed | ✅ WORKING | Production compilation — native binaries |
+| **v1.30 Option Engine** | `--pipeline v1.30` | ⚠️ PARTIAL | Advanced features — HIR lowered, LLVM extending |
+
+### What is the Option Engine?
+
+The v1.30 Option Engine is an **80%-complete HIR lowering pipeline** that adds:
+- **Type system:** Strings, structs, enums, arrays, pointers
+- **Control:** Match expressions, visibility, attributes
+- **Concurrency:** Actor runtime (spawn, channels, join)
+- **Safety:** Backpressure, scheduler hooks
+
+It is called an **"Option Engine"** because:
+1. It is **opt-in** — use `--pipeline v1.30` to activate
+2. It does **not** affect v1.21 stability — both coexist
+3. Features are **staged** — parse → HIR → LLVM codegen progressively
+
+### How to Use
+
+```bash
+# v1.21 (default) — stable, produces binaries
+logicodex compile hello.ldx
+
+# v1.30 Option Engine — advanced features
+logicodex --pipeline v1.30 compile advanced.ldx
+
+# v1.30 check — validate without compiling
+logicodex --pipeline v1.30 check myfile.ldx
+
+# v1.30 subsystem self-check
+logicodex v130-check examples/dormant/v1_30/raylib_spinning_box.ldx
+```
+
+### Feature Status Matrix
+
+| Feature | Parser | HIR Lowering | LLVM Codegen |
+|---------|--------|-------------|--------------|
+| Strings | ✅ | ✅ | 🟡 |
+| Structs | ✅ | ✅ | ✅ |
+| Enums + Match | ✅ | ✅ | 🟡 |
+| Arrays | ✅ | ✅ | 🟡 |
+| Pointers | ✅ | ✅ | 🟡 |
+| Actor (spawn/join) | ✅ | ✅ | ✅ |
+| Actor (channels) | ✅ | ✅ | ✅ |
+| Visibility | ✅ | ✅ | 🟡 |
+| Attributes | ✅ | ✅ | 🟡 |
+
+Legend: ✅ Complete | 🟡 Extending | ⚪ Not Started
+
+## Summary: v1.30 Option Engine Capabilities
 
 | Feature | v1.21 | v1.30 | Impact |
 |---------|-------|-------|--------|
@@ -953,19 +1087,29 @@ logicodex --edition v1.30 compile hello_v130.ldx
 | Functions | ✅ | ✅ | Baseline |
 | Control flow | ✅ | ✅ | Baseline |
 | Bitwise ops | ✅ | ✅ | Baseline |
-| **Strings** | ❌ | ✅ | **Major** |
-| **Structs** | ❌ | ✅ | **Major** |
-| **Enums + Match** | ❌ | ✅ | **Major** |
-| **Arrays** | ❌ | ✅ | **Major** |
-| **Pointers** | ❌ | ✅ | **Major** |
-| **Visibility** | ❌ | ✅ | **New** |
-| **Attributes** | ❌ | ✅ | **New** |
-| **Actor Runtime** | ❌ | ✅ | **Major** |
-| **Backpressure** | ❌ | ✅ | **Major** |
-| **Scheduler** | ❌ | ✅ | **Major** |
+| **Strings** | ❌ | ✅ Parsed | **Major** |
+| **Structs** | ❌ | ✅ Parsed | **Major** |
+| **Enums + Match** | ❌ | ✅ Parsed | **Major** |
+| **Arrays** | ❌ | ✅ Parsed | **Major** |
+| **Pointers** | ❌ | ✅ Parsed | **Major** |
+| **Visibility** | ❌ | ✅ Parsed | **New** |
+| **Attributes** | ❌ | ✅ Parsed | **New** |
+| **Actor Runtime** | ❌ | ✅ HIR Lowered | **Major** |
+| **Backpressure** | ❌ | 🟡 Design | **Major** |
+| **Scheduler** | ❌ | 🟡 Design | **Major** |
 
 ---
 
-> This document describes syntax and capabilities as designed in the HIR module.
-> v1.30 features require `--edition v1.30` and HIR → LLVM codegen integration.
-> See `V130_OPTION_ENGINE.md` for activation path.
+> **v1.30 Option Engine Status (2026-06-01):**
+>
+> v1.30 is an 80%-complete HIR lowering pipeline. All features listed are **parsed**
+> and **HIR-lowered**. LLVM codegen is active for structs, functions, and calls.
+> The `--pipeline v1.30` flag activates the Option Engine without affecting v1.21.
+>
+> | Pipeline | Status |
+> |----------|--------|
+> | v1.21 (default) | ✅ WORKING — produces native binaries |
+> | v1.30 Option Engine | ⚠️ PARTIAL — HIR active, LLVM codegen extending |
+>
+> See `V130_OPTION_ENGINE.md` for full capability matrix and activation path.
+> See `docs/design/TYPE-INFERENCE-RULES.md` for type inference (Phase 2).
