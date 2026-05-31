@@ -13,7 +13,8 @@ use super::raylib_sys;
 use super::{
     CallableId, CallableRegistry, CallableSafety, CallableSignature, CallingConvention,
 };
-use crate::layout::{LayoutEngine, StructField};
+use crate::layout::LayoutEngine;
+use crate::types::StructFieldLayout as StructField;
 use crate::types::{PrimitiveType, StructLayout, TypeRegistry};
 
 /// Type IDs for Raylib struct types, populated by `register_raylib_types()`.
