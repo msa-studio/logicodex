@@ -19,15 +19,15 @@ x = 10
 PAPAR x
 
 # --- Expert Canonical ---
-let x: i32 = 5
-let y: i64 = 1000000
-let z: f64 = 3.14
-let flag: bool = true
-print x
+LET x: I32 = 5
+LET y: I64 = 1000000
+LET z: F64 = 3.14
+LET flag: BOOL = true
+PRINT x
 x = 10
-print x
+PRINT x
 
 # --- Expected Output ---
 # 5
 # 10
-# (values may differ based on print implementation)
+# (values may differ based on PRINT implementation)
