@@ -30,23 +30,23 @@ Based on ACTUAL source code analysis (not documentation):
 
 | Feature | Malay | Expert | File |
 |---------|-------|--------|------|
-| Print | `PAPAR` | `print` | 00, 01a |
-| Variable decl | `BINA :Type =` | `let :Type =` | 01a |
+| Print | `PAPAR` | `PRINT` | 00, 01a |
+| Variable decl | `BINA :Type =` | `LET :Type =` | 01a |
 | Assignment | `x = 10` | `x = 10` | 01a |
 | Integer literal | `42` | `42` | 00 |
-| Boolean literal | `BENAR`/`SALAH` | `true`/`false` | 01c |
+| Boolean literal | `BENAR`/`SALAH` | `TRUE`/`FALSE` | 01c |
 | Arithmetic + - * / | (symbols) | + - * / | 01b |
 | Parentheses grouping | `(...)` | `(...)` | 01b |
 | Comparison == != < > <= >= | (symbols) | == != < > <= >= | 01c |
 | Logical &&/\|\| | `dan`/`atau` | `&&`/\|\| | 01c |
-| If-then-else | `JIKA/MAKA/MELAINKAN` | `if/then/else` | 02a |
-| While loop | `SELAGI` | `while` | 02b |
-| Infinite loop | `ULANG` | `loop` | 02c |
-| Break | `HENTI` | `break` | 02c |
-| Continue | `TERUS` | `continue` | 02c |
-| Function def | `FUNGSI MULA/TAMAT` | `fn {}` | 03a |
+| If-then-ELSE | `JIKA/MAKA/MELAINKAN` | `if/then/else` | 02a |
+| While LOOP | `SELAGI` | `WHILE` | 02b |
+| Infinite LOOP | `ULANG` | `LOOP` | 02c |
+| Break | `HENTI` | `BREAK` | 02c |
+| Continue | `TERUS` | `CONTINUE` | 02c |
+| Function def | `FUNGSI MULA/TAMAT` | `FN {}` | 03a |
 | Function call | `name(args)` | `name(args)` | 03a |
-| Return | `PULANG` | `return` | 03a |
+| Return | `PULANG` | `RETURN` | 03a |
 | Match Result | `MATCH/OK/ERR/_` | `match/Ok/Err/_` | 04a |
 | Bitwise & \| << >> | `bit_dan/atau/anjak_*` | & \| << >> | 04b |
 | Hardware zone | `ZON_PERKAKASAN` | `hw_unsafe` | 04c |
@@ -57,8 +57,8 @@ Based on ACTUAL source code analysis (not documentation):
 |---------|--------|--------------|
 | Unary minus (`-x`) | ✅ NOW WORKS | Parsed via unary() method for `Unary` in `parse_primary_expr` |
 | Logical NOT (`!x`) | ✅ NOW WORKED | Parsed via unary() method |
-| For loop | ❌ NOT A TOKEN | `for` doesn't exist in TokenKind enum |
-| `mut` keyword | ❌ IGNORED | Lexed as `TokenKind::Mut` but parser discards it |
+| For LOOP | ❌ NOT A TOKEN | `for` doesn't exist in TokenKind enum |
+| `MUT` keyword | ❌ IGNORED | Lexed as `TokenKind::Mut` but parser discards it |
 | String type `:str` | ✅ NOW WORKS | `parse_type()` handles TypeStr |
 | Struct | ❌ REJECTED | Parser explicitly rejects with error message |
 | Enum | ❌ REJECTED | Parser explicitly rejects |
@@ -73,7 +73,7 @@ All Malay reserve words are **UPPERCASE** — this is now enforced consistently:
 | Category | Case | Examples |
 |----------|------|----------|
 | Malay reserve words | **UPPERCASE** | `BINA`, `JIKA`, `MAKA`, `SELAGI`, `ULANG`, `HENTI`, `TERUS`, `PAPAR`, `FUNGSI`, `PULANG`, `DAN`, `ATAU`, `BIT_DAN`, `BIT_ATAU`, `ANJAK_KIRI`, `ANJAK_KANAN`, `MUTASI`, `BENAR`, `SALAH`, `BERISIKO`, `BENTUK`, `PILIHAN`, `LUAR`, `GUNA`, `PAUTAN`, `C_LUAR`, `SUMBER`, `LEPAS`, `ALAMAT`, `PERKAKASAN`, `ZON_PERKAKASAN` |
-| English reserve words | **lowercase** | `let`, `if`, `then`, `else`, `while`, `loop`, `break`, `continue`, `print`, `fn`, `return`, `mut`, `true`, `false`, `str`, `i32`, `i64`, `u16`, `u32`, `f64`, `bool`, `ptr` |
+| English reserve words | **lowercase** | `LET`, `IF`, `THEN`, `ELSE`, `WHILE`, `LOOP`, `BREAK`, `CONTINUE`, `PRINT`, `FN`, `RETURN`, `MUT`, `TRUE`, `FALSE`, `STR`, `I32`, `I64`, `U16`, `U32`, `F64`, `BOOL`, `PTR` |
 | Type names | **UPPERCASE** | `I32`, `I64`, `U16`, `U32`, `F64`, `BOOL`, `PTR` |
 
 **Case matters**: `BINA` works, `bina` does not. This is intentional — UPPERCASE = reserve word = visually distinct from variables.
@@ -88,10 +88,10 @@ All Malay reserve words are **UPPERCASE** — this is now enforced consistently:
 | `BIT_ATAU` | `\|`, `ATAU_BIT` |
 | `ANJAK_KIRI` | `<<`, `SHL` |
 | `ANJAK_KANAN` | `>>`, `SHR` |
-| `SELAGI` | `while` |
-| `ULANG` | `loop` |
-| `HENTI` | `break` |
-| `TERUS` | `continue`, `LANGKAU` |
+| `SELAGI` | `WHILE` |
+| `ULANG` | `LOOP` |
+| `HENTI` | `BREAK` |
+| `TERUS` | `CONTINUE`, `LANGKAU` |
 
 > **Recommendation**: Use Malay UPPERCASE or English lowercase consistently. Don't mix case styles.
 
@@ -108,7 +108,7 @@ All Malay reserve words are **UPPERCASE** — this is now enforced consistently:
 
 # Check parsing (does parser accept the sequence?)
 # If you see "expected X, found Y":
-#   → Parser grammar mismatch — feature not implemented
+#   → Parser grammar misMATCH — feature not implemented
 
 # Check semantic (does it pass validation?)
 # If you see "semantic error" or "type mismatch":
@@ -124,7 +124,7 @@ All Malay reserve words are **UPPERCASE** — this is now enforced consistently:
 | `expected '{', found 'MULA'` | Mixing Expert/Malay syntax | Don't mix — use Expert `{}` OR Malay `MULA/TAMAT` |
 | `type mismatch` | Wrong type annotation | Ensure `:Type` matches literal (I32=5, F64=3.14) |
 | `unary operator not supported` | Using `-x` or `!x` | Use `(0 - x)` instead of `-x` |
-| `expected 'while', found 'for'` | For loop not implemented | Use `while` with manual counter |
+| `expected 'while', found 'for'` | For LOOP not implemented | Use `WHILE` with manual counter |
 | `struct is not supported in v1.21` | Parser rejects | Remove struct usage |
 
 ### Step 3: Isolate the Problem
@@ -132,7 +132,7 @@ All Malay reserve words are **UPPERCASE** — this is now enforced consistently:
 ```bash
 # Start from Level 0 and go up:
 logicodex check examples/00_sanity.ldx        # Should ALWAYS work
-logicodex check examples/01a_variables.ldx    # Tests let + types
+logicodex check examples/01a_variables.ldx    # Tests LET + types
 logicodex check examples/02a_if_then_else.ldx # Tests control flow
 logicodex check examples/03a_functions.ldx    # Tests functions
 # ...and so on. First failure tells you which grammar is broken.
@@ -149,9 +149,9 @@ logicodex check examples/03a_functions.ldx    # Tests functions
 | `01b_arithmetic.ldx` | 1 | + - * /, precedence, parentheses |
 | `01c_boolean.ldx` | 1 | Bool literals, comparisons, &&/\|\| |
 | `02a_if_then_else.ldx` | 2 | Conditional branching |
-| `02b_while_loop.ldx` | 2 | Counter loop |
-| `02c_loop_break_continue.ldx` | 2 | Infinite loop + break/continue |
-| `03a_functions.ldx` | 3 | Function def, params, call, return |
+| `02b_while_loop.ldx` | 2 | Counter LOOP |
+| `02c_loop_break_continue.ldx` | 2 | Infinite LOOP + break/CONTINUE |
+| `03a_functions.ldx` | 3 | Function def, params, call, RETURN |
 | `03b_recursion.ldx` | 3 | Recursive function |
 | `04a_match_result.ldx` | 4 | Match expression with Result |
 | `04b_bitwise.ldx` | 4 | &, \|, <<, >> with aliases |
@@ -160,4 +160,4 @@ logicodex check examples/03a_functions.ldx    # Tests functions
 
 ---
 
-*Updated after parser fixes (unary ops, string type, match literals) — commit on feat/examples-grammar-debug*
+*Updated after parser fixes (unary ops, string type, MATCH literals) — commit on feat/examples-grammar-debug*
