@@ -20,14 +20,14 @@ PAPAR eq
 PAPAR both
 
 # --- Expert Canonical ---
-let a: i32 = 5
-let b: i32 = 10
-let eq: bool = a == b
-let lt: bool = a < b
-let both: bool = a < b && b > 3
-let either: bool = a == 5 || b == 0
-print eq
-print both
+LET a: I32 = 5
+LET b: I32 = 10
+LET eq: BOOL = a == b
+LET lt: BOOL = a < b
+LET both: BOOL = a < b && b > 3
+LET either: BOOL = a == 5 || b == 0
+PRINT eq
+PRINT both
 
 # --- Known Limitations ---
 # Logical NOT (!) is NOT parsed — use (x == SALAH) instead of !x
