@@ -50,10 +50,34 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
         .compute_struct_layout(
             "Color",
             &[
-                StructField { name: "r".into(), ty: ids.u8_ },
-                StructField { name: "g".into(), ty: ids.u8_ },
-                StructField { name: "b".into(), ty: ids.u8_ },
-                StructField { name: "a".into(), ty: ids.u8_ },
+                StructField {
+                    name: "r".into(),
+                    ty: ids.u8_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "g".into(),
+                    ty: ids.u8_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "b".into(),
+                    ty: ids.u8_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "a".into(),
+                    ty: ids.u8_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
             ],
             false,
         )
@@ -65,8 +89,20 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
         .compute_struct_layout(
             "Vector2",
             &[
-                StructField { name: "x".into(), ty: ids.f32_ },
-                StructField { name: "y".into(), ty: ids.f32_ },
+                StructField {
+                    name: "x".into(),
+                    ty: ids.f32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "y".into(),
+                    ty: ids.f32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
             ],
             false,
         )
@@ -78,10 +114,34 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
         .compute_struct_layout(
             "Rectangle",
             &[
-                StructField { name: "x".into(), ty: ids.f32_ },
-                StructField { name: "y".into(), ty: ids.f32_ },
-                StructField { name: "width".into(), ty: ids.f32_ },
-                StructField { name: "height".into(), ty: ids.f32_ },
+                StructField {
+                    name: "x".into(),
+                    ty: ids.f32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "y".into(),
+                    ty: ids.f32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "width".into(),
+                    ty: ids.f32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "height".into(),
+                    ty: ids.f32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
             ],
             false,
         )
@@ -93,11 +153,41 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
         .compute_struct_layout(
             "Texture2D",
             &[
-                StructField { name: "id".into(), ty: ids.u32_ },
-                StructField { name: "width".into(), ty: ids.i32_ },
-                StructField { name: "height".into(), ty: ids.i32_ },
-                StructField { name: "mipmaps".into(), ty: ids.i32_ },
-                StructField { name: "format".into(), ty: ids.i32_ },
+                StructField {
+                    name: "id".into(),
+                    ty: ids.u32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "width".into(),
+                    ty: ids.i32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "height".into(),
+                    ty: ids.i32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "mipmaps".into(),
+                    ty: ids.i32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
+                StructField {
+                    name: "format".into(),
+                    ty: ids.i32_,
+                    alignment_bytes: 0,
+                    offset_bytes: 0,
+                    size_bytes: 0,
+                },
             ],
             false,
         )
