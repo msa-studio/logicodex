@@ -7,7 +7,6 @@
 // =========================================================================
 use crate::ast::{BinaryOp, Expr, Program, Stmt};
 #[cfg(feature = "v1_30")]
-#[cfg(feature = "v1_30")]
 use crate::ffi::{CallableRegistry, CallableSignature};
 use crate::types::CallableId;
 use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind, TargetArch};
