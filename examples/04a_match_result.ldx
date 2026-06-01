@@ -1,0 +1,37 @@
+# ============================================================
+# LEVEL 4A: MATCH ON RESULT TYPE
+# Purpose: Test match expression with Result<T,E> patterns
+# Grammar: match expr { Ok(v) => ..., Err(e) => ..., _ => ... }
+# DEBUG STRATEGY:
+#   If match fails: parse_match() not implemented or pattern mismatch
+#   Only Ok(v), Err(e), and _ patterns are supported
+#   Literal patterns (5, "text") and tuple patterns are NOT parsed
+#   The Result type must be declared before use
+# ============================================================
+
+# --- Malay ---
+BINA hasil: RESULT = OK 42
+
+BINA nilai: I32 = MATCH hasil MULA
+    OK v => v
+    ERR e => 0
+    _ => 99
+TAMAT
+
+PAPAR nilai
+
+# --- Expert Canonical ---
+let result: Result = Ok 42
+
+let value: i32 = match result {
+    Ok v => v
+    Err e => 0
+    _ => 99
+}
+
+print value
+
+# --- Known Limitations ---
+# Match only supports: Ok(v), Err(e), _ (wildcard)
+# No literal patterns, no tuple patterns, no guards
+# The => arrow is required for each arm
