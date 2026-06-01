@@ -4,8 +4,8 @@
 # Grammar: ULANG body + HENTI to exit + TERUS to skip
 # DEBUG STRATEGY:
 #   If infinite: HENTI not breaking out of loop
-#   If "TERUS" not working: continue statement not implemented
-#   Check: break/continue only valid inside loop context
+#   If "TERUS" not working: CONTINUE statement not implemented
+#   Check: break/CONTINUE only valid inside LOOP context
 # ============================================================
 
 # --- Malay ---
@@ -20,15 +20,15 @@ ULANG MULA
 TAMAT
 
 # --- Expert Canonical ---
-let i: i32 = 0
-loop {
+LET i: I32 = 0
+LOOP {
     i = i + 1
-    if i < 3 then
+    IF i < 3 then
         continue
-    if i >= 5 then
+    IF i >= 5 then
         break
-    print i
+    PRINT i
 }
 
 # --- Expected Output ---
-# Should print: 3, 4 (skips 1,2 via continue; breaks at 5)
+# Should PRINT: 3, 4 (skips 1,2 via continue; breaks at 5)
