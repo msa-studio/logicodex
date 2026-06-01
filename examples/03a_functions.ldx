@@ -1,0 +1,29 @@
+# ============================================================
+# LEVEL 3A: FUNCTION DEFINITION
+# Purpose: Test FUNGSI/fn declaration, parameters, return type, body
+# Grammar: FUNGSI name(param: Type) -> ReturnType MULA ... TAMAT
+# DEBUG STRATEGY:
+#   If function parse fails: parse_item() → parse_function() path
+#   Check: Function must have return type arrow (->)
+#   Check: Parameters must have type annotations
+#   Common fail: "PULANG x" inside function — check parse_return()
+# ============================================================
+
+# --- Malay ---
+FUNGSI tambah(a: I32, b: I32) -> I32 MULA
+    PULANG a + b
+TAMAT
+
+BINA hasil: I32 = tambah(3, 4)
+PAPAR hasil
+
+# --- Expert Canonical ---
+fn add(a: i32, b: i32) -> i32 {
+    return a + b
+}
+
+let result: i32 = add(3, 4)
+print result
+
+# --- Expected Output ---
+# 7
