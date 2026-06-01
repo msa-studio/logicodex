@@ -188,7 +188,7 @@ jobs:
               echo "  --- COMPILER OUTPUT ---"
 
               set +e
-              output=$(cargo run --release -- --pipeline v1.21 check "$f" 2>&1)
+              output=$(./target/release/logicodex --pipeline v1.21 check "$f" 2>&1)
               exit_code=$?
               set -e
 
@@ -229,6 +229,9 @@ jobs:
             echo "  - Check variable names match declared identifiers"
             echo "  - Verify v1.21 features only (no struct/enum/unsafe)"
             echo ""
+            echo "  --- FIRST ERROR ---"
+            head -30 example-check.log
+            echo "  --- END FIRST ERROR ---"
             cat example-check.log
             exit 1
           else
