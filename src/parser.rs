@@ -5,7 +5,7 @@
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
-use crate::ast::{BinaryOp, ExternFnDecl, Expr, Param, Program, Stmt, Type};
+use crate::ast::{BinaryOp, ExternFnDecl, Expr, MatchArm, MatchPattern, Param, Program, Stmt, Type};
 use crate::lexer::{Token, TokenKind};
 use thiserror::Error;
 
@@ -333,16 +333,14 @@ impl Parser {
     /// v1.30.1-alpha: Parse `kotak Name { ... }`
     fn actor_statement(&mut self) -> Result<Stmt, ParseError> {
         let name = self.consume(TokenKind::Identifier, "Actor name after 'actor'")?.lexeme.clone();
-        self.consume(TokenKind::LeftBrace, "'{' after actor name")?;
         let body = self.block()?;
-        self.consume(TokenKind::RightBrace, "'}' after actor body")?;
         Ok(Stmt::Actor { name, body })
     }
 
     // v1.33.0-alpha: Service manifest — deterministic network reactor
     fn service_statement(&mut self) -> Result<Stmt, ParseError> {
         let name = self.consume(TokenKind::Identifier, "Service name after 'service'")?.lexeme.clone();
-        self.consume(TokenKind::LeftBrace, "'{' after service name")?;
+        self.consume(TokenKind::Start, "block start MULA or {")?;
         
         // Parse service fields: port, requires, handler, policy
         let mut port = 0u16;
@@ -350,7 +348,7 @@ impl Parser {
         let mut handler = String::new();
         let mut policy = "Block".to_string();
         
-        while !self.check(TokenKind::RightBrace) {
+        while !self.check(TokenKind::End) {
             let field = self.consume(TokenKind::Identifier, "service field name")?.lexeme.clone();
             self.consume(TokenKind::Colon, "':' after service field")?;
             
@@ -389,7 +387,7 @@ impl Parser {
             }
         }
         
-        self.consume(TokenKind::RightBrace, "'}' after service manifest")?;
+        self.consume(TokenKind::End, "block end TAMAT or }")?;
         Ok(Stmt::Service { name, port, requires, handler, policy })
     }
 
@@ -456,9 +454,9 @@ impl Parser {
     /// Ketuk 2: Parse `match expr { Ok(v) => body, Err(e) => body }`
     fn match_statement(&mut self) -> Result<Stmt, ParseError> {
         let value = self.expression()?;
-        self.consume(TokenKind::LeftBrace, "'{' after match expression")?;
+        self.consume(TokenKind::Start, "'{' after match expression")?;
         let mut arms = Vec::new();
-        if !self.check(TokenKind::RightBrace) {
+        if !self.check(TokenKind::End) {
             loop {
                 arms.push(self.match_arm()?);
                 if !self.matches(TokenKind::Comma) {
@@ -466,7 +464,7 @@ impl Parser {
                 }
             }
         }
-        self.consume(TokenKind::RightBrace, "'}' after match arms")?;
+        self.consume(TokenKind::End, "'}' after match arms")?;
         Ok(Stmt::Match { value, arms })
     }
 
@@ -499,10 +497,8 @@ impl Parser {
         };
         self.consume(TokenKind::ArrowFat, "'=>' after match pattern")?;
         // Body: either a single expression or a block
-        let body = if self.check(TokenKind::LeftBrace) {
-            self.advance();
+        let body = if self.check(TokenKind::Start) {
             let stmts = self.block()?;
-            self.consume(TokenKind::RightBrace, "'}' after match arm body")?;
             stmts
         } else {
             let expr = self.expression()?;

@@ -38,6 +38,12 @@ pub struct LayoutEngine<'a> {
     pub target: TargetLayout,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Endian {
+    Little,
+    Big,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TargetLayout {
     pub pointer_size_bytes: usize,
@@ -55,7 +61,43 @@ impl Default for TargetLayout {
     }
 }
 
+impl TargetLayout {
+    /// Native target layout (64-bit little-endian)
+    pub fn native() -> Self {
+        Self {
+            pointer_size_bytes: 8,
+            pointer_alignment_bytes: 8,
+            integer_alignment_bytes: 8,
+        }
+    }
+
+    /// Create with custom pointer size
+    pub fn with_pointer_size(size: usize) -> Self {
+        Self {
+            pointer_size_bytes: size,
+            pointer_alignment_bytes: size,
+            integer_alignment_bytes: size,
+        }
+    }
+}
+
 impl<'a> LayoutEngine<'a> {
+    /// Create a new LayoutEngine
+    pub fn new(types: &'a crate::types::TypeRegistry, _target: &TargetLayout) -> Self {
+        Self {
+            types,
+            target: TargetLayout::native(),
+        }
+    }
+
+    /// Create with native target (placeholder)
+    pub fn native(types: &'a crate::types::TypeRegistry) -> Self {
+        Self {
+            types,
+            target: TargetLayout::native(),
+        }
+    }
+
     pub fn compute_struct_layout(
         &self,
         request: LayoutRequest,

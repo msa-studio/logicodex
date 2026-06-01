@@ -38,7 +38,7 @@ const LOGICODEX_LOGO: &str = r#"================================================
  | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
-             [ LOGICODEX COMPILER v1.45.0-alpha ]
+             [ LOGICODEX COMPILER v1.30.0-alpha ]
              [ DETERMINISTIC SYSTEMS PLATFORM   ]
 =========================================================
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)"#;
@@ -50,17 +50,17 @@ const LOGICODEX_LONG_VERSION: &str = r#"========================================
  | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
-             [ LOGICODEX COMPILER v1.45.0-alpha ]
+             [ LOGICODEX COMPILER v1.30.0-alpha ]
              [ DETERMINISTIC SYSTEMS PLATFORM   ]
 =========================================================
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
-logicodex 1.45.0-alpha
+logicodex 1.30.0-alpha
 Security Roadmap: deterministic systems platform with capability fabric"#;
 
 #[derive(Debug, ClapParser)]
 #[command(
     name = "logicodex",
-    version = "1.45.0-alpha",
+    version = "1.30.0-alpha",
     long_version = LOGICODEX_LONG_VERSION,
     about = "Native compiler for the Logicodex programming language by Mohamad Supardi Abdul",
     before_help = LOGICODEX_LOGO
@@ -93,7 +93,7 @@ enum Commands {
         secure: bool,
         #[arg(long, default_value = "native", value_parser = ["native", "host", "freestanding", "wasm"], help = "Select target: native, freestanding, or wasm (WebAssembly)")]
         target: String,
-        #[arg(long, default_value = "v1.21", help = "Select compiler pipeline: v1.21 (stable) or v1.30 (experimental)")]
+        #[arg(long, default_value = "v1.30", help = "Select compiler pipeline: v1.30 (default) or v1.21 (legacy)")]
         pipeline: String,
     },
     Check {
@@ -101,13 +101,13 @@ enum Commands {
         file: PathBuf,
         #[arg(long, default_value = "dict/core_map.json")]
         dict: PathBuf,
-        #[arg(long, default_value = "v1.21", help = "Select compiler pipeline: v1.21 (stable) or v1.30 (experimental)")]
+        #[arg(long, default_value = "v1.30", help = "Select compiler pipeline: v1.30 (default) or v1.21 (legacy)")]
         pipeline: String,
     },
     #[command(
         name = "v130-check",
         hide = true,
-        about = "Run dormant v1.30.0-alpha subsystem validation after the stable v1.21 semantic check"
+        about = "Run v1.30 subsystem self-check (formerly v130-check)"
     )]
     V130Check {
         #[arg(value_name = "FILE")]
@@ -149,7 +149,13 @@ fn main() -> Result<()> {
             println!("{}: semantic validation succeeded", file.display());
             Ok(())
         }
+        #[cfg(feature = "v1_30")]
         Some(Commands::V130Check { file, dict }) => v130_check(&file, &dict),
+        #[cfg(not(feature = "v1_30"))]
+        Some(Commands::V130Check { .. }) => {
+            eprintln!("v1.30 Option Engine not available. Build with --features v1_30");
+            std::process::exit(1);
+        }
         Some(Commands::Tokens { file, dict }) => print_tokens(&file, &dict),
         None => {
             println!("{LOGICODEX_LOGO}\n");
@@ -181,8 +187,14 @@ fn compile(
 
     // Sprint 3: Version-gated compilation — V130 uses HIR + CallableRegistry path
     let artifact = match pipeline {
+        #[cfg(feature = "v1_30")]
         CompilerPipeline::V130 => {
             compile_v130_pipeline(file, dict, &object_path, emit_ir, target)?
+        }
+        #[cfg(not(feature = "v1_30"))]
+        CompilerPipeline::V130 => {
+            eprintln!("v1.30 Option Engine not available. Build with --features v1_30");
+            std::process::exit(1);
         }
         CompilerPipeline::V121 => {
             let program = parse_and_analyze_for_target(file, dict, target_name, secure, pipeline)?;
@@ -252,6 +264,7 @@ fn compile(
     Ok(())
 }
 
+#[cfg(feature = "v1_30")]
 /// Sprint 3: v1.30 HIR compilation pipeline with CallableRegistry + Raylib FFI.
 fn compile_v130_pipeline(
     file: &Path,
@@ -458,16 +471,18 @@ fn parse_and_analyze(file: &Path, dict: &Path, pipeline: CompilerPipeline) -> Re
     parse_and_analyze_for_target(file, dict, "native", false, pipeline)
 }
 
+#[cfg(feature = "v1_30")]
 fn v130_check(file: &Path, dict: &Path) -> Result<()> {
-    parse_and_analyze(file, dict, CompilerPipeline::V121)?;
+    parse_and_analyze(file, dict, CompilerPipeline::V130)?;
     run_v130_subsystem_self_check()?;
     println!(
-        "{}: v1.21 semantic validation and dormant v1.30.0-alpha subsystem check succeeded",
+        "{}: v1.30 semantic validation and subsystem check succeeded",
         file.display()
     );
     Ok(())
 }
 
+#[cfg(feature = "v1_30")]
 fn run_v130_subsystem_self_check() -> Result<()> {
     let mut types = types::TypeRegistry::new();
     let ids = types.primitive_ids();
@@ -552,6 +567,7 @@ fn run_v130_subsystem_self_check() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "v1_30")]
 fn format_v130_diagnostics(diagnostics: &[span::Diagnostic]) -> String {
     diagnostics
         .iter()
@@ -560,6 +576,7 @@ fn format_v130_diagnostics(diagnostics: &[span::Diagnostic]) -> String {
         .join("\n")
 }
 
+#[cfg(feature = "v1_30")]
 fn format_v130_diagnostic(diagnostic: &span::Diagnostic) -> String {
     format!("{} / {}", diagnostic.message_ms, diagnostic.message_en)
 }

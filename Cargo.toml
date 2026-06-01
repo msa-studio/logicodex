@@ -1,6 +1,6 @@
 [package]
 name = "logicodex"
-version = "1.45.0-alpha"
+version = "1.30.0-alpha"
 edition = "2021"
 authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
 description = "Deterministic systems programming language with alias-to-canonical syntax, actor-model concurrency, and compile-time capability security"
@@ -34,14 +34,18 @@ opt-level = 3
 panic = "abort"
 strip = "symbols"
 
+[features]
+# v1.30 Option Engine — activates HIR lowering, type system, actor runtime
+v1_30 = []  # Option Engine — gates HIR, layout, ffi, tier2 modules
+
 [profile.dev]
 opt-level = 0
 panic = "unwind"
 
 [package.metadata.logicodex]
 language_name = "Logicodex"
-phase = "v1.45.0-alpha"
+phase = "v1.30.0-alpha"
 source_extension = "ldx"
-public_release_label = "v1.45.0-alpha"
+public_release_label = "v1.30.0-alpha"
 rust_channel = "1.75.0"
 llvm_feature = "llvm15-0"

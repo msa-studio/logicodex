@@ -63,8 +63,16 @@ pub enum Stmt {
     Loop {
         body: Vec<Stmt>,
     },
+    /// For loop: `for variable in iterable { body }`
+    For {
+        variable: String,
+        iterable: Expr,
+        body: Vec<Stmt>,
+    },
     Break,
     Continue,
+    /// Block statement: `{ statements }`
+    Block(Vec<Stmt>),
     StructDecl {
         name: String,
         fields: Vec<Param>,
@@ -92,6 +100,10 @@ pub enum Stmt {
         name: String,
         body: Vec<Stmt>,
     },
+    /// Variable assignment: target = value (target can be any Expr)
+    Assign { target: Expr, value: Expr },
+    /// Buffer index assignment: buf[index] = value
+    IndexAssign { target: String, index: Expr, value: Expr },
     /// v1.33.0-alpha: Service manifest — deterministic network reactor.
     /// Syntax: `service WebServer { port: 443, requires: Net.Admin, handler: WebHandler, policy: Block }`
     Service {
@@ -103,12 +115,14 @@ pub enum Stmt {
     },
 }
 
+/// Match arm: pattern => body
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MatchArm {
     pub pattern: MatchPattern,
     pub body: Vec<Stmt>,
 }
 
+/// Match pattern
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MatchPattern {
     /// Matches Ok variant: Ok(name)
@@ -117,6 +131,12 @@ pub enum MatchPattern {
     Err { binding: String },
     /// Wildcard: _
     Wildcard,
+    /// Literal pattern: 5, "hello"
+    Literal(Expr),
+    /// Identifier pattern: x
+    Identifier(String),
+    /// Tuple pattern: (a, b, c)
+    Tuple(Vec<MatchPattern>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -135,6 +155,8 @@ pub struct Param {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
     Integer(i64),
+    /// Unary operation: op expr
+    Unary { op: String, operand: Box<Expr> },
     Boolean(bool),
     StringLiteral(String),
     Variable(String),
@@ -167,6 +189,8 @@ pub enum Expr {
         method: String,
         args: Vec<Expr>,
     },
+    /// Field access: net.admin
+    FieldAccess { base: Box<Expr>, field: String },
     /// v1.30.1-alpha: Spawn a Kotak (create OS thread).
     /// Syntax: `lahirkan SensorSuhu()`
     Spawn {

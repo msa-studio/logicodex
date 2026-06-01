@@ -6,7 +6,9 @@
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
 use crate::ast::{BinaryOp, Expr, Program, Stmt};
-use crate::ffi::{CallableId, CallableRegistry, CallableSignature};
+#[cfg(feature = "v1_30")]
+use crate::ffi::{CallableRegistry, CallableSignature};
+use crate::types::CallableId;
 use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind, TargetArch};
 use crate::types::{PrimitiveType, TypeId, TypeKind, TypeRegistry};
 use anyhow::{anyhow, Context as AnyhowContext, Result};
@@ -14,7 +16,8 @@ use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::types::{BasicTypeEnum, IntType, FloatType};
+use inkwell::types::{BasicTypeEnum, IntType};
+use inkwell::AddressSpace;
 use inkwell::values::{BasicValueEnum, FunctionValue, IntValue, PointerValue};
 use inkwell::IntPredicate;
 use std::collections::HashMap;
@@ -103,7 +106,9 @@ pub struct LlvmCompiler<'ctx> {
 
 /// Backend trait for version-gated codegen. v1.21 uses direct compilation;
 /// v1.30+ uses this trait for HIR-based codegen.
+#[cfg(feature = "v1_30")]
 pub trait CodegenBackend {
+    #[cfg(feature = "v1_30")]
     fn compile_hir_module(&mut self, module: &crate::hir::HirModule, options: &CodegenOptions) -> Result<CodegenArtifact>;
 }
 
@@ -231,7 +236,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             TypeKind::Primitive(PrimitiveType::F32) => Ok(self.context.f32_type().into()),
             TypeKind::Primitive(PrimitiveType::F64) => Ok(self.context.f64_type().into()),
             TypeKind::Primitive(PrimitiveType::Unit) => Ok(self.context.i8_type().into()), // void represented as i8
-            TypeKind::Pointer { .. } => Ok(self.context.ptr_type(inkwell::AddressSpace::default()).into()),
+            TypeKind::Pointer { .. } => Ok(self.context.i8_type().ptr_type(inkwell::AddressSpace::default()).into()),
             other => Err(anyhow!("type_id_to_llvm: unsupported type kind: {:?}", other)),
         }
     }
@@ -248,7 +253,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             llvm_param_types.push(self.type_id_to_llvm(*param_id)?);
         }
         let ret_type = self.type_id_to_llvm(signature.return_type)?;
-        let fn_type = ret_type.fn_type(&llvm_param_types, signature.is_variadic);
+        let fn_type = self.basic_type_fn_type(ret_type, &llvm_param_types, signature.is_variadic);
         let func = self.module.add_function(name, fn_type, Some(inkwell::module::Linkage::External));
         self.declared_funcs.insert(name.clone(), func);
         Ok(func)
@@ -403,7 +408,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 "mmio_val",
             )
             .context("MMIO volatile load")?;
-        let load_inst = loaded.as_instruction_value()
+        let load_inst = self.builder.get_insert_block()
+            .and_then(|bb| bb.get_last_instruction())
             .ok_or_else(|| anyhow!("MMIO load is not an instruction"))?;
         load_inst.set_volatile(true)
             .map_err(|_| anyhow!("failed to set MMIO load as volatile"))?;
@@ -887,6 +893,24 @@ impl<'ctx> LlvmCompiler<'ctx> {
         None
     }
 
+    /// Helper: create FunctionType from a BasicTypeEnum return type.
+    /// Required because inkwell 0.4.0 BasicTypeEnum does not have `.fn_type()`.
+    fn basic_type_fn_type(
+        &self,
+        ret_type: BasicTypeEnum<'ctx>,
+        param_types: &[BasicTypeEnum<'ctx>],
+        is_variadic: bool,
+    ) -> inkwell::types::FunctionType<'ctx> {
+        match ret_type {
+            BasicTypeEnum::IntType(t) => t.fn_type(param_types, is_variadic),
+            BasicTypeEnum::FloatType(t) => t.fn_type(param_types, is_variadic),
+            BasicTypeEnum::PointerType(t) => t.fn_type(param_types, is_variadic),
+            BasicTypeEnum::StructType(t) => t.fn_type(param_types, is_variadic),
+            BasicTypeEnum::ArrayType(t) => t.fn_type(param_types, is_variadic),
+            BasicTypeEnum::VectorType(t) => t.fn_type(param_types, is_variadic),
+        }
+    }
+
     fn current_function(&self) -> Result<FunctionValue<'ctx>> {
         self.builder
             .get_insert_block()
@@ -907,6 +931,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     }
 }
 
+#[cfg(feature = "v1_30")]
 /// Entry point for v1.30 HIR-to-object compilation.
 /// This is the gate between the v1.21 AST path and the v1.30 HIR path.
 /// v1.21 code never calls this function.
@@ -1016,6 +1041,7 @@ pub fn compile_v130(
 // =========================================================================
 impl<'ctx> LlvmCompiler<'ctx> {
     /// Emit a HIR function definition into the LLVM module.
+    #[cfg(feature = "v1_30")]
     fn emit_v130_function(
         &mut self,
         function: &crate::hir::HirFunction,
@@ -1031,7 +1057,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
         // 2. Determine return type
         let ret_type = self.hir_type_to_llvm(function.return_type)?;
-        let fn_type = ret_type.fn_type(&param_types, false);
+        let fn_type = self.basic_type_fn_type(ret_type, &param_types, false);
 
         // 3. Create LLVM function
         let func = self.module.add_function(&function.name, fn_type, None);
@@ -1071,13 +1097,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
     }
 
     /// Declare a HIR extern function in the LLVM module.
+    #[cfg(feature = "v1_30")]
     fn emit_v130_extern_function(
         &mut self,
         extern_fn: &crate::hir::HirExternFunction,
     ) -> Result<()> {
         let callables = self.callables.as_ref()
             .ok_or_else(|| anyhow!("extern function codegen: CallableRegistry not attached"))?;
-        let signature = callables.lookup_callable(extern_fn.callable)
+        let signature = callables.get(extern_fn.callable)
             .ok_or_else(|| anyhow!("extern function CallableId({}) not found in registry", extern_fn.callable.0))?;
         let func = self.declare_extern_func(signature)?;
         self.hir_callable_funcs.insert(extern_fn.callable.0, func);
@@ -1086,6 +1113,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
     // ─── HIR Block / Statement / Expression Emitters ───
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_block(
         &mut self,
         block: &crate::hir::HirBlock,
@@ -1100,6 +1128,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_stmt(
         &mut self,
         stmt: &crate::hir::HirStmt,
@@ -1172,6 +1201,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_expr(
         &mut self,
         expr: &crate::hir::HirExpr,
@@ -1443,6 +1473,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_call(
         &mut self,
         callee: crate::ffi::CallableId,
@@ -1451,7 +1482,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     ) -> Result<IntValue<'ctx>> {
         let callables = self.callables.as_ref()
             .ok_or_else(|| anyhow!("HIR call: CallableRegistry not attached"))?;
-        let signature = callables.lookup_callable(callee)
+        let signature = callables.get(callee)
             .ok_or_else(|| anyhow!("HIR call: CallableId({}) not found", callee.0))?;
 
         // v1.36 A5: Detect struct constructor by name
@@ -1486,6 +1517,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_if(
         &mut self,
         condition: &crate::hir::HirExpr,
@@ -1519,6 +1551,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_while(
         &mut self,
         condition: &crate::hir::HirExpr,
@@ -1548,6 +1581,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_loop(
         &mut self,
         body: &crate::hir::HirBlock,
@@ -1571,6 +1605,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
     // ─── HIR Type Helpers ───
 
+    #[cfg(feature = "v1_30")]
     fn hir_type_to_llvm(&self, type_ref: crate::hir::TypeRef) -> Result<BasicTypeEnum<'ctx>> {
         let types = self.types.as_ref()
             .ok_or_else(|| anyhow!("hir_type_to_llvm: TypeRegistry not attached"))?;
@@ -1586,6 +1621,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
+    #[cfg(feature = "v1_30")]
     fn unit_type_id(&self) -> TypeId {
         // Unit is represented as i8 (void)
         self.types.as_ref()
@@ -1597,6 +1633,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
     /// Pre-declare all callable functions from the CallableRegistry.
     /// Must be called before codegen if CallableRegistry is attached.
+    #[cfg(feature = "v1_30")]
     fn predeclare_callables(&mut self) -> Result<()> {
         if self.callables_predeclared {
             return Ok(()); // already done
@@ -1611,16 +1648,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
             if self.declared_funcs.contains_key(name) {
                 continue; // already declared
             }
-            // Determine LLVM types
-            let ret_type = if let Some(types) = self.types.as_ref() {
-                match types.resolve(sig.return_type) {
-                    crate::types::TypeKind::Primitive(crate::types::PrimitiveType::Unit) => {
-                        self.context.void_type().fn_type(&[], false).return_type()
-                    }
-                    _ => Some(self.i64_type.into()),
-                }
+            // Determine whether the return type is void (Unit)
+            let is_void = if let Some(types) = self.types.as_ref() {
+                matches!(types.resolve(sig.return_type), crate::types::TypeKind::Primitive(crate::types::PrimitiveType::Unit))
             } else {
-                Some(self.i64_type.into())
+                false
             };
             // Build parameter types
             let mut param_types: Vec<BasicTypeEnum<'ctx>> = Vec::new();
@@ -1628,10 +1660,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 param_types.push(self.i64_type.into());
             }
             // Build function type
-            let fn_type = if let Some(ret) = ret_type {
-                ret.into_int_type().fn_type(&param_types, sig.is_variadic)
-            } else {
+            let fn_type = if is_void {
                 self.context.void_type().fn_type(&param_types, sig.is_variadic)
+            } else {
+                let ret_type: BasicTypeEnum<'ctx> = self.i64_type.into();
+                self.basic_type_fn_type(ret_type, &param_types, sig.is_variadic)
             };
             let func = self.module.add_function(name, fn_type, None);
             self.declared_funcs.insert(name.clone(), func);
@@ -1643,6 +1676,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     // ─── v1.36 A5: Struct Registration ───
 
     /// Register a HIR struct declaration, creating its LLVM struct type.
+    #[cfg(feature = "v1_30")]
     fn register_hir_struct(
         &mut self,
         struct_decl: &crate::hir::HirStructDecl,
@@ -1653,7 +1687,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             .collect();
         let field_types = field_types?;
         let struct_type = self.context.struct_type(&field_types, false);
-        struct_type.set_name(&format!("struct.{}", struct_decl.symbol.0));
+        // TODO(inkwell-0.4.0): StructType::set_name() is not available; name set via symbol table only
         self.hir_struct_types.insert(struct_decl.symbol.0, struct_type);
         // Also store by name if we can resolve it
         self.hir_struct_names.insert(format!("Struct_{}", struct_decl.symbol.0), struct_decl.symbol.0);
@@ -1663,6 +1697,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     /// v1.42: Emit a struct constructor call: `StructName(field1, ...)` → struct value.
     /// Supports: Color(r,g,b,a) → packed u32, Vector2(x,y) → 8-byte struct,
     ///           Rectangle(x,y,w,h) → 16-byte struct.
+    #[cfg(feature = "v1_30")]
     fn emit_hir_struct_constructor(
         &mut self,
         struct_name: &str,
@@ -1691,25 +1726,31 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
             // ─── Vector2(x: f32, y: f32) → 8-byte struct → i64 ───
             "Vector2" if args.len() == 2 => {
-                let vec2_type = self.context.f32_type().vec_type(2);
+                // Use a 2×f32 struct instead of vec_type (inkwell 0.4.0 compat)
+                let vec2_type = self.context.struct_type(
+                    &[self.context.f32_type().into(), self.context.f32_type().into()], false);
                 let alloca = self.create_entry_alloca_typed(
                     func,
                     &format!("vec2_{}_tmp", struct_name),
-                    vec2_type.as_basic_type_enum(),
+                    vec2_type.into(),
                 );
                 for (i, arg) in args.iter().enumerate() {
                     let val = self.emit_hir_expr(arg, func)?;
-                    let f32_val = self.builder
-                        .build_int_truncate(val, self.context.f32_type().into_int_type(),
-                            &format!("vec2_f32_{}", i))
+                    // Cast i64 arg to f32 via bitcast: truncate i64 → i32, then bitcast to f32
+                    let i32_val = self.builder
+                        .build_int_truncate(val, self.context.i32_type(),
+                            &format!("vec2_i32_{}", i))
                         .unwrap_or(val);
+                    let f32_val = self.builder.build_bitcast(
+                        i32_val, self.context.f32_type(), &format!("vec2_f32_{}", i))
+                        .context("Vector2 i32→f32 bitcast")?;
                     let field_ptr = unsafe {
                         self.builder.build_struct_gep(
-                            vec2_type.into_struct_type(), alloca, i as u32,
+                            vec2_type, alloca, i as u32,
                             &format!("vec2_field_{}", i))
                             .context("Vector2 field gep")?
                     };
-                    self.builder.build_store(field_ptr, f32_val.into())
+                    self.builder.build_store(field_ptr, f32_val)
                         .context("Vector2 field store")?;
                 }
                 // For by-value return on x86_64: pack into i64
@@ -1727,19 +1768,23 @@ impl<'ctx> LlvmCompiler<'ctx> {
                       self.context.f32_type().into(),
                       self.context.f32_type().into()], false);
                 let alloca = self.create_entry_alloca_typed(
-                    func, "rect_tmp", rect_type.as_basic_type_enum());
+                    func, "rect_tmp", rect_type.into());
                 for (i, arg) in args.iter().enumerate() {
                     let val = self.emit_hir_expr(arg, func)?;
-                    let f32_val = self.builder
-                        .build_int_truncate(val, self.context.f32_type().into_int_type(),
-                            &format!("rect_f32_{}", i))
+                    // Cast i64 arg to f32: truncate i64 → i32, then bitcast to f32
+                    let i32_val = self.builder
+                        .build_int_truncate(val, self.context.i32_type(),
+                            &format!("rect_i32_{}", i))
                         .unwrap_or(val);
+                    let f32_val = self.builder.build_bitcast(
+                        i32_val, self.context.f32_type(), &format!("rect_f32_{}", i))
+                        .context("Rectangle i32→f32 bitcast")?;
                     let field_ptr = unsafe {
                         self.builder.build_struct_gep(rect_type, alloca, i as u32,
                             &format!("rect_field_{}", i))
                             .context("Rectangle field gep")?
                     };
-                    self.builder.build_store(field_ptr, f32_val.into())
+                    self.builder.build_store(field_ptr, f32_val)
                         .context("Rectangle field store")?;
                 }
                 // Return pointer as i64 (pass-by-reference pattern)
@@ -1781,3 +1826,4 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 }
+

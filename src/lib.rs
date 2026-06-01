@@ -32,18 +32,26 @@ pub use std::{
     collections::HashMap, collections::HashSet, format,
 };
 
+// Core v1.21 modules (always compiled)
 pub mod ast;
 pub mod codegen;
+// v1.30 Option Engine modules (gated behind feature flag)
+#[cfg(feature = "v1_30")]
 pub mod codegen_contract;
+#[cfg(feature = "v1_30")]
 pub mod ffi;
+#[cfg(feature = "v1_30")]
 pub mod hir;
+#[cfg(feature = "v1_30")]
 pub mod layout;
 pub mod lexer;
 pub mod os;
 pub mod parser;
 pub mod semantic;
+#[cfg(feature = "v1_30")]
 pub mod semantic_gate;
 pub mod span;
-pub mod net;
+// pub mod net;  // Module file not present
+#[cfg(feature = "v1_30")]
 pub mod tier2;
 pub mod types;

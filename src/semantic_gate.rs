@@ -360,7 +360,7 @@ pub fn validate_module_with_reporting(
         Err(diagnostics) => {
             eprintln!("logicodex v1.38: Semantic gatekeeper found {} issue(s):", diagnostics.len());
             for d in &diagnostics {
-                eprintln!("  [{:?}] {}", d.severity, d.message);
+                eprintln!("  [{:?}] {}", d.severity, d.message_en);
             }
             false
         }

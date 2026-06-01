@@ -117,6 +117,15 @@ pub enum ExprAst {
     ChannelRecv {
         channel_name: String,
     },
+    /// Non-blocking channel send — returns bool
+    ChannelTrySend {
+        channel_name: String,
+        value: Box<ExprAst>,
+    },
+    /// Non-blocking channel recv — returns Option<T>
+    ChannelTryRecv {
+        channel_name: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
