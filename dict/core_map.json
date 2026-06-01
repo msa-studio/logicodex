@@ -29,7 +29,7 @@
       "description": "End a program or block."
     },
     "LET": {
-      "expert": "let",
+      "expert": "LET",
       "primary_ms": "BINA",
       "aliases": [
         "CREATE"
@@ -38,7 +38,7 @@
       "beginner_line_terminated": true
     },
     "MUT": {
-      "expert": "mut",
+      "expert": "MUT",
       "primary_ms": "MUTASI",
       "aliases": [
         "MUTABLE"
@@ -46,7 +46,7 @@
       "description": "Vocabulary marker for future mutable binding support."
     },
     "IF": {
-      "expert": "if",
+      "expert": "IF",
       "primary_ms": "JIKA",
       "aliases": [
         "IF"
@@ -54,7 +54,7 @@
       "description": "Begin a conditional branch."
     },
     "THEN": {
-      "expert": "then",
+      "expert": "THEN",
       "primary_ms": "MAKA",
       "aliases": [
         "THEN"
@@ -62,7 +62,7 @@
       "description": "Separate a condition from its branch body in expert canonical shorthand or alias surfaces."
     },
     "ELSE": {
-      "expert": "else",
+      "expert": "ELSE",
       "primary_ms": "MELAINKAN",
       "aliases": [
         "ELSE",
@@ -71,7 +71,7 @@
       "description": "Begin an alternative branch."
     },
     "WHILE": {
-      "expert": "while",
+      "expert": "WHILE",
       "primary_ms": "SELAGI",
       "aliases": [
         "SELAGI",
@@ -81,7 +81,7 @@
       "compiler_status": "executable_control_flow"
     },
     "LOOP": {
-      "expert": "loop",
+      "expert": "LOOP",
       "primary_ms": "ULANG",
       "aliases": [
         "ULANG",
@@ -91,7 +91,7 @@
       "compiler_status": "executable_control_flow"
     },
     "LOOP_BREAK": {
-      "expert": "break",
+      "expert": "BREAK",
       "primary_ms": "HENTI",
       "aliases": [
         "HENTI",
@@ -101,7 +101,7 @@
       "compiler_status": "executable_control_flow"
     },
     "LOOP_CONTINUE": {
-      "expert": "continue",
+      "expert": "CONTINUE",
       "primary_ms": "TERUS",
       "aliases": [
         "TERUS",
@@ -112,7 +112,7 @@
       "compiler_status": "executable_control_flow"
     },
     "PRINT": {
-      "expert": "print",
+      "expert": "PRINT",
       "primary_ms": "PAPAR",
       "aliases": [
         "PRINT"
@@ -121,7 +121,7 @@
       "beginner_line_terminated": true
     },
     "HW": {
-      "expert": "hw",
+      "expert": "HW",
       "primary_ms": "PERKAKASAN",
       "aliases": [
         "HARDWARE",
@@ -145,7 +145,7 @@
       }
     },
     "ADDR": {
-      "expert": "addr",
+      "expert": "ADDR",
       "primary_ms": "ALAMAT",
       "aliases": [
         "ADDRESS"
@@ -156,7 +156,7 @@
       }
     },
     "USE": {
-      "expert": "use",
+      "expert": "USE",
       "primary_ms": "GUNA",
       "aliases": [
         "USE"
@@ -164,7 +164,7 @@
       "description": "Import a standard or platform module contract."
     },
     "FN": {
-      "expert": "fn",
+      "expert": "FN",
       "primary_ms": "FUNGSI",
       "aliases": [
         "FUNCTION"
@@ -172,7 +172,7 @@
       "description": "Begin a function definition."
     },
     "RETURN": {
-      "expert": "return",
+      "expert": "RETURN",
       "primary_ms": "PULANG",
       "aliases": [
         "RETURN"
@@ -181,7 +181,7 @@
       "beginner_line_terminated": true
     },
     "FFI": {
-      "expert": "ffi",
+      "expert": "FFI",
       "primary_ms": "PAUTAN",
       "aliases": [
         "FOREIGN_INTERFACE"
@@ -189,7 +189,7 @@
       "description": "Vocabulary marker for future foreign-function interface declarations."
     },
     "C_INTEROP": {
-      "expert": "c",
+      "expert": "C",
       "primary_ms": "C_LUAR",
       "aliases": [
         "C_LEGACY"
@@ -197,7 +197,7 @@
       "description": "Vocabulary marker for future C ABI interop declarations."
     },
     "RESOURCE": {
-      "expert": "resource",
+      "expert": "RESOURCE",
       "primary_ms": "SUMBER",
       "aliases": [
         "RESOURCE"
@@ -205,7 +205,7 @@
       "description": "Vocabulary marker for future resource-scope declarations."
     },
     "DROP": {
-      "expert": "drop",
+      "expert": "DROP",
       "primary_ms": "LEPAS",
       "aliases": [
         "DROP"
@@ -213,7 +213,7 @@
       "description": "Vocabulary marker for future explicit resource-release operations."
     },
     "UNSAFE": {
-      "expert": "unsafe",
+      "expert": "UNSAFE",
       "primary_ms": "BERISIKO",
       "aliases": [
         "BERISIKO",
@@ -226,7 +226,7 @@
       "compiler_status": "parser_trap_unimplemented"
     },
     "EXTERN": {
-      "expert": "extern",
+      "expert": "EXTERN",
       "primary_ms": "LUAR",
       "aliases": [
         "LUAR",
@@ -239,7 +239,7 @@
       "compiler_status": "parser_trap_unimplemented"
     },
     "STRUCT": {
-      "expert": "struct",
+      "expert": "STRUCT",
       "primary_ms": "BENTUK",
       "aliases": [
         "BENTUK",
@@ -249,7 +249,7 @@
       "compiler_status": "parser_trap_unimplemented"
     },
     "ENUM": {
-      "expert": "enum",
+      "expert": "ENUM",
       "primary_ms": "PILIHAN",
       "aliases": [
         "PILIHAN",
@@ -259,7 +259,7 @@
       "compiler_status": "parser_trap_unimplemented"
     },
     "TRUE": {
-      "expert": "true",
+      "expert": "TRUE",
       "primary_ms": "BENAR",
       "aliases": [
         "TRUE"
@@ -267,7 +267,7 @@
       "description": "Boolean true literal."
     },
     "FALSE": {
-      "expert": "false",
+      "expert": "FALSE",
       "primary_ms": "SALAH",
       "aliases": [
         "PALSU",
@@ -304,7 +304,7 @@
       "description": "Unsigned 32-bit integer type."
     },
     "STR": {
-      "expert": "str",
+      "expert": "STR",
       "primary_ms": "TEKS",
       "aliases": [
         "STRING"
@@ -324,7 +324,7 @@
       "description": "Boolean type marker."
     },
     "PTR": {
-      "expert": "ptr",
+      "expert": "PTR",
       "primary_ms": "PTR",
       "aliases": [],
       "description": "Pointer type constructor.",
@@ -502,5 +502,5 @@
       "description": "Function return type delimiter."
     }
   },
-  "__version": "v1.30.1-grammar-fix"
+  "__version": "v1.30.1-uppercase-all"
 }
