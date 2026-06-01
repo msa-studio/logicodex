@@ -149,7 +149,13 @@ fn main() -> Result<()> {
             println!("{}: semantic validation succeeded", file.display());
             Ok(())
         }
+        #[cfg(feature = "v1_30")]
         Some(Commands::V130Check { file, dict }) => v130_check(&file, &dict),
+        #[cfg(not(feature = "v1_30"))]
+        Some(Commands::V130Check { .. }) => {
+            eprintln!("v1.30 Option Engine not available. Build with --features v1_30");
+            std::process::exit(1);
+        }
         Some(Commands::Tokens { file, dict }) => print_tokens(&file, &dict),
         None => {
             println!("{LOGICODEX_LOGO}\n");
@@ -181,8 +187,14 @@ fn compile(
 
     // Sprint 3: Version-gated compilation — V130 uses HIR + CallableRegistry path
     let artifact = match pipeline {
+        #[cfg(feature = "v1_30")]
         CompilerPipeline::V130 => {
             compile_v130_pipeline(file, dict, &object_path, emit_ir, target)?
+        }
+        #[cfg(not(feature = "v1_30"))]
+        CompilerPipeline::V130 => {
+            eprintln!("v1.30 Option Engine not available. Build with --features v1_30");
+            std::process::exit(1);
         }
         CompilerPipeline::V121 => {
             let program = parse_and_analyze_for_target(file, dict, target_name, secure, pipeline)?;
@@ -252,6 +264,7 @@ fn compile(
     Ok(())
 }
 
+#[cfg(feature = "v1_30")]
 /// Sprint 3: v1.30 HIR compilation pipeline with CallableRegistry + Raylib FFI.
 fn compile_v130_pipeline(
     file: &Path,
@@ -458,6 +471,7 @@ fn parse_and_analyze(file: &Path, dict: &Path, pipeline: CompilerPipeline) -> Re
     parse_and_analyze_for_target(file, dict, "native", false, pipeline)
 }
 
+#[cfg(feature = "v1_30")]
 fn v130_check(file: &Path, dict: &Path) -> Result<()> {
     parse_and_analyze(file, dict, CompilerPipeline::V130)?;
     run_v130_subsystem_self_check()?;
@@ -468,6 +482,7 @@ fn v130_check(file: &Path, dict: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "v1_30")]
 fn run_v130_subsystem_self_check() -> Result<()> {
     let mut types = types::TypeRegistry::new();
     let ids = types.primitive_ids();
@@ -552,6 +567,7 @@ fn run_v130_subsystem_self_check() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "v1_30")]
 fn format_v130_diagnostics(diagnostics: &[span::Diagnostic]) -> String {
     diagnostics
         .iter()
@@ -560,6 +576,7 @@ fn format_v130_diagnostics(diagnostics: &[span::Diagnostic]) -> String {
         .join("\n")
 }
 
+#[cfg(feature = "v1_30")]
 fn format_v130_diagnostic(diagnostic: &span::Diagnostic) -> String {
     format!("{} / {}", diagnostic.message_ms, diagnostic.message_en)
 }
