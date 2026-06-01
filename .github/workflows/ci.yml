@@ -20,9 +20,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/v130-single-engine]
   pull_request:
-    branches: [main]
+    branches: [main, feat/v130-single-engine]
 
 env:
   CARGO_TERM_COLOR: always
