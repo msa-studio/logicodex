@@ -932,11 +932,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     }
 }
 
-} // end v1.21 impl block
-
 #[cfg(feature = "v1_30")]
-impl<'ctx> LlvmCompiler<'ctx> {
-
 /// Entry point for v1.30 HIR-to-object compilation.
 /// This is the gate between the v1.21 AST path and the v1.30 HIR path.
 /// v1.21 code never calls this function.
@@ -1046,6 +1042,7 @@ pub fn compile_v130(
 // =========================================================================
 impl<'ctx> LlvmCompiler<'ctx> {
     /// Emit a HIR function definition into the LLVM module.
+    #[cfg(feature = "v1_30")]
     fn emit_v130_function(
         &mut self,
         function: &crate::hir::HirFunction,
@@ -1101,6 +1098,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     }
 
     /// Declare a HIR extern function in the LLVM module.
+    #[cfg(feature = "v1_30")]
     fn emit_v130_extern_function(
         &mut self,
         extern_fn: &crate::hir::HirExternFunction,
@@ -1116,6 +1114,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
     // ─── HIR Block / Statement / Expression Emitters ───
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_block(
         &mut self,
         block: &crate::hir::HirBlock,
@@ -1130,6 +1129,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_stmt(
         &mut self,
         stmt: &crate::hir::HirStmt,
@@ -1202,6 +1202,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_expr(
         &mut self,
         expr: &crate::hir::HirExpr,
@@ -1473,6 +1474,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_call(
         &mut self,
         callee: crate::ffi::CallableId,
@@ -1516,6 +1518,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_if(
         &mut self,
         condition: &crate::hir::HirExpr,
@@ -1549,6 +1552,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_while(
         &mut self,
         condition: &crate::hir::HirExpr,
@@ -1578,6 +1582,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
+    #[cfg(feature = "v1_30")]
     fn emit_hir_loop(
         &mut self,
         body: &crate::hir::HirBlock,
@@ -1601,6 +1606,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
     // ─── HIR Type Helpers ───
 
+    #[cfg(feature = "v1_30")]
     fn hir_type_to_llvm(&self, type_ref: crate::hir::TypeRef) -> Result<BasicTypeEnum<'ctx>> {
         let types = self.types.as_ref()
             .ok_or_else(|| anyhow!("hir_type_to_llvm: TypeRegistry not attached"))?;
@@ -1616,6 +1622,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
+    #[cfg(feature = "v1_30")]
     fn unit_type_id(&self) -> TypeId {
         // Unit is represented as i8 (void)
         self.types.as_ref()
@@ -1627,6 +1634,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
     /// Pre-declare all callable functions from the CallableRegistry.
     /// Must be called before codegen if CallableRegistry is attached.
+    #[cfg(feature = "v1_30")]
     fn predeclare_callables(&mut self) -> Result<()> {
         if self.callables_predeclared {
             return Ok(()); // already done
@@ -1669,6 +1677,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     // ─── v1.36 A5: Struct Registration ───
 
     /// Register a HIR struct declaration, creating its LLVM struct type.
+    #[cfg(feature = "v1_30")]
     fn register_hir_struct(
         &mut self,
         struct_decl: &crate::hir::HirStructDecl,
@@ -1689,6 +1698,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     /// v1.42: Emit a struct constructor call: `StructName(field1, ...)` → struct value.
     /// Supports: Color(r,g,b,a) → packed u32, Vector2(x,y) → 8-byte struct,
     ///           Rectangle(x,y,w,h) → 16-byte struct.
+    #[cfg(feature = "v1_30")]
     fn emit_hir_struct_constructor(
         &mut self,
         struct_name: &str,
