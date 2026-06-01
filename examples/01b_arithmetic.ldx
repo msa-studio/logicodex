@@ -21,15 +21,15 @@ PAPAR sum
 PAPAR expr
 
 # --- Expert Canonical ---
-let a: i32 = 10
-let b: i32 = 3
-let sum: i32 = a + b
-let diff: i32 = a - b
-let prod: i32 = a * b
-let quot: i32 = a / b
-let expr: i32 = (a + b) * 2
-print sum
-print expr
+LET a: I32 = 10
+LET b: I32 = 3
+LET sum: I32 = a + b
+LET diff: I32 = a - b
+LET prod: I32 = a * b
+LET quot: I32 = a / b
+LET expr: I32 = (a + b) * 2
+PRINT sum
+PRINT expr
 
 # --- Known Limitations ---
 # Unary minus (-5) is NOT parsed — use (0 - 5) instead
