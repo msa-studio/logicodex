@@ -15,9 +15,9 @@
 4. [Control Flow](#4-control-flow)
 5. [Functions](#5-functions)
 6. [Comments](#6-comments)
-7. [Strings](#7-strings) — `--pipeline v1.30`
-8. [Structs](#8-structs) — `--pipeline v1.30`
-9. [Enums & Match](#9-enums--match) — `--pipeline v1.30`
+7. [Strings](#7-STRings) — `--pipeline v1.30`
+8. [Structs](#8-STRucts) — `--pipeline v1.30`
+9. [Enums & Match](#9-enums--MATCH) — `--pipeline v1.30`
 10. [Arrays](#10-arrays) — `--pipeline v1.30`
 11. [Pointers](#11-pointers) — `--pipeline v1.30`
 12. [Visibility](#12-visibility) — `--pipeline v1.30`
@@ -46,9 +46,9 @@ MULA
     PAPAR 42
 TAMAT
 
-// Expert: { } delimit block, print statement, semicolon
+// Expert: { } delimit block, PRINT statement, semicolon
 {
-    print 42;
+    PRINT 42;
 }
 ```
 
@@ -65,13 +65,13 @@ TAMAT
 BINA nama = "Ahmad"       // v1.30+ — strings supported with type inference
 BINA umur = 25            // I32 (integer, inferred)
 BINA gaji = 3500.50       // F64 (float, inferred)
-BINA aktif = benar        // Bool (boolean, inferred)
+BINA aktIF = benar        // Bool (boolean, inferred)
 
-// Expert: let = bind variable
-let nama = "Ahmad";       // v1.30 only
-let umur = 25;            // v1.21 — integer literal → I32
-let gaji = 3500.50;       // v1.21 — float literal → F64
-let aktif = true;         // v1.21 — boolean literal → Bool
+// Expert: LET = bind variable
+LET nama = "Ahmad";       // v1.30 only
+LET umur = 25;            // v1.21 — integer literal → I32
+LET gaji = 3500.50;       // v1.21 — float literal → F64
+LET aktIF = true;         // v1.21 — boolean literal → Bool
 ```
 
 ### Explicit Type Annotation
@@ -86,17 +86,17 @@ BINA hidup : Bool = benar
 BINA nama : TEKS = "Ahmad"      // String type annotation (v1.30+)
 
 // Expert: same syntax, semicolon terminated
-let bilangan: I32 = 100;
-let besar: I64 = 9999999999;
-let suhu: F32 = 36.6;
-let panjang: F64 = 3.14159265359;
-let hidup: Bool = true;
-let nama: str = "Ahmad";        // String type annotation (v1.30+)
+LET bilangan: I32 = 100;
+LET besar: I64 = 9999999999;
+LET suhu: F32 = 36.6;
+LET panjang: F64 = 3.14159265359;
+LET hidup: Bool = true;
+LET nama: STR = "Ahmad";        // String type annotation (v1.30+)
 ```
 
-### Mutable Binding (`mut` / `MUTASI`)
+### Mutable Binding (`MUT` / `MUTASI`)
 
-> **Status:** 📝 The `mut` / `MUTASI` keyword is recognized by the lexer but has **no semantic effect**. Variables are mutable by default — you can reassign any variable without marking it `mut`.
+> **Status:** 📝 The `MUT` / `MUTASI` keyword is recognized by the lexer but has **no semantic effect**. Variables are mutable by default — you can reassign any variable without marking it `MUT`.
 
 ```
 // Malay: MUTASI has no effect (variables are mutable by default)
@@ -104,10 +104,10 @@ MUTASI BINA x = 10      // 'MUTASI' is accepted but ignored
 x = 20                  // OK: reassignment works without mut
 PAPAR x                 // 20
 
-// Expert: mut is accepted but ignored
-let mut x = 10;         // 'mut' is accepted but ignored
+// Expert: MUT is accepted but ignored
+LET MUT x = 10;         // 'mut' is accepted but ignored
 x = 20;                 // OK: reassignment works
-print x;                // 20
+PRINT x;                // 20
 ```
 
 ### Available Types
@@ -118,9 +118,9 @@ print x;                // 20
 | `I64` | large integer | `999999` | 64-bit signed | ✅ | ✅ |
 | `F32` | small float | `3.14` | 32-bit float | ✅ | ✅ |
 | `F64` | large float | `3.14159` | 64-bit float | ✅ | ✅ |
-| `Bool` | `benar` / `palsu` | `true` / `false` | 1-bit | ✅ | ✅ |
+| `Bool` | `benar` / `palsu` | `TRUE` / `FALSE` | 1-bit | ✅ | ✅ |
 | `String` | `"hello"` | `"hello"` | heap-allocated | 🔷 | 🔷 |
-| `str` / `TEKS` | `"hello"` | `"hello"` | heap-allocated | 🔷 | 🔷 |
+| `STR` / `TEKS` | `"hello"` | `"hello"` | heap-allocated | 🔷 | 🔷 |
 
 ---
 
@@ -139,13 +139,13 @@ BINA bahagi = a / 3           // 3 (integer division)
 BINA baki = a % 3             // 1 (modulo)
 
 // Expert: identical, semicolons
-let a = 10;
-let b = 3;
-let tambah = a + 3;           // 13
-let tolak = a - 3;            // 7
-let darab = a * 3;            // 30
-let bahagi = a / 3;           // 3
-let baki = a % 3;             // 1
+LET a = 10;
+LET b = 3;
+LET tambah = a + 3;           // 13
+LET tolak = a - 3;            // 7
+LET darab = a * 3;            // 30
+LET bahagi = a / 3;           // 3
+LET baki = a % 3;             // 1
 ```
 
 ### Comparison
@@ -162,14 +162,14 @@ BINA kecil_sama = x <= y      // true
 BINA besar_sama = x >= y      // false
 
 // Expert: identical
-let x = 5;
-let y = 10;
-let sama = x == y;            // false
-let tak_sama = x != y;        // true
-let kecil = x < y;            // true
-let besar = x > y;            // false
-let kecil_sama = x <= y;      // true
-let besar_sama = x >= y;      // false
+LET x = 5;
+LET y = 10;
+LET sama = x == y;            // false
+LET tak_sama = x != y;        // true
+LET kecil = x < y;            // true
+LET besar = x > y;            // false
+LET kecil_sama = x <= y;      // true
+LET besar_sama = x >= y;      // false
 ```
 
 ### Boolean
@@ -182,10 +182,10 @@ BINA dan = p DAN q            // false
 BINA atau = p ATAU q           // true
 
 // Expert: &&, ||, !
-let p = true;
-let q = false;
-let dan = p && q;             // false
-let atau = p || q;            // true
+LET p = true;
+LET q = false;
+LET dan = p && q;             // false
+LET atau = p || q;            // true
 ```
 
 ### Unary
@@ -195,15 +195,15 @@ let atau = p || q;            // true
 ```
 // Malay: negation and logical not
 BINA x = 5
-BINA negatif = -x               // -5
-BINA tak_benar = !benar         // false (logical not)
-BINA tak_palsu = !palsu         // true  (logical not)
+BINA negatIF = -x               // -5
+BINA tak_benar = !benar         // FALSE (logical not)
+BINA tak_palsu = !palsu         // TRUE  (logical not)
 
 // Expert: same syntax
-let x = 5;
-let negatif = -x;               // -5
-let tak_benar = !true;          // false
-let tak_palsu = !false;         // true
+LET x = 5;
+LET negatIF = -x;               // -5
+LET tak_benar = !true;          // false
+LET tak_palsu = !false;         // true
 ```
 
 ### Bitwise
@@ -220,14 +220,14 @@ BINA shift_kanan = m GESERKANAN 2  // 0b0011 = 3
 BINA bit_jangkau = JANGKAU m       // 0b0011 = 3 (NOT)
 
 // Expert: &, |, ^, <<, >>, ~
-let m = 0b1100;               // 12
-let n = 0b1010;               // 10
-let bit_and = m & n;          // 0b1000 = 8
-let bit_or = m | n;           // 0b1110 = 14
-let bit_xor = m ^ n;          // 0b0110 = 6
-let shift_left = m << 2;      // 0b110000 = 48
-let shift_right = m >> 2;     // 0b0011 = 3
-let bit_not = ~m;             // 0b0011 = 3
+LET m = 0b1100;               // 12
+LET n = 0b1010;               // 10
+LET bit_and = m & n;          // 0b1000 = 8
+LET bit_or = m | n;           // 0b1110 = 14
+LET bit_xor = m ^ n;          // 0b0110 = 6
+LET shift_left = m << 2;      // 0b110000 = 48
+LET shift_right = m >> 2;     // 0b0011 = 3
+LET bit_not = ~m;             // 0b0011 = 3
 ```
 
 ---
@@ -237,7 +237,7 @@ let bit_not = ~m;             // 0b0011 = 3
 ### If / Else If / Else
 
 ```
-// Malay: JIKA = if, MAKA = then, SEBALIKNYA JIKA = else if, MELAINKAN = else
+// Malay: JIKA = if, MAKA = then, SEBALIKNYA JIKA = ELSE if, MELAINKAN = else
 JIKA umur >= 18 MAKA
 MULA
     PAPAR 1
@@ -251,13 +251,13 @@ MULA
     PAPAR 3
 TAMAT
 
-// Expert: if / else if / else
-if umur >= 18 {
-    print 1;
-} else if umur >= 13 {
-    print 2;
-} else {
-    print 3;
+// Expert: IF / ELSE IF / else
+IF umur >= 18 {
+    PRINT 1;
+} ELSE IF umur >= 13 {
+    PRINT 2;
+} ELSE {
+    PRINT 3;
 }
 ```
 
@@ -272,10 +272,10 @@ MULA
     i = i + 1
 TAMAT
 
-// Expert: while { }
-let i = 0;
-while i < 5 {
-    print i;
+// Expert: WHILE { }
+LET i = 0;
+WHILE i < 5 {
+    PRINT i;
     i = i + 1;
 }
 ```
@@ -283,7 +283,7 @@ while i < 5 {
 ### Infinite Loop
 
 ```
-// Malay: ULANG = loop forever
+// Malay: ULANG = LOOP forever
 BINA counter = 0
 ULANG
 MULA
@@ -295,12 +295,12 @@ MULA
     TAMAT
 TAMAT
 
-// Expert: loop { }
-let counter = 0;
-loop {
-    print counter;
+// Expert: LOOP { }
+LET counter = 0;
+LOOP {
+    PRINT counter;
     counter = counter + 1;
-    if counter >= 10 {
+    IF counter >= 10 {
         break;
     }
 }
@@ -321,21 +321,21 @@ MULA
 TAMAT
 
 // Expert: break; / continue;
-while i < 100 {
+WHILE i < 100 {
     i = i + 1;
-    if i % 2 == 0 {
+    IF i % 2 == 0 {
         continue;
     }
-    print i;
+    PRINT i;
 }
 ```
 
 ### For Loop
 
-> **Status:** ❌ **Not supported.** There is no `for` keyword in the parser. Use `while` with a counter instead.
+> **Status:** ❌ **Not supported.** There is no `for` keyword in the parser. Use `WHILE` with a counter instead.
 
 ```
-// Instead of for (use while with counter):
+// Instead of for (use WHILE with counter):
 BINA i = 0
 SELAGI i < 10 DAN benar MAKA
 MULA
@@ -344,9 +344,9 @@ MULA
 TAMAT
 
 // Expert equivalent:
-let i = 0;
-while i < 10 {
-    print i;
+LET i = 0;
+WHILE i < 10 {
+    PRINT i;
     i = i + 1;
 }
 ```
@@ -358,15 +358,15 @@ while i < 10 {
 ### Function Declaration
 
 ```
-// Malay: FUNGSI = function, -> = return type, PULANG = return
+// Malay: FUNGSI = function, -> = RETURN type, PULANG = return
 FUNGSI tambah(a: I32, b: I32) -> I32
 MULA
     PULANG a + b
 TAMAT
 
 // Expert: fn, return
-fn tambah(a: I32, b: I32) -> I32 {
-    return a + b;
+FN tambah(a: I32, b: I32) -> I32 {
+    RETURN a + b;
 }
 ```
 
@@ -380,10 +380,10 @@ MULA
     PULANG 0
 TAMAT
 
-// Expert: returns I32 (must have return type)
-fn ucap_hello() -> I32 {
-    print 1;
-    return 0;
+// Expert: returns I32 (must have RETURN type)
+FN ucap_hello() -> I32 {
+    PRINT 1;
+    RETURN 0;
 }
 ```
 
@@ -395,8 +395,8 @@ BINA hasil = tambah(10, 20)
 PAPAR hasil
 
 // Expert: identical
-let hasil = tambah(10, 20);
-print hasil;
+LET hasil = tambah(10, 20);
+PRINT hasil;
 ```
 
 ---
@@ -421,8 +421,8 @@ print hasil;
 > |------|--------|---------|
 > | `BINA` (uppercase) | ✅ Works | Malay keyword |
 > | `bina` (lowercase) | ❌ Fails | Not recognized |
-> | `let` (lowercase) | ✅ Works | Expert keyword |
-> | `true` (lowercase) | ✅ Works | Boolean literal |
+> | `LET` (lowercase) | ✅ Works | Expert keyword |
+> | `TRUE` (lowercase) | ✅ Works | Boolean literal |
 > | `benar` (lowercase) | ✅ Works | Malay boolean literal |
 > | `bReAk` (mixed) | ❌ Fails | Not recognized |
 
@@ -437,15 +437,15 @@ BINA salam = "Selamat datang!"
 PAPAR nama.length           // 9
 
 // Expert: same syntax
-let nama = "Logicodex";
-let salam = "Selamat datang!";
-print nama.length;          // 9
+LET nama = "Logicodex";
+LET salam = "Selamat datang!";
+PRINT nama.length;          // 9
 
 // String concatenation
 BINA penuh = "Hello" + " " + "World"    // "Hello World"
 
 // Expert:
-let penuh = "Hello" + " " + "World";   // "Hello World"
+LET penuh = "Hello" + " " + "World";   // "Hello World"
 ```
 
 ---
@@ -488,8 +488,8 @@ BINA titik = Point { x: 10.0, y: 20.0 }
 BINA orang = Person { nama: "Ahmad", umur: 25 }
 
 // Expert: identical
-let titik = Point { x: 10.0, y: 20.0 };
-let orang = Person { nama: "Ahmad", umur: 25 };
+LET titik = Point { x: 10.0, y: 20.0 };
+LET orang = Person { nama: "Ahmad", umur: 25 };
 ```
 
 ### Field Access
@@ -501,9 +501,9 @@ PAPAR titik.y       // 20.0
 PAPAR orang.nama    // "Ahmad"
 
 // Expert: identical
-print titik.x;      // 10.0
-print titik.y;      // 20.0
-print orang.nama;   // "Ahmad"
+PRINT titik.x;      // 10.0
+PRINT titik.y;      // 20.0
+PRINT orang.nama;   // "Ahmad"
 ```
 
 ### Nested Structs
@@ -528,11 +528,11 @@ struct Circle {
     radius: F64
 }
 
-let bulat = Circle {
+LET bulat = Circle {
     pusat: Point { x: 0.0, y: 0.0 },
     radius: 5.0
 };
-print bulat.pusat.x;   // 0.0
+PRINT bulat.pusat.x;   // 0.0
 ```
 
 ---
@@ -599,17 +599,17 @@ enum Mesej {
 BINA status = Status::Aktif
 cocok status
 MULA
-    Status::Aktif -> PAPAR 1,
-    Status::TidakAktif -> PAPAR 2,
+    Status::AktIF -> PAPAR 1,
+    Status::TidakAktIF -> PAPAR 2,
     Status::Diseret -> PAPAR 3
 TAMAT
 
-// Expert: match { }
-let status = Status::Aktif;
-match status {
-    Status::Aktif -> print 1,
-    Status::TidakAktif -> print 2,
-    Status::Diseret -> print 3
+// Expert: MATCH { }
+LET status = Status::Aktif;
+MATCH status {
+    Status::AktIF -> PRINT 1,
+    Status::TidakAktIF -> PRINT 2,
+    Status::Diseret -> PRINT 3
 }
 ```
 
@@ -626,20 +626,20 @@ MULA
 TAMAT
 
 // Expert: identical
-let m = Mesej::Gerak { x: 10, y: 20 };
-match m {
-    Mesej::Henti -> print 0,
-    Mesej::Gerak { x, y } -> print x + y,
-    Mesej::Tulis(s) -> print s.length
+LET m = Mesej::Gerak { x: 10, y: 20 };
+MATCH m {
+    Mesej::Henti -> PRINT 0,
+    Mesej::Gerak { x, y } -> PRINT x + y,
+    Mesej::Tulis(s) -> PRINT s.length
 }
 ```
 
 ### Match with Literal Patterns
 
-> **Status:** ✅ Integer and string literal patterns are now supported in addition to `Ok`/`Err`/`_`.
+> **Status:** ✅ Integer and string literal patterns are now supported in addition to `OK`/`ERR`/`_`.
 
 ```
-// Malay: match on literal values
+// Malay: MATCH on literal values
 cocok nilai
 MULA
     0 -> PAPAR "sifar",
@@ -649,13 +649,13 @@ MULA
     _ -> PAPAR "lain"
 TAMAT
 
-// Expert: match on literal values
-match nilai {
-    0 -> print "zero",
-    1 -> print "one",
-    2 -> print "two",
-    "hello" -> print "greeting",
-    _ -> print "other"
+// Expert: MATCH on literal values
+MATCH nilai {
+    0 -> PRINT "zero",
+    1 -> PRINT "one",
+    2 -> PRINT "two",
+    "hello" -> PRINT "greeting",
+    _ -> PRINT "other"
 }
 ```
 
@@ -671,8 +671,8 @@ BINA nombor = [I32; 5]              // [0, 0, 0, 0, 0]
 BINA nama = ["Ahmad", "Bakar", "Chin"]    // [String; 3]
 
 // Expert: identical
-let nombor = [I32; 5];              // [0, 0, 0, 0, 0]
-let nama = ["Ahmad", "Bakar", "Chin"];  // [String; 3]
+LET nombor = [I32; 5];              // [0, 0, 0, 0, 0]
+LET nama = ["Ahmad", "Bakar", "Chin"];  // [String; 3]
 ```
 
 ### Array Indexing
@@ -686,8 +686,8 @@ PAPAR nama[1]       // "Bakar"
 nama[2] = "David"
 
 // Expert: identical
-print nama[0];      // "Ahmad"
-print nama[1];      // "Bakar"
+PRINT nama[0];      // "Ahmad"
+PRINT nama[1];      // "Bakar"
 nama[2] = "David";
 ```
 
@@ -698,7 +698,7 @@ nama[2] = "David";
 PAPAR nombor.panjang    // 5
 
 // Expert: .length
-print nombor.length;    // 5
+PRINT nombor.length;    // 5
 ```
 
 ---
@@ -712,9 +712,9 @@ BINA ptr_a = @a              // pointer to a
 PAPAR ^ptr_a                 // 42 (dereference)
 
 // Expert: & = address-of, * = dereference
-let a = 42;
-let ptr_a = &a;              // pointer to a
-print *ptr_a;                // 42
+LET a = 42;
+LET ptr_a = &a;              // pointer to a
+PRINT *ptr_a;                // 42
 
 // Mutable pointer
 BINA b = 10
@@ -723,10 +723,10 @@ BINA ptr_b = @b
 PAPAR b                      // 20
 
 // Expert:
-let b = 10;
-let ptr_b = &b;
+LET b = 10;
+LET ptr_b = &b;
 *ptr_b = 20;                // dereference and assign
-print b;                     // 20
+PRINT b;                     // 20
 ```
 
 ---
@@ -752,8 +752,8 @@ pub struct Config {
     pub nama: String
 }
 
-pub fn get_nama(c: Config) -> String {
-    return c.nama;
+pub FN get_nama(c: Config) -> String {
+    RETURN c.nama;
 }
 ```
 
@@ -799,7 +799,7 @@ struct RawHeader {
 }
 
 #[unsafe]
-fn raw_alloc(saiz: I64) -> Pointer {
+FN raw_alloc(saiz: I64) -> Pointer {
     // ... FFI call
 }
 ```
@@ -824,8 +824,8 @@ TAMAT
 
 // Expert: actor { }
 actor TugasCounter {
-    let count = 0;
-    loop {
+    LET count = 0;
+    LOOP {
         receive Mesej::Tambah -> count = count + 1,
         receive Mesej::Dapatkan -> send count
     }
@@ -841,7 +841,7 @@ BINA balas = terima saluran dalam 5s     // receive with timeout
 
 // Expert:
 send channel Mesej to TugasCounter;
-let balas = receive channel within 5s;
+LET balas = receive channel within 5s;
 ```
 
 ### Join (Wait for Actor)
@@ -893,20 +893,20 @@ enum MesejKalkulator {
 }
 
 actor Kalkulator {
-    loop {
+    LOOP {
         receive MesejKalkulator::Tambah(a, b) -> send a + b,
         receive MesejKalkulator::Tolak(a, b) -> send a - b,
         receive MesejKalkulator::Keputusan -> break
     }
 }
 
-fn main() -> I32 {
+FN main() -> I32 {
     send channel MesejKalkulator::Tambah(10, 20) to Kalkulator;
-    let hasil = receive channel;
-    print hasil;              // 30
+    LET hasil = receive channel;
+    PRINT hasil;              // 30
     send MesejKalkulator::Keputusan to Kalkulator;
     join Kalkulator;
-    return 0;
+    RETURN 0;
 }
 ```
 
@@ -944,7 +944,7 @@ TAMAT
 #[backpressure(buffer = 100)]
 #[scheduler(main)]
 actor PenerimaMesej {
-    loop {
+    LOOP {
         receive Mesej::Data(d) -> process d,
         receive Mesej::Henti -> break
     }
@@ -953,11 +953,11 @@ actor PenerimaMesej {
 #[backpressure(send = 50)]
 #[scheduler(periodic = 16ms)]
 actor PenghantarMesej {
-    let i = 0;
-    loop {
+    LET i = 0;
+    LOOP {
         send Mesej::Data(i) to PenerimaMesej;
         i = i + 1;
-        if i > 1000 { break; }
+        IF i > 1000 { break; }
     }
 }
 ```
@@ -972,22 +972,22 @@ actor PenghantarMesej {
 |-------|--------|---------|
 | MULA | `{` | Block start |
 | TAMAT | `}` | Block end |
-| BINA | `let` | Variable declaration |
-| PAPAR | `print` | Print statement |
-| PULANG | `return` | Return from function |
-| FUNGSI | `fn` | Function declaration |
-| JIKA | `if` | Conditional |
+| BINA | `LET` | Variable declaration |
+| PAPAR | `PRINT` | Print statement |
+| PULANG | `RETURN` | Return from function |
+| FUNGSI | `FN` | Function declaration |
+| JIKA | `IF` | Conditional |
 | MAKA | (then) | If body follows |
-| SEBALIKNYA JIKA | `else if` | Else-if branch |
-| MELAINKAN | `else` | Else branch |
-| SELAGI | `while` | While loop |
+| SEBALIKNYA JIKA | `ELSE if` | Else-IF branch |
+| MELAINKAN | `ELSE` | Else branch |
+| SELAGI | `WHILE` | While LOOP |
 | DAN | `&&` | Logical AND (also bitwise) |
-| ULANG | `loop` | Infinite loop |
-| HENTI | `break` | Break loop |
-| LANGKAU | `continue` | Continue loop |
+| ULANG | `LOOP` | Infinite LOOP |
+| HENTI | `BREAK` | Break LOOP |
+| LANGKAU | `CONTINUE` | Continue LOOP |
 | TIDAK | `!` | Logical NOT |
-| benar | `true` | Boolean true |
-| palsu | `false` | Boolean false |
+| benar | `TRUE` | Boolean TRUE |
+| palsu | `FALSE` | Boolean FALSE |
 | DAN | `&` | Bitwise AND |
 | ATAU | `\|` | Bitwise OR |
 | XATAU | `^` | Bitwise XOR |
@@ -1002,13 +1002,13 @@ actor PenghantarMesej {
 | struktur | `struct` | Struct definition |
 | enumerasi | `enum` | Enum definition |
 | sebagai | `as` | Type cast / repr |
-| cocok | `match` | Pattern matching |
+| cocok | `MATCH` | Pattern matching |
 | terima | `receive` | Actor receive |
 | hantar | `send` | Actor send / channel send |
 | saluran | `channel` | Communication channel |
 | lakaran | `actor` | Actor spawn |
 | sertai | `join` | Wait for actor |
-| petunjuk | `ptr` / `*` | Pointer type |
+| petunjuk | `PTR` / `*` | Pointer type |
 | @ | `&` | Address-of |
 | ^ | `*` | Dereference |
 | terbuka | `pub` | Public visibility |
@@ -1072,10 +1072,10 @@ BINA c = 2.5f     // F32 (suffix 'f' forces F32)
 BINA d = 100000   // I64 (auto-upgraded: exceeds I32 range)
 
 // Expert canonical:
-let x: i32 = 1;
-let a = 1;        // inferred: i32
-let b = 3.14;     // inferred: f64
-let c = 2.5f32;   // inferred: f32
+LET x: I32 = 1;
+LET a = 1;        // inferred: i32
+LET b = 3.14;     // inferred: f64
+LET c = 2.5f32;   // inferred: f32
 ```
 
 ### Inference Rules
@@ -1087,7 +1087,7 @@ let c = 2.5f32;   // inferred: f32
 | `3.14` | F64 | Float default |
 | `2.5f` | F32 | `f` suffix forces F32 |
 | `"text"` | String | String literal |
-| `true` / `false` | Bool | Boolean literal |
+| `TRUE` / `FALSE` | Bool | Boolean literal |
 
 ### Compatibility Rules
 
@@ -1110,7 +1110,7 @@ x = 2             // OK: still I32
 x = 3.14          // ERROR: cannot change I32 to F64
 
 // Expert:
-let x = 1;        // inferred: i32
+LET x = 1;        // inferred: i32
 x = 2;            // OK
 x = 3.14;         // ERROR: type mismatch
 ```
