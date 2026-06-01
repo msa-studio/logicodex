@@ -358,8 +358,11 @@ fn infer_stmt_gates(stmt: &Stmt, contract: &mut GateContract) {
             for s in then_branch { infer_stmt_gates(s, contract); }
             for s in else_branch { infer_stmt_gates(s, contract); }
         }
-        Stmt::While { condition, body } | Stmt::Loop { body } => {
+        Stmt::While { condition, body } => {
             infer_expr_gates(condition, contract);
+            for s in body { infer_stmt_gates(s, contract); }
+        }
+        Stmt::Loop { body } => {
             for s in body { infer_stmt_gates(s, contract); }
         }
         Stmt::HardwareZone { body } => {
@@ -464,8 +467,13 @@ fn collect_callees_in_stmt(stmt: &Stmt, out: &mut Vec<String>) {
                 collect_callees_in_stmt(s, out);
             }
         }
-        Stmt::While { condition, body } | Stmt::Loop { body } => {
+        Stmt::While { condition, body } => {
             collect_callees_in_expr(condition, out);
+            for s in body {
+                collect_callees_in_stmt(s, out);
+            }
+        }
+        Stmt::Loop { body } => {
             for s in body {
                 collect_callees_in_stmt(s, out);
             }
@@ -516,8 +524,11 @@ fn stmt_calls_name(stmt: &Stmt, name: &str) -> bool {
                 || then_branch.iter().any(|s| stmt_calls_name(s, name))
                 || else_branch.iter().any(|s| stmt_calls_name(s, name))
         }
-        Stmt::While { condition, body } | Stmt::Loop { body } => {
+        Stmt::While { condition, body } => {
             expr_calls_name(condition, name) || body.iter().any(|s| stmt_calls_name(s, name))
+        }
+        Stmt::Loop { body } => {
+            body.iter().any(|s| stmt_calls_name(s, name))
         }
         _ => false,
     }
@@ -576,9 +587,13 @@ fn infer_stmt_capabilities(stmt: &Stmt, caps: &mut Capability) {
             for s in then_branch { infer_stmt_capabilities(s, caps); }
             for s in else_branch { infer_stmt_capabilities(s, caps); }
         }
-        Stmt::While { condition, body } | Stmt::Loop { body } => {
+        Stmt::While { condition, body } => {
             caps.insert(Capability::DIVERGING);
             infer_expr_capabilities(condition, caps);
+            for s in body { infer_stmt_capabilities(s, caps); }
+        }
+        Stmt::Loop { body } => {
+            caps.insert(Capability::DIVERGING);
             for s in body { infer_stmt_capabilities(s, caps); }
         }
         _ => {}
