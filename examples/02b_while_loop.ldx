@@ -1,12 +1,12 @@
 # ============================================================
 # LEVEL 2B: WHILE LOOP
-# Purpose: Test while/SELAGI loop with counter
+# Purpose: Test while/SELAGI LOOP with counter
 # Grammar: SELAGI/WHILE condition MULA/TAMAT or { }
 # DEBUG STRATEGY:
-#   If loop infinite: break condition not being checked
+#   If LOOP infinite: BREAK condition not being checked
 #   If "SELAGI i < 5 MULA" fails: parse_while() Malay keyword issue
 #   Note: Loop body must use MULA/TAMAT or { } — NOT both mixed
-#   Variable mutation inside loop: check semantic allows it
+#   Variable mutation inside LOOP: check semantic allows it
 # ============================================================
 
 # --- Malay ---
@@ -17,12 +17,12 @@ SELAGI i < 5 MULA
 TAMAT
 
 # --- Expert Canonical ---
-let i: i32 = 0
-while i < 5 {
-    print i
+LET i: I32 = 0
+WHILE i < 5 {
+    PRINT i
     i = i + 1
 }
 
 # --- Known Limitations ---
-# "for" loop is NOT a token — use while with counter
+# "for" LOOP is NOT a token — use WHILE with counter
 # Loop variable must be declared outside the loop
