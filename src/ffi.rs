@@ -79,7 +79,7 @@ Impl CallableRegistry {
             .iter()
             .enumerate()
             .find(|(_, signature)| signature.name == name)
-            .map(|(index, signature)| (CallableId(index as u32), signature.clone())
+            .map(|(index, signature)| (CallableId(index as u32), signature.clone()))
     }
 }
 
