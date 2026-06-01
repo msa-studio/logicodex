@@ -63,8 +63,16 @@ pub enum Stmt {
     Loop {
         body: Vec<Stmt>,
     },
+    /// For loop: `for variable in iterable { body }`
+    For {
+        variable: String,
+        iterable: Expr,
+        body: Vec<Stmt>,
+    },
     Break,
     Continue,
+    /// Block statement: `{ statements }`
+    Block(Vec<Stmt>),
     StructDecl {
         name: String,
         fields: Vec<Param>,
@@ -92,8 +100,8 @@ pub enum Stmt {
         name: String,
         body: Vec<Stmt>,
     },
-    /// Variable assignment: x = 5
-    Assign { target: String, value: Expr },
+    /// Variable assignment: target = value (target can be any Expr)
+    Assign { target: Expr, value: Expr },
     /// Buffer index assignment: buf[index] = value
     IndexAssign { target: String, index: Expr, value: Expr },
     /// v1.33.0-alpha: Service manifest — deterministic network reactor.
@@ -180,7 +188,7 @@ pub enum Expr {
         args: Vec<Expr>,
     },
     /// Field access: net.admin
-    FieldAccess { object: String, field: String },
+    FieldAccess { base: Box<Expr>, field: String },
     /// v1.30.1-alpha: Spawn a Kotak (create OS thread).
     /// Syntax: `lahirkan SensorSuhu()`
     Spawn {
