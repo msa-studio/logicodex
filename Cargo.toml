@@ -1,6 +1,6 @@
 [package]
 name = "logicodex"
-version = "1.45.0-alpha"
+version = "1.30.0-alpha"
 edition = "2021"
 authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
 description = "Deterministic systems programming language with alias-to-canonical syntax, actor-model concurrency, and compile-time capability security"
