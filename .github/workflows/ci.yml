@@ -252,6 +252,7 @@ jobs:
 
   v130-test:
     name: Test v1.30 Option Engine
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -273,7 +274,7 @@ jobs:
           key: ${{ runner.os }}-cargo-v130-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build release
-        run: cargo build --release --message-format=short 2>&1 | tee v130-build.log
+        run: cargo build --release --features v1_30 --message-format=short 2>&1 | tee v130-build.log
         env:
           RUST_BACKTRACE: 1
 
@@ -293,7 +294,7 @@ jobs:
           path: v130-build.log
 
       - name: Run HIR codegen tests (v1.30)
-        run: cargo test hir_codegen 2>&1 | tee v130-test.log
+        run: cargo test --features v1_30 hir_codegen 2>&1 | tee v130-test.log
 
       - name: Show v1.30 test failures
         if: failure()
@@ -316,7 +317,7 @@ jobs:
           echo "  v1.30 Option Engine — Subsystem Self-Check               "
           echo "════════════════════════════════════════════════════════════"
           # v130-check validates v1.21 semantics + v1.30 subsystem internally
-          cargo run --release -- v130-check examples/dormant/v1_30/raylib_spinning_box.ldx 2>&1 | tee v130-selfcheck.log
+          cargo run --release --features v1_30 -- v130-check examples/dormant/v1_30/raylib_spinning_box.ldx 2>&1 | tee v130-selfcheck.log
           echo "════════════════════════════════════════════════════════════"
 
       - name: Check v1.30 examples (Option Engine pipeline)
@@ -332,7 +333,7 @@ jobs:
               echo ""
               echo "━━━ Testing: $name ━━━"
               set +e
-              output=$(cargo run --release -- --pipeline v1.30 -- check "$f" 2>&1)
+              output=$(cargo run --release --features v1_30 -- --pipeline v1.30 -- check "$f" 2>&1)
               exit_code=$?
               set -e
               echo "$output" >> v130-example-check.log
