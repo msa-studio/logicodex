@@ -155,6 +155,8 @@ pub struct Param {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
     Integer(i64),
+    /// Unary operation: op expr
+    Unary { op: String, operand: Box<Expr> },
     Boolean(bool),
     StringLiteral(String),
     Variable(String),
