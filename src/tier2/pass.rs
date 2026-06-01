@@ -362,12 +362,29 @@ fn infer_stmt_gates(stmt: &Stmt, contract: &mut GateContract) {
             infer_expr_gates(condition, contract);
             for s in body { infer_stmt_gates(s, contract); }
         }
+        Stmt::For { iterable, body, .. } => {
+            infer_expr_gates(iterable, contract);
+            for s in body { infer_stmt_gates(s, contract); }
+        }
         Stmt::Loop { body } => {
             for s in body { infer_stmt_gates(s, contract); }
         }
-        Stmt::HardwareZone { body } => {
+        Stmt::Block(body) | Stmt::UnsafeBlock { body } | Stmt::HardwareZone { body } => {
             contract.require(GateDomain::hw_gpio());
             for s in body { infer_stmt_gates(s, contract); }
+        }
+        Stmt::Match { value, arms } => {
+            infer_expr_gates(value, contract);
+            for arm in arms {
+                for s in &arm.body { infer_stmt_gates(s, contract); }
+            }
+        }
+        Stmt::IndexAssign { index, value, .. } => {
+            infer_expr_gates(index, contract);
+            infer_expr_gates(value, contract);
+        }
+        Stmt::HardwareDecl { address, .. } => {
+            infer_expr_gates(address, contract);
         }
         _ => {}
     }
@@ -377,11 +394,20 @@ fn infer_expr_gates(expr: &Expr, contract: &mut GateContract) {
     use super::gate::{GateDomain, GateRef, GateType};
 
     match expr {
-        Expr::Spawn { .. } | Expr::Send { .. } | Expr::Recv { .. }
-        | Expr::TrySend { .. } | Expr::TryRecv { .. } | Expr::TimeoutRecv { .. } => {
+        Expr::Spawn { args, .. } => {
+            contract.require(GateDomain::net_send());
+            for arg in args {
+                infer_expr_gates(arg, contract);
+            }
+        }
+        Expr::Send { value, .. } | Expr::TrySend { value, .. } => {
+            contract.require(GateDomain::net_send());
+            infer_expr_gates(value, contract);
+        }
+        Expr::Recv { .. } | Expr::TryRecv { .. } | Expr::TimeoutRecv { .. } | Expr::Join { .. } | Expr::Yield => {
             contract.require(GateDomain::net_send());
         }
-        Expr::MethodCall { method, .. } => {
+        Expr::MethodCall { method, args, .. } => {
             match method.as_str() {
                 "open" | "close" | "read" | "write" => {
                     contract.require(GateDomain::storage_read());
@@ -391,6 +417,9 @@ fn infer_expr_gates(expr: &Expr, contract: &mut GateContract) {
                     contract.require(GateRef::new("Storage", "Padam", GateType::DirectCall));
                 }
                 _ => {}
+            }
+            for arg in args {
+                infer_expr_gates(arg, contract);
             }
         }
         Expr::Call { callee, args } => {
@@ -418,6 +447,12 @@ fn infer_expr_gates(expr: &Expr, contract: &mut GateContract) {
         Expr::Grouped(inner) => infer_expr_gates(inner, contract),
         Expr::Ok { value } | Expr::Err { value } => infer_expr_gates(value, contract),
         Expr::Sleep { .. } => contract.require(GateDomain::net_send()),
+        Expr::FieldAccess { base, .. } | Expr::Index { base, .. } => {
+            infer_expr_gates(base, contract);
+        }
+        Expr::Join { .. } | Expr::Yield => {
+            contract.require(GateDomain::net_send());
+        }
         _ => {}
     }
 }
@@ -473,13 +508,30 @@ fn collect_callees_in_stmt(stmt: &Stmt, out: &mut Vec<String>) {
                 collect_callees_in_stmt(s, out);
             }
         }
-        Stmt::Loop { body } => {
+        Stmt::For { iterable, body, .. } => {
+            collect_callees_in_expr(iterable, out);
             for s in body {
                 collect_callees_in_stmt(s, out);
             }
         }
-        Stmt::Assign { value, .. } => {
+        Stmt::Loop { body } | Stmt::Block(body) | Stmt::UnsafeBlock { body } | Stmt::HardwareZone { body } => {
+            for s in body {
+                collect_callees_in_stmt(s, out);
+            }
+        }
+        Stmt::Assign { value, .. } | Stmt::IndexAssign { value, .. } => {
             collect_callees_in_expr(value, out);
+        }
+        Stmt::Match { value, arms } => {
+            collect_callees_in_expr(value, out);
+            for arm in arms {
+                for s in &arm.body {
+                    collect_callees_in_stmt(s, out);
+                }
+            }
+        }
+        Stmt::HardwareDecl { address, .. } => {
+            collect_callees_in_expr(address, out);
         }
         _ => {}
     }
@@ -499,11 +551,23 @@ fn collect_callees_in_expr(expr: &Expr, out: &mut Vec<String>) {
             collect_callees_in_expr(left, out);
             collect_callees_in_expr(right, out);
         }
-        Expr::Grouped(inner) => collect_callees_in_expr(inner, out),
-        Expr::Ok { value } | Expr::Err { value } => collect_callees_in_expr(value, out),
-        Expr::Send { value, .. } => collect_callees_in_expr(value, out),
-        Expr::Sleep { duration_ms } => collect_callees_in_expr(duration_ms, out),
-        Expr::TimeoutRecv { timeout_ms, .. } => collect_callees_in_expr(timeout_ms, out),
+        Expr::Grouped(inner) | Expr::Ok { value: inner } | Expr::Err { value: inner } => {
+            collect_callees_in_expr(inner, out);
+        }
+        Expr::Send { value, .. } | Expr::TrySend { value, .. } => {
+            collect_callees_in_expr(value, out);
+        }
+        Expr::Sleep { duration_ms } | Expr::TimeoutRecv { timeout_ms, .. } => {
+            collect_callees_in_expr(duration_ms, out);
+        }
+        Expr::FieldAccess { base, .. } | Expr::Index { base, .. } => {
+            collect_callees_in_expr(base, out);
+        }
+        Expr::Spawn { args, .. } => {
+            for arg in args {
+                collect_callees_in_expr(arg, out);
+            }
+        }
         _ => {}
     }
 }
@@ -524,11 +588,21 @@ fn stmt_calls_name(stmt: &Stmt, name: &str) -> bool {
                 || then_branch.iter().any(|s| stmt_calls_name(s, name))
                 || else_branch.iter().any(|s| stmt_calls_name(s, name))
         }
-        Stmt::While { condition, body } => {
+        Stmt::While { condition, body } | Stmt::For { iterable: condition, body, .. } => {
             expr_calls_name(condition, name) || body.iter().any(|s| stmt_calls_name(s, name))
         }
-        Stmt::Loop { body } => {
+        Stmt::Loop { body } | Stmt::Block(body) | Stmt::UnsafeBlock { body } | Stmt::HardwareZone { body } => {
             body.iter().any(|s| stmt_calls_name(s, name))
+        }
+        Stmt::Match { value, arms } => {
+            expr_calls_name(value, name)
+                || arms.iter().any(|arm| arm.body.iter().any(|s| stmt_calls_name(s, name)))
+        }
+        Stmt::IndexAssign { index, value, .. } => {
+            expr_calls_name(index, name) || expr_calls_name(value, name)
+        }
+        Stmt::HardwareDecl { address, .. } => {
+            expr_calls_name(address, name)
         }
         _ => false,
     }
@@ -546,11 +620,21 @@ fn expr_calls_name(expr: &Expr, name: &str) -> bool {
         Expr::Binary { left, right, .. } => {
             expr_calls_name(left, name) || expr_calls_name(right, name)
         }
-        Expr::Grouped(inner) => expr_calls_name(inner, name),
-        Expr::Ok { value } | Expr::Err { value } => expr_calls_name(value, name),
-        Expr::Send { value, .. } => expr_calls_name(value, name),
-        Expr::Sleep { duration_ms } => expr_calls_name(duration_ms, name),
-        Expr::TimeoutRecv { timeout_ms, .. } => expr_calls_name(timeout_ms, name),
+        Expr::Grouped(inner) | Expr::Ok { value: inner } | Expr::Err { value: inner } => {
+            expr_calls_name(inner, name)
+        }
+        Expr::Send { value, .. } | Expr::TrySend { value, .. } => {
+            expr_calls_name(value, name)
+        }
+        Expr::Sleep { duration_ms } | Expr::TimeoutRecv { timeout_ms, .. } => {
+            expr_calls_name(duration_ms, name)
+        }
+        Expr::FieldAccess { base, .. } | Expr::Index { base, .. } => {
+            expr_calls_name(base, name)
+        }
+        Expr::Spawn { args, .. } => {
+            args.iter().any(|arg| expr_calls_name(arg, name))
+        }
         _ => false,
     }
 }
@@ -578,7 +662,7 @@ fn infer_capabilities(body: &[Stmt], _graph: &MetadataGraph) -> Capability {
 fn infer_stmt_capabilities(stmt: &Stmt, caps: &mut Capability) {
     match stmt {
         Stmt::Print { .. } => caps.insert(Capability::IO),
-        Stmt::HardwareZone { .. } => caps.insert(Capability::HARDWARE),
+        Stmt::HardwareZone { .. } | Stmt::HardwareDecl { .. } => caps.insert(Capability::HARDWARE),
         Stmt::ExprStmt { value } | Stmt::Let { value, .. } | Stmt::Return { value } | Stmt::Assign { value, .. } => {
             infer_expr_capabilities(value, caps);
         }
@@ -587,14 +671,24 @@ fn infer_stmt_capabilities(stmt: &Stmt, caps: &mut Capability) {
             for s in then_branch { infer_stmt_capabilities(s, caps); }
             for s in else_branch { infer_stmt_capabilities(s, caps); }
         }
-        Stmt::While { condition, body } => {
+        Stmt::While { condition, body } | Stmt::For { iterable: condition, body, .. } => {
             caps.insert(Capability::DIVERGING);
             infer_expr_capabilities(condition, caps);
             for s in body { infer_stmt_capabilities(s, caps); }
         }
-        Stmt::Loop { body } => {
+        Stmt::Loop { body } | Stmt::Block(body) | Stmt::UnsafeBlock { body } => {
             caps.insert(Capability::DIVERGING);
             for s in body { infer_stmt_capabilities(s, caps); }
+        }
+        Stmt::Match { value, arms } => {
+            infer_expr_capabilities(value, caps);
+            for arm in arms {
+                for s in &arm.body { infer_stmt_capabilities(s, caps); }
+            }
+        }
+        Stmt::IndexAssign { index, value, .. } => {
+            infer_expr_capabilities(index, caps);
+            infer_expr_capabilities(value, caps);
         }
         _ => {}
     }
@@ -603,12 +697,16 @@ fn infer_stmt_capabilities(stmt: &Stmt, caps: &mut Capability) {
 fn infer_expr_capabilities(expr: &Expr, caps: &mut Capability) {
     match expr {
         Expr::Spawn { .. } | Expr::Send { .. } | Expr::Recv { .. }
-        | Expr::TrySend { .. } | Expr::TryRecv { .. } | Expr::TimeoutRecv { .. } => {
+        | Expr::TrySend { .. } | Expr::TryRecv { .. } | Expr::TimeoutRecv { .. }
+        | Expr::Join { .. } | Expr::Yield => {
             caps.insert(Capability::CONCURRENT);
         }
-        Expr::MethodCall { method, .. } => {
+        Expr::MethodCall { method, args, .. } => {
             if method == "open" || method == "read" || method == "write" || method == "close" {
                 caps.insert(Capability::IO);
+            }
+            for arg in args {
+                infer_expr_capabilities(arg, caps);
             }
         }
         Expr::Call { callee, args } => {
@@ -628,10 +726,21 @@ fn infer_expr_capabilities(expr: &Expr, caps: &mut Capability) {
             infer_expr_capabilities(left, caps);
             infer_expr_capabilities(right, caps);
         }
-        Expr::Grouped(inner) => infer_expr_capabilities(inner, caps),
-        Expr::Ok { value } | Expr::Err { value } => infer_expr_capabilities(value, caps),
-        Expr::Send { value, .. } => infer_expr_capabilities(value, caps),
+        Expr::Grouped(inner) | Expr::Ok { value: inner } | Expr::Err { value: inner } => {
+            infer_expr_capabilities(inner, caps);
+        }
+        Expr::Send { value, .. } | Expr::TrySend { value, .. } => {
+            infer_expr_capabilities(value, caps);
+        }
         Expr::Sleep { .. } => caps.insert(Capability::IO),
+        Expr::FieldAccess { base, .. } | Expr::Index { base, .. } => {
+            infer_expr_capabilities(base, caps);
+        }
+        Expr::Spawn { args, .. } => {
+            for arg in args {
+                infer_expr_capabilities(arg, caps);
+            }
+        }
         _ => {}
     }
 }
@@ -640,3 +749,4 @@ fn infer_expr_capabilities(expr: &Expr, caps: &mut Capability) {
 fn count_statements(body: &[Stmt]) -> usize {
     body.len()
 }
+
