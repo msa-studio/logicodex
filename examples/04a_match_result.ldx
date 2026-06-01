@@ -1,9 +1,9 @@
 # ============================================================
 # LEVEL 4A: MATCH ON RESULT TYPE
-# Purpose: Test match expression with Result<T,E> patterns
-# Grammar: match expr { Ok(v) => ..., Err(e) => ..., _ => ... }
+# Purpose: Test MATCH expression with Result<T,E> patterns
+# Grammar: MATCH expr { Ok(v) => ..., Err(e) => ..., _ => ... }
 # DEBUG STRATEGY:
-#   If match fails: parse_match() not implemented or pattern mismatch
+#   If MATCH fails: parse_match() not implemented or pattern mismatch
 #   Only Ok(v), Err(e), and _ patterns are supported
 #   Literal patterns (5, "text") and tuple patterns are NOT parsed
 #   The Result type must be declared before use
@@ -21,15 +21,15 @@ TAMAT
 PAPAR nilai
 
 # --- Expert Canonical ---
-let result: Result = Ok 42
+LET result: Result = OK 42
 
-let value: i32 = match result {
-    Ok v => v
-    Err e => 0
+LET value: I32 = MATCH result {
+    OK v => v
+    ERR e => 0
     _ => 99
 }
 
-print value
+PRINT value
 
 # --- Known Limitations ---
 # Match only supports: Ok(v), Err(e), _ (wildcard)
