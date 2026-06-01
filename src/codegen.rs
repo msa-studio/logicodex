@@ -400,7 +400,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         };
 
         // Volatile store — bypasses CPU cache
-        let store = self.builder.build_store(ptr, value_typed.into())
+        let store = self.builder.build_store(ptr, <BasicValueEnum<'ctx>>::from(value_typed))
             .context("MMIO volatile store")?;
         store.set_volatile(true)
             .map_err(|_| anyhow!("failed to set MMIO store as volatile"))?;
@@ -432,10 +432,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
         let loaded = self.builder
             .build_load(
                 match value_size {
-                    1 => self.context.i8_type().into(),
-                    2 => self.context.i16_type().into(),
-                    4 => self.context.i32_type().into(),
-                    8 => self.context.i64_type().into(),
+                    1 => self.context.i8_type().as_basic_type_enum(),
+                    2 => self.context.i16_type().as_basic_type_enum(),
+                    4 => self.context.i32_type().as_basic_type_enum(),
+                    8 => self.context.i64_type().as_basic_type_enum(),
                     _ => unreachable!(),
                 },
                 ptr,
@@ -688,7 +688,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         // Declare the extern function in LLVM
                         let func = self.declare_extern_func(&signature)?;
                         // Evaluate arguments recursively
-                        let mut llvm_args: Vec<BasicValueEnum<'ctx>> = Vec::with_capacity(args.len());
+                        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(args.len());
                         for arg in args {
                             let val = self.emit_expr(arg)?;
                             // For Sprint 3, all args are promoted to i64 then truncated at call site
@@ -792,6 +792,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     BinaryOp::ShiftRight => Ok(self
                         .builder
                         .build_right_shift(l, r, true, "shrtmp")
+                        .map_err(|e| anyhow!("failed to build right shift: {}", e))?
                         .into()),
                 }
             }
@@ -799,11 +800,12 @@ impl<'ctx> LlvmCompiler<'ctx> {
             Expr::Send { channel_name, value } => {
                 // Phase 2: Emit send with Release semantics
                 // The value ownership is transferred to the Pintu
-                let val = self.emit_expr(value)?;
+                let value_desc = match &value { Expr::Variable(n) => n.clone(), _ => "<expr>".to_string() };
+                let _val = self.emit_expr(value)?;
                 // Call runtime pintu_send_release(channel_name, val)
                 // For now, return 0 as placeholder — full impl in Fasa 3
                 eprintln!("logicodex v1.30.1-alpha: send '{}' through '{}' — ownership transferred (Release)",
-                    match value { Expr::Variable(n) => n.as_str(), _ => "<expr>" }, channel_name);
+                    value_desc.as_str(), channel_name);
                 Ok(self.i64_type.const_int(0, false))
             }
             Expr::Recv { channel_name } => {
@@ -825,9 +827,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
             // v1.30.1-alpha Phase 3: Backpressure + Scheduler (stubs)
             Expr::TrySend { channel_name, value } => {
-                let val = self.emit_expr(value)?;
+                let value_desc = match &value { Expr::Variable(n) => n.clone(), _ => "<expr>".to_string() };
+                let _val = self.emit_expr(value)?;
                 eprintln!("logicodex v1.30.1-alpha: try_send '{}' through '{}' — non-blocking (Release, backpressure aware)",
-                    match value { Expr::Variable(n) => n.as_str(), _ => "<expr>" }, channel_name);
+                    value_desc.as_str(), channel_name);
                 Ok(self.i64_type.const_int(1, false)) // Return true as placeholder (success)
             }
             Expr::TryRecv { channel_name } => {
