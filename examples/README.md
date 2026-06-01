@@ -66,14 +66,34 @@ Based on ACTUAL source code analysis (not documentation):
 | `extern` block | ❌ REJECTED | Parser explicitly rejects |
 | Match literal pattern | ✅ NOW WORKS | Integer, string, identifier patterns |
 
-### ⚠️ ALIASES CONFUSION (Dictionary vs Hardcoded)
+### ✅ RESERVE WORDS CONVENTION (Fixed)
 
-| Issue | Impact |
-|-------|--------|
-| 42 keywords in lexer but NOT in dict/core_map.json | Malay aliases may not work without dict file |
-| `SHL`/`SHR` only in dict, not hardcoded | `anjak_kiri` works, `SHL` fails if dict missing |
-| Case sensitivity | `BINA` works, `bina` does NOT work |
-| Dictionary version mismatch | File says v1.21, code says v1.30/v1.45 |
+All Malay reserve words are **UPPERCASE** — this is now enforced consistently:
+
+| Category | Case | Examples |
+|----------|------|----------|
+| Malay reserve words | **UPPERCASE** | `BINA`, `JIKA`, `MAKA`, `SELAGI`, `ULANG`, `HENTI`, `TERUS`, `PAPAR`, `FUNGSI`, `PULANG`, `DAN`, `ATAU`, `BIT_DAN`, `BIT_ATAU`, `ANJAK_KIRI`, `ANJAK_KANAN`, `MUTASI`, `BENAR`, `SALAH`, `BERISIKO`, `BENTUK`, `PILIHAN`, `LUAR`, `GUNA`, `PAUTAN`, `C_LUAR`, `SUMBER`, `LEPAS`, `ALAMAT`, `PERKAKASAN`, `ZON_PERKAKASAN` |
+| English reserve words | **lowercase** | `let`, `if`, `then`, `else`, `while`, `loop`, `break`, `continue`, `print`, `fn`, `return`, `mut`, `true`, `false`, `str`, `i32`, `i64`, `u16`, `u32`, `f64`, `bool`, `ptr` |
+| Type names | **UPPERCASE** | `I32`, `I64`, `U16`, `U32`, `F64`, `BOOL`, `PTR` |
+
+**Case matters**: `BINA` works, `bina` does not. This is intentional — UPPERCASE = reserve word = visually distinct from variables.
+
+### ⚠️ ALIASES (Use Primary, Aliases Optional)
+
+| Primary (Recommended) | Aliases (Also Work) |
+|----------------------|---------------------|
+| `DAN` | `&&` |
+| `ATAU` | `\|\|` |
+| `BIT_DAN` | `&`, `DAN_BIT` |
+| `BIT_ATAU` | `\|`, `ATAU_BIT` |
+| `ANJAK_KIRI` | `<<`, `SHL` |
+| `ANJAK_KANAN` | `>>`, `SHR` |
+| `SELAGI` | `while` |
+| `ULANG` | `loop` |
+| `HENTI` | `break` |
+| `TERUS` | `continue`, `LANGKAU` |
+
+> **Recommendation**: Use Malay UPPERCASE or English lowercase consistently. Don't mix case styles.
 
 ---
 
