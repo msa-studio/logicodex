@@ -8,7 +8,41 @@
 use crate::ast::{BinaryOp, Expr, Program, Stmt};
 #[cfg(feature = "v1_30")]
 use crate::ffi::{CallableRegistry, CallableSignature};
+#[cfg(not(feature = "v1_30"))]
 use crate::types::CallableId;
+
+#[cfg(not(feature = "v1_30"))]
+#[derive(Debug, Clone, Default)]
+pub struct CallableRegistry {
+    signatures: Vec<CallableSignature>,
+}
+#[cfg(not(feature = "v1_30"))]
+impl CallableRegistry {
+    pub fn new() -> Self { Self { signatures: Vec::new() } }
+    pub fn find_by_name(&self, _name: &str) -> Option<(CallableId, CallableSignature)> { None }
+    pub fn get(&self, _id: CallableId) -> Option<CallableSignature> { None }
+    pub fn signatures(&self) -> std::slice::Iter<CallableSignature> { self.signatures.iter() }
+}
+
+#[cfg(not(feature = "v1_30"))]
+#[derive(Debug, Clone)]
+pub struct CallableSignature {
+    pub name: String,
+    pub params: Vec<crate::types::TypeId>,
+    pub return_type: crate::types::TypeId,
+    pub is_variadic: bool,
+}
+#[cfg(not(feature = "v1_30"))]
+impl Default for CallableSignature {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            params: Vec::new(),
+            return_type: crate::types::TypeId(0),
+            is_variadic: false,
+        }
+    }
+}
 use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind, TargetArch};
 use crate::types::{PrimitiveType, TypeId, TypeKind, TypeRegistry};
 use anyhow::{anyhow, Context as AnyhowContext, Result};
@@ -652,7 +686,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 if let Some(ref callables) = self.callables {
                     if let Some((callable_id, signature)) = callables.find_by_name(callee_name) {
                         // Declare the extern function in LLVM
-                        let func = self.declare_extern_func(signature)?;
+                        let func = self.declare_extern_func(&signature)?;
                         // Evaluate arguments recursively
                         let mut llvm_args: Vec<BasicValueEnum<'ctx>> = Vec::with_capacity(args.len());
                         for arg in args {
@@ -755,10 +789,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         .builder
                         .build_left_shift(l, r, "shltmp")
                         .context("failed to build left shift"),
-                    BinaryOp::ShiftRight => self
+                    BinaryOp::ShiftRight => Ok(self
                         .builder
                         .build_right_shift(l, r, true, "shrtmp")
-                        .context("failed to build right shift"),
+                        .into()),
                 }
             }
             // v1.30.1-alpha Phase 2: Zero-Copy Ownership Transfer via Pintu
@@ -901,13 +935,17 @@ impl<'ctx> LlvmCompiler<'ctx> {
         param_types: &[BasicTypeEnum<'ctx>],
         is_variadic: bool,
     ) -> inkwell::types::FunctionType<'ctx> {
+        let meta_params: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> = param_types
+            .iter()
+            .map(|t| (*t).into())
+            .collect();
         match ret_type {
-            BasicTypeEnum::IntType(t) => t.fn_type(param_types, is_variadic),
-            BasicTypeEnum::FloatType(t) => t.fn_type(param_types, is_variadic),
-            BasicTypeEnum::PointerType(t) => t.fn_type(param_types, is_variadic),
-            BasicTypeEnum::StructType(t) => t.fn_type(param_types, is_variadic),
-            BasicTypeEnum::ArrayType(t) => t.fn_type(param_types, is_variadic),
-            BasicTypeEnum::VectorType(t) => t.fn_type(param_types, is_variadic),
+            BasicTypeEnum::IntType(t) => t.fn_type(&meta_params, is_variadic),
+            BasicTypeEnum::FloatType(t) => t.fn_type(&meta_params, is_variadic),
+            BasicTypeEnum::PointerType(t) => t.fn_type(&meta_params, is_variadic),
+            BasicTypeEnum::StructType(t) => t.fn_type(&meta_params, is_variadic),
+            BasicTypeEnum::ArrayType(t) => t.fn_type(&meta_params, is_variadic),
+            BasicTypeEnum::VectorType(t) => t.fn_type(&meta_params, is_variadic),
         }
     }
 
@@ -1106,7 +1144,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             .ok_or_else(|| anyhow!("extern function codegen: CallableRegistry not attached"))?;
         let signature = callables.get(extern_fn.callable)
             .ok_or_else(|| anyhow!("extern function CallableId({}) not found in registry", extern_fn.callable.0))?;
-        let func = self.declare_extern_func(signature)?;
+        let func = self.declare_extern_func(&signature)?;
         self.hir_callable_funcs.insert(extern_fn.callable.0, func);
         Ok(())
     }
@@ -1643,7 +1681,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             None => return Ok(()), // no registry attached — nothing to do
         };
         // Iterate through all registered callables and declare them
-        for (_idx, sig) in callables.signatures.iter().enumerate() {
+        for (_idx, sig) in callables.signatures().enumerate() {
             let name = &sig.name;
             if self.declared_funcs.contains_key(name) {
                 continue; // already declared

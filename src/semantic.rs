@@ -1103,7 +1103,11 @@ impl Analyzer {
                 for s in body { self.verify_audio_stmt(func_name, s)?; }
                 Ok(())
             }
-            Stmt::Block(stmts) | Stmt::HardwareZone(stmts) => {
+            Stmt::Block(stmts) => {
+                for s in stmts { self.verify_audio_stmt(func_name, s)?; }
+                Ok(())
+            }
+            Stmt::HardwareZone { body: stmts } => {
                 for s in stmts { self.verify_audio_stmt(func_name, s)?; }
                 Ok(())
             }
