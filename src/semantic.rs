@@ -10,7 +10,7 @@ pub mod registry;
 #[cfg(feature = "v1_30")]
 pub mod type_checker;
 
-use crate::ast::{BinaryOp, Expr, Program, Stmt, Type};
+use crate::ast::{BinaryOp, Expr, MatchPattern, Program, Stmt, Type};
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
