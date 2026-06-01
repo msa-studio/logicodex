@@ -1,6 +1,0 @@
-MULA
-BINA x = 42
-BINA y = 15
-BINA z = x & y
-PAPAR z
-TAMAT

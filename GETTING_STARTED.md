@@ -62,7 +62,7 @@ TAMAT
 
 ```
 // Malay: BINA = bind/create variable
-BINA nama = "Ahmad"       // Error in v1.21 — strings not supported
+BINA nama = "Ahmad"       // v1.30+ — strings supported with type inference
 BINA umur = 25            // I32 (integer, inferred)
 BINA gaji = 3500.50       // F64 (float, inferred)
 BINA aktif = benar        // Bool (boolean, inferred)
@@ -82,7 +82,8 @@ BINA bilangan : I32 = 100
 BINA besar : I64 = 9999999999
 BINA suhu : F32 = 36.6
 BINA panjang : F64 = 3.14159265359
-BINa hidup : Bool = benar
+BINA hidup : Bool = benar
+BINA nama : TEKS = "Ahmad"      // String type annotation (v1.30+)
 
 // Expert: same syntax, semicolon terminated
 let bilangan: I32 = 100;
@@ -90,6 +91,23 @@ let besar: I64 = 9999999999;
 let suhu: F32 = 36.6;
 let panjang: F64 = 3.14159265359;
 let hidup: Bool = true;
+let nama: str = "Ahmad";        // String type annotation (v1.30+)
+```
+
+### Mutable Binding (`mut` / `MUTASI`)
+
+> **Status:** 📝 The `mut` / `MUTASI` keyword is recognized by the lexer but has **no semantic effect**. Variables are mutable by default — you can reassign any variable without marking it `mut`.
+
+```
+// Malay: MUTASI has no effect (variables are mutable by default)
+MUTASI BINA x = 10      // 'MUTASI' is accepted but ignored
+x = 20                  // OK: reassignment works without mut
+PAPAR x                 // 20
+
+// Expert: mut is accepted but ignored
+let mut x = 10;         // 'mut' is accepted but ignored
+x = 20;                 // OK: reassignment works
+print x;                // 20
 ```
 
 ### Available Types
@@ -102,6 +120,7 @@ let hidup: Bool = true;
 | `F64` | large float | `3.14159` | 64-bit float | ✅ | ✅ |
 | `Bool` | `benar` / `palsu` | `true` / `false` | 1-bit | ✅ | ✅ |
 | `String` | `"hello"` | `"hello"` | heap-allocated | 🔷 | 🔷 |
+| `str` / `TEKS` | `"hello"` | `"hello"` | heap-allocated | 🔷 | 🔷 |
 
 ---
 
@@ -161,14 +180,30 @@ BINA p = benar
 BINA q = palsu
 BINA dan = p DAN q            // false
 BINA atau = p ATAU q           // true
-BINA tak = TIDAK p             // false
 
 // Expert: &&, ||, !
 let p = true;
 let q = false;
 let dan = p && q;             // false
 let atau = p || q;            // true
-let tak = !p;                 // false
+```
+
+### Unary
+
+> **Status:** ✅ Now supported after parser fix.
+
+```
+// Malay: negation and logical not
+BINA x = 5
+BINA negatif = -x               // -5
+BINA tak_benar = !benar         // false (logical not)
+BINA tak_palsu = !palsu         // true  (logical not)
+
+// Expert: same syntax
+let x = 5;
+let negatif = -x;               // -5
+let tak_benar = !true;          // false
+let tak_palsu = !false;         // true
 ```
 
 ### Bitwise
@@ -295,6 +330,27 @@ while i < 100 {
 }
 ```
 
+### For Loop
+
+> **Status:** ❌ **Not supported.** There is no `for` keyword in the parser. Use `while` with a counter instead.
+
+```
+// Instead of for (use while with counter):
+BINA i = 0
+SELAGI i < 10 DAN benar MAKA
+MULA
+    PAPAR i
+    i = i + 1
+TAMAT
+
+// Expert equivalent:
+let i = 0;
+while i < 10 {
+    print i;
+    i = i + 1;
+}
+```
+
 ---
 
 ## 5. Functions
@@ -358,6 +414,17 @@ print hasil;
 // No block comments (/* */) in v1.21
 // Block comments available in v1.30 🔷
 ```
+
+> **Case Sensitivity Note:** Keywords are **case-sensitive**. `BINA` works, but `bina` does not. `benar` (lowercase) is a boolean literal, but `BENAR` (uppercase) is also accepted as an alias. In general, write keywords exactly as documented — mixed case like `BiNa` or `bReAk` will **not** be recognized.
+>
+> | Form | Status | Example |
+> |------|--------|---------|
+> | `BINA` (uppercase) | ✅ Works | Malay keyword |
+> | `bina` (lowercase) | ❌ Fails | Not recognized |
+> | `let` (lowercase) | ✅ Works | Expert keyword |
+> | `true` (lowercase) | ✅ Works | Boolean literal |
+> | `benar` (lowercase) | ✅ Works | Malay boolean literal |
+> | `bReAk` (mixed) | ❌ Fails | Not recognized |
 
 ---
 
@@ -564,6 +631,31 @@ match m {
     Mesej::Henti -> print 0,
     Mesej::Gerak { x, y } -> print x + y,
     Mesej::Tulis(s) -> print s.length
+}
+```
+
+### Match with Literal Patterns
+
+> **Status:** ✅ Integer and string literal patterns are now supported in addition to `Ok`/`Err`/`_`.
+
+```
+// Malay: match on literal values
+cocok nilai
+MULA
+    0 -> PAPAR "sifar",
+    1 -> PAPAR "satu",
+    2 -> PAPAR "dua",
+    "hello" -> PAPAR "greeting",
+    _ -> PAPAR "lain"
+TAMAT
+
+// Expert: match on literal values
+match nilai {
+    0 -> print "zero",
+    1 -> print "one",
+    2 -> print "two",
+    "hello" -> print "greeting",
+    _ -> print "other"
 }
 ```
 
@@ -926,6 +1018,8 @@ actor PenghantarMesej {
 | tekanan | `backpressure` | Backpressure attribute |
 | jadual | `scheduler` | Scheduler attribute |
 | berkala | `periodic` | Periodic scheduling |
+
+> **Dictionary Dependency:** Malay aliases (e.g., `BINA`, `SELAGI`, `PAPAR`) require the file `dict/core_map.json` to be present at runtime (in the working directory). If this file is missing, the compiler falls back to hardcoded default aliases, but some Malay keywords and aliases may not be available. Ensure `dict/core_map.json` is distributed alongside the compiler binary.
 
 ---
 

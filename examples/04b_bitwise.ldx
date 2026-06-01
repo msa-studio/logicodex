@@ -1,0 +1,39 @@
+# ============================================================
+# LEVEL 4B: BITWISE OPERATIONS
+# Purpose: Test bit_dan, bit_atau, anjak_kiri, anjak_kanan
+# Grammar: &, |, <<, >> (with Malay aliases)
+# DEBUG STRATEGY:
+#   If bitwise ops fail: dictionary not loaded (Malay aliases)
+#   Check: dict/core_map.json must exist for Malay keywords
+#   If "&" works but "bit_dan" fails: dictionary missing or corrupted
+#   If ">" works but "anjak_kanan" fails: SHL/SHR alias issue
+# ============================================================
+
+# --- Malay ---
+BINA a: I32 = 5
+BINA b: I32 = 3
+BINA band: I32 = a bit_dan b
+BINA bor: I32 = a bit_atau b
+BINA bshl: I32 = a anjak_kiri 1
+BINA bshr: I32 = a anjak_kanan 1
+PAPAR band
+PAPAR bshl
+
+# --- Expert Canonical ---
+let a: i32 = 5
+let b: i32 = 3
+let band: i32 = a & b
+let bor: i32 = a | b
+let bshl: i32 = a << 1
+let bshr: i32 = a >> 1
+print band
+print bshl
+
+# --- Expected Output ---
+# band = 1 (0101 & 0011 = 0001)
+# bshl = 10 (0101 << 1 = 1010)
+
+# --- Alias Confusion Warning ---
+# "anjak_kiri" = "<<" = "SHL" (all three should work)
+# "anjak_kanan" = ">>" = "SHR" (all three should work)
+# If SHL/SHR fail: these aliases are only in dictionary, not hardcoded
