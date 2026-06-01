@@ -6,6 +6,8 @@
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
 use crate::ast::{BinaryOp, Expr, Program, Stmt};
+#[cfg(feature = "v1_30")]
+#[cfg(feature = "v1_30")]
 use crate::ffi::{CallableRegistry, CallableSignature};
 use crate::types::CallableId;
 use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind, TargetArch};
@@ -105,7 +107,9 @@ pub struct LlvmCompiler<'ctx> {
 
 /// Backend trait for version-gated codegen. v1.21 uses direct compilation;
 /// v1.30+ uses this trait for HIR-based codegen.
+#[cfg(feature = "v1_30")]
 pub trait CodegenBackend {
+    #[cfg(feature = "v1_30")]
     fn compile_hir_module(&mut self, module: &crate::hir::HirModule, options: &CodegenOptions) -> Result<CodegenArtifact>;
 }
 
@@ -927,6 +931,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
         )
     }
 }
+
+} // end v1.21 impl block
+
+#[cfg(feature = "v1_30")]
+impl<'ctx> LlvmCompiler<'ctx> {
 
 /// Entry point for v1.30 HIR-to-object compilation.
 /// This is the gate between the v1.21 AST path and the v1.30 HIR path.
