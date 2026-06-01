@@ -74,7 +74,7 @@
       "expert": "while",
       "primary_ms": "SELAGI",
       "aliases": [
-        "selagi",
+        "SELAGI",
         "WHILE"
       ],
       "description": "Executable while-loop statement supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
@@ -84,7 +84,7 @@
       "expert": "loop",
       "primary_ms": "ULANG",
       "aliases": [
-        "ulang",
+        "ULANG",
         "LOOP"
       ],
       "description": "Executable unconditional loop statement supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
@@ -94,7 +94,7 @@
       "expert": "break",
       "primary_ms": "HENTI",
       "aliases": [
-        "henti",
+        "HENTI",
         "BREAK"
       ],
       "description": "Executable loop-break control flow supported inside while and loop bodies in v1.21-alpha.",
@@ -104,7 +104,7 @@
       "expert": "continue",
       "primary_ms": "TERUS",
       "aliases": [
-        "langkau",
+        "TERUS",
         "LANGKAU",
         "CONTINUE"
       ],
@@ -214,7 +214,7 @@
     },
     "UNSAFE": {
       "expert": "unsafe",
-      "primary_ms": "berisiko",
+      "primary_ms": "BERISIKO",
       "aliases": [
         "BERISIKO",
         "UNSAFE"
@@ -227,7 +227,7 @@
     },
     "EXTERN": {
       "expert": "extern",
-      "primary_ms": "luar",
+      "primary_ms": "LUAR",
       "aliases": [
         "LUAR",
         "EXTERN"
@@ -240,7 +240,7 @@
     },
     "STRUCT": {
       "expert": "struct",
-      "primary_ms": "bentuk",
+      "primary_ms": "BENTUK",
       "aliases": [
         "BENTUK",
         "STRUCT"
@@ -250,7 +250,7 @@
     },
     "ENUM": {
       "expert": "enum",
-      "primary_ms": "pilihan",
+      "primary_ms": "PILIHAN",
       "aliases": [
         "PILIHAN",
         "ENUM"
@@ -262,7 +262,6 @@
       "expert": "true",
       "primary_ms": "BENAR",
       "aliases": [
-        "benar",
         "TRUE"
       ],
       "description": "Boolean true literal."
@@ -272,7 +271,6 @@
       "primary_ms": "SALAH",
       "aliases": [
         "PALSU",
-        "palsu",
         "FALSE"
       ],
       "description": "Boolean false literal."
@@ -366,7 +364,7 @@
     },
     "AND": {
       "expert": "&&",
-      "primary_ms": "dan",
+      "primary_ms": "DAN",
       "aliases": [
         "DAN",
         "AND"
@@ -376,7 +374,7 @@
     },
     "OR": {
       "expert": "||",
-      "primary_ms": "atau",
+      "primary_ms": "ATAU",
       "aliases": [
         "ATAU",
         "OR"
@@ -386,9 +384,10 @@
     },
     "BIT_AND": {
       "expert": "&",
-      "primary_ms": "bit_dan",
+      "primary_ms": "BIT_DAN",
       "aliases": [
         "DAN_BIT",
+        "BIT_DAN",
         "BIT_AND"
       ],
       "description": "Executable bitwise AND operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
@@ -399,9 +398,10 @@
     },
     "BIT_OR": {
       "expert": "|",
-      "primary_ms": "bit_atau",
+      "primary_ms": "BIT_ATAU",
       "aliases": [
         "ATAU_BIT",
+        "BIT_ATAU",
         "BIT_OR"
       ],
       "description": "Executable bitwise OR operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
@@ -409,7 +409,7 @@
     },
     "SHIFT_L": {
       "expert": "<<",
-      "primary_ms": "anjak_kiri",
+      "primary_ms": "ANJAK_KIRI",
       "aliases": [
         "ANJAK_KIRI",
         "SHIFT_L",
@@ -420,7 +420,7 @@
     },
     "SHIFT_R": {
       "expert": ">>",
-      "primary_ms": "anjak_kanan",
+      "primary_ms": "ANJAK_KANAN",
       "aliases": [
         "ANJAK_KANAN",
         "SHIFT_R",
@@ -501,5 +501,6 @@
       "aliases": [],
       "description": "Function return type delimiter."
     }
-  }
+  },
+  "__version": "v1.30.1-grammar-fix"
 }
