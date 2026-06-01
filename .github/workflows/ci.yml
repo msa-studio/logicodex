@@ -188,7 +188,7 @@ jobs:
               echo "  --- COMPILER OUTPUT ---"
 
               set +e
-              output=$(./target/release/logicodex check "$f" 2>&1)
+              output=$(./target/release/logicodex --pipeline v1.21 check "$f" 2>&1)
               exit_code=$?
               set -e
 
