@@ -404,6 +404,16 @@ impl TypeRegistry {
         self.enum_layouts.get(id.0 as usize)
     }
 
+    /// Look up a type by name (placeholder)
+    pub fn type_name(&self, _id: TypeId) -> Option<String> {
+        None  // TODO: implement reverse lookup
+    }
+
+    /// Find a callable by name (placeholder)
+    pub fn lookup_callable(&self, _name: &str) -> Option<(CallableId, crate::ffi::CallableSignature)> {
+        None  // TODO: implement callable lookup
+    }
+
     // ─── FFI Type Aliases ───
     // These map C types to Logicodex types for FFI calls.
     // They are convenience methods that return the corresponding TypeId.
