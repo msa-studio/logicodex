@@ -36,7 +36,7 @@ strip = "symbols"
 
 [features]
 # v1.30 Option Engine — activates HIR lowering, type system, actor runtime
-v1_30 = ["inkwell/serde"]
+v1_30 = []  # Option Engine — gates HIR, layout, ffi, tier2 modules
 
 [profile.dev]
 opt-level = 0
