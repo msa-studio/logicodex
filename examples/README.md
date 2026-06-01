@@ -55,16 +55,16 @@ Based on ACTUAL source code analysis (not documentation):
 
 | Feature | Status | Why It Fails |
 |---------|--------|--------------|
-| Unary minus (`-x`) | ❌ NOT PARSED | Parser has no rule for `Unary` in `parse_primary_expr` |
-| Logical NOT (`!x`) | ❌ NOT PARSED | Same as above |
+| Unary minus (`-x`) | ✅ NOW WORKS | Parsed via unary() method for `Unary` in `parse_primary_expr` |
+| Logical NOT (`!x`) | ✅ NOW WORKED | Parsed via unary() method |
 | For loop | ❌ NOT A TOKEN | `for` doesn't exist in TokenKind enum |
 | `mut` keyword | ❌ IGNORED | Lexed as `TokenKind::Mut` but parser discards it |
-| String type `:str` | ❌ NOT IN PARSER | `parse_type()` has no `TypeStr` branch |
+| String type `:str` | ✅ NOW WORKS | `parse_type()` handles TypeStr |
 | Struct | ❌ REJECTED | Parser explicitly rejects with error message |
 | Enum | ❌ REJECTED | Parser explicitly rejects |
 | `unsafe` block | ❌ REJECTED | Parser explicitly rejects |
 | `extern` block | ❌ REJECTED | Parser explicitly rejects |
-| Match literal pattern | ❌ NOT PARSED | Only `Ok(v)`, `Err(e)`, `_` work |
+| Match literal pattern | ✅ NOW WORKS | Integer, string, identifier patterns |
 
 ### ⚠️ ALIASES CONFUSION (Dictionary vs Hardcoded)
 
@@ -140,4 +140,4 @@ logicodex check examples/03a_functions.ldx    # Tests functions
 
 ---
 
-*Generated from source code analysis — not from documentation*
+*Updated after parser fixes (unary ops, string type, match literals) — commit on feat/examples-grammar-debug*
