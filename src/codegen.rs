@@ -232,7 +232,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             TypeKind::Primitive(PrimitiveType::F32) => Ok(self.context.f32_type().into()),
             TypeKind::Primitive(PrimitiveType::F64) => Ok(self.context.f64_type().into()),
             TypeKind::Primitive(PrimitiveType::Unit) => Ok(self.context.i8_type().into()), // void represented as i8
-            TypeKind::Pointer { .. } => Ok(self.context.ptr_type(inkwell::AddressSpace::default()).into()),
+            TypeKind::Pointer { .. } => Ok(self.context.i8_type().ptr_type(inkwell::AddressSpace::default()).into()),
             other => Err(anyhow!("type_id_to_llvm: unsupported type kind: {:?}", other)),
         }
     }
@@ -404,7 +404,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 "mmio_val",
             )
             .context("MMIO volatile load")?;
-        let load_inst = loaded.as_instruction_value()
+        let load_inst = self.builder.get_insert_block()
+            .and_then(|bb| bb.get_last_instruction())
             .ok_or_else(|| anyhow!("MMIO load is not an instruction"))?;
         load_inst.set_volatile(true)
             .map_err(|_| anyhow!("failed to set MMIO load as volatile"))?;
@@ -1096,7 +1097,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     ) -> Result<()> {
         let callables = self.callables.as_ref()
             .ok_or_else(|| anyhow!("extern function codegen: CallableRegistry not attached"))?;
-        let signature = callables.lookup_callable(extern_fn.callable)
+        let signature = callables.get(extern_fn.callable)
             .ok_or_else(|| anyhow!("extern function CallableId({}) not found in registry", extern_fn.callable.0))?;
         let func = self.declare_extern_func(signature)?;
         self.hir_callable_funcs.insert(extern_fn.callable.0, func);
@@ -1470,7 +1471,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     ) -> Result<IntValue<'ctx>> {
         let callables = self.callables.as_ref()
             .ok_or_else(|| anyhow!("HIR call: CallableRegistry not attached"))?;
-        let signature = callables.lookup_callable(callee)
+        let signature = callables.get(callee)
             .ok_or_else(|| anyhow!("HIR call: CallableId({}) not found", callee.0))?;
 
         // v1.36 A5: Detect struct constructor by name
