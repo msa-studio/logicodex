@@ -167,6 +167,12 @@ jobs:
           exit 0
         continue-on-error: true
 
+      - name: Verify binary exists
+        run: |
+          ls -la target/release/logicodex || echo "Binary not found, will build via cargo run"
+          cargo build --release --message-format=short
+          ls -la target/release/logicodex
+
       - name: Check v1.21 examples
         run: |
           echo "╔════════════════════════════════════════════════════════════╗"
@@ -188,7 +194,7 @@ jobs:
               echo "  --- COMPILER OUTPUT ---"
 
               set +e
-              output=$(./target/release/logicodex --pipeline v1.21 check "$f" 2>&1)
+              output=$(cargo run --release -- --pipeline v1.21 check "$f" 2>&1)
               exit_code=$?
               set -e
 
