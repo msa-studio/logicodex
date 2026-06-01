@@ -1,7 +1,7 @@
 # ============================================================
 # LEVEL 3B: RECURSIVE FUNCTION
 # Purpose: Test function calls itself (factorial)
-# Grammar: Recursive FUNGSI/fn call
+# Grammar: Recursive FUNGSI/FN call
 # DEBUG STRATEGY:
 #   If recursion fails: semantic recursion check may block it
 #   Check: semantic.rs has audio_safety recursion check
@@ -20,15 +20,15 @@ BINA f5: I32 = faktorial(5)
 PAPAR f5
 
 # --- Expert Canonical ---
-fn factorial(n: i32) -> i32 {
-    if n <= 1 then
-        return 1
+FN factorial(n: i32) -> I32 {
+    IF n <= 1 then
+        RETURN 1
     else
-        return n * factorial(n - 1)
+        RETURN n * factorial(n - 1)
 }
 
-let f5: i32 = factorial(5)
-print f5
+LET f5: I32 = factorial(5)
+PRINT f5
 
 # --- Expected Output ---
 # 120
