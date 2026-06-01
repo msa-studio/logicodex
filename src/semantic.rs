@@ -356,7 +356,7 @@ impl Analyzer {
                                 // Check element type compatibility
                                 if !types_compatible(element, &val_ty) {
                                     return Err(SemanticError::ElementTypeMismatch {
-                                        elem: format!("{}[{:?}]", base, index),
+                                        elem: format!("{:?}[{:?}]", base, index),
                                         expected: *element.clone(),
                                         actual: val_ty,
                                     });
@@ -770,7 +770,7 @@ impl Analyzer {
                 }
                 // Phase 2: Zero-Copy Ownership Transfer
                 // If value is a variable, mark it as moved via Pintu
-                if let Expr::Variable(var_name) = value {
+                if let Expr::Variable(var_name) = value.as_ref() {
                     if self.moved_via_channel.contains(var_name) {
                         return Err(SemanticError::UseAfterSend { name: var_name.clone() });
                     }
@@ -808,7 +808,7 @@ impl Analyzer {
                     let _ = self.resolve(channel_name)?;
                 }
                 // Ownership transfer (same as Send)
-                if let Expr::Variable(var_name) = value {
+                if let Expr::Variable(var_name) = value.as_ref() {
                     if self.moved_via_channel.contains(var_name) {
                         return Err(SemanticError::UseAfterSend { name: var_name.clone() });
                     }
@@ -1053,7 +1053,7 @@ impl Analyzer {
         for callback_name in &self.audio_callbacks {
             // Find the function body
             if let Some(func_body) = self.find_function_body(program, callback_name) {
-                self.verify_audio_safety(callback_name, func_body)?;
+                self.verify_audio_safety(callback_name, &func_body)?;
             }
         }
         Ok(())
@@ -1102,8 +1102,12 @@ impl Analyzer {
                 for s in body { self.verify_audio_stmt(func_name, s)?; }
                 Ok(())
             }
-            Stmt::Block(stmts) | Stmt::UnsafeBlock(stmts) | Stmt::HardwareZone(stmts) => {
+            Stmt::Block(stmts) | Stmt::HardwareZone(stmts) => {
                 for s in stmts { self.verify_audio_stmt(func_name, s)?; }
+                Ok(())
+            }
+            Stmt::UnsafeBlock { body } => {
+                for s in body { self.verify_audio_stmt(func_name, s)?; }
                 Ok(())
             }
             _ => Ok(()),
