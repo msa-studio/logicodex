@@ -17,8 +17,8 @@ TAMAT
 
 # --- Expert Canonical ---
 hw_unsafe {
-    let addr: ptr = addr 0x1000
-    print 1
+    LET addr: PTR = addr 0x1000
+    PRINT 1
 }
 
 # --- Known Limitations ---
