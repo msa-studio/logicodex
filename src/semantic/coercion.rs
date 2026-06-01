@@ -112,7 +112,7 @@ impl<'a> CoercionEngine<'a> {
                 } else {
                     // Different pointee types — generally incompatible
                     // Exception: *const T can coerce to *const Void (opaque)
-                    if **p2 == self.registry.primitive(PrimitiveType::Unit) {
+                    if p2.0 == self.registry.primitive(PrimitiveType::Unit).0 {
                         CoercionResult::RequiresCast { target: to }
                     } else {
                         CoercionResult::Incompatible
