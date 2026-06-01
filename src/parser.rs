@@ -487,9 +487,24 @@ impl Parser {
             MatchPattern::Err { binding }
         } else if self.matches(TokenKind::Underscore) {
             MatchPattern::Wildcard
+        } else if self.matches(TokenKind::Integer) {
+            let token = self.previous();
+            let value = token
+                .lexeme
+                .parse::<i64>()
+                .map_err(|_| ParseError::InvalidInteger {
+                    literal: token.lexeme.clone(),
+                    line: token.line,
+                    column: token.column,
+                })?;
+            MatchPattern::Literal(Expr::Integer(value))
+        } else if self.matches(TokenKind::StringLiteral) {
+            MatchPattern::Literal(Expr::StringLiteral(self.previous().lexeme.clone()))
+        } else if self.matches(TokenKind::Identifier) {
+            MatchPattern::Identifier(self.previous().lexeme.clone())
         } else {
             return Err(ParseError::Expected {
-                expected: "Ok(x), Err(e), or _ pattern".to_string(),
+                expected: "Ok(x), Err(e), _, literal, or identifier pattern".to_string(),
                 found: self.peek().lexeme.clone(),
                 line: self.peek().line,
                 column: self.peek().column,
@@ -604,6 +619,9 @@ impl Parser {
         }
         if self.matches(TokenKind::TypeBool) {
             return Ok(Type::Bool);
+        }
+        if self.matches(TokenKind::TypeStr) {
+            return Ok(Type::String);
         }
         if self.matches(TokenKind::Ptr) {
             self.consume(TokenKind::Less, "< after PTR")?;
@@ -798,15 +816,27 @@ impl Parser {
         Ok(expr)
     }
 
+    fn unary(&mut self) -> Result<Expr, ParseError> {
+        if self.matches(TokenKind::Minus) {
+            let operand = self.unary()?;
+            Ok(Expr::Unary { op: "-".to_string(), operand: Box::new(operand) })
+        } else if self.matches(TokenKind::Bang) {
+            let operand = self.unary()?;
+            Ok(Expr::Unary { op: "!".to_string(), operand: Box::new(operand) })
+        } else {
+            self.primary()
+        }
+    }
+
     fn factor(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.primary()?;
+        let mut expr = self.unary()?;
         while self.matches(TokenKind::Star) || self.matches(TokenKind::Slash) {
             let op = if self.previous().kind == TokenKind::Star {
                 BinaryOp::Multiply
             } else {
                 BinaryOp::Divide
             };
-            let right = self.primary()?;
+            let right = self.unary()?;
             expr = Expr::Binary {
                 left: Box::new(expr),
                 op,
