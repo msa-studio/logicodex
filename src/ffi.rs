@@ -88,7 +88,7 @@ pub struct FfiGatekeeper<'a> {
     pub callables: Option<&'a CallableRegistry>,
 }
 
-#impl<'a> FfiGatekeeper<'a> {
+impl<'a> FfiGatekeeper<'a> {
     /// v1.42 P8: Validate an FFI call with coercion support.
     ///
     /// Coercion rules (widening allowed, narrowing rejected):
