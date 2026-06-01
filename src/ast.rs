@@ -92,6 +92,10 @@ pub enum Stmt {
         name: String,
         body: Vec<Stmt>,
     },
+    /// Variable assignment: x = 5
+    Assign { target: String, value: Expr },
+    /// Buffer index assignment: buf[index] = value
+    IndexAssign { target: String, index: Expr, value: Expr },
     /// v1.33.0-alpha: Service manifest — deterministic network reactor.
     /// Syntax: `service WebServer { port: 443, requires: Net.Admin, handler: WebHandler, policy: Block }`
     Service {
@@ -103,12 +107,14 @@ pub enum Stmt {
     },
 }
 
+/// Match arm: pattern => body
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MatchArm {
     pub pattern: MatchPattern,
     pub body: Vec<Stmt>,
 }
 
+/// Match pattern
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MatchPattern {
     /// Matches Ok variant: Ok(name)
@@ -117,6 +123,12 @@ pub enum MatchPattern {
     Err { binding: String },
     /// Wildcard: _
     Wildcard,
+    /// Literal pattern: 5, "hello"
+    Literal(Expr),
+    /// Identifier pattern: x
+    Identifier(String),
+    /// Tuple pattern: (a, b, c)
+    Tuple(Vec<MatchPattern>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -167,6 +179,8 @@ pub enum Expr {
         method: String,
         args: Vec<Expr>,
     },
+    /// Field access: net.admin
+    FieldAccess { object: String, field: String },
     /// v1.30.1-alpha: Spawn a Kotak (create OS thread).
     /// Syntax: `lahirkan SensorSuhu()`
     Spawn {
