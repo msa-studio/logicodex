@@ -6,7 +6,8 @@
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
 use crate::ast::{BinaryOp, Expr, Program, Stmt};
-use crate::ffi::{CallableId, CallableRegistry, CallableSignature};
+use crate::ffi::{CallableRegistry, CallableSignature};
+use crate::types::CallableId;
 use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind, TargetArch};
 use crate::types::{PrimitiveType, TypeId, TypeKind, TypeRegistry};
 use anyhow::{anyhow, Context as AnyhowContext, Result};
