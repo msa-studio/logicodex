@@ -1,0 +1,33 @@
+# ============================================================
+# LEVEL 1C: BOOLEAN LOGIC
+# Purpose: Test boolean literals, comparison, logical operators
+# Grammar: BENAR/SALAH, ==, !=, <, >, <=, >=, dan/&&, atau/||
+# DEBUG STRATEGY:
+#   If boolean literals fail: TokenKind::True/False not matched
+#   If comparisons fail: comparison operator precedence
+#   If "dan"/"atau" fail: dictionary not loaded or aliases missing
+#   Note: "!" (not) is NOT a parsed operator — use comparison workaround
+# ============================================================
+
+# --- Malay ---
+BINA a: I32 = 5
+BINA b: I32 = 10
+BINA eq: BOOL = a == b
+BINA lt: BOOL = a < b
+BINA both: BOOL = a < b dan b > 3
+BINA either: BOOL = a == 5 atau b == 0
+PAPAR eq
+PAPAR both
+
+# --- Expert Canonical ---
+let a: i32 = 5
+let b: i32 = 10
+let eq: bool = a == b
+let lt: bool = a < b
+let both: bool = a < b && b > 3
+let either: bool = a == 5 || b == 0
+print eq
+print both
+
+# --- Known Limitations ---
+# Logical NOT (!) is NOT parsed — use (x == SALAH) instead of !x
