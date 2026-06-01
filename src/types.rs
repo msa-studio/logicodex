@@ -188,6 +188,7 @@ impl TypeRegistry {
         Self {
             kinds,
             struct_layouts: Vec::new(),
+            #[cfg(feature = "v1_30")]
             enum_layouts: Vec::new(),
             primitive_cache: PrimitiveTypeIds {
                 bool_,
