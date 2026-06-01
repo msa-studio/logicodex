@@ -20,14 +20,14 @@ PAPAR band
 PAPAR bshl
 
 # --- Expert Canonical ---
-let a: i32 = 5
-let b: i32 = 3
-let band: i32 = a & b
-let bor: i32 = a | b
-let bshl: i32 = a << 1
-let bshr: i32 = a >> 1
-print band
-print bshl
+LET a: I32 = 5
+LET b: I32 = 3
+LET band: I32 = a & b
+LET bor: I32 = a | b
+LET bshl: I32 = a << 1
+LET bshr: I32 = a >> 1
+PRINT band
+PRINT bshl
 
 # --- Expected Output ---
 # band = 1 (0101 & 0011 = 0001)
