@@ -1,12 +1,12 @@
 # ============================================================
 # LEVEL 2A: CONDITIONAL (IF-THEN-ELSE)
-# Purpose: Test if/then/else with both Malay and Expert syntax
+# Purpose: Test if/then/ELSE with both Malay and Expert syntax
 # Grammar: JIKA/MAKA/MELAINKAN or if/then/else
 # DEBUG STRATEGY:
 #   If "JIKA x > 5 MAKA" fails: parse_if() not matching Malay keywords
 #   Check: Is dict/core_map.json present? Dictionary loads at runtime.
-#   If "if x > 5 then" fails: Expert keyword not in default_aliases
-#   Note: "else" is optional — "if x > 5 then PAPAR x" is valid
+#   If "IF x > 5 then" fails: Expert keyword not in default_aliases
+#   Note: "else" is optional — "IF x > 5 THEN PAPAR x" is valid
 # ============================================================
 
 # --- Malay ---
@@ -17,11 +17,11 @@ MELAINKAN
     PAPAR 0
 
 # --- Expert Canonical ---
-let x: i32 = 10
-if x > 5 then
-    print x
-else
-    print 0
+LET x: I32 = 10
+IF x > 5 then
+    PRINT x
+ELSE
+    PRINT 0
 
 # --- Expected Behavior ---
 # Should execute the "then" branch when condition is true
