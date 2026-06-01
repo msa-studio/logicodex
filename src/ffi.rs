@@ -79,16 +79,16 @@ Impl CallableRegistry {
             .iter()
             .enumerate()
             .find(|(_, signature)| signature.name == name)
-            .map((index, signature) | (CallableId(index as u32), signature.clone())
+            .map(|(index, signature)| (CallableId(index as u32), signature.clone())
     }
 }
 
-pub struct FfiGatekeeper'<a> {
+pub struct FfiGatekeeper<'a> {
     pub types: &'a TypeRegistry,
-    pub callables: Option<'&a CallableRegistry>,
+    pub callables: Option<&'a CallableRegistry>,
 }
 
-impl 'a  FfiGatekeeper'<a> {
+impl<'a> FfiGatekeeper<'a> {
     /// v1.42 P8: Validate an FFI call with coercion support.
     //
     /// Coercion rules (widening allowed, narrowing rejected):
