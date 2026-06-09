@@ -409,6 +409,27 @@ impl Parser {
         })
     }
 
+    /// Peek `name =` (single `=`, not `==`) for plain variable assignment.
+    fn peek_simple_assignment(&self) -> bool {
+        let current = self.current;
+        if current + 1 >= self.tokens.len() {
+            return false;
+        }
+        self.tokens[current + 1].kind == TokenKind::Assign
+    }
+
+    /// Parse `name = value` as Stmt::Assign with a Variable target.
+    fn variable_assignment_statement(&mut self) -> Result<Stmt, ParseError> {
+        let name = self.consume(TokenKind::Identifier, "variable name")?.lexeme.clone();
+        self.consume(TokenKind::Assign, "'=' after variable name")?;
+        let value = self.expression()?;
+        self.consume_statement_terminator("; after assignment", false)?;
+        Ok(Stmt::Assign {
+            target: Expr::Variable(name),
+            value,
+        })
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParseError> {
         let stmt = if self.matches(TokenKind::Let) {
             let beginner = self.allows_beginner_line_terminator(&self.previous().lexeme);
@@ -442,6 +463,9 @@ impl Parser {
         } else if self.check(TokenKind::Identifier) && self.peek_index_assignment() {
             // BUGFIX #2: buf[index] = value assignment syntax
             self.index_assignment_statement()?
+        } else if self.check(TokenKind::Identifier) && self.peek_simple_assignment() {
+            // Plain variable assignment: name = value
+            self.variable_assignment_statement()?
         } else {
             let value = self.expression()?;
             self.consume_statement_terminator("; after expression", false)?;

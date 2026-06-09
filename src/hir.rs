@@ -1079,6 +1079,10 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
         }),
         Stmt::Return { value } => StmtAst::Return(Some(lower_expr_ast(value))),
         Stmt::ExprStmt { value } => StmtAst::Expr(lower_expr_ast(value)),
+        Stmt::Assign { target, value } => StmtAst::Assign {
+            target: lower_expr_ast(target),
+            value: lower_expr_ast(value),
+        },
         Stmt::If { condition, then_branch, else_branch } => StmtAst::If {
             condition: lower_expr_ast(condition),
             then_branch: BlockAst {
