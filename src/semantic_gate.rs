@@ -112,7 +112,13 @@ impl SemanticContext {
             HirExprKind::Binary { left, right, .. } => {
                 self.check_expression(left);
                 self.check_expression(right);
-                if left.ty.id != right.ty.id {
+                // v1.30 uses a uniform i64 integer model, so integer operands of
+                // differing declared widths (e.g. I32 vs the default-I64 of an
+                // integer literal) are compatible. Only flag genuinely mismatched
+                // categories (e.g. int vs float).
+                if left.ty.id != right.ty.id
+                    && !(self.is_integer_type(left.ty.id) && self.is_integer_type(right.ty.id))
+                {
                     self.push_error(
                         DiagnosticCode::TypeMismatch,
                         expr.span,
@@ -154,6 +160,26 @@ impl SemanticContext {
             }
             _ => {}
         }
+    }
+
+    /// True if a TypeId resolves to any integer primitive (I8..U64). Used to
+    /// treat integer operands of differing widths as compatible under the
+    /// uniform-i64 codegen model.
+    fn is_integer_type(&self, id: crate::types::TypeId) -> bool {
+        use crate::types::{PrimitiveType, TypeKind};
+        matches!(
+            self.types.resolve(id),
+            TypeKind::Primitive(
+                PrimitiveType::I8
+                    | PrimitiveType::I16
+                    | PrimitiveType::I32
+                    | PrimitiveType::I64
+                    | PrimitiveType::U8
+                    | PrimitiveType::U16
+                    | PrimitiveType::U32
+                    | PrimitiveType::U64
+            )
+        )
     }
 
     fn push_error(
