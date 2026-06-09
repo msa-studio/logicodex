@@ -10,7 +10,8 @@
 
 use crate::ffi::{CallableRegistry, CallableSignature};
 use crate::hir::{HirFunction, HirModule};
-use crate::layout::{LayoutRegistry, StructLayout};
+use crate::layout::LayoutRegistry;
+use crate::types::StructLayout;
 use crate::types::TypeRegistry;
 
 pub struct CodegenInput<'a> {

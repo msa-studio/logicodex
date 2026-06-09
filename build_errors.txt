@@ -1,0 +1,1018 @@
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.45
+   Compiling unicode-ident v1.0.24
+   Compiling memchr v2.8.0
+   Compiling regex-syntax v0.8.10
+   Compiling shlex v1.3.0
+   Compiling find-msvc-tools v0.1.9
+   Compiling aho-corasick v1.1.4
+   Compiling syn v2.0.117
+   Compiling cc v1.2.62
+   Compiling regex-automata v0.4.14
+   Compiling semver v1.0.28
+   Compiling lazy_static v1.5.0
+   Compiling libc v0.2.186
+   Compiling utf8parse v0.2.2
+   Compiling serde_core v1.0.228
+   Compiling anstyle-parse v0.2.7
+   Compiling anstyle-query v1.1.5
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling thiserror v1.0.69
+   Compiling zmij v1.0.21
+   Compiling anstyle v1.0.14
+   Compiling colorchoice v1.0.5
+   Compiling anstream v0.6.21
+   Compiling regex v1.12.3
+   Compiling anyhow v1.0.102
+   Compiling thiserror-impl v1.0.69
+   Compiling heck v0.4.1
+   Compiling clap_lex v0.6.0
+   Compiling serde v1.0.228
+   Compiling strsim v0.10.0
+   Compiling llvm-sys v150.2.1
+   Compiling serde_json v1.0.150
+   Compiling inkwell v0.4.0
+   Compiling clap_builder v4.4.18
+   Compiling clap_derive v4.4.7
+   Compiling serde_derive v1.0.228
+   Compiling inkwell_internals v0.9.0
+   Compiling logicodex v1.30.0-alpha (/home/msa_admin/SprojeX/logicodex)
+   Compiling either v1.16.0
+   Compiling once_cell v1.21.4
+   Compiling itoa v1.0.18
+warning: logicodex@1.30.0-alpha: Raylib library not found. Install it for full FFI linking:
+warning: logicodex@1.30.0-alpha:   Ubuntu/Debian: sudo apt install libraylib-dev
+warning: logicodex@1.30.0-alpha:   Fedora:       sudo dnf install raylib-devel
+warning: logicodex@1.30.0-alpha:   macOS:        brew install raylib
+warning: logicodex@1.30.0-alpha:   Or set RAYLIB_DIR env var to the Raylib installation
+warning: logicodex@1.30.0-alpha:   Or set RAYLIB_NO_LINK=1 to skip Raylib detection
+   Compiling clap v4.4.18
+warning: unused import: `TargetArch`
+  --> src/codegen.rs:46:110
+   |
+46 | use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind, TargetArch};
+   |                                                                                                              ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `inkwell::AddressSpace`
+  --> src/codegen.rs:54:5
+   |
+54 | use inkwell::AddressSpace;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::PanicInfo`
+  --> src/os/panic.rs:14:5
+   |
+14 | use core::panic::PanicInfo;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `layout`
+   --> src/codegen.rs:314:17
+    |
+314 |         let (_, layout) = types.find_struct_by_name(callee_name)?;
+    |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_layout`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `callable_id`
+   --> src/codegen.rs:688:34
+    |
+688 |                     if let Some((callable_id, signature)) = callables.find_by_name(callee_name) {
+    |                                  ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_callable_id`
+
+warning: unused variable: `other`
+   --> src/codegen.rs:708:37
+    |
+708 | ...                   other => {
+    |                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_other`
+
+warning: unused variable: `dur`
+   --> src/codegen.rs:846:21
+    |
+846 |                 let dur = self.emit_expr(duration_ms)?;
+    |                     ^^^ help: if this is intentional, prefix it with an underscore: `_dur`
+
+warning: unused variable: `to`
+   --> src/codegen.rs:851:21
+    |
+851 |                 let to = self.emit_expr(timeout_ms)?;
+    |                     ^^ help: if this is intentional, prefix it with an underscore: `_to`
+
+warning: unused variable: `m1`
+   --> src/semantic/coercion.rs:191:29
+    |
+191 |                 mutability: m1,
+    |                             ^^ help: if this is intentional, prefix it with an underscore: `_m1`
+
+warning: unused variable: `handler`
+   --> src/semantic.rs:472:51
+    |
+472 |             Stmt::Service { name, port, requires, handler, policy } => {
+    |                                                   ^^^^^^^ help: try ignoring the field: `handler: _`
+
+warning: unused variable: `body`
+    --> src/semantic.rs:1102:26
+     |
+1102 |             Stmt::Loop { body } => {
+     |                          ^^^^ help: try ignoring the field: `body: _`
+
+warning: fields `hir_local_allocs`, `hir_callable_funcs`, `hir_struct_types`, `hir_struct_names`, and `callables_predeclared` are never read
+   --> src/codegen.rs:130:5
+    |
+116 | pub struct LlvmCompiler<'ctx> {
+    |            ------------ fields in this struct
+...
+130 |     hir_local_allocs: HashMap<u32, PointerValue<'ctx>>,
+    |     ^^^^^^^^^^^^^^^^
+131 |     hir_callable_funcs: HashMap<u32, FunctionValue<'ctx>>,
+    |     ^^^^^^^^^^^^^^^^^^
+132 |     // v1.36+: Struct registry — symbol_id → LLVM struct type
+133 |     hir_struct_types: HashMap<u32, inkwell::types::StructType<'ctx>>,
+    |     ^^^^^^^^^^^^^^^^
+134 |     hir_struct_names: HashMap<String, u32>, // name → symbol_id
+    |     ^^^^^^^^^^^^^^^^
+135 |     // v1.38 A6: CallableRegistry predeclaration tracking
+136 |     callables_predeclared: bool,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: methods `declare_runtime_func`, `emit_mmio_volatile_write`, `emit_mmio_volatile_read`, and `create_entry_alloca_typed` are never used
+   --> src/codegen.rs:298:8
+    |
+149 | impl<'ctx> LlvmCompiler<'ctx> {
+    | ----------------------------- methods in this implementation
+...
+298 |     fn declare_runtime_func(
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+371 |     fn emit_mmio_volatile_write(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+413 |     fn emit_mmio_volatile_read(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+907 |     fn create_entry_alloca_typed(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `UART_PORT` is never used
+  --> src/os/panic.rs:72:7
+   |
+72 | const UART_PORT: u16 = 0x3F8; // COM1 base port
+   |       ^^^^^^^^^
+
+warning: field `in_audio_callback` is never read
+   --> src/semantic.rs:184:5
+    |
+153 | pub struct Analyzer {
+    |            -------- field in this struct
+...
+184 |     in_audio_callback: bool,
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = note: `Analyzer` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: `logicodex` (lib) generated 15 warnings (run `cargo fix --lib -p logicodex` to apply 11 suggestions)
+warning: unused import: `CallableId`
+  --> src/ffi/raylib.rs:14:5
+   |
+14 |     CallableId, CallableRegistry, CallableSafety, CallableSignature, CallingConvention,
+   |     ^^^^^^^^^^
+
+warning: unused import: `crate::types::StructFieldLayout as StructField`
+  --> src/ffi/raylib.rs:17:5
+   |
+17 | use crate::types::StructFieldLayout as StructField;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `PrimitiveType`, `StructLayout`
+  --> src/ffi/raylib.rs:18:20
+   |
+18 | use crate::types::{PrimitiveType, StructLayout, TypeRegistry};
+   |                    ^^^^^^^^^^^^^  ^^^^^^^^^^^^
+
+warning: unused imports: `Image`, `KEY_A`, `KEY_BACKSPACE`, `KEY_B`, `KEY_C`, `KEY_DELETE`, `KEY_DOWN`, `KEY_D`, `KEY_EIGHT`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_E`, `KEY_FIVE`, `KEY_FOUR`, `KEY_F`, `KEY_G`, `KEY_H`, `KEY_INSERT`, `KEY_I`, `KEY_J`, `KEY_K`, `KEY_LEFT_ALT`, `KEY_LEFT_CONTROL`, `KEY_LEFT_SHIFT`, `KEY_LEFT_SUPER`, `KEY_LEFT`, `KEY_L`, `KEY_MINUS`, `KEY_M`, `KEY_NINE`, `KEY_N`, `KEY_ONE`, `KEY_O`, `KEY_PERIOD`, `KEY_P`, `KEY_Q`, `KEY_RIGHT_ALT`, `KEY_RIGHT_CONTROL`, `KEY_RIGHT_SHIFT`, `KEY_RIGHT_SUPER`, `KEY_RIGHT`, `KEY_R`, `KEY_SEMICOLON`, `KEY_SEVEN`, `KEY_SIX`, `KEY_SLASH`, `KEY_SPACE`, `KEY_S`, `KEY_TAB`, `KEY_THREE`, `KEY_TWO`, `KEY_T`, `KEY_UP`, `KEY_U`, `KEY_V`, `KEY_W`, `KEY_X`, `KEY_Y`, `KEY_ZERO`, `KEY_Z`, `MOUSE_BUTTON_LEFT`, `MOUSE_BUTTON_MIDDLE`, `MOUSE_BUTTON_RIGHT`, `Rectangle`, `Vector3`, `Wave`
+   --> src/ffi/raylib.rs:127:12
+    |
+127 |     Color, Image, Rectangle, Texture2D, Vector2, Vector3,
+    |            ^^^^^  ^^^^^^^^^                      ^^^^^^^
+128 |     // Audio types (v1.43)
+129 |     AudioCallback, AudioStream, Music, Sound, Wave,
+    |                                               ^^^^
+130 |     // Key constants
+131 |     KEY_A, KEY_B, KEY_BACKSPACE, KEY_C, KEY_D, KEY_DELETE, KEY_DOWN, KEY_E,
+    |     ^^^^^  ^^^^^  ^^^^^^^^^^^^^  ^^^^^  ^^^^^  ^^^^^^^^^^  ^^^^^^^^  ^^^^^
+132 |     KEY_EIGHT, KEY_ENTER, KEY_ESCAPE, KEY_F, KEY_FIVE, KEY_FOUR, KEY_G, KEY_H,
+    |     ^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^^  ^^^^^  ^^^^^^^^  ^^^^^^^^  ^^^^^  ^^^^^
+133 |     KEY_I, KEY_INSERT, KEY_J, KEY_K, KEY_L, KEY_LEFT, KEY_LEFT_ALT,
+    |     ^^^^^  ^^^^^^^^^^  ^^^^^  ^^^^^  ^^^^^  ^^^^^^^^  ^^^^^^^^^^^^
+134 |     KEY_LEFT_CONTROL, KEY_LEFT_SHIFT, KEY_LEFT_SUPER, KEY_M, KEY_MINUS, KEY_N,
+    |     ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^  ^^^^^^^^^  ^^^^^
+135 |     KEY_NINE, KEY_O, KEY_ONE, KEY_P, KEY_PERIOD, KEY_Q, KEY_R, KEY_RIGHT,
+    |     ^^^^^^^^  ^^^^^  ^^^^^^^  ^^^^^  ^^^^^^^^^^  ^^^^^  ^^^^^  ^^^^^^^^^
+136 |     KEY_RIGHT_ALT, KEY_RIGHT_CONTROL, KEY_RIGHT_SHIFT, KEY_RIGHT_SUPER, KEY_S,
+    |     ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^
+137 |     KEY_SEMICOLON, KEY_SEVEN, KEY_SIX, KEY_SLASH, KEY_SPACE, KEY_T, KEY_TAB,
+    |     ^^^^^^^^^^^^^  ^^^^^^^^^  ^^^^^^^  ^^^^^^^^^  ^^^^^^^^^  ^^^^^  ^^^^^^^
+138 |     KEY_THREE, KEY_TWO, KEY_U, KEY_UP, KEY_V, KEY_W, KEY_X, KEY_Y, KEY_Z,
+    |     ^^^^^^^^^  ^^^^^^^  ^^^^^  ^^^^^^  ^^^^^  ^^^^^  ^^^^^  ^^^^^  ^^^^^
+139 |     KEY_ZERO, MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT,
+    |     ^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+   --> src/ffi/raylib.rs:640:9
+    |
+640 |     use super::*;
+    |         ^^^^^^^^
+
+warning: unused imports: `is_struct_constructor`, `struct_constructor_arity`
+  --> src/ffi.rs:15:18
+   |
+15 | pub use raylib::{is_struct_constructor, struct_constructor_arity};
+   |                  ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ffi::raylib`
+  --> src/main.rs:25:5
+   |
+25 | use ffi::raylib;
+   |     ^^^^^^^^^^^
+
+warning: unused import: `logicodex::os::target::TargetArch`
+   --> src/main.rs:406:9
+    |
+406 |     use logicodex::os::target::TargetArch;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `is_raylib_function` is never used
+   --> src/main.rs:353:4
+    |
+353 | fn is_raylib_function(name: &str) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: variants `For`, `Block`, and `IndexAssign` are never constructed
+   --> src/ast.rs:67:5
+    |
+22  | pub enum Stmt {
+    |          ---- variants in this enum
+...
+67  |     For {
+    |     ^^^
+...
+75  |     Block(Vec<Stmt>),
+    |     ^^^^^
+...
+106 |     IndexAssign { target: String, index: Expr, value: Expr },
+    |     ^^^^^^^^^^^
+    |
+    = note: `Stmt` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variant `Tuple` is never constructed
+   --> src/ast.rs:139:5
+    |
+127 | pub enum MatchPattern {
+    |          ------------ variant in this enum
+...
+139 |     Tuple(Vec<MatchPattern>),
+    |     ^^^^^
+    |
+    = note: `MatchPattern` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variant `FieldAccess` is never constructed
+   --> src/ast.rs:193:5
+    |
+156 | pub enum Expr {
+    |          ---- variant in this enum
+...
+193 |     FieldAccess { base: Box<Expr>, field: String },
+    |     ^^^^^^^^^^^
+    |
+    = note: `Expr` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: multiple methods are never used
+   --> src/ast.rs:296:12
+    |
+290 | impl Type {
+    | --------- methods in this implementation
+...
+296 |     pub fn is_slice(&self) -> bool {
+    |            ^^^^^^^^
+...
+301 |     pub fn is_buffer(&self) -> bool {
+    |            ^^^^^^^^^
+...
+306 |     pub fn is_contiguous(&self) -> bool {
+    |            ^^^^^^^^^^^^^
+...
+311 |     pub fn element_type(&self) -> Option<&Type> {
+    |            ^^^^^^^^^^^^
+...
+324 |     pub fn ok_type(&self) -> Option<&Type> {
+    |            ^^^^^^^
+...
+332 |     pub fn err_type(&self) -> Option<&Type> {
+    |            ^^^^^^^^
+...
+340 |     pub fn is_opaque(&self) -> bool {
+    |            ^^^^^^^^^
+...
+345 |     pub fn opaque_name(&self) -> Option<&str> {
+    |            ^^^^^^^^^^^
+...
+353 |     pub fn is_channel(&self) -> bool {
+    |            ^^^^^^^^^^
+...
+358 |     pub fn channel_capability(&self) -> Option<(&str, &str, &str)> {
+    |            ^^^^^^^^^^^^^^^^^^
+
+warning: field `signatures` is never read
+  --> src/codegen.rs:17:5
+   |
+16 | pub struct CallableRegistry {
+   |            ---------------- field in this struct
+17 |     signatures: Vec<CallableSignature>,
+   |     ^^^^^^^^^^
+   |
+   = note: `CallableRegistry` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: associated items `new`, `get`, and `signatures` are never used
+  --> src/codegen.rs:21:12
+   |
+20 | impl CallableRegistry {
+   | --------------------- associated items in this implementation
+21 |     pub fn new() -> Self { Self { signatures: Vec::new() } }
+   |            ^^^
+22 |     pub fn find_by_name(&self, _name: &str) -> Option<(CallableId, CallableSignature)> { None }
+23 |     pub fn get(&self, _id: CallableId) -> Option<CallableSignature> { None }
+   |            ^^^
+24 |     pub fn signatures(&self) -> std::slice::Iter<CallableSignature> { self.signatures.iter() }
+   |            ^^^^^^^^^^
+
+warning: fields `hir_local_allocs`, `hir_callable_funcs`, `hir_struct_types`, `hir_struct_names`, and `callables_predeclared` are never read
+   --> src/codegen.rs:130:5
+    |
+116 | pub struct LlvmCompiler<'ctx> {
+    |            ------------ fields in this struct
+...
+130 |     hir_local_allocs: HashMap<u32, PointerValue<'ctx>>,
+    |     ^^^^^^^^^^^^^^^^
+131 |     hir_callable_funcs: HashMap<u32, FunctionValue<'ctx>>,
+    |     ^^^^^^^^^^^^^^^^^^
+132 |     // v1.36+: Struct registry — symbol_id → LLVM struct type
+133 |     hir_struct_types: HashMap<u32, inkwell::types::StructType<'ctx>>,
+    |     ^^^^^^^^^^^^^^^^
+134 |     hir_struct_names: HashMap<String, u32>, // name → symbol_id
+    |     ^^^^^^^^^^^^^^^^
+135 |     // v1.38 A6: CallableRegistry predeclaration tracking
+136 |     callables_predeclared: bool,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `with_callables`, `declare_runtime_func`, `emit_mmio_volatile_write`, `emit_mmio_volatile_read`, and `create_entry_alloca_typed` are never used
+   --> src/codegen.rs:254:12
+    |
+149 | impl<'ctx> LlvmCompiler<'ctx> {
+    | ----------------------------- methods in this implementation
+...
+254 |     pub fn with_callables(mut self, callables: CallableRegistry, types: TypeRegistry) -> Self {
+    |            ^^^^^^^^^^^^^^
+...
+298 |     fn declare_runtime_func(
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+371 |     fn emit_mmio_volatile_write(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+413 |     fn emit_mmio_volatile_read(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+907 |     fn create_entry_alloca_typed(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `emit_file_syscall` is never used
+   --> src/os/syscall.rs:146:8
+    |
+146 | pub fn emit_file_syscall(op: FileOp, fd: i32, buf: *mut u8, count: usize) -> i64 {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: variants `Read`, `Write`, `Close`, and `Seek` are never constructed
+   --> src/os/syscall.rs:165:5
+    |
+164 | pub enum FileOp {
+    |          ------ variants in this enum
+165 |     Read,
+    |     ^^^^
+166 |     Write,
+    |     ^^^^^
+167 |     Close,
+    |     ^^^^^
+168 |     Seek,
+    |     ^^^^
+    |
+    = note: `FileOp` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: function `epoll_create1` is never used
+   --> src/os/syscall.rs:177:8
+    |
+177 | pub fn epoll_create1(flags: i32) -> i32 {
+    |        ^^^^^^^^^^^^^
+
+warning: function `epoll_ctl` is never used
+   --> src/os/syscall.rs:190:8
+    |
+190 | pub fn epoll_ctl(epoll_fd: i32, op: i32, fd: i32, events: u32) -> i32 {
+    |        ^^^^^^^^^
+
+warning: function `epoll_wait` is never used
+   --> src/os/syscall.rs:212:8
+    |
+212 | pub fn epoll_wait(epoll_fd: i32, events: *mut u8, maxevents: i32, timeout_ms: i32) -> i32 {
+    |        ^^^^^^^^^^
+
+warning: function `sys_recv` is never used
+   --> src/os/syscall.rs:231:8
+    |
+231 | pub fn sys_recv(fd: i32, buf: *mut u8, count: usize, flags: i32) -> isize {
+    |        ^^^^^^^^
+
+warning: function `sys_send` is never used
+   --> src/os/syscall.rs:250:8
+    |
+250 | pub fn sys_send(fd: i32, buf: *const u8, count: usize, flags: i32) -> isize {
+    |        ^^^^^^^^
+
+warning: function `clock_gettime_monotonic_ns` is never used
+   --> src/os/syscall.rs:270:8
+    |
+270 | pub fn clock_gettime_monotonic_ns() -> u64 {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `clock_gettime_monotonic_ms` is never used
+   --> src/os/syscall.rs:296:8
+    |
+296 | pub fn clock_gettime_monotonic_ms() -> u64 {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sys_close` is never used
+   --> src/os/syscall.rs:301:8
+    |
+301 | pub fn sys_close(fd: i32) -> i32 {
+    |        ^^^^^^^^^
+
+warning: constant `SYS_READ` is never used
+  --> src/os/syscall.rs:11:15
+   |
+11 |     pub const SYS_READ: u64 = 0;
+   |               ^^^^^^^^
+
+warning: constant `SYS_WRITE` is never used
+  --> src/os/syscall.rs:12:15
+   |
+12 |     pub const SYS_WRITE: u64 = 1;
+   |               ^^^^^^^^^
+
+warning: constant `SYS_OPEN` is never used
+  --> src/os/syscall.rs:13:15
+   |
+13 |     pub const SYS_OPEN: u64 = 2;
+   |               ^^^^^^^^
+
+warning: constant `SYS_CLOSE` is never used
+  --> src/os/syscall.rs:14:15
+   |
+14 |     pub const SYS_CLOSE: u64 = 3;
+   |               ^^^^^^^^^
+
+warning: constant `SYS_LSEEK` is never used
+  --> src/os/syscall.rs:15:15
+   |
+15 |     pub const SYS_LSEEK: u64 = 8;
+   |               ^^^^^^^^^
+
+warning: constant `SYS_MMAP` is never used
+  --> src/os/syscall.rs:16:15
+   |
+16 |     pub const SYS_MMAP: u64 = 9;
+   |               ^^^^^^^^
+
+warning: constant `SYS_MUNMAP` is never used
+  --> src/os/syscall.rs:17:15
+   |
+17 |     pub const SYS_MUNMAP: u64 = 11;
+   |               ^^^^^^^^^^
+
+warning: constant `SYS_EXIT` is never used
+  --> src/os/syscall.rs:18:15
+   |
+18 |     pub const SYS_EXIT: u64 = 60;
+   |               ^^^^^^^^
+
+warning: constant `SYS_FSTAT` is never used
+  --> src/os/syscall.rs:19:15
+   |
+19 |     pub const SYS_FSTAT: u64 = 5;
+   |               ^^^^^^^^^
+
+warning: constant `SYS_RECV` is never used
+  --> src/os/syscall.rs:22:15
+   |
+22 |     pub const SYS_RECV: u64 = 17;   // recvfrom on some arch, but recv=17 on x86_64
+   |               ^^^^^^^^
+
+warning: constant `SYS_SEND` is never used
+  --> src/os/syscall.rs:23:15
+   |
+23 |     pub const SYS_SEND: u64 = 16;   // sendto on some arch, but send=16 on x86_64
+   |               ^^^^^^^^
+
+warning: constant `SYS_SOCKET` is never used
+  --> src/os/syscall.rs:24:15
+   |
+24 |     pub const SYS_SOCKET: u64 = 41;
+   |               ^^^^^^^^^^
+
+warning: constant `SYS_ACCEPT` is never used
+  --> src/os/syscall.rs:25:15
+   |
+25 |     pub const SYS_ACCEPT: u64 = 43;
+   |               ^^^^^^^^^^
+
+warning: constant `SYS_BIND` is never used
+  --> src/os/syscall.rs:26:15
+   |
+26 |     pub const SYS_BIND: u64 = 49;
+   |               ^^^^^^^^
+
+warning: constant `SYS_LISTEN` is never used
+  --> src/os/syscall.rs:27:15
+   |
+27 |     pub const SYS_LISTEN: u64 = 50;
+   |               ^^^^^^^^^^
+
+warning: constant `SYS_EPOLL_CREATE1` is never used
+  --> src/os/syscall.rs:28:15
+   |
+28 |     pub const SYS_EPOLL_CREATE1: u64 = 291;
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: constant `SYS_EPOLL_CTL` is never used
+  --> src/os/syscall.rs:29:15
+   |
+29 |     pub const SYS_EPOLL_CTL: u64 = 233;
+   |               ^^^^^^^^^^^^^
+
+warning: constant `SYS_EPOLL_WAIT` is never used
+  --> src/os/syscall.rs:30:15
+   |
+30 |     pub const SYS_EPOLL_WAIT: u64 = 232;
+   |               ^^^^^^^^^^^^^^
+
+warning: constant `SYS_CLOCK_GETTIME` is never used
+  --> src/os/syscall.rs:31:15
+   |
+31 |     pub const SYS_CLOCK_GETTIME: u64 = 228;
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: constant `SYS_SCHED_SETAFFINITY` is never used
+  --> src/os/syscall.rs:32:15
+   |
+32 |     pub const SYS_SCHED_SETAFFINITY: u64 = 203;
+   |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `SYS_SCHED_GETCPU` is never used
+  --> src/os/syscall.rs:33:15
+   |
+33 |     pub const SYS_SCHED_GETCPU: u64 = 309;
+   |               ^^^^^^^^^^^^^^^^
+
+warning: constant `CLOCK_MONOTONIC` is never used
+  --> src/os/syscall.rs:34:15
+   |
+34 |     pub const CLOCK_MONOTONIC: u64 = 1;
+   |               ^^^^^^^^^^^^^^^
+
+warning: constant `CPU_SETSIZE` is never used
+  --> src/os/syscall.rs:37:15
+   |
+37 |     pub const CPU_SETSIZE: usize = 512;
+   |               ^^^^^^^^^^^
+
+warning: constant `EPOLL_CTL_ADD` is never used
+  --> src/os/syscall.rs:40:15
+   |
+40 |     pub const EPOLL_CTL_ADD: i32 = 1;
+   |               ^^^^^^^^^^^^^
+
+warning: constant `EPOLL_CTL_MOD` is never used
+  --> src/os/syscall.rs:41:15
+   |
+41 |     pub const EPOLL_CTL_MOD: i32 = 2;
+   |               ^^^^^^^^^^^^^
+
+warning: constant `EPOLL_CTL_DEL` is never used
+  --> src/os/syscall.rs:42:15
+   |
+42 |     pub const EPOLL_CTL_DEL: i32 = 3;
+   |               ^^^^^^^^^^^^^
+
+warning: constant `EPOLLIN` is never used
+  --> src/os/syscall.rs:45:15
+   |
+45 |     pub const EPOLLIN: u32 = 0x001;
+   |               ^^^^^^^
+
+warning: constant `EPOLLOUT` is never used
+  --> src/os/syscall.rs:46:15
+   |
+46 |     pub const EPOLLOUT: u32 = 0x004;
+   |               ^^^^^^^^
+
+warning: constant `EPOLLERR` is never used
+  --> src/os/syscall.rs:47:15
+   |
+47 |     pub const EPOLLERR: u32 = 0x008;
+   |               ^^^^^^^^
+
+warning: constant `EPOLLHUP` is never used
+  --> src/os/syscall.rs:48:15
+   |
+48 |     pub const EPOLLHUP: u32 = 0x010;
+   |               ^^^^^^^^
+
+warning: constant `EPOLLET` is never used
+  --> src/os/syscall.rs:49:15
+   |
+49 |     pub const EPOLLET: u32 = 1 << 31; // edge-triggered
+   |               ^^^^^^^
+
+warning: constant `EPOLL_CLOEXEC` is never used
+  --> src/os/syscall.rs:50:15
+   |
+50 |     pub const EPOLL_CLOEXEC: i32 = 0x80000;
+   |               ^^^^^^^^^^^^^
+
+warning: function `syscall0` is never used
+  --> src/os/syscall.rs:55:19
+   |
+55 |     pub unsafe fn syscall0(n: u64) -> i64 {
+   |                   ^^^^^^^^
+
+warning: function `syscall2` is never used
+  --> src/os/syscall.rs:67:19
+   |
+67 |     pub unsafe fn syscall2(n: u64, a1: u64, a2: u64) -> i64 {
+   |                   ^^^^^^^^
+
+warning: function `syscall1` is never used
+  --> src/os/syscall.rs:80:19
+   |
+80 |     pub unsafe fn syscall1(n: u64, a1: u64) -> i64 {
+   |                   ^^^^^^^^
+
+warning: function `syscall3` is never used
+  --> src/os/syscall.rs:93:19
+   |
+93 |     pub unsafe fn syscall3(n: u64, a1: u64, a2: u64, a3: u64) -> i64 {
+   |                   ^^^^^^^^
+
+warning: function `syscall4` is never used
+   --> src/os/syscall.rs:106:19
+    |
+106 |     pub unsafe fn syscall4(n: u64, a1: u64, a2: u64, a3: u64, a4: u64) -> i64 {
+    |                   ^^^^^^^^
+
+warning: multiple variants are never constructed
+   --> src/semantic.rs:123:5
+    |
+42  | pub enum SemanticError {
+    |          ------------- variants in this enum
+...
+123 |     InvalidChannelTopology { from: String, to: String },
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+...
+127 |     SpawnNonActor,
+    |     ^^^^^^^^^^^^^
+...
+133 |     ChannelFull { name: String },
+    |     ^^^^^^^^^^^
+134 |     #[error("KRITIKAL: Timeout menunggu recv dari Channel `{name}`...
+135 |     RecvTimeout { name: String, timeout_ms: i64 },
+    |     ^^^^^^^^^^^
+...
+140 |     PrivilegeEscalation { symbol: String, gate: String },
+    |     ^^^^^^^^^^^^^^^^^^^
+...
+143 |     AudioViolationIo { function: String },
+    |     ^^^^^^^^^^^^^^^^
+144 |     #[error("KRITIKAL: AudioViolationRecursion — '{function}' mema...
+145 |     AudioViolationRecursion { function: String },
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+146 |     #[error("KRITIKAL: AudioViolationUnboundedLoop — loop tanpa ba...
+147 |     AudioViolationUnboundedLoop,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+148 |     #[error("KRITIKAL: AudioViolationForbiddenCall — '{function}' ...
+149 |     AudioViolationForbiddenCall { function: String, callee: String },
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `SemanticError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `audio_callbacks` and `in_audio_callback` are never read
+   --> src/semantic.rs:182:5
+    |
+153 | pub struct Analyzer {
+    |            -------- fields in this struct
+...
+182 |     audio_callbacks: HashSet<String>,
+    |     ^^^^^^^^^^^^^^^
+183 |     /// Currently analyzing an audio callback?
+184 |     in_audio_callback: bool,
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = note: `Analyzer` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: constant `AUDIO_FORBIDDEN_IO` is never used
+    --> src/semantic.rs:1041:7
+     |
+1041 | const AUDIO_FORBIDDEN_IO: &[&str] = &["Print", "DrawText", "InitWindow", "ClearBackground"];
+     |       ^^^^^^^^^^^^^^^^^^
+
+warning: constant `AUDIO_FORBIDDEN_CALLS` is never used
+    --> src/semantic.rs:1044:7
+     |
+1044 | const AUDIO_FORBIDDEN_CALLS: &[&str] = &[
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `register_audio_callback`, `verify_audio_callbacks`, `verify_audio_safety`, `verify_audio_stmt`, `verify_audio_expr`, and `find_function_body` are never used
+    --> src/semantic.rs:1051:12
+     |
+1048 | impl Analyzer {
+     | ------------- methods in this implementation
+...
+1051 |     pub fn register_audio_callback(&mut self, func_name: &str) {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+1057 |     pub fn verify_audio_callbacks(&self, program: &Program) -> Result<(), SemanticError> {
+     |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+1069 |     fn verify_audio_safety(
+     |        ^^^^^^^^^^^^^^^^^^^
+...
+1080 |     fn verify_audio_stmt(
+     |        ^^^^^^^^^^^^^^^^^
+...
+1126 |     fn verify_audio_expr(
+     |        ^^^^^^^^^^^^^^^^^
+...
+1167 |     fn find_function_body(&self, program: &Program, name: &str) -> Option<Vec<Stmt>> {
+     |        ^^^^^^^^^^^^^^^^^^
+
+warning: variants `Identity`, `Implicit`, `RequiresCast`, and `Incompatible` are never constructed
+  --> src/semantic/coercion.rs:18:5
+   |
+16 | pub enum CoercionResult {
+   |          -------------- variants in this enum
+17 |     /// Types are identical — no conversion needed.
+18 |     Identity,
+   |     ^^^^^^^^
+19 |     /// Safe implicit conversion (widening, no data loss).
+20 |     Implicit { target: TypeId },
+   |     ^^^^^^^^
+21 |     /// Explicit cast required (narrowing, potential data loss).
+22 |     RequiresCast { target: TypeId },
+   |     ^^^^^^^^^^^^
+23 |     /// No valid conversion exists between these types.
+24 |     Incompatible,
+   |     ^^^^^^^^^^^^
+   |
+   = note: `CoercionResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: methods `is_allowed`, `needs_cast`, and `target_type` are never used
+  --> src/semantic/coercion.rs:29:12
+   |
+27 | impl CoercionResult {
+   | ------------------- methods in this implementation
+28 |     /// Check if the coercion is allowed (Identity or Implicit).
+29 |     pub fn is_allowed(&self) -> bool {
+   |            ^^^^^^^^^^
+...
+34 |     pub fn needs_cast(&self) -> bool {
+   |            ^^^^^^^^^^
+...
+39 |     pub fn target_type(&self) -> Option<TypeId> {
+   |            ^^^^^^^^^^^
+
+warning: struct `CoercionEngine` is never constructed
+  --> src/semantic/coercion.rs:62:12
+   |
+62 | pub struct CoercionEngine<'a> {
+   |            ^^^^^^^^^^^^^^
+
+warning: associated items `new`, `can_coerce`, `can_pass_argument`, `common_type`, `coerce_primitives`, and `wider_primitive` are never used
+   --> src/semantic/coercion.rs:67:12
+    |
+66  | impl<'a> CoercionEngine<'a> {
+    | --------------------------- associated items in this implementation
+67  |     pub fn new(registry: &'a TypeRegistry) -> Self {
+    |            ^^^
+...
+73  |     pub fn can_coerce(&self, from: TypeId, to: TypeId) -> CoercionResult {
+    |            ^^^^^^^^^^
+...
+162 |     pub fn can_pass_argument(&self, arg_type: TypeId, param_type: TypeId) -> CoercionResult {
+    |            ^^^^^^^^^^^^^^^^^
+...
+170 |     pub fn common_type(&self, left: TypeId, right: TypeId) -> Option<TypeId> {
+    |            ^^^^^^^^^^^
+...
+209 |     fn coerce_primitives(
+    |        ^^^^^^^^^^^^^^^^^
+...
+280 |     fn wider_primitive(&self, a: PrimitiveType, b: PrimitiveType) -> Option<TypeId> {
+    |        ^^^^^^^^^^^^^^^
+
+warning: struct `TypeInspector` is never constructed
+  --> src/semantic/registry.rs:17:12
+   |
+17 | pub struct TypeInspector<'a> {
+   |            ^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> src/semantic/registry.rs:22:12
+    |
+21  | impl<'a> TypeInspector<'a> {
+    | -------------------------- associated items in this implementation
+22  |     pub fn new(registry: &'a TypeRegistry) -> Self {
+    |            ^^^
+...
+27  |     pub fn is_integer(&self, id: TypeId) -> bool {
+    |            ^^^^^^^^^^
+...
+44  |     pub fn is_signed_integer(&self, id: TypeId) -> bool {
+    |            ^^^^^^^^^^^^^^^^^
+...
+57  |     pub fn is_unsigned_integer(&self, id: TypeId) -> bool {
+    |            ^^^^^^^^^^^^^^^^^^^
+...
+70  |     pub fn is_float(&self, id: TypeId) -> bool {
+    |            ^^^^^^^^
+...
+78  |     pub fn is_numeric(&self, id: TypeId) -> bool {
+    |            ^^^^^^^^^^
+...
+83  |     pub fn is_pointer(&self, id: TypeId) -> bool {
+    |            ^^^^^^^^^^
+...
+88  |     pub fn is_bool(&self, id: TypeId) -> bool {
+    |            ^^^^^^^
+...
+96  |     pub fn is_unit(&self, id: TypeId) -> bool {
+    |            ^^^^^^^
+...
+104 |     pub fn is_string(&self, id: TypeId) -> bool {
+    |            ^^^^^^^^^
+...
+112 |     pub fn pointee_type(&self, id: TypeId) -> Option<TypeId> {
+    |            ^^^^^^^^^^^^
+...
+120 |     pub fn pointer_mutability(&self, id: TypeId) -> Option<crate::types::Mutability> {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+128 |     pub fn is_valid(&self, id: TypeId) -> bool {
+    |            ^^^^^^^^
+...
+137 |     pub fn byte_width_name(&self, id: TypeId) -> &'static str {
+    |            ^^^^^^^^^^^^^^^
+...
+150 |     pub fn type_name(&self, id: TypeId) -> String {
+    |            ^^^^^^^^^
+...
+177 |     pub fn validate_ffi_type(&self, id: TypeId) -> Result<CAbiInfo, String> {
+    |            ^^^^^^^^^^^^^^^^^
+...
+199 |     pub fn is_lossless_conversion(&self, from: TypeId, to: TypeId) -> bool {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `SemanticContext` is never constructed
+  --> src/semantic_gate.rs:16:12
+   |
+16 | pub struct SemanticContext {
+   |            ^^^^^^^^^^^^^^^
+
+warning: methods `check_module`, `check_item`, `check_block`, `check_statement`, `check_expression`, and `push_error` are never used
+   --> src/semantic_gate.rs:26:12
+    |
+25  | impl SemanticContext {
+    | -------------------- methods in this implementation
+26  |     pub fn check_module(&mut self, module: &HirModule) -> Result<(), Vec<Diagnostic>> {
+    |            ^^^^^^^^^^^^
+...
+38  |     fn check_item(&mut self, item: &Spanned<HirItem>) {
+    |        ^^^^^^^^^^
+...
+50  |     fn check_block(&mut self, block: &HirBlock) {
+    |        ^^^^^^^^^^^
+...
+56  |     fn check_statement(&mut self, stmt: &Spanned<HirStmt>) {
+    |        ^^^^^^^^^^^^^^^
+...
+109 |     fn check_expression(&mut self, expr: &HirExpr) {
+    |        ^^^^^^^^^^^^^^^^
+...
+149 |     fn push_error(
+    |        ^^^^^^^^^^
+
+warning: function `validate_module` is never used
+   --> src/semantic_gate.rs:337:8
+    |
+337 | pub fn validate_module(module: &HirModule, types: TypeRegistry) -> Result<(), Vec<Diagnostic>> {
+    |        ^^^^^^^^^^^^^^^
+
+warning: function `validate_module_with_reporting` is never used
+   --> src/semantic_gate.rs:352:8
+    |
+352 | pub fn validate_module_with_reporting(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variants `Enum` and `Function` are never constructed
+  --> src/types.rs:63:5
+   |
+56 | pub enum TypeKind {
+   |          -------- variants in this enum
+...
+63 |     Enum(EnumLayoutId),
+   |     ^^^^
+...
+68 |     Function(CallableId),
+   |     ^^^^^^^^
+   |
+   = note: `TypeKind` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `unwrap_struct` is never used
+  --> src/types.rs:76:12
+   |
+73 | impl TypeKind {
+   | ------------- method in this implementation
+...
+76 |     pub fn unwrap_struct(&self) -> StructLayoutId {
+   |            ^^^^^^^^^^^^^
+
+warning: multiple methods are never used
+   --> src/types.rs:255:12
+    |
+153 | impl TypeRegistry {
+    | ----------------- methods in this implementation
+...
+255 |     pub fn never(&self) -> TypeId {
+    |            ^^^^^
+...
+263 |     pub fn len(&self) -> usize {
+    |            ^^^
+...
+267 |     pub fn is_empty(&self) -> bool {
+    |            ^^^^^^^^
+...
+280 |     pub fn get_size(&self, id: TypeId) -> usize {
+    |            ^^^^^^^^
+...
+322 |     pub fn get_align(&self, id: TypeId) -> usize {
+    |            ^^^^^^^^^
+...
+363 |     pub fn c_abi_info(&self, id: TypeId) -> CAbiInfo {
+    |            ^^^^^^^^^^
+...
+429 |     pub fn c_int(&self) -> TypeId {
+    |            ^^^^^
+...
+434 |     pub fn c_uint(&self) -> TypeId {
+    |            ^^^^^^
+...
+439 |     pub fn c_long(&self) -> TypeId {
+    |            ^^^^^^
+...
+444 |     pub fn c_float(&self) -> TypeId {
+    |            ^^^^^^^
+...
+449 |     pub fn c_double(&self) -> TypeId {
+    |            ^^^^^^^^
+...
+454 |     pub fn c_char(&self) -> TypeId {
+    |            ^^^^^^
+...
+459 |     pub fn c_uchar(&self) -> TypeId {
+    |            ^^^^^^^
+...
+464 |     pub fn c_void_ptr(&mut self) -> TypeId {
+    |            ^^^^^^^^^^
+...
+474 |     pub fn c_const_char_ptr(&mut self) -> TypeId {
+    |            ^^^^^^^^^^^^^^^^
+...
+488 |     pub fn void_ptr(&self) -> TypeId {
+    |            ^^^^^^^^
+...
+509 |     pub fn const_char_ptr(&self) -> TypeId {
+    |            ^^^^^^^^^^^^^^
+
+warning: `logicodex` (bin "logicodex") generated 94 warnings (12 duplicates) (run `cargo fix --bin "logicodex"` to apply 8 suggestions)
+    Finished dev [unoptimized + debuginfo] target(s) in 1m 12s

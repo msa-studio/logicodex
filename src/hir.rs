@@ -527,7 +527,7 @@ impl<'a> LoweringContext<'a> {
                             fields: fields.into_iter().map(|p| FieldAst {
                                 name: p.name,
                                 ty: lower_type_ast(p.ty),
-                                attributes: Vec::new(),
+                                visibility: VisibilityAst::Private,
                             }).collect(),
                             attributes: Vec::new(),
                         }),
@@ -538,8 +538,8 @@ impl<'a> LoweringContext<'a> {
                     functions.push(Spanned {
                         node: ItemAst::Enum(EnumDeclAst {
                             name: name.clone(),
-                            variants: variants.into_iter().map(|v| (v, Vec::new())).collect(),
-                            attributes: Vec::new(),
+                            variants: variants.into_iter().map(|v| EnumVariantAst { name: v, payload: EnumPayloadAst::Unit }).collect(),
+                            repr: None,
                         }),
                         span: Span::unknown(),
                     });
@@ -547,7 +547,12 @@ impl<'a> LoweringContext<'a> {
                 Stmt::ExternBlock { abi, functions: decls } => {
                     functions.push(Spanned {
                         node: ItemAst::ExternBlock(ExternBlockAst {
-                            abi,
+                            abi: match abi.as_str() {
+                                "stdcall" | "StdCall" => crate::ffi::CallingConvention::StdCall,
+                                "syscall" | "SysCall" => crate::ffi::CallingConvention::SysCall,
+                                "fastcall" | "FastCall" => crate::ffi::CallingConvention::FastCall,
+                                _ => crate::ffi::CallingConvention::C,
+                            },
                             functions: decls.into_iter().map(|f| ExternFnAst {
                                 name: f.name,
                                 params: f.params.into_iter().map(|p| ParamAst {
@@ -626,7 +631,7 @@ impl<'a> LoweringContext<'a> {
         let span = item.span;
         let node = match item.node {
             ItemAst::Function(function) => {
-                let symbol = self.symbols.define_symbol(function.name);
+                let symbol = self.symbols.define_symbol(function.name.clone());
                 self.symbols.enter_scope();
                 let params = function
                     .params
@@ -646,7 +651,7 @@ impl<'a> LoweringContext<'a> {
                     return_type: function
                         .return_type
                         .map(|ty| self.lower_type(ty))
-                        .unwrap_or_else(unit_ref),
+                        .unwrap_or_else(|| unit_ref(self.types)),
                     body,
                     safety: if function.is_unsafe {
                         SafetyContext::Unsafe
@@ -699,7 +704,7 @@ impl<'a> LoweringContext<'a> {
                 let ty = ty
                     .map(|ty| self.lower_type(ty))
                     .or_else(|| value.as_ref().map(|expr| expr.ty))
-                    .unwrap_or_else(unknown_ref);
+                    .unwrap_or_else(|| unknown_ref(self.types));
                 let local = self.symbols.define_local(name, ty);
                 HirStmt::Let { local, ty, value }
             }
@@ -841,7 +846,7 @@ impl<'a> LoweringContext<'a> {
                         callee: callee_id,
                         args: lowered_args,
                     },
-                    ty: unknown_ref(),
+                    ty: unknown_ref(self.types),
                     span,
                 }
             }
@@ -852,7 +857,7 @@ impl<'a> LoweringContext<'a> {
                         base: Box::new(base),
                         field_index: 0,
                     },
-                    ty: unknown_ref(),
+                    ty: unknown_ref(self.types),
                     span,
                 }
             }
@@ -915,7 +920,7 @@ impl<'a> LoweringContext<'a> {
         }
     }
 
-    fn lower_type(&self, ty: TypeAst) -> TypeRef {
+    fn lower_type(&mut self, ty: TypeAst) -> TypeRef {
         let id = match ty {
             TypeAst::Named(name) => named_type_id(self.types, &name),
             TypeAst::Pointer(inner) => {
@@ -949,7 +954,7 @@ impl<'a> LoweringContext<'a> {
     }
 }
 
-fn lower_enum_payload(ctx: &LoweringContext<'_>, payload: EnumPayloadAst) -> Vec<TypeRef> {
+fn lower_enum_payload(ctx: &mut LoweringContext<'_>, payload: EnumPayloadAst) -> Vec<TypeRef> {
     match payload {
         EnumPayloadAst::Unit => Vec::new(),
         EnumPayloadAst::Tuple(types) => types.into_iter().map(|ty| ctx.lower_type(ty)).collect(),
@@ -1017,6 +1022,11 @@ fn unit_ref(registry: &TypeRegistry) -> TypeRef {
         id: registry.primitive(PrimitiveType::Unit),
     }
 }
+fn i64_ref(registry: &TypeRegistry) -> TypeRef {
+    TypeRef {
+        id: registry.primitive(PrimitiveType::I64),
+    }
+}
 fn unknown_ref(registry: &TypeRegistry) -> TypeRef {
     TypeRef {
         id: registry.unknown(),
@@ -1035,6 +1045,7 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
         ast::Type::Bool => TypeAst::Named("bool".to_string()),
         ast::Type::Pointer(inner) => TypeAst::Pointer(Box::new(lower_type_ast(*inner))),
         ast::Type::String => TypeAst::Named("String".to_string()),
+        _ => TypeAst::Unit,
     }
 }
 
@@ -1100,6 +1111,7 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
             // These should have been extracted at the item level, not statements
             StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit))
         }
+        _ => StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit)),
     }
 }
 
@@ -1152,6 +1164,7 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
                 args: vec![ExprAst::Literal(LiteralAst::String(channel_name)), to],
             }
         }
+        _ => ExprAst::Literal(LiteralAst::Unit),
     }
 }
 

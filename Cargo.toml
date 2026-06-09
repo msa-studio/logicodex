@@ -49,3 +49,5 @@ source_extension = "ldx"
 public_release_label = "v1.30.0-alpha"
 rust_channel = "1.75.0"
 llvm_feature = "llvm15-0"
+
+[workspace]

@@ -511,6 +511,7 @@ impl Analyzer {
                         MatchPattern::Ok { .. } => has_ok = true,
                         MatchPattern::Err { .. } => has_err = true,
                         MatchPattern::Wildcard => { has_ok = true; has_err = true; }
+                        _ => {}
                     }
                     self.scoped_block(&arm.body)?;
                 }
@@ -521,6 +522,7 @@ impl Analyzer {
                 }
                 Ok(())
             }
+            _ => Ok(()),
         }
     }
 
@@ -646,7 +648,7 @@ impl Analyzer {
         Ok(())
     }
 
-    fn expression(&self, expr: &Expr) -> Result<Type, SemanticError> {
+    fn expression(&mut self, expr: &Expr) -> Result<Type, SemanticError> {
         match expr {
             Expr::Integer(_) => Ok(Type::I64),
             Expr::Boolean(_) => Ok(Type::Bool),
@@ -956,6 +958,7 @@ impl Analyzer {
                     }
                 }
             }
+            _ => Ok(Type::I64),
         }
     }
 
@@ -1017,6 +1020,7 @@ fn integer_fits(value: i64, ty: &Type) -> bool {
         Type::F64 => true,
         Type::Bool => value == 0 || value == 1,
         Type::Pointer(_) | Type::String => false,
+        _ => false,
     }
 }
 

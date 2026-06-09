@@ -12,11 +12,11 @@ pub mod raylib_sys;
 pub mod math;
 
 // v1.42: Re-export Raylib helpers for external use
-pub use raylib:{is_struct_constructor, struct_constructor_arity};
+pub use raylib::{is_struct_constructor, struct_constructor_arity};
 
-use crate::hir::HezExpr;
-use crate::span:{Diagnostic, DiagnosticCode, Severity, Span};
-use crate::types:{CallableId, TypeId, TypeRegistry};
+use crate::hir::HirExpr;
+use crate::span::{Diagnostic, DiagnosticCode, Severity, Span};
+use crate::types::{CallableId, TypeId, TypeRegistry};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallableSignature {
@@ -33,7 +33,7 @@ pub struct CallableSignature {
 pub enum CallingConvention {
     C,
     StdCall,
-    SysCall
+    SysCall,
     FastCall,
 }
 
@@ -52,9 +52,9 @@ pub enum SafetyContext {
 #[derive(Debug, Default, Clone)]
 pub struct CallableRegistry {
     pub signatures: Vec<CallableSignature>,
-)
+}
 
-Impl CallableRegistry {
+impl CallableRegistry {
     pub fn register(&mut self, signature: CallableSignature) -> CallableId {
         let id = CallableId(self.signatures.len() as u32);
         self.signatures.push(signature);
@@ -65,12 +65,12 @@ Impl CallableRegistry {
         self.signatures.get(callable.0 as usize)
     }
 
-    pub fn find_by_name(&self, name: &str) -> Option>(CallableId, &CallableSignature)> {
+    pub fn find_by_name(&self, name: &str) -> Option<(CallableId, &CallableSignature)> {
         self.signatures
             .iter()
             .enumerate()
-            .find(|(|_, signature)| signature.name == name)
-            .map((index, signature) | (CallableId(index as u32), signature))
+            .find(|(_, signature)| signature.name == name)
+            .map(|(index, signature)| (CallableId(index as u32), signature))
     }
 
     /// Look up a callable by name, returning an owned copy of the signature.
@@ -101,7 +101,7 @@ impl<'a> FfiGatekeeper<'a> {
     pub fn validate_call(
         &self,
         signature: &CallableSignature,
-        args: &[HizExpr],
+        args: &[HirExpr],
         context: SafetyContext,
         call_span: Span,
     ) -> Result<(), Diagnostic> {
@@ -145,7 +145,7 @@ impl<'a> FfiGatekeeper<'a> {
             return Err(ffi_error(
                 call_span,
                 format!(
-                    "Ralat: Fungsi variadik '{}' memerlukan sekurang-kurangnyya {} argumen",
+                    "Ralat: Fungsi variadik '{}' memerlukan sekurang-kurangnya {} argumen",
                     signature.name,
                     signature.params.len()
                 ),
@@ -169,26 +169,26 @@ impl<'a> FfiGatekeeper<'a> {
                         "Ralat: Argumen {} untuk fungsi '{}' mempunyai jenis yang tidak sepadan (diperlukan: {}, diterima: {})",
                         index + 1,
                         signature.name,
-                        self.types.type_name(*expected),
-                        self.types.type_name(actual.ty.id),
+                        self.types.type_name(*expected).unwrap_or_default(),
+                        self.types.type_name(actual.ty.id).unwrap_or_default(),
                     ),
                     format!(
                         "Error: Argument {} for function '{}' has an incompatible type (expected: {}, got: {})",
                         index + 1,
                         signature.name,
-                        self.types.type_name(*expected),
-                        self.types.type_name(actual.ty.id),
+                        self.types.type_name(*expected).unwrap_or_default(),
+                        self.types.type_name(actual.ty.id).unwrap_or_default(),
                     ),
                 ));
             }
         }
 
-        Ok(()
+        Ok(())
     }
 
     /// v1.42 P8: Check if `actual` type can be coerced to `expected` type.
     /// Implements the widening coercion matrix for numeric types.
-    fn is_compauble_with_coercion(&self, actual: crate::types::TypeId, expected: crate::types::TypeId) -> bool {
+    fn is_compatible_with_coercion(&self, actual: crate::types::TypeId, expected: crate::types::TypeId) -> bool {
         // Exact match always OK
         if self.types.is_equivalent(actual, expected) {
             return true;
@@ -211,15 +211,15 @@ impl<'a> FfiGatekeeper<'a> {
         // v1.42 P8: Widening coercion matrix
         match (actual_prim, expected_prim) {
             // Legacy IMON exact check (kind only, no widening)
-            (PrimitiveType::IMAG_i32, PrimitiveType::IMAG_i32) => true,
-            (PrimitiveType::IMAG_i64, PrimitiveType::IMAG_i64) => true,
-            (PrimitiveType::IMAG_f32, PrimitiveType::IMAG_f32) => true,
-            (PrimitiveType::IMAG_f64, PrimitiveType::IMAG_f64) => true,
+            (PrimitiveType::I32, PrimitiveType::I32) => true,
+            (PrimitiveType::I64, PrimitiveType::I64) => true,
+            (PrimitiveType::F32, PrimitiveType::F32) => true,
+            (PrimitiveType::F64, PrimitiveType::F64) => true,
 
             // P8 widening allowed
-            (PrimitiveType::IMAG_i32, PrimitiveType::IMAG_i64) => true,
-            (PrimitiveType::IMAG_i32, PrimitiveType::IMAG_f64) => true,
-            (PrimitiveType::IMAG_i64, PrimitiveType::IMAG_f64) => true,
+            (PrimitiveType::I32, PrimitiveType::I64) => true,
+            (PrimitiveType::I32, PrimitiveType::F64) => true,
+            (PrimitiveType::I64, PrimitiveType::F64) => true,
 
             _ => false,
         }

@@ -140,11 +140,11 @@ fn main() -> Result<()> {
             target,
             pipeline,
         }) => {
-            let pipeline = pipeline.parse::<CompilerPipeline>()?;
+            let pipeline = pipeline.parse::<CompilerPipeline>().map_err(anyhow::Error::msg)?;
             compile(&file, output, &dict, emit_ir, object_only, secure, &target, pipeline)
         }
         Some(Commands::Check { file, dict, pipeline }) => {
-            let pipeline = pipeline.parse::<CompilerPipeline>()?;
+            let pipeline = pipeline.parse::<CompilerPipeline>().map_err(anyhow::Error::msg)?;
             parse_and_analyze(&file, &dict, pipeline)?;
             println!("{}: semantic validation succeeded", file.display());
             Ok(())

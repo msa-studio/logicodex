@@ -50,7 +50,7 @@ use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::types::{BasicTypeEnum, IntType};
+use inkwell::types::{BasicType, BasicTypeEnum, IntType};
 use inkwell::AddressSpace;
 use inkwell::values::{BasicValueEnum, FunctionValue, IntValue, PointerValue};
 use inkwell::IntPredicate;
@@ -371,7 +371,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     fn emit_mmio_volatile_write(
         &mut self,
         addr_int: IntValue,
-        value: IntValue,
+        value: IntValue<'ctx>,
         value_size: u32, // 1, 2, 4, or 8 bytes
     ) -> Result<()> {
         let ptr_type = match value_size {
@@ -412,9 +412,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
     /// Uses LLVM volatile load to bypass CPU cache.
     fn emit_mmio_volatile_read(
         &mut self,
-        addr_int: IntValue,
+        addr_int: IntValue<'ctx>,
         value_size: u32, // 1, 2, 4, or 8 bytes
-    ) -> Result<IntValue> {
+    ) -> Result<IntValue<'ctx>> {
         let ptr_type = match value_size {
             1 => self.context.i8_type().ptr_type(inkwell::AddressSpace::from(0u16)),
             2 => self.context.i16_type().ptr_type(inkwell::AddressSpace::from(0u16)),
@@ -539,6 +539,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .context("failed to build continue branch")?;
                 Ok(())
             }
+            _ => Err(anyhow!("statement not supported in this codegen path")),
         }
     }
 
@@ -800,7 +801,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             Expr::Send { channel_name, value } => {
                 // Phase 2: Emit send with Release semantics
                 // The value ownership is transferred to the Pintu
-                let value_desc = match &value { Expr::Variable(n) => n.clone(), _ => "<expr>".to_string() };
+                let value_desc = match &**value { Expr::Variable(n) => n.clone(), _ => "<expr>".to_string() };
                 let _val = self.emit_expr(value)?;
                 // Call runtime pintu_send_release(channel_name, val)
                 // For now, return 0 as placeholder — full impl in Fasa 3
@@ -827,7 +828,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
             // v1.30.1-alpha Phase 3: Backpressure + Scheduler (stubs)
             Expr::TrySend { channel_name, value } => {
-                let value_desc = match &value { Expr::Variable(n) => n.clone(), _ => "<expr>".to_string() };
+                let value_desc = match &**value { Expr::Variable(n) => n.clone(), _ => "<expr>".to_string() };
                 let _val = self.emit_expr(value)?;
                 eprintln!("logicodex v1.30.1-alpha: try_send '{}' through '{}' — non-blocking (Release, backpressure aware)",
                     value_desc.as_str(), channel_name);
@@ -851,6 +852,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 eprintln!("logicodex v1.30.1-alpha: timeout_recv through '{}' — blocking with timeout", channel_name);
                 Ok(self.i64_type.const_int(0, false))
             }
+            _ => Err(anyhow!("expression not supported in this codegen path")),
         }
     }
 

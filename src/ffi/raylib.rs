@@ -13,7 +13,7 @@ use super::raylib_sys;
 use super::{
     CallableId, CallableRegistry, CallableSafety, CallableSignature, CallingConvention,
 };
-use crate::layout::LayoutEngine;
+use crate::layout::{LayoutEngine, LayoutRequest, LayoutFieldRequest};
 use crate::types::StructFieldLayout as StructField;
 use crate::types::{PrimitiveType, StructLayout, TypeRegistry};
 
@@ -43,154 +43,67 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
     let ids = registry.primitive_ids();
 
     let target = crate::layout::TargetLayout::native();
-    let engine = LayoutEngine::new(registry, target);
 
     // ─── Color { r: u8, g: u8, b: u8, a: u8 } — 4 bytes, align 1 ───
-    let color_layout = engine
-        .compute_struct_layout(
-            "Color",
-            &[
-                StructField {
-                    name: "r".into(),
-                    ty: ids.u8_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "g".into(),
-                    ty: ids.u8_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "b".into(),
-                    ty: ids.u8_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "a".into(),
-                    ty: ids.u8_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
+    let color_layout = LayoutEngine::new(registry, &target)
+        .compute_struct_layout(LayoutRequest {
+            name: "Color".into(),
+            fields: vec![
+                LayoutFieldRequest { name: "r".into(), ty: ids.u8_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "g".into(), ty: ids.u8_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "b".into(), ty: ids.u8_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "a".into(), ty: ids.u8_, span: crate::span::Span::unknown() },
             ],
-            false,
-        )
+            attributes: Vec::new(),
+            span: crate::span::Span::unknown(),
+        })
         .expect("Color layout must compute");
     let color = registry.intern_struct(color_layout);
 
     // ─── Vector2 { x: f32, y: f32 } — 8 bytes, align 4 ───
-    let vector2_layout = engine
-        .compute_struct_layout(
-            "Vector2",
-            &[
-                StructField {
-                    name: "x".into(),
-                    ty: ids.f32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "y".into(),
-                    ty: ids.f32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
+    let vector2_layout = LayoutEngine::new(registry, &target)
+        .compute_struct_layout(LayoutRequest {
+            name: "Vector2".into(),
+            fields: vec![
+                LayoutFieldRequest { name: "x".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "y".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
             ],
-            false,
-        )
+            attributes: Vec::new(),
+            span: crate::span::Span::unknown(),
+        })
         .expect("Vector2 layout must compute");
     let vector2 = registry.intern_struct(vector2_layout);
 
     // ─── Rectangle { x: f32, y: f32, w: f32, h: f32 } — 16 bytes, align 4 ───
-    let rectangle_layout = engine
-        .compute_struct_layout(
-            "Rectangle",
-            &[
-                StructField {
-                    name: "x".into(),
-                    ty: ids.f32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "y".into(),
-                    ty: ids.f32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "width".into(),
-                    ty: ids.f32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "height".into(),
-                    ty: ids.f32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
+    let rectangle_layout = LayoutEngine::new(registry, &target)
+        .compute_struct_layout(LayoutRequest {
+            name: "Rectangle".into(),
+            fields: vec![
+                LayoutFieldRequest { name: "x".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "y".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "width".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "height".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
             ],
-            false,
-        )
+            attributes: Vec::new(),
+            span: crate::span::Span::unknown(),
+        })
         .expect("Rectangle layout must compute");
     let rectangle = registry.intern_struct(rectangle_layout);
 
     // ─── Texture2D { id: u32, width: i32, height: i32, mipmaps: i32, format: i32 } — 20 bytes ───
-    let texture2d_layout = engine
-        .compute_struct_layout(
-            "Texture2D",
-            &[
-                StructField {
-                    name: "id".into(),
-                    ty: ids.u32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "width".into(),
-                    ty: ids.i32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "height".into(),
-                    ty: ids.i32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "mipmaps".into(),
-                    ty: ids.i32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
-                StructField {
-                    name: "format".into(),
-                    ty: ids.i32_,
-                    alignment_bytes: 0,
-                    offset_bytes: 0,
-                    size_bytes: 0,
-                },
+    let texture2d_layout = LayoutEngine::new(registry, &target)
+        .compute_struct_layout(LayoutRequest {
+            name: "Texture2D".into(),
+            fields: vec![
+                LayoutFieldRequest { name: "id".into(), ty: ids.u32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "width".into(), ty: ids.i32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "height".into(), ty: ids.i32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "mipmaps".into(), ty: ids.i32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest { name: "format".into(), ty: ids.i32_, span: crate::span::Span::unknown() },
             ],
-            false,
-        )
+            attributes: Vec::new(),
+            span: crate::span::Span::unknown(),
+        })
         .expect("Texture2D layout must compute");
     let texture2d = registry.intern_struct(texture2d_layout);
 
@@ -680,8 +593,8 @@ pub fn register_raylib_functions(
 /// Backward-compatible wrapper for tests that don't have struct IDs.
 /// Looks up struct types from TypeRegistry by name.
 pub fn register_raylib_functions_compat(registry: &mut TypeRegistry, callables: &mut CallableRegistry) {
-    let (_, struct_ids) = register_raylib_types(registry);
-    register_raylib_functions(registry, callables, &struct_ids);
+    let (type_ids, _) = register_raylib_types(registry);
+    register_raylib_functions(registry, callables, &type_ids);
 }
 
 /// v1.42: Register math utility functions as safe (no unsafe required).

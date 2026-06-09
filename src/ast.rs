@@ -371,6 +371,7 @@ impl Type {
             Type::Bool => 1,
             // Slice and Buffer are pointer-sized (fat pointer: ptr + len)
             Type::Slice { .. } | Type::Buffer { .. } => 128,
+            _ => 64,
         }
     }
 }

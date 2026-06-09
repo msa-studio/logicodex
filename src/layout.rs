@@ -144,7 +144,7 @@ impl<'a> LayoutEngine<'a> {
             }
             Some(TypeKind::Struct(layout_id)) => {
                 // Lookup cached layout from TypeRegistry
-                match self.types.get_struct_layout(layout_id) {
+                match self.types.get_struct_layout(*layout_id) {
                     Some(layout) => {
                         Ok((layout.total_size_bytes, layout.alignment_bytes))
                     }
@@ -162,17 +162,9 @@ impl<'a> LayoutEngine<'a> {
                     )),
                 }
             }
-            Some(TypeKind::Enum(layout_id)) => {
-                // v1.38 E2: Enum layout lookup
-                match self.types.get_enum_layout(layout_id) {
-                    Some(layout) => {
-                        Ok((layout.total_size_bytes, layout.alignment_bytes))
-                    }
-                    None => {
-                        // Enum without registered layout: default to tag-only (u32)
-                        Ok((4, self.target.integer_alignment_bytes.min(4)))
-                    }
-                }
+            Some(TypeKind::Enum(_layout_id)) => {
+                // Enum: tag-only (u32) layout for now.
+                Ok((4, self.target.integer_alignment_bytes.min(4)))
             }
             Some(TypeKind::Never) | Some(TypeKind::Unknown) | None => Err(layout_error(
                 span,
