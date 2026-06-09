@@ -1117,6 +1117,15 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
         // 3. Create LLVM function
         let func = self.module.add_function(&function.name, fn_type, None);
+        // Register so calls to this function (incl. recursion) resolve to it.
+        let this_callable_id = self
+            .callable_names
+            .iter()
+            .find(|(_, n)| n.as_str() == function.name)
+            .map(|(id, _)| *id);
+        if let Some(id) = this_callable_id {
+            self.hir_callable_funcs.insert(id, func);
+        }
         let entry = self.context.append_basic_block(func, "entry");
         self.builder.position_at_end(entry);
 
@@ -1699,15 +1708,18 @@ impl<'ctx> LlvmCompiler<'ctx> {
     fn hir_type_to_llvm(&self, type_ref: crate::types::TypeRef) -> Result<BasicTypeEnum<'ctx>> {
         let types = self.types.as_ref()
             .ok_or_else(|| anyhow!("hir_type_to_llvm: TypeRegistry not attached"))?;
+        // v1.30 codegen uses a uniform i64 integer model: every HIR expression
+        // produces an i64, so all integer-typed params/returns are i64 too. This
+        // keeps call args, returns and arithmetic consistent. (Fixed-width int
+        // semantics — true 32-bit wrapping — would require trunc/extend at each
+        // boundary and is deferred.)
         match types.resolve(type_ref.id) {
             TypeKind::Primitive(PrimitiveType::Bool) => Ok(self.bool_type.into()),
-            TypeKind::Primitive(PrimitiveType::I32) => Ok(self.context.i32_type().into()),
-            TypeKind::Primitive(PrimitiveType::I64) => Ok(self.i64_type.into()),
-            TypeKind::Primitive(PrimitiveType::U32) => Ok(self.context.i32_type().into()),
             TypeKind::Primitive(PrimitiveType::F32) => Ok(self.context.f32_type().into()),
             TypeKind::Primitive(PrimitiveType::F64) => Ok(self.context.f64_type().into()),
             TypeKind::Primitive(PrimitiveType::Unit) => Ok(self.context.i8_type().into()),
-            _ => Ok(self.i64_type.into()), // fallback to i64 for unknown types
+            // All integer widths (I8..U64) collapse to i64 in this model.
+            _ => Ok(self.i64_type.into()),
         }
     }
 
