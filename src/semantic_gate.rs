@@ -116,7 +116,10 @@ impl SemanticContext {
                 // differing declared widths (e.g. I32 vs the default-I64 of an
                 // integer literal) are compatible. Only flag genuinely mismatched
                 // categories (e.g. int vs float).
+                let either_unknown =
+                    self.is_unknown_type(left.ty.id) || self.is_unknown_type(right.ty.id);
                 if left.ty.id != right.ty.id
+                    && !either_unknown
                     && !(self.is_integer_type(left.ty.id) && self.is_integer_type(right.ty.id))
                 {
                     self.push_error(
@@ -180,6 +183,13 @@ impl SemanticContext {
                     | PrimitiveType::U64
             )
         )
+    }
+
+    /// True if a TypeId is the not-yet-inferred Unknown type. Call results carry
+    /// Unknown today (return-type inference is not wired), so treat it as a
+    /// wildcard rather than a hard binary-operand mismatch.
+    fn is_unknown_type(&self, id: crate::types::TypeId) -> bool {
+        matches!(self.types.resolve(id), crate::types::TypeKind::Unknown)
     }
 
     fn push_error(
