@@ -93,6 +93,7 @@ impl TypeChecker<'_> {
                         TypeId(2000 + pointee.0)
                     })
             }
+            _ => self.registry.primitive_ids().unknown,
         }
     }
 

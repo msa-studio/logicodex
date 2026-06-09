@@ -684,8 +684,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 }
 
                 // Sprint 3: Try CallableRegistry lookup for FFI function
-                if let Some(ref callables) = self.callables {
-                    if let Some((callable_id, signature)) = callables.find_by_name(callee_name) {
+                let __sig_opt = self.callables.as_ref()
+                    .and_then(|c| c.find_by_name(callee_name).map(|(_, s)| s.clone()));
+                if let Some(signature) = __sig_opt {
                         // Declare the extern function in LLVM
                         let func = self.declare_extern_func(&signature)?;
                         // Evaluate arguments recursively
@@ -716,13 +717,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
                                 Ok(self.i64_type.const_int(0, false))
                             }
                         }
-                    } else {
-                        eprintln!(
-                            "logicodex v1.30: function '{}' not found in CallableRegistry",
-                            callee_name
-                        );
-                        Ok(self.i64_type.const_int(0, false))
-                    }
                 } else {
                     // No CallableRegistry attached — emit stub
                     eprintln!(
@@ -1001,7 +995,7 @@ pub fn compile_v130(
         if let Err(diagnostics) = crate::semantic_gate::validate_module(hir_module, types_clone) {
             eprintln!("logicodex v1.38: Semantic gatekeeper warnings ({}):", diagnostics.len());
             for d in &diagnostics {
-                eprintln!("  [{}] {}", d.code, d.message);
+                eprintln!("  [{:?}] {}", d.code, d.message_en);
             }
             // Non-fatal: continue codegen even if gatekeeper has warnings
         }
@@ -1145,10 +1139,13 @@ impl<'ctx> LlvmCompiler<'ctx> {
         &mut self,
         extern_fn: &crate::hir::HirExternFunction,
     ) -> Result<()> {
-        let callables = self.callables.as_ref()
-            .ok_or_else(|| anyhow!("extern function codegen: CallableRegistry not attached"))?;
-        let signature = callables.get(extern_fn.callable)
-            .ok_or_else(|| anyhow!("extern function CallableId({}) not found in registry", extern_fn.callable.0))?;
+        let signature = {
+            let callables = self.callables.as_ref()
+                .ok_or_else(|| anyhow!("extern function codegen: CallableRegistry not attached"))?;
+            callables.get(extern_fn.callable)
+                .ok_or_else(|| anyhow!("extern function CallableId({}) not found in registry", extern_fn.callable.0))?
+                .clone()
+        };
         let func = self.declare_extern_func(&signature)?;
         self.hir_callable_funcs.insert(extern_fn.callable.0, func);
         Ok(())
@@ -1299,7 +1296,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     BinaryOpAst::BitOr => self.builder.build_or(l, r, "bitortmp").context("bitor"),
                     BinaryOpAst::BitXor => self.builder.build_xor(l, r, "xortmp").context("xor"),
                     BinaryOpAst::ShiftLeft => self.builder.build_left_shift(l, r, "shltmp").context("shl"),
-                    BinaryOpAst::ShiftRight => self.builder.build_right_shift(l, r, "shrtmp", true).context("shr"),
+                    BinaryOpAst::ShiftRight => self.builder.build_right_shift(l, r, true, "shrtmp").context("shr"),
                 }
             }
             HirExprKind::Unary { op, expr } => {
@@ -1519,14 +1516,17 @@ impl<'ctx> LlvmCompiler<'ctx> {
     #[cfg(feature = "v1_30")]
     fn emit_hir_call(
         &mut self,
-        callee: crate::ffi::CallableId,
+        callee: crate::types::CallableId,
         args: &[crate::hir::HirExpr],
         func: FunctionValue<'ctx>,
     ) -> Result<IntValue<'ctx>> {
-        let callables = self.callables.as_ref()
-            .ok_or_else(|| anyhow!("HIR call: CallableRegistry not attached"))?;
-        let signature = callables.get(callee)
-            .ok_or_else(|| anyhow!("HIR call: CallableId({}) not found", callee.0))?;
+        let signature = {
+            let callables = self.callables.as_ref()
+                .ok_or_else(|| anyhow!("HIR call: CallableRegistry not attached"))?;
+            callables.get(callee)
+                .ok_or_else(|| anyhow!("HIR call: CallableId({}) not found", callee.0))?
+                .clone()
+        };
 
         // v1.36 A5: Detect struct constructor by name
         if self.hir_struct_names.contains_key(&signature.name) {
@@ -1537,7 +1537,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         let llvm_func = if let Some(f) = self.hir_callable_funcs.get(&callee.0) {
             *f
         } else {
-            self.declare_extern_func(signature)?
+            self.declare_extern_func(&signature)?
         };
 
         // Evaluate arguments
@@ -1548,7 +1548,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
 
         let call_site = self.builder
-            .build_call(llvm_func, &llvm_args, &format!("call_{}", signature.name))
+            .build_call(llvm_func, &llvm_args.iter().map(|a| (*a).into()).collect::<Vec<inkwell::values::BasicMetadataValueEnum>>(), &format!("call_{}", signature.name))
             .with_context(|| format!("failed to build call to '{}'", signature.name))?;
 
         match call_site.try_as_basic_value().left() {
@@ -1649,7 +1649,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     // ─── HIR Type Helpers ───
 
     #[cfg(feature = "v1_30")]
-    fn hir_type_to_llvm(&self, type_ref: crate::hir::TypeRef) -> Result<BasicTypeEnum<'ctx>> {
+    fn hir_type_to_llvm(&self, type_ref: crate::types::TypeRef) -> Result<BasicTypeEnum<'ctx>> {
         let types = self.types.as_ref()
             .ok_or_else(|| anyhow!("hir_type_to_llvm: TypeRegistry not attached"))?;
         match types.resolve(type_ref.id) {
@@ -1686,7 +1686,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             None => return Ok(()), // no registry attached — nothing to do
         };
         // Iterate through all registered callables and declare them
-        for (_idx, sig) in callables.signatures().enumerate() {
+        for (_idx, sig) in callables.signatures.iter().enumerate() {
             let name = &sig.name;
             if self.declared_funcs.contains_key(name) {
                 continue; // already declared
@@ -1704,7 +1704,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
             // Build function type
             let fn_type = if is_void {
-                self.context.void_type().fn_type(&param_types, sig.is_variadic)
+                self.context.void_type().fn_type(&param_types.iter().map(|t| (*t).into()).collect::<Vec<inkwell::types::BasicMetadataTypeEnum>>(), sig.is_variadic)
             } else {
                 let ret_type: BasicTypeEnum<'ctx> = self.i64_type.into();
                 self.basic_type_fn_type(ret_type, &param_types, sig.is_variadic)
@@ -1857,7 +1857,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                             &format!("field_{}", i))
                             .context("struct field gep")?
                     };
-                    self.builder.build_store(field_ptr, val.into())
+                    self.builder.build_store(field_ptr, val)
                         .context("struct field store")?;
                 }
                 let ptr_as_int = self.builder.build_ptr_to_int(

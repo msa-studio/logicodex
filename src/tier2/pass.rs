@@ -557,8 +557,11 @@ fn collect_callees_in_expr(expr: &Expr, out: &mut Vec<String>) {
         Expr::Send { value, .. } | Expr::TrySend { value, .. } => {
             collect_callees_in_expr(value, out);
         }
-        Expr::Sleep { duration_ms } | Expr::TimeoutRecv { timeout_ms, .. } => {
+        Expr::Sleep { duration_ms } => {
             collect_callees_in_expr(duration_ms, out);
+        }
+        Expr::TimeoutRecv { timeout_ms, .. } => {
+            collect_callees_in_expr(timeout_ms, out);
         }
         Expr::FieldAccess { base, .. } | Expr::Index { base, .. } => {
             collect_callees_in_expr(base, out);
@@ -626,8 +629,11 @@ fn expr_calls_name(expr: &Expr, name: &str) -> bool {
         Expr::Send { value, .. } | Expr::TrySend { value, .. } => {
             expr_calls_name(value, name)
         }
-        Expr::Sleep { duration_ms } | Expr::TimeoutRecv { timeout_ms, .. } => {
+        Expr::Sleep { duration_ms } => {
             expr_calls_name(duration_ms, name)
+        }
+        Expr::TimeoutRecv { timeout_ms, .. } => {
+            expr_calls_name(timeout_ms, name)
         }
         Expr::FieldAccess { base, .. } | Expr::Index { base, .. } => {
             expr_calls_name(base, name)

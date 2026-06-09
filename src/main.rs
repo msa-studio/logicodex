@@ -295,12 +295,13 @@ fn compile_v130_pipeline(
             types: &mut types,
             diagnostics: Vec::new(),
         };
-        lowering.lower_v121_program(program)?
+        lowering.lower_v121_program(program)
+            .map_err(|diags| anyhow::anyhow!("v1.21 HIR lowering failed: {:?}", diags))?
     };
 
     // Step 4: Set up CallableRegistry with Raylib functions
     let mut callables = ffi::CallableRegistry::default();
-    ffi::raylib::register_raylib_functions(&mut types, &mut callables, &raylib_struct_ids);
+    ffi::raylib::register_raylib_functions(&mut types, &mut callables, &raylib_type_ids);
 
     // v1.42 P7: WASM target — Raylib is native-desktop only, block all Raylib functions
     if target.is_wasm() {

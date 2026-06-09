@@ -674,7 +674,7 @@ mod tests {
     fn raylib_functions_are_registered() {
         let mut registry = TypeRegistry::new();
         let mut callables = CallableRegistry::default();
-        register_raylib_functions(&mut registry, &mut callables);
+        register_raylib_functions_compat(&mut registry, &mut callables);
 
         // Check key functions are registered
         assert!(callables.find_by_name("InitWindow").is_some());
@@ -691,7 +691,7 @@ mod tests {
     fn raylib_functions_require_unsafe() {
         let mut registry = TypeRegistry::new();
         let mut callables = CallableRegistry::default();
-        register_raylib_functions(&mut registry, &mut callables);
+        register_raylib_functions_compat(&mut registry, &mut callables);
 
         let (_, signature) = callables.find_by_name("InitWindow").unwrap();
         assert_eq!(signature.safety, CallableSafety::UnsafeRequired);
