@@ -132,6 +132,7 @@ pub struct LlvmCompiler<'ctx> {
     // v1.36+: Struct registry — symbol_id → LLVM struct type
     hir_struct_types: HashMap<u32, inkwell::types::StructType<'ctx>>,
     hir_struct_names: HashMap<String, u32>, // name → symbol_id
+    callable_names: HashMap<u32, String>, // CallableId.0 → name (call routing)
     // v1.38 A6: CallableRegistry predeclaration tracking
     callables_predeclared: bool,
     // v1.44 G12: Hardware zone depth counter (MMIO volatile semantics)
@@ -245,6 +246,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             hir_callable_funcs: HashMap::new(),
             hir_struct_types: HashMap::new(),
             hir_struct_names: HashMap::new(),
+            callable_names: HashMap::new(),
             callables_predeclared: false,
             hw_zone_depth: 0,
         }
@@ -254,6 +256,12 @@ impl<'ctx> LlvmCompiler<'ctx> {
     pub fn with_callables(mut self, callables: CallableRegistry, types: TypeRegistry) -> Self {
         self.callables = Some(callables);
         self.types = Some(types);
+        self
+    }
+
+    /// Attach the id->name map for callables (used to route HIR calls by name).
+    pub fn with_callable_names(mut self, names: HashMap<u32, String>) -> Self {
+        self.callable_names = names;
         self
     }
 
@@ -978,10 +986,12 @@ pub fn compile_v130(
     options: &CodegenOptions,
     callables: CallableRegistry,
     types: TypeRegistry,
+    callable_names: HashMap<u32, String>,
 ) -> Result<CodegenArtifact> {
     let context = Context::create();
     let mut compiler = LlvmCompiler::new(&context, &options.module_name)
-        .with_callables(callables, types);
+        .with_callables(callables, types)
+        .with_callable_names(callable_names);
 
     // v1.38 A6: Pre-declare all callable functions so they're available during HIR codegen
     compiler.predeclare_callables()
@@ -1092,9 +1102,18 @@ impl<'ctx> LlvmCompiler<'ctx> {
             param_types.push(self.hir_type_to_llvm(param.ty)?);
         }
 
-        // 2. Determine return type
-        let ret_type = self.hir_type_to_llvm(function.return_type)?;
-        let fn_type = self.basic_type_fn_type(ret_type, &param_types, false);
+        // 2. Determine return type. A Unit-returning function must be an LLVM
+        // `void` function (not i8) so the implicit `ret void` terminator below
+        // matches the declared type and passes module verification.
+        let is_unit_return = function.return_type.id == self.unit_type_id();
+        let fn_type = if is_unit_return {
+            let meta_params: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> =
+                param_types.iter().map(|t| (*t).into()).collect();
+            self.context.void_type().fn_type(&meta_params, false)
+        } else {
+            let ret_type = self.hir_type_to_llvm(function.return_type)?;
+            self.basic_type_fn_type(ret_type, &param_types, false)
+        };
 
         // 3. Create LLVM function
         let func = self.module.add_function(&function.name, fn_type, None);
@@ -1520,43 +1539,71 @@ impl<'ctx> LlvmCompiler<'ctx> {
         args: &[crate::hir::HirExpr],
         func: FunctionValue<'ctx>,
     ) -> Result<IntValue<'ctx>> {
-        let signature = {
-            let callables = self.callables.as_ref()
-                .ok_or_else(|| anyhow!("HIR call: CallableRegistry not attached"))?;
-            callables.get(callee)
-                .ok_or_else(|| anyhow!("HIR call: CallableId({}) not found", callee.0))?
-                .clone()
-        };
+        // Resolve the callee by NAME (the HIR Call.callee is a SymbolTable id,
+        // independent of the FFI registry), avoiding aliasing a builtin like
+        // `print` onto an unrelated extern (e.g. InitWindow).
+        let name = self.callable_names.get(&callee.0).cloned();
 
-        // v1.36 A5: Detect struct constructor by name
-        if self.hir_struct_names.contains_key(&signature.name) {
-            return self.emit_hir_struct_constructor(&signature.name, args, func);
+        // Builtin: `print` lowers to a Call here — route to the runtime print fn.
+        if name.as_deref() == Some("print") {
+            let mut last = self.i64_type.const_int(0, false);
+            for arg in args {
+                let val = self.emit_hir_expr(arg, func)?;
+                self.builder
+                    .build_call(self.print_fn, &[val.into()], "printtmp")
+                    .context("failed to build print call")?;
+                last = val;
+            }
+            return Ok(last);
         }
 
-        // Check if it's a cached HIR callable function
+        // Struct constructor (detected by name).
+        if let Some(ref n) = name {
+            if self.hir_struct_names.contains_key(n) {
+                return self.emit_hir_struct_constructor(n, args, func);
+            }
+        }
+
+        // Resolve the LLVM function: cached HIR/user function first, else a
+        // genuine FFI extern resolved by name.
         let llvm_func = if let Some(f) = self.hir_callable_funcs.get(&callee.0) {
             *f
         } else {
+            let signature = name
+                .as_deref()
+                .and_then(|n| {
+                    self.callables
+                        .as_ref()
+                        .and_then(|c| c.find_by_name(n).map(|(_, s)| s.clone()))
+                })
+                .ok_or_else(|| {
+                    anyhow!(
+                        "HIR call: callee '{}' (CallableId {}) not resolvable",
+                        name.as_deref().unwrap_or("?"),
+                        callee.0
+                    )
+                })?;
             self.declare_extern_func(&signature)?
         };
 
-        // Evaluate arguments
+        // Evaluate arguments and emit the call.
         let mut llvm_args: Vec<BasicValueEnum<'ctx>> = Vec::new();
         for arg in args {
             let val = self.emit_hir_expr(arg, func)?;
             llvm_args.push(val.into());
         }
-
+        let label = name.as_deref().unwrap_or("call");
         let call_site = self.builder
-            .build_call(llvm_func, &llvm_args.iter().map(|a| (*a).into()).collect::<Vec<inkwell::values::BasicMetadataValueEnum>>(), &format!("call_{}", signature.name))
-            .with_context(|| format!("failed to build call to '{}'", signature.name))?;
+            .build_call(
+                llvm_func,
+                &llvm_args.iter().map(|a| (*a).into()).collect::<Vec<inkwell::values::BasicMetadataValueEnum>>(),
+                &format!("call_{}", label),
+            )
+            .with_context(|| format!("failed to build call to '{}'", label))?;
 
         match call_site.try_as_basic_value().left() {
-            Some(val) => match val {
-                BasicValueEnum::IntValue(iv) => Ok(iv),
-                _ => Ok(self.i64_type.const_int(0, false)),
-            }
-            None => Ok(self.i64_type.const_int(0, false)),
+            Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+            _ => Ok(self.i64_type.const_int(0, false)),
         }
     }
 

@@ -321,6 +321,9 @@ fn compile_v130_pipeline(
         callables.signatures.retain(|sig| !is_raylib_function(&sig.name));
     }
 
+    // Build id->name map for codegen call routing before `symbols` is moved.
+    let callable_names = symbols.callables_map();
+
     // Step 5: Semantic check
     let mut semantic = semantic_gate::SemanticContext {
         types,
@@ -346,6 +349,7 @@ fn compile_v130_pipeline(
         },
         callables,
         semantic.types,
+        callable_names,
     )
 }
 

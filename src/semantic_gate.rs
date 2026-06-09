@@ -130,14 +130,24 @@ impl SemanticContext {
                 for arg in args {
                     self.check_expression(arg);
                 }
-                if let Some(signature) = self.callables.get(*callee) {
+                // Resolve the callee by NAME against the FFI registry. The HIR
+                // Call.callee is a SymbolTable id (builtins/user fns) whose id-space
+                // is independent of the FFI CallableRegistry, so a raw .get(id) can
+                // alias an unrelated extern (e.g. print -> InitWindow). Name-based
+                // lookup only validates genuine FFI functions; builtins resolve to
+                // None here and are correctly skipped.
+                let ffi_sig = self
+                    .symbols
+                    .callable_name(*callee)
+                    .and_then(|name| self.callables.find_by_name(name));
+                if let Some((_, signature)) = ffi_sig {
                     let gate = FfiGatekeeper {
                         types: &self.types,
                         callables: Some(&self.callables),
                     };
-                    if let Err(diagnostic) =
-                        gate.validate_call(signature, args, self.safety_context, expr.span)
-                    {
+                    let result =
+                        gate.validate_call(signature, args, self.safety_context, expr.span);
+                    if let Err(diagnostic) = result {
                         self.diagnostics.push(diagnostic);
                     }
                 }

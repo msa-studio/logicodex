@@ -475,6 +475,22 @@ impl SymbolTable {
     pub fn lookup_callable(&self, name: &str) -> Option<CallableId> {
         self.callables.get(name).copied()
     }
+
+    /// Reverse lookup: find the name a CallableId was defined under.
+    pub fn callable_name(&self, id: CallableId) -> Option<&str> {
+        self.callables
+            .iter()
+            .find(|(_, cid)| **cid == id)
+            .map(|(name, _)| name.as_str())
+    }
+
+    /// Snapshot of all callables as an id->name map (for codegen routing).
+    pub fn callables_map(&self) -> HashMap<u32, String> {
+        self.callables
+            .iter()
+            .map(|(name, id)| (id.0, name.clone()))
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
