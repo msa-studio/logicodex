@@ -469,7 +469,7 @@ impl Analyzer {
                 result
             }
             // v1.33.0-alpha: Service manifest validation
-            Stmt::Service { name, port, requires, handler, policy } => {
+            Stmt::Service { name, port, requires, handler: _, policy } => {
                 // Duplicate service name check
                 if self.actor_registry.contains(name) {
                     // Service name clash dengan actor name
@@ -1107,7 +1107,7 @@ impl Analyzer {
                 for s in body { self.verify_audio_stmt(func_name, s)?; }
                 Ok(())
             }
-            Stmt::Loop { body } => {
+            Stmt::Loop { body: _ } => {
                 // P6: Unbounded loop detected in audio callback
                 Err(SemanticError::AudioViolationUnboundedLoop)
             }

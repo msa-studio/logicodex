@@ -19,7 +19,7 @@
 // =========================================================================
 
 use super::gate::GateRef;
-use super::topology::{CapabilityTopology, TopologyViolation};
+
 use std::collections::HashMap;
 
 // ─── ShardAssignment ───

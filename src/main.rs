@@ -22,8 +22,8 @@ mod types;
 
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser as ClapParser, Subcommand};
-use codegen::{CodegenOptions, LlvmCompiler, MemoryIntegrityPlan, PhysicalMemoryAccessPlan};
-use ffi::raylib;
+use codegen::{CodegenOptions, MemoryIntegrityPlan, PhysicalMemoryAccessPlan};
+
 use lexer::{Lexer, Lexicon};
 use os::target::CompilationTarget;
 use parser::{CompilerPipeline, Parser};
@@ -282,7 +282,7 @@ fn compile_v130_pipeline(
 
     // Step 2: Set up TypeRegistry with Raylib struct types
     let mut types = types::TypeRegistry::new();
-    let (raylib_type_ids, raylib_struct_ids) = ffi::raylib::register_raylib_types(&mut types);
+    let (raylib_type_ids, _raylib_struct_ids) = ffi::raylib::register_raylib_types(&mut types);
 
     // Step 3: Lower AST → HIR
     let mut symbols = hir::SymbolTable::default();
@@ -405,7 +405,7 @@ fn compute_module_hash(path: &Path) -> u64 {
 }
 
 fn write_freestanding_plan(output_path: &Path) -> Result<()> {
-    use logicodex::os::target::TargetArch;
+    
 
     let mut plan_path = output_path.to_path_buf();
     plan_path.set_extension("freestanding.md");

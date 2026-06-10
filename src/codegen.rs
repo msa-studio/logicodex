@@ -5,7 +5,7 @@
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
-use crate::ast::{BinaryOp, Expr, Program, Stmt};
+
 #[cfg(feature = "v1_30")]
 use crate::ffi::{CallableRegistry, CallableSignature};
 #[cfg(not(feature = "v1_30"))]
@@ -43,7 +43,7 @@ impl Default for CallableSignature {
         }
     }
 }
-use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind, TargetArch};
+use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind};
 use crate::types::{PrimitiveType, TypeId, TypeKind, TypeRegistry};
 use anyhow::{anyhow, Context as AnyhowContext, Result};
 use inkwell::basic_block::BasicBlock;
@@ -449,7 +449,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         function: &crate::hir::HirFunction,
         _target: CompilationTarget,
     ) -> Result<()> {
-        use crate::hir::{HirParam, HirStmt, HirExpr, HirExprKind, HirBlock, BinaryOpAst, UnaryOpAst, LiteralAst};
+        use crate::hir::{HirParam};
 
         // 1. Determine LLVM parameter types
         let mut param_types: Vec<BasicTypeEnum<'ctx>> = Vec::new();
@@ -488,7 +488,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         self.hir_local_allocs.clear();
 
         // 5. Allocate parameters as local variables
-        for (idx, HirParam { local, ty, .. }) in function.params.iter().enumerate() {
+        for (idx, HirParam { local, ty: _, .. }) in function.params.iter().enumerate() {
             let param_val = func.get_nth_param(idx as u32)
                 .ok_or_else(|| anyhow!("function param {} out of range", idx))?;
             let alloca = self.create_entry_alloca(func, &format!("param_{}", idx));
@@ -557,9 +557,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
         stmt: &crate::hir::HirStmt,
         func: FunctionValue<'ctx>,
     ) -> Result<()> {
-        use crate::hir::{HirStmt, HirExpr};
+        use crate::hir::{HirStmt};
         match stmt {
-            HirStmt::Let { local, ty, value } => {
+            HirStmt::Let { local, ty: _, value } => {
                 let alloca = self.create_entry_alloca(func, &format!("local_{}", local.0));
                 if let Some(val_expr) = value {
                     let val = self.emit_hir_expr(val_expr, func)?;
@@ -674,7 +674,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .context("failed to load local")?
                     .into_int_value())
             }
-            HirExprKind::Global(symbol_id) => {
+            HirExprKind::Global(_symbol_id) => {
                 // Global: try to resolve as a zero-argument function call
                 Ok(self.i64_type.const_int(0, false))
             }

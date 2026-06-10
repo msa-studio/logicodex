@@ -11,7 +11,7 @@
 // Hosted targets use std::panic::set_hook() instead.
 // =========================================================================
 
-use core::panic::PanicInfo;
+
 use core::fmt::Write;
 
 /// Panic handler for bare-metal (no_std, no OS) targets.

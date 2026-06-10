@@ -124,7 +124,7 @@ impl CapabilityTopology {
 
     /// Verifikasi topology: setiap REQUIRE mesti ada PROVIDE.
     /// Ini berjalan semasa Pass 2 — selepas semua kontrak didaftarkan.
-    pub fn verify(&self, graph: &MetadataGraph) -> TopologyVerifyResult {
+    pub fn verify(&self, _graph: &MetadataGraph) -> TopologyVerifyResult {
         let mut violations = Vec::new();
         let mut gates_satisfied = 0;
         let mut gates_unsatisfied = 0;
@@ -304,8 +304,8 @@ pub fn diff_topology(
     all_keys.extend(new_topology.consumers.keys().cloned());
 
     for key in &all_keys {
-        let old_provided = old_topology.providers.contains_key(key);
-        let new_provided = new_topology.providers.contains_key(key);
+        let _old_provided = old_topology.providers.contains_key(key);
+        let _new_provided = new_topology.providers.contains_key(key);
         let old_consumed = old_topology.consumers.contains_key(key);
         let new_consumed = new_topology.consumers.contains_key(key);
 

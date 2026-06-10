@@ -185,7 +185,7 @@ impl TypeChecker<'_> {
                 // e.g., Color(255, 0, 0, 255) → Color
                 if let Expr::Variable(name) = callee.as_ref() {
                     // Check if name matches a registered struct type
-                    if let Some((_, layout)) = self.registry.find_struct_by_name(name) {
+                    if let Some((_, _layout)) = self.registry.find_struct_by_name(name) {
                         // Return the type name as ast::Type if possible
                         // For Sprint 2.5, we only support primitive-named structs
                         // Full struct type mapping requires ast::Type extension
@@ -269,7 +269,7 @@ impl TypeChecker<'_> {
 
     // ─── Internal helpers ───
 
-    fn suggest_cast(&self, from: &Type, to: &Type) -> String {
+    fn suggest_cast(&self, _from: &Type, to: &Type) -> String {
         format!("guna 'sebagai {:?}' / use 'as {:?}'", to, to)
     }
 

@@ -57,12 +57,6 @@ pub enum ParseError {
         line: usize,
         column: usize,
     },
-    #[error("Ralat: Kata kunci '{keyword}' dikenali tetapi belum disokong (unimplemented) dalam v1.21-alpha pada {line}:{column} / Error: Keyword '{keyword}' is recognized but not yet supported (unimplemented) in v1.21-alpha at {line}:{column}")]
-    UnimplementedFeature {
-        keyword: String,
-        line: usize,
-        column: usize,
-    },
 }
 
 pub struct Parser {
@@ -1124,14 +1118,6 @@ impl Parser {
             && (lexeme.eq_ignore_ascii_case("henti") || lexeme.eq_ignore_ascii_case("langkau"))
     }
 
-    fn unimplemented_feature(&self) -> Result<Stmt, ParseError> {
-        let t = self.peek();
-        Err(ParseError::UnimplementedFeature {
-            keyword: t.lexeme.clone(),
-            line: t.line,
-            column: t.column,
-        })
-    }
 
     fn matches(&mut self, kind: TokenKind) -> bool {
         if self.check(kind) {

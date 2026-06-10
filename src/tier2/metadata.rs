@@ -12,7 +12,7 @@
 //   Pass 2: Deep analysis → stream functions one-by-one, discard after codegen
 // =========================================================================
 
-use crate::ast::{Param, Stmt, Type};
+use crate::ast::{Type};
 use super::gate::GateRef;
 use std::collections::HashMap;
 

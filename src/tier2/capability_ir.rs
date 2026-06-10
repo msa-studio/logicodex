@@ -20,10 +20,10 @@
 //   - NO hidden scheduling — all async = explicit Reactor Events
 // =========================================================================
 
-use super::gate::{GateContract, GateRef, GateType};
+use super::gate::{GateRef, GateType};
 use super::metadata::{Capability, InlineCost, SemanticSummary};
-use super::shard::{DoorRef, ServiceGraph, ServiceNode, ShardAssignment, ShardTopology};
-use super::topology::{CapabilityTopology, TopologyViolation};
+use super::shard::{ShardTopology};
+use super::topology::{CapabilityTopology};
 use std::collections::HashMap;
 
 // ─── CompileTarget ───
@@ -383,7 +383,7 @@ impl CapabilityGraph {
 
         // 2. WASM target: tiada hardware gate dalam servis
         if self.target == CompileTarget::Wasm || self.target == CompileTarget::All {
-            for (id, svc) in &self.services {
+            for (_id, svc) in &self.services {
                 for req in &svc.requires {
                     if req.is_hardware() {
                         violations.push(IRViolation::WasmHardwareGate {
@@ -396,7 +396,7 @@ impl CapabilityGraph {
         }
 
         // 3. Setiap servis yang di-assign ke shard mesti shard wujud
-        for (id, svc) in &self.services {
+        for (_id, svc) in &self.services {
             if let Some(shard_id) = svc.assigned_shard {
                 if !self.shards.contains_key(&shard_id) {
                     violations.push(IRViolation::InvalidShardAssignment {

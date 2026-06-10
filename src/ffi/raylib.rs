@@ -11,11 +11,11 @@
 
 use super::raylib_sys;
 use super::{
-    CallableId, CallableRegistry, CallableSafety, CallableSignature, CallingConvention,
+    CallableRegistry, CallableSafety, CallableSignature, CallingConvention,
 };
 use crate::layout::{LayoutEngine, LayoutRequest, LayoutFieldRequest};
-use crate::types::StructFieldLayout as StructField;
-use crate::types::{PrimitiveType, StructLayout, TypeRegistry};
+
+use crate::types::{TypeRegistry};
 
 /// Type IDs for Raylib struct types, populated by `register_raylib_types()`.
 #[derive(Debug, Clone, Copy)]
@@ -124,19 +124,9 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
 
 pub use raylib_sys::{
     // Core types
-    Color, Image, Rectangle, Texture2D, Vector2, Vector3,
+    Color, Texture2D, Vector2,
     // Audio types (v1.43)
-    AudioCallback, AudioStream, Music, Sound, Wave,
-    // Key constants
-    KEY_A, KEY_B, KEY_BACKSPACE, KEY_C, KEY_D, KEY_DELETE, KEY_DOWN, KEY_E,
-    KEY_EIGHT, KEY_ENTER, KEY_ESCAPE, KEY_F, KEY_FIVE, KEY_FOUR, KEY_G, KEY_H,
-    KEY_I, KEY_INSERT, KEY_J, KEY_K, KEY_L, KEY_LEFT, KEY_LEFT_ALT,
-    KEY_LEFT_CONTROL, KEY_LEFT_SHIFT, KEY_LEFT_SUPER, KEY_M, KEY_MINUS, KEY_N,
-    KEY_NINE, KEY_O, KEY_ONE, KEY_P, KEY_PERIOD, KEY_Q, KEY_R, KEY_RIGHT,
-    KEY_RIGHT_ALT, KEY_RIGHT_CONTROL, KEY_RIGHT_SHIFT, KEY_RIGHT_SUPER, KEY_S,
-    KEY_SEMICOLON, KEY_SEVEN, KEY_SIX, KEY_SLASH, KEY_SPACE, KEY_T, KEY_TAB,
-    KEY_THREE, KEY_TWO, KEY_U, KEY_UP, KEY_V, KEY_W, KEY_X, KEY_Y, KEY_Z,
-    KEY_ZERO, MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT,
+    AudioCallback, AudioStream, Music, Sound,
 };
 
 /// Type IDs for all Raylib constructible struct types.
@@ -637,7 +627,7 @@ fn register_math_functions(registry: &mut TypeRegistry, callables: &mut Callable
 /// v1.42 P4: Math utility implementations exposed as extern-C shims
 /// so they can be called from LLVM-generated code via the CallableRegistry.
 pub mod math_shims {
-    use super::*;
+    
 
     /// Shim: clamp(v: f32, min: f32, max: f32) → f32
     #[no_mangle]

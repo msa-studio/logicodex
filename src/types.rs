@@ -1,6 +1,4 @@
-#[allow(dead_code)]
-#[cfg(feature = "v1_30")]
-use crate::ffi::CallableSignature;
+
 
 // =========================================================================
 // Logicodex v1.30 architecture simulation: registry-backed type identities.

@@ -19,9 +19,9 @@
 
 use crate::ast::{Expr, Program, Stmt, Type};
 use crate::semantic::SemanticError;
-use super::gate::{GateContract, GateRef};
+use super::gate::{GateContract};
 use super::metadata::{Capability, InlineCost, MetadataGraph, SemanticSummary};
-use super::topology::{CapabilityTopology, TopologyVerifyResult};
+use super::topology::{CapabilityTopology};
 
 /// Result of running both passes.
 #[derive(Debug)]
@@ -178,7 +178,7 @@ pub fn pass2_streaming(
 ) -> Result<StreamingResult, SemanticError> {
     let mut functions_compiled = 0;
     let mut actors_registered = graph.actor_names().len();
-    let mut channels_registered = graph.channel_topology().len();
+    let _channels_registered = graph.channel_topology().len();
 
     // Estimate AST memory (rough: ~500 bytes per statement)
     let estimated_ast_bytes = program.statements.len() * 500;
@@ -260,7 +260,7 @@ pub fn compile_streaming(
     let mut graph = pass1_predeclare(program)?;
 
     // v1.32.0-alpha: Build Capability Topology from gate contracts
-    let mut topology = build_topology_from_program(program, &graph)?;
+    let topology = build_topology_from_program(program, &graph)?;
 
     // Pass 2: Deep streaming analysis
     let mut result = pass2_streaming(program, &mut graph, mode)?;
@@ -343,7 +343,7 @@ fn infer_gate_contract(name: &str, body: &[Stmt]) -> GateContract {
 }
 
 fn infer_stmt_gates(stmt: &Stmt, contract: &mut GateContract) {
-    use super::gate::{GateDomain, GateRef, GateType};
+    use super::gate::{GateDomain};
 
     match stmt {
         Stmt::Print { .. } => {

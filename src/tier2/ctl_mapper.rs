@@ -24,9 +24,9 @@
 // =========================================================================
 
 use super::capability_ir::{
-    CapabilityGraph, CapabilityRef, CompileTarget, IRServiceNode, IRShardNode,
+    CapabilityGraph, CapabilityRef,
 };
-use super::gate::GateType;
+
 
 // ─── WitDomain ───
 /// Represents a WIT interface domain — the WASI-side projection
@@ -373,7 +373,7 @@ impl CtlMapper {
 
         // Import section
         lines.push("  // === IMPORTS ===".to_string());
-        for (pkg, caps) in &interfaces {
+        for (_pkg, caps) in &interfaces {
             for cap in caps {
                 if let Some(wit) = &cap.wit_mapping {
                     // Extract interface name from WIT mapping

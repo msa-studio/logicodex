@@ -12,7 +12,7 @@ pub mod raylib_sys;
 pub mod math;
 
 // v1.42: Re-export Raylib helpers for external use
-pub use raylib::{is_struct_constructor, struct_constructor_arity};
+
 
 use crate::hir::HirExpr;
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span};

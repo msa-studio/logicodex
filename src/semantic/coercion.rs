@@ -188,7 +188,7 @@ impl<'a> CoercionEngine<'a> {
         if let (
             TypeKind::Pointer {
                 pointee: p1,
-                mutability: m1,
+                mutability: _m1,
             },
             TypeKind::Pointer {
                 pointee: p2,
