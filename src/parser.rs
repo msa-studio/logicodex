@@ -11,13 +11,13 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilerPipeline {
-    V121,
+    /// The one engine: full grammar + HIR lowering.
     V130,
 }
 
 impl Default for CompilerPipeline {
     fn default() -> Self {
-        CompilerPipeline::V121
+        CompilerPipeline::V130
     }
 }
 
@@ -26,10 +26,11 @@ impl std::str::FromStr for CompilerPipeline {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "v1.21" | "V121" | "121" => Ok(CompilerPipeline::V121),
             "v1.30" | "V130" | "130" => Ok(CompilerPipeline::V130),
+            // `v1.21` is a deprecated alias; there is now a single engine.
+            "v1.21" | "V121" | "121" => Ok(CompilerPipeline::V130),
             _ => Err(format!(
-                "pipeline pipeline tidak dikenali: {s} / unrecognized pipeline: {s}. Expected: v1.21 or v1.30"
+                "pipeline tidak dikenali: {s} / unrecognized pipeline: {s}. Expected: v1.30"
             )),
         }
     }
@@ -119,28 +120,16 @@ impl Parser {
             return self.function_definition();
         }
         if self.check(TokenKind::Struct) {
-            return match self.pipeline {
-                CompilerPipeline::V121 => self.unimplemented_feature(),
-                CompilerPipeline::V130 => self.struct_declaration(),
-            };
+            return self.struct_declaration();
         }
         if self.check(TokenKind::Enum) {
-            return match self.pipeline {
-                CompilerPipeline::V121 => self.unimplemented_feature(),
-                CompilerPipeline::V130 => self.enum_declaration(),
-            };
+            return self.enum_declaration();
         }
         if self.check(TokenKind::Unsafe) {
-            return match self.pipeline {
-                CompilerPipeline::V121 => self.unimplemented_feature(),
-                CompilerPipeline::V130 => self.unsafe_block(),
-            };
+            return self.unsafe_block();
         }
         if self.check(TokenKind::Extern) {
-            return match self.pipeline {
-                CompilerPipeline::V121 => self.unimplemented_feature(),
-                CompilerPipeline::V130 => self.extern_block(),
-            };
+            return self.extern_block();
         }
         self.statement()
     }

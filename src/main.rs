@@ -206,12 +206,6 @@ fn compile(
             eprintln!("v1.30 Option Engine not available. Build with --features v1_30");
             std::process::exit(1);
         }
-        CompilerPipeline::V121 => {
-            // v1.21 codegen pipeline retired — the v1.30 Option Engine is the single path.
-            anyhow::bail!(
-                "the v1.21 compilation pipeline has been retired; omit --pipeline or use --pipeline v1.30"
-            );
-        }
     };
     if let Some(ir_path) = artifact.ir_path.as_ref() {
         println!("LLVM IR written to {}", ir_path.display());
