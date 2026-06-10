@@ -561,7 +561,9 @@ impl Analyzer {
                 });
             }
         }
-        if !types_compatible(declared, actual) {
+        // User-defined named types (structs/enums) are validated by the v1.30
+        // type system, not the v1.21 analyzer, so don't flag them here.
+        if !matches!(declared, Type::Named(_)) && !types_compatible(declared, actual) {
             return Err(SemanticError::DeclaredTypeMismatch {
                 name: name.to_string(),
                 declared: declared.clone(),

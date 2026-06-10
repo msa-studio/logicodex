@@ -152,6 +152,7 @@ impl Parser {
             .lexeme
             .clone();
         self.consume(TokenKind::Start, "block start MULA or {")?;
+        self.consume_newlines();
         let mut fields = Vec::new();
         while !self.check(TokenKind::End) && !self.is_at_end() {
             let field_name = self
@@ -165,6 +166,7 @@ impl Parser {
                 ty,
             });
             self.consume_statement_terminator("; after field declaration", false)?;
+            self.consume_newlines();
         }
         self.consume(TokenKind::End, "block end TAMAT or }")?;
         Ok(Stmt::StructDecl { name, fields })
@@ -697,6 +699,11 @@ impl Parser {
             self.consume(TokenKind::Greater, "'>' after message type")?;
             return Ok(Type::Channel { from, to, message_type });
         }
+        // User-defined named type (struct/enum) — any bare identifier.
+        if self.check(TokenKind::Identifier) {
+            let name = self.advance().lexeme.clone();
+            return Ok(Type::Named(name));
+        }
         let t = self.peek();
         Err(ParseError::Expected {
             expected: "type".to_string(),
@@ -972,7 +979,15 @@ impl Parser {
             // v1.30.1-alpha: pintu.hantar(val), pintu.terima()
             if self.check(TokenKind::Dot) {
                 self.advance(); // consume '.'
-                let method = self.consume(TokenKind::Identifier, "method name after '.'")?.lexeme.clone();
+                let member = self.consume(TokenKind::Identifier, "field or method name after '.'")?.lexeme.clone();
+                // Bare field access `obj.field` (not followed by '(').
+                if !self.check(TokenKind::LeftParen) {
+                    return Ok(Expr::FieldAccess {
+                        base: Box::new(Expr::Variable(name.clone())),
+                        field: member,
+                    });
+                }
+                let method = member;
                 self.consume(TokenKind::LeftParen, "'(' after method name")?;
                 // v1.30.1-alpha: Channel method calls — send, recv
                 if method == "send" {

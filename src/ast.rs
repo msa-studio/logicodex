@@ -272,6 +272,8 @@ pub enum Type {
     Bool,
     Pointer(Box<Type>),
     String,
+    /// User-defined named type (struct/enum), resolved during lowering.
+    Named(String),
     // ─── Ketuk 1: Core Memory Model ───
     Slice { element: Box<Type> },
     Buffer { element: Box<Type> },
@@ -415,6 +417,7 @@ impl fmt::Display for Type {
             Type::Buffer { element } => write!(f, "Buffer<{element}>"),
             Type::Result { ok, err } => write!(f, "Result<{ok}, {err}>"),
             Type::Opaque { name } => write!(f, "{name}"),
+            Type::Named(name) => write!(f, "{name}"),
             Type::Channel { from, to, message_type } => {
                 write!(f, "Channel<{from}, {to}, {message_type}>")
             }

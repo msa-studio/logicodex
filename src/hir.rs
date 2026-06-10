@@ -617,6 +617,30 @@ impl<'a> LoweringContext<'a> {
                 }
                 ItemAst::Struct(decl) => {
                     self.symbols.define_symbol(decl.name.clone());
+                    self.symbols.define_callable(decl.name.clone());
+                    // Intern a struct layout so the name resolves as a type and
+                    // find_struct_by_name works for construction + field access.
+                    let mut field_layouts = Vec::new();
+                    for f in &decl.fields {
+                        let ty = self.lower_type(f.ty.clone()).id;
+                        field_layouts.push(crate::types::StructFieldLayout {
+                            name: f.name.clone(),
+                            ty,
+                            offset_bytes: 0,
+                            size_bytes: 8,
+                            alignment_bytes: 8,
+                        });
+                    }
+                    let field_count = field_layouts.len();
+                    if self.types.find_struct_by_name(&decl.name).is_none() {
+                        self.types.intern_struct(crate::types::StructLayout {
+                            name: decl.name.clone(),
+                            fields: field_layouts,
+                            total_size_bytes: field_count * 8,
+                            alignment_bytes: 8,
+                            is_packed: false,
+                        });
+                    }
                 }
                 ItemAst::Enum(decl) => {
                     self.symbols.define_symbol(decl.name.clone());
@@ -866,14 +890,29 @@ impl<'a> LoweringContext<'a> {
                     span,
                 }
             }
-            ExprAst::Field { base, field: _ } => {
+            ExprAst::Field { base, field } => {
                 let base = self.lower_expr(*base, span);
+                let struct_layout_id = match self.types.resolve(base.ty.id) {
+                    TypeKind::Struct(lid) => Some(*lid),
+                    _ => None,
+                };
+                let (field_index, field_ty) = if let Some(lid) = struct_layout_id {
+                    match self.types.get_struct_layout(lid) {
+                        Some(layout) => match layout.fields.iter().position(|f| f.name == field) {
+                            Some(idx) => (idx, TypeRef { id: layout.fields[idx].ty }),
+                            None => (0usize, unknown_ref(self.types)),
+                        },
+                        None => (0usize, unknown_ref(self.types)),
+                    }
+                } else {
+                    (0usize, unknown_ref(self.types))
+                };
                 HirExpr {
                     kind: HirExprKind::Field {
                         base: Box::new(base),
-                        field_index: 0,
+                        field_index,
                     },
-                    ty: unknown_ref(self.types),
+                    ty: field_ty,
                     span,
                 }
             }
@@ -981,7 +1020,7 @@ fn lower_enum_payload(ctx: &mut LoweringContext<'_>, payload: EnumPayloadAst) ->
     }
 }
 
-fn named_type_id(registry: &TypeRegistry, name: &str) -> TypeId {
+fn named_type_id(registry: &mut TypeRegistry, name: &str) -> TypeId {
     match name {
         "bool" | "Boolean" | "BooleanAst" => registry.primitive(PrimitiveType::Bool),
         "i8" => registry.primitive(PrimitiveType::I8),
@@ -996,7 +1035,14 @@ fn named_type_id(registry: &TypeRegistry, name: &str) -> TypeId {
         "f64" | "float" => registry.primitive(PrimitiveType::F64),
         "string" | "String" => registry.primitive(PrimitiveType::String),
         "unit" | "()" => registry.primitive(PrimitiveType::Unit),
-        _ => registry.unknown(),
+        _ => {
+            // User-defined struct, interned during the lowering pre-pass.
+            let layout_id = registry.find_struct_by_name(name).map(|(id, _)| id);
+            match layout_id {
+                Some(lid) => registry.intern(crate::types::TypeKind::Struct(lid)),
+                None => registry.unknown(),
+            }
+        }
     }
 }
 
@@ -1061,6 +1107,7 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
         ast::Type::Bool => TypeAst::Named("bool".to_string()),
         ast::Type::Pointer(inner) => TypeAst::Pointer(Box::new(lower_type_ast(*inner))),
         ast::Type::String => TypeAst::Named("String".to_string()),
+        ast::Type::Named(n) => TypeAst::Named(n),
         _ => TypeAst::Unit,
     }
 }
@@ -1184,6 +1231,10 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
                 args: vec![ExprAst::Literal(LiteralAst::String(channel_name)), to],
             }
         }
+        ast::Expr::FieldAccess { base, field } => ExprAst::Field {
+            base: Box::new(lower_expr_ast(*base)),
+            field,
+        },
         _ => ExprAst::Literal(LiteralAst::Unit),
     }
 }

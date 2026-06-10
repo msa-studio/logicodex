@@ -1343,8 +1343,37 @@ impl<'ctx> LlvmCompiler<'ctx> {
             HirExprKind::Call { callee, args } => {
                 self.emit_hir_call(*callee, args, func)
             }
-            HirExprKind::Field { .. } => {
-                Ok(self.i64_type.const_int(0, false)) // placeholder
+            HirExprKind::Field { base, field_index } => {
+                let base_val = self.emit_hir_expr(base, func)?;
+                let layout = match self.types.as_ref() {
+                    Some(t) => match t.resolve(base.ty.id) {
+                        crate::types::TypeKind::Struct(lid) => t.get_struct_layout(*lid).cloned(),
+                        _ => None,
+                    },
+                    None => None,
+                };
+                let layout = match layout {
+                    Some(l) => l,
+                    None => return Ok(self.i64_type.const_int(0, false)),
+                };
+                let mut field_llvm: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
+                for f in &layout.fields {
+                    field_llvm.push(self.hir_type_to_llvm(crate::types::TypeRef { id: f.ty })?);
+                }
+                let struct_type = self.context.struct_type(&field_llvm, false);
+                let field_ty = field_llvm.get(*field_index)
+                    .copied()
+                    .unwrap_or_else(|| self.i64_type.into());
+                let ptr = self.builder
+                    .build_int_to_ptr(base_val, struct_type.ptr_type(AddressSpace::default()), "field_base_ptr")
+                    .context("field base int->ptr")?;
+                let field_ptr = unsafe {
+                    self.builder.build_struct_gep(struct_type, ptr, *field_index as u32, "field_ptr")
+                        .context("field gep")?
+                };
+                let loaded = self.builder.build_load(field_ty, field_ptr, "field_val")
+                    .context("field load")?;
+                Ok(loaded.into_int_value())
             }
             HirExprKind::Cast { expr, .. } => {
                 // For now, emit the inner expression (casts are no-ops at LLVM level for compatible types)
@@ -1566,9 +1595,12 @@ impl<'ctx> LlvmCompiler<'ctx> {
             return Ok(last);
         }
 
-        // Struct constructor (detected by name).
+        // Struct constructor (detected by name via the type registry).
         if let Some(ref n) = name {
-            if self.hir_struct_names.contains_key(n) {
+            let is_struct = self.types.as_ref()
+                .map(|t| t.find_struct_by_name(n).is_some())
+                .unwrap_or(false);
+            if is_struct || self.hir_struct_names.contains_key(n) {
                 return self.emit_hir_struct_constructor(n, args, func);
             }
         }
@@ -1896,19 +1928,21 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 Ok(ptr_as_int)
             }
 
-            // ─── Generic struct ───
+            // ─── Generic user struct (registry layout) ───
             _ => {
-                let symbol_id = self.hir_struct_names.get(struct_name)
-                    .copied()
-                    .unwrap_or(u32::MAX);
-                if symbol_id == u32::MAX {
-                    return Ok(self.i64_type.const_int(0, false));
+                let layout = self.types.as_ref()
+                    .and_then(|t| t.find_struct_by_name(struct_name).map(|(_, l)| l.clone()));
+                let layout = match layout {
+                    Some(l) => l,
+                    None => return Ok(self.i64_type.const_int(0, false)),
+                };
+                let mut field_llvm: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
+                for f in &layout.fields {
+                    field_llvm.push(self.hir_type_to_llvm(crate::types::TypeRef { id: f.ty })?);
                 }
-                let struct_type = self.hir_struct_types.get(&symbol_id)
-                    .copied()
-                    .unwrap_or_else(|| self.context.struct_type(&[], false));
-                let alloca = self.create_entry_alloca(func,
-                    &format!("struct_{}_tmp", struct_name));
+                let struct_type = self.context.struct_type(&field_llvm, false);
+                let alloca = self.create_entry_alloca_typed(
+                    func, &format!("struct_{}_tmp", struct_name), struct_type.into());
                 for (i, arg) in args.iter().enumerate() {
                     let val = self.emit_hir_expr(arg, func)?;
                     let field_ptr = unsafe {
