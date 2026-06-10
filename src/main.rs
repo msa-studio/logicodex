@@ -207,17 +207,10 @@ fn compile(
             std::process::exit(1);
         }
         CompilerPipeline::V121 => {
-            let program = parse_and_analyze_for_target(file, dict, target_name, secure, pipeline)?;
-            LlvmCompiler::compile_to_object(
-                &program,
-                &object_path,
-                &CodegenOptions {
-                    module_name: module_name(file),
-                    emit_ir,
-                    secure,
-                    target,
-                },
-            )?
+            // v1.21 codegen pipeline retired — the v1.30 Option Engine is the single path.
+            anyhow::bail!(
+                "the v1.21 compilation pipeline has been retired; omit --pipeline or use --pipeline v1.30"
+            );
         }
     };
     if let Some(ir_path) = artifact.ir_path.as_ref() {
