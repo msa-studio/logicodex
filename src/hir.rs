@@ -415,6 +415,7 @@ pub struct SymbolTable {
     symbols: HashMap<String, SymbolId>,
     locals: Vec<HashMap<String, LocalBinding>>,
     callables: HashMap<String, CallableId>,
+    callable_returns: HashMap<CallableId, TypeId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -494,6 +495,14 @@ impl SymbolTable {
             .iter()
             .map(|(name, id)| (id.0, name.clone()))
             .collect()
+    }
+
+    pub fn set_callable_return(&mut self, id: CallableId, ty: TypeId) {
+        self.callable_returns.insert(id, ty);
+    }
+
+    pub fn callable_return(&self, id: CallableId) -> Option<TypeId> {
+        self.callable_returns.get(&id).copied()
     }
 }
 
@@ -657,6 +666,37 @@ impl<'a> LoweringContext<'a> {
                         self.symbols.define_callable(function.name.clone());
                     }
                 }
+            }
+        }
+
+        // Second pre-pass: all types interned + callables defined; resolve each
+        // callable's return type so Call expressions can be typed precisely.
+        for item in &module.items {
+            match &item.node {
+                ItemAst::Function(function) => {
+                    if let Some(cid) = self.symbols.lookup_callable(&function.name) {
+                        let ret = match function.return_type.clone() {
+                            Some(t) => self.lower_type(t).id,
+                            None => self.types.primitive(PrimitiveType::Unit),
+                        };
+                        self.symbols.set_callable_return(cid, ret);
+                    }
+                }
+                ItemAst::Struct(decl) => {
+                    if let Some(cid) = self.symbols.lookup_callable(&decl.name) {
+                        let ty = named_type_id(self.types, &decl.name);
+                        self.symbols.set_callable_return(cid, ty);
+                    }
+                }
+                ItemAst::ExternBlock(block) => {
+                    for function in &block.functions {
+                        if let Some(cid) = self.symbols.lookup_callable(&function.name) {
+                            let ret = self.lower_type(function.return_type.clone()).id;
+                            self.symbols.set_callable_return(cid, ret);
+                        }
+                    }
+                }
+                ItemAst::Enum(_) => {}
             }
         }
 
@@ -893,7 +933,11 @@ impl<'a> LoweringContext<'a> {
                         callee: callee_id,
                         args: lowered_args,
                     },
-                    ty: unknown_ref(self.types),
+                    ty: self
+                        .symbols
+                        .callable_return(callee_id)
+                        .map(|id| TypeRef { id })
+                        .unwrap_or_else(|| unknown_ref(self.types)),
                     span,
                 }
             }
