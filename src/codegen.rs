@@ -1216,12 +1216,41 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
             HirStmt::Assign { target, value } => {
                 let val = self.emit_hir_expr(value, func)?;
-                // For now, only Local targets are supported
-                if let crate::hir::HirExprKind::Local(local_id) = target.kind {
-                    let ptr = self.hir_local_allocs.get(&local_id.0)
-                        .ok_or_else(|| anyhow!("assign target local {} not found", local_id.0))?;
-                    self.builder.build_store(*ptr, val)
-                        .context("failed to store assign value")?;
+                match &target.kind {
+                    crate::hir::HirExprKind::Local(local_id) => {
+                        let ptr = self.hir_local_allocs.get(&local_id.0)
+                            .ok_or_else(|| anyhow!("assign target local {} not found", local_id.0))?;
+                        self.builder.build_store(*ptr, val)
+                            .context("failed to store assign value")?;
+                    }
+                    crate::hir::HirExprKind::Field { base, field_index } => {
+                        // p.field = val: int->ptr the struct i64, gep field, store.
+                        let base_val = self.emit_hir_expr(base, func)?;
+                        let layout = match self.types.as_ref() {
+                            Some(t) => match t.resolve(base.ty.id) {
+                                crate::types::TypeKind::Struct(lid) => t.get_struct_layout(*lid).cloned(),
+                                _ => None,
+                            },
+                            None => None,
+                        };
+                        if let Some(layout) = layout {
+                            let mut field_llvm: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
+                            for f in &layout.fields {
+                                field_llvm.push(self.hir_type_to_llvm(crate::types::TypeRef { id: f.ty })?);
+                            }
+                            let struct_type = self.context.struct_type(&field_llvm, false);
+                            let ptr = self.builder
+                                .build_int_to_ptr(base_val, struct_type.ptr_type(AddressSpace::default()), "assign_base_ptr")
+                                .context("field assign int->ptr")?;
+                            let field_ptr = unsafe {
+                                self.builder.build_struct_gep(struct_type, ptr, *field_index as u32, "assign_field_ptr")
+                                    .context("field assign gep")?
+                            };
+                            self.builder.build_store(field_ptr, val)
+                                .context("field assign store")?;
+                        }
+                    }
+                    _ => {}
                 }
                 Ok(())
             }

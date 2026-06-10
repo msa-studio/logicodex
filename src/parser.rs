@@ -469,9 +469,15 @@ impl Parser {
             // Plain variable assignment: name = value
             self.variable_assignment_statement()?
         } else {
-            let value = self.expression()?;
-            self.consume_statement_terminator("; after expression", false)?;
-            Stmt::ExprStmt { value }
+            let expr = self.expression()?;
+            if self.matches(TokenKind::Assign) {
+                let value = self.expression()?;
+                self.consume_statement_terminator("; after assignment", false)?;
+                Stmt::Assign { target: expr, value }
+            } else {
+                self.consume_statement_terminator("; after expression", false)?;
+                Stmt::ExprStmt { value: expr }
+            }
         };
         self.consume_layout_separators();
         Ok(stmt)
