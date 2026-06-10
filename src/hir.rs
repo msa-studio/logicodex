@@ -98,6 +98,10 @@ pub enum ExprAst {
         base: Box<ExprAst>,
         field: String,
     },
+    EnumVariant {
+        enum_name: String,
+        variant: String,
+    },
     Cast {
         expr: Box<ExprAst>,
         target: TypeAst,
@@ -644,6 +648,9 @@ impl<'a> LoweringContext<'a> {
                 }
                 ItemAst::Enum(decl) => {
                     self.symbols.define_symbol(decl.name.clone());
+                    let variant_names: Vec<String> =
+                        decl.variants.iter().map(|v| v.name.clone()).collect();
+                    self.types.register_enum_variants(&decl.name, variant_names);
                 }
                 ItemAst::ExternBlock(block) => {
                     for function in &block.functions {
@@ -887,6 +894,17 @@ impl<'a> LoweringContext<'a> {
                         args: lowered_args,
                     },
                     ty: unknown_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::EnumVariant { enum_name, variant } => {
+                let tag = self.types.enum_variant_tag(&enum_name, &variant)
+                    .or_else(|| self.types.enum_variant_tag_any(&variant))
+                    .unwrap_or(0);
+                let i64_id = self.types.primitive(PrimitiveType::I64);
+                HirExpr {
+                    kind: HirExprKind::Literal(LiteralAst::Integer(tag)),
+                    ty: TypeRef { id: i64_id },
                     span,
                 }
             }
@@ -1235,6 +1253,7 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             base: Box::new(lower_expr_ast(*base)),
             field,
         },
+        ast::Expr::EnumVariant { enum_name, variant } => ExprAst::EnumVariant { enum_name, variant },
         _ => ExprAst::Literal(LiteralAst::Unit),
     }
 }

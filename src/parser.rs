@@ -179,6 +179,7 @@ impl Parser {
             .lexeme
             .clone();
         self.consume(TokenKind::Start, "block start MULA or {")?;
+        self.consume_newlines();
         let mut variants = Vec::new();
         while !self.check(TokenKind::End) && !self.is_at_end() {
             let variant = self
@@ -187,6 +188,7 @@ impl Parser {
                 .clone();
             variants.push(variant);
             self.consume_statement_terminator("; after variant", false)?;
+            self.consume_newlines();
         }
         self.consume(TokenKind::End, "block end TAMAT or }")?;
         Ok(Stmt::EnumDecl { name, variants })
@@ -952,6 +954,15 @@ impl Parser {
         }
         if self.matches(TokenKind::Identifier) {
             let name = self.previous().lexeme.clone();
+            // Enum variant path: `Enum::Variant` (two `:` tokens; no `::` token).
+            if self.check(TokenKind::Colon)
+                && self.tokens.get(self.current + 1).map_or(false, |t| t.kind == TokenKind::Colon)
+            {
+                self.advance(); // first ':'
+                self.advance(); // second ':'
+                let variant = self.consume(TokenKind::Identifier, "variant name after '::'")?.lexeme.clone();
+                return Ok(Expr::EnumVariant { enum_name: name, variant });
+            }
             // Check if followed by '(' → function or struct constructor call
             if self.check(TokenKind::LeftParen) {
                 self.advance(); // consume '('

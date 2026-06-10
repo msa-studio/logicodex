@@ -191,6 +191,8 @@ pub enum Expr {
     },
     /// Field access: net.admin
     FieldAccess { base: Box<Expr>, field: String },
+    /// Enum variant reference: `Warna::Merah`.
+    EnumVariant { enum_name: String, variant: String },
     /// v1.30.1-alpha: Spawn a Kotak (create OS thread).
     /// Syntax: `lahirkan SensorSuhu()`
     Spawn {

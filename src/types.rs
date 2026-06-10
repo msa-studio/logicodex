@@ -119,6 +119,8 @@ pub struct TypeRegistry {
     primitive_cache: PrimitiveTypeIds,
     /// Cached struct layouts, indexed by StructLayoutId.0
     struct_layouts: Vec<StructLayout>,
+    /// Enum name -> ordered variant names (tag = index). v1.30 enum support.
+    enum_variants: std::collections::HashMap<String, Vec<String>>,
     /// Cached enum layouts, indexed by EnumLayoutId.0
     /// v1.38: Added for enum layout computation (E2)
     #[cfg(feature = "v1_30")]
@@ -188,6 +190,7 @@ impl TypeRegistry {
         Self {
             kinds,
             struct_layouts: Vec::new(),
+            enum_variants: std::collections::HashMap::new(),
             #[cfg(feature = "v1_30")]
             enum_layouts: Vec::new(),
             primitive_cache: PrimitiveTypeIds {
@@ -394,6 +397,30 @@ impl TypeRegistry {
             .enumerate()
             .find(|(_, l)| l.name == name)
             .map(|(i, l)| (StructLayoutId(i as u32), l))
+    }
+
+    /// Register an enum's ordered variants (tag = index). v1.30 enum support.
+    pub fn register_enum_variants(&mut self, name: &str, variants: Vec<String>) {
+        self.enum_variants.insert(name.to_string(), variants);
+    }
+
+    /// Resolve a variant's tag within a named enum.
+    pub fn enum_variant_tag(&self, enum_name: &str, variant: &str) -> Option<i64> {
+        self.enum_variants
+            .get(enum_name)
+            .and_then(|vs| vs.iter().position(|v| v == variant))
+            .map(|i| i as i64)
+    }
+
+    /// Resolve a variant tag by searching all enums (for match patterns where
+    /// the enum type is implicit). Assumes variant names are unique.
+    pub fn enum_variant_tag_any(&self, variant: &str) -> Option<i64> {
+        for vs in self.enum_variants.values() {
+            if let Some(i) = vs.iter().position(|v| v == variant) {
+                return Some(i as i64);
+            }
+        }
+        None
     }
 
     /// v1.38 E2: Register an enum layout, returning its EnumLayoutId.
