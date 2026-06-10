@@ -489,15 +489,19 @@ impl Parser {
     fn match_statement(&mut self) -> Result<Stmt, ParseError> {
         let value = self.expression()?;
         self.consume(TokenKind::Start, "'{' after match expression")?;
+        self.consume_newlines();
         let mut arms = Vec::new();
         if !self.check(TokenKind::End) {
             loop {
                 arms.push(self.match_arm()?);
+                self.consume_newlines();
                 if !self.matches(TokenKind::Comma) {
                     break;
                 }
+                self.consume_newlines();
             }
         }
+        self.consume_newlines();
         self.consume(TokenKind::End, "'}' after match arms")?;
         Ok(Stmt::Match { value, arms })
     }

@@ -1130,6 +1130,64 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
     }
 }
 
+/// Lower a `MATCH value { pat => body, ... }` into a nested if/else chain over
+/// the (i64) value. Enum variants and integer literals become equality tests;
+/// `_` becomes the final else. Ok/Err/Tuple patterns are not yet supported.
+fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
+    let value_ast = lower_expr_ast(value);
+    let mk_block = |body: Vec<ast::Stmt>| BlockAst {
+        statements: body
+            .into_iter()
+            .map(|s| Spanned { node: lower_stmt_ast(s), span: Span::unknown() })
+            .collect(),
+    };
+    let mut else_branch: Option<BlockAst> = None;
+    let mut conditional: Vec<(ExprAst, BlockAst)> = Vec::new();
+    for arm in arms {
+        match arm.pattern {
+            ast::MatchPattern::Wildcard => {
+                else_branch = Some(mk_block(arm.body));
+            }
+            ast::MatchPattern::Identifier(name) => {
+                conditional.push((
+                    ExprAst::EnumVariant { enum_name: String::new(), variant: name },
+                    mk_block(arm.body),
+                ));
+            }
+            ast::MatchPattern::Literal(expr) => {
+                conditional.push((lower_expr_ast(expr), mk_block(arm.body)));
+            }
+            _ => {}
+        }
+    }
+    let mut acc: Option<BlockAst> = else_branch;
+    for (pat, body) in conditional.into_iter().rev() {
+        let cond = ExprAst::Binary {
+            left: Box::new(value_ast.clone()),
+            op: BinaryOpAst::Eq,
+            right: Box::new(pat),
+        };
+        let if_stmt = StmtAst::If {
+            condition: cond,
+            then_branch: body,
+            else_branch: acc.take(),
+        };
+        acc = Some(BlockAst {
+            statements: vec![Spanned { node: if_stmt, span: Span::unknown() }],
+        });
+    }
+    match acc {
+        Some(mut block) => {
+            if block.statements.len() == 1 {
+                block.statements.pop().unwrap().node
+            } else {
+                StmtAst::UnsafeBlock(block)
+            }
+        }
+        None => StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit)),
+    }
+}
+
 fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
     use ast::Stmt;
     match stmt {
@@ -1196,6 +1254,7 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
             // These should have been extracted at the item level, not statements
             StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit))
         }
+        Stmt::Match { value, arms } => lower_match_to_if(value, arms),
         _ => StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit)),
     }
 }

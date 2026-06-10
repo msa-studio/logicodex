@@ -501,24 +501,30 @@ impl Analyzer {
             }
             Stmt::Match { value, arms } => {
                 let val_ty = self.expression(value)?;
-                if !val_ty.is_result() {
-                    return Err(SemanticError::MatchOnNonResult { ty: val_ty });
-                }
-                let mut has_ok = false;
-                let mut has_err = false;
-                for arm in arms {
-                    match &arm.pattern {
-                        MatchPattern::Ok { .. } => has_ok = true,
-                        MatchPattern::Err { .. } => has_err = true,
-                        MatchPattern::Wildcard => { has_ok = true; has_err = true; }
-                        _ => {}
+                if val_ty.is_result() {
+                    // Result matching requires Ok + Err exhaustiveness.
+                    let mut has_ok = false;
+                    let mut has_err = false;
+                    for arm in arms {
+                        match &arm.pattern {
+                            MatchPattern::Ok { .. } => has_ok = true,
+                            MatchPattern::Err { .. } => has_err = true,
+                            MatchPattern::Wildcard => { has_ok = true; has_err = true; }
+                            _ => {}
+                        }
+                        self.scoped_block(&arm.body)?;
                     }
-                    self.scoped_block(&arm.body)?;
-                }
-                if !has_ok || !has_err {
-                    return Err(SemanticError::NonExhaustiveMatch {
-                        missing: if !has_ok { "Ok".to_string() } else { "Err".to_string() },
-                    });
+                    if !has_ok || !has_err {
+                        return Err(SemanticError::NonExhaustiveMatch {
+                            missing: if !has_ok { "Ok".to_string() } else { "Err".to_string() },
+                        });
+                    }
+                } else {
+                    // v1.30: enum / integer matching. Validate arm bodies; the
+                    // v1.30 lowering turns this into an if/else chain over tags.
+                    for arm in arms {
+                        self.scoped_block(&arm.body)?;
+                    }
                 }
                 Ok(())
             }
