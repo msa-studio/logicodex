@@ -292,7 +292,7 @@ fn compile_v130_pipeline(
             types: &mut types,
             diagnostics: Vec::new(),
         };
-        lowering.lower_v121_program(program)
+        lowering.lower_program(program)
             .map_err(|diags| anyhow::anyhow!("v1.21 HIR lowering failed: {:?}", diags))?
     };
 
@@ -497,7 +497,7 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
             diagnostics: Vec::new(),
         };
         lowering
-            .lower_v121_program(program)
+            .lower_program(program)
             .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags))?
     };
 

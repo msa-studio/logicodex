@@ -511,7 +511,7 @@ pub struct LoweringContext<'a> {
 
 impl<'a> LoweringContext<'a> {
     /// Sprint 3: Convert a v1.21 AST Program to HIR ModuleAst and lower it.
-    pub fn lower_v121_program(&mut self, program: ast::Program) -> Result<HirModule, Vec<Diagnostic>> {
+    pub fn lower_program(&mut self, program: ast::Program) -> Result<HirModule, Vec<Diagnostic>> {
         use ast::Stmt;
         // Register built-in callables (print is always available)
         self.symbols.define_callable("print".to_string());
