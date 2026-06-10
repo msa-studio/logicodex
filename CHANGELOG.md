@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [v1.46.0-alpha] — 2026-06-10 — HIR Activated: Single Engine
+
+### Summary
+The HIR pipeline is now the **sole execution path** (Issue #02 resolved: ACTIVATE).
+`.ldx` compiles through Lexer → Parser → AST → HIR lowering → semantic_gate → LLVM IR
+→ native binary. The legacy v1.21 AST-codegen path and v1.21 Analyzer gate were retired.
+See `docs/architecture/hir-decision.md`.
+
+### Added — executing end-to-end (HIR + LLVM)
+- Variables, assignment, print; functions, params, calls, recursion
+- Arithmetic/comparisons; if-else, while (`SELAGI`), loop (`ULANG`), break/continue
+- Structs: construction, field read, field assignment, struct-as-parameter
+- Enums + pattern matching: variant refs (`Warna::Merah` → tag), `MATCH` → if/else chain, wildcard `_`
+
+### Changed
+- `check` runs full v1.30 validation (parse → lower → semantic_gate)
+- Duplicate-function & division-by-zero checks ported from v1.21 Analyzer into `semantic_gate`
+- `lower_v121_program` → `lower_program`
+
+### Removed
+- v1.21 AST codegen (~646 lines): compile_to_object, emit_program/stmt/expr, hardware/MMIO emitters
+- v1.21 Analyzer retired from pipeline (module kept for reference)
+- `CompilerPipeline::V121` variant (`--pipeline v1.21` now a deprecated alias)
+- Dead `unimplemented_feature` + `UnimplementedFeature` variant
+
+### Notes
+- Compiler-guided dead-code removal; `cargo fix` for mechanical lints; zero regression
+- Roadmap subsystems (OS/freestanding, capability/sharded/actor runtime) intact — dead_code = honest "not yet wired"
+
+### Known stopgaps
+- Call return-type inference not wired (Unknown/I64); integer widths uniform i64
+
 ## [v1.45.0-alpha] — 2026-05-25 — Quantitative Benchmark Framework (Layers 1-3)
 
 ### Summary

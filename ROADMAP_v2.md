@@ -12,7 +12,7 @@
 
 ## Executive Summary
 
-Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebase has **7/22 capabilities fully implemented**, **9/22 partially implemented**, and **5/22 at skeleton level**. This roadmap replaces aspirational timelines with **phase-gated milestones** where each phase has strict entry criteria, measurable deliverables, mandatory audit checkpoints, and exit proof requirements. **No phase may begin until the previous phase's audit is signed off.**
+Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebase has **9/22 capabilities fully implemented**, **8/22 partially implemented**, and **4/22 at skeleton level** (HIR activated v1.46; see `docs/architecture/hir-decision.md`). This roadmap replaces aspirational timelines with **phase-gated milestones** where each phase has strict entry criteria, measurable deliverables, mandatory audit checkpoints, and exit proof requirements. **No phase may begin until the previous phase's audit is signed off.**
 
 ### Honest Maturity Matrix (v1.45.0-alpha)
 
@@ -24,7 +24,7 @@ Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebas
 | Benchmark framework | FULL | Production | 4 layers, 6 Criterion benchmarks |
 | Validator tiering | FULL | Production | Tier A=6, B=13, C=8 |
 | Dual license + policy docs | FULL | Production | MPL-2.0 / MIT, SECURITY.md |
-| Compiler pipeline | PARTIAL | HIR dormant, bypassed | HIR exists but is not on execution path |
+| Compiler pipeline | FULL | HIR on execution path | .ldx → HIR → LLVM → native; sole path (v1.46) |
 | Actor-model | PARTIAL | Types + semantic complete, no runtime | Runtime is stub |
 | Capability security | PARTIAL | Compile-time works, runtime stub | Issue #07 |
 | Sharded runtime | PARTIAL | Threads + affinity exist, messaging missing | Issue #08 |
@@ -33,7 +33,7 @@ Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebas
 | Freestanding x86_64 | PARTIAL | Code complete, never booted in QEMU | Issue #11 |
 | Raylib FFI | PARTIAL | 55 wrappers, partial API coverage | Issue #12 |
 | CI/CD | PARTIAL | Failing, 148/148 claim false | Issue #13 |
-| HIR lowering | SKELETON | Dormant | Issue #02 |
+| HIR lowering | FULL | Active — Issue #02 resolved (ACTIVATE) | structs, enums+match, fns, control flow |
 | Deterministic execution | SKELETON | Framework only, no runtime integration | Issue #14 |
 | Freestanding aarch64 | SKELETON | LLVM triple only | Issue #15 |
 | Freestanding riscv64 | SKELETON | LLVM triple only | Issue #16 |
@@ -445,7 +445,7 @@ If a regression is detected during a phase:
 
 | Term | Definition |
 |------|------------|
-| **HIR** | High-level Intermediate Representation — the dormant compiler IR |
+| **HIR** | High-level Intermediate Representation — the active compiler IR (sole execution path since v1.46) |
 | **Capability** | Security primitive: unforgeable token proving authorization |
 | **Shard** | Isolated memory + thread domain in the sharded runtime |
 | **SPSC** | Single-Producer Single-Consumer lock-free queue |
