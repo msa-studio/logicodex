@@ -850,7 +850,8 @@ impl Parser {
             let operand = self.unary()?;
             Ok(Expr::Unary { op: "!".to_string(), operand: Box::new(operand) })
         } else {
-            self.primary()
+            let expr = self.primary()?;
+            self.parse_postfix(expr)
         }
     }
 
@@ -867,6 +868,35 @@ impl Parser {
                 left: Box::new(expr),
                 op,
                 right: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
+
+    /// Apply trailing postfix operators (`.field`) to an already-parsed
+    /// expression. `primary()` consumes the first postfix level on identifiers
+    /// (`a.b`, `buat()`); this loop handles subsequent levels so chains like
+    /// `a.b.c` and field access on call results (`buat().x`) parse.
+    fn parse_postfix(&mut self, mut expr: Expr) -> Result<Expr, ParseError> {
+        while self.check(TokenKind::Dot) {
+            self.advance(); // consume '.'
+            let member = self
+                .consume(TokenKind::Identifier, "field name after '.'")?
+                .lexeme
+                .clone();
+            if self.check(TokenKind::LeftParen) {
+                // Method calls on an expression result are not supported yet:
+                // Expr::MethodCall carries a name, not an expression.
+                return Err(ParseError::Expected {
+                    expected: "field access (method calls on call results are not yet supported)".to_string(),
+                    found: self.peek().lexeme.clone(),
+                    line: self.peek().line,
+                    column: self.peek().column,
+                });
+            }
+            expr = Expr::FieldAccess {
+                base: Box::new(expr),
+                field: member,
             };
         }
         Ok(expr)
