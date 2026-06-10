@@ -20,6 +20,14 @@ See `docs/architecture/hir-decision.md`.
 - Structs: construction, field read, field assignment, struct-as-parameter
 - Enums + pattern matching: variant refs (`Warna::Merah` → tag), `MATCH` → if/else chain, wildcard `_`
 
+### Added — type inference, struct returns, postfix chaining
+- Call return-type inference: each callable's return type is resolved in a pre-pass and attached to `Call` expressions (previously typed `Unknown`), enabling precise typing of call results
+- Struct returns via the **sret ABI**: a struct-returning function takes a hidden caller-allocated buffer pointer, copies its fields into it on return, and returns that pointer
+- Chained postfix field access: `buat().x` (field access on a call result) and `a.b.c` now parse via a `parse_postfix` loop in `unary()`
+
+### Fixed
+- Returning a struct by value no longer yields a dangling pointer (second field previously read garbage); struct returns now copy into a caller-provided buffer (sret)
+
 ### Changed
 - `check` runs full v1.30 validation (parse → lower → semantic_gate)
 - Duplicate-function & division-by-zero checks ported from v1.21 Analyzer into `semantic_gate`
@@ -36,7 +44,8 @@ See `docs/architecture/hir-decision.md`.
 - Roadmap subsystems (OS/freestanding, capability/sharded/actor runtime) intact — dead_code = honest "not yet wired"
 
 ### Known stopgaps
-- Call return-type inference not wired (Unknown/I64); integer widths uniform i64
+- Integer widths uniform i64 (no real fixed-width ints yet)
+- Method calls on expression results (`buat().m()`) not yet supported (`Expr::MethodCall` carries a name, not an expression)
 
 ## [v1.45.0-alpha] — 2026-05-25 — Quantitative Benchmark Framework (Layers 1-3)
 

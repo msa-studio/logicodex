@@ -44,6 +44,11 @@ lowered to an if/else chain, wildcard).
 - Maturity Matrix updated: Compiler pipeline PARTIAL→FULL, HIR lowering SKELETON→FULL.
 - Phase 2-5 must not reopen the HIR decision (Architecture Freeze §3).
 
+## Follow-up work completed after the decision (v1.46)
+- Call return-type inference wired (Call expressions carry their callee's return type).
+- Struct returns made sound via the sret ABI (caller-allocated buffer; no dangling pointers).
+- Parser supports chained postfix field access (`buat().x`, `a.b.c`).
+
 ## Known stopgaps (tracked, not blockers)
-- Call return-type inference not wired (results typed Unknown/I64).
 - Integer widths uniform i64 (no real fixed-width ints yet).
+- Method calls on expression results (`buat().m()`) not yet supported.
