@@ -79,6 +79,8 @@ pub enum DiagnosticCode {
     UnsafeBoundaryViolation,
     FfiBoundaryViolation,
     LayoutError,
+    DuplicateDefinition,
+    DivisionByZero,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

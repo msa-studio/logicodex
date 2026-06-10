@@ -9,7 +9,10 @@
 // =========================================================================
 
 use crate::ffi::{CallableRegistry, FfiGatekeeper, SafetyContext};
-use crate::hir::{HirBlock, HirExpr, HirExprKind, HirItem, HirModule, HirStmt, SymbolTable};
+use crate::hir::{
+    BinaryOpAst, HirBlock, HirExpr, HirExprKind, HirItem, HirModule, HirStmt, LiteralAst,
+    SymbolTable,
+};
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span, Spanned};
 use crate::types::TypeRegistry;
 
@@ -24,6 +27,20 @@ pub struct SemanticContext {
 
 impl SemanticContext {
     pub fn check_module(&mut self, module: &HirModule) -> Result<(), Vec<Diagnostic>> {
+        // Duplicate function definitions (v1.30: ported from the v1.21 analyzer).
+        let mut seen_fns = std::collections::HashSet::new();
+        for item in &module.items {
+            if let HirItem::Function(f) = &item.node {
+                if !seen_fns.insert(f.name.clone()) {
+                    self.push_error(
+                        DiagnosticCode::DuplicateDefinition,
+                        item.span,
+                        format!("Ralat: Fungsi '{}' ditakrif lebih daripada sekali", f.name),
+                        format!("Error: Function '{}' is defined more than once", f.name),
+                    );
+                }
+            }
+        }
         for item in &module.items {
             self.check_item(item);
         }
@@ -109,9 +126,20 @@ impl SemanticContext {
     fn check_expression(&mut self, expr: &HirExpr) {
         match &expr.kind {
             HirExprKind::Literal(_) | HirExprKind::Local(_) | HirExprKind::Global(_) => {}
-            HirExprKind::Binary { left, right, .. } => {
+            HirExprKind::Binary { left, op, right } => {
                 self.check_expression(left);
                 self.check_expression(right);
+                // Division by a literal zero (v1.30: ported from the v1.21 analyzer).
+                if matches!(op, BinaryOpAst::Div) {
+                    if let HirExprKind::Literal(LiteralAst::Integer(0)) = &right.kind {
+                        self.push_error(
+                            DiagnosticCode::DivisionByZero,
+                            expr.span,
+                            "Ralat: Pembahagian dengan sifar".to_string(),
+                            "Error: Division by zero".to_string(),
+                        );
+                    }
+                }
                 // v1.30 uses a uniform i64 integer model, so integer operands of
                 // differing declared widths (e.g. I32 vs the default-I64 of an
                 // integer literal) are compatible. Only flag genuinely mismatched

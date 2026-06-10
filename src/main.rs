@@ -14,6 +14,7 @@ mod layout;
 mod lexer;
 mod os;
 mod parser;
+#[allow(dead_code)]
 mod semantic;
 mod semantic_gate;
 mod span;
@@ -26,7 +27,8 @@ use ffi::raylib;
 use lexer::{Lexer, Lexicon};
 use os::target::CompilationTarget;
 use parser::{CompilerPipeline, Parser};
-use semantic::Analyzer;
+// v1.21 Analyzer retired from the pipeline (audit: lowering + semantic_gate
+// now own semantic validation). Module kept for reference / domain checks.
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -144,8 +146,16 @@ fn main() -> Result<()> {
             compile(&file, output, &dict, emit_ir, object_only, secure, &target, pipeline)
         }
         Some(Commands::Check { file, dict, pipeline }) => {
-            let pipeline = pipeline.parse::<CompilerPipeline>().map_err(anyhow::Error::msg)?;
-            parse_and_analyze(&file, &dict, pipeline)?;
+            #[cfg(feature = "v1_30")]
+            {
+                let _ = pipeline;
+                v130_validate_file(&file, &dict)?;
+            }
+            #[cfg(not(feature = "v1_30"))]
+            {
+                let pipeline = pipeline.parse::<CompilerPipeline>().map_err(anyhow::Error::msg)?;
+                parse_and_analyze(&file, &dict, pipeline)?;
+            }
             println!("{}: semantic validation succeeded", file.display());
             Ok(())
         }
@@ -281,7 +291,7 @@ fn compile_v130_pipeline(
     let tokens = Lexer::new(&source, &lexicon).tokenize()?;
     let mut parser = Parser::new(tokens).with_pipeline(CompilerPipeline::V130);
     let program = parser.parse()?;
-    Analyzer::analyze_for_target(&program, "native", false)?;
+    // v1.30: v1.21 Analyzer gate retired; HIR lowering + semantic_gate validate.
 
     // Step 2: Set up TypeRegistry with Raylib struct types
     let mut types = types::TypeRegistry::new();
@@ -477,6 +487,50 @@ fn parse_and_analyze(file: &Path, dict: &Path, pipeline: CompilerPipeline) -> Re
 }
 
 #[cfg(feature = "v1_30")]
+#[cfg(feature = "v1_30")]
+fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
+    // Full v1.30 validation: parse -> lower (AST->HIR) -> semantic_gate.
+    // Replaces the retired v1.21 Analyzer as `check`'s validation pass.
+    let source = fs::read_to_string(file)
+        .with_context(|| format!("failed to read Logicodex source file {}", file.display()))?;
+    let lexicon = Lexicon::from_path(dict)
+        .with_context(|| format!("failed to load dictionary {}", dict.display()))?;
+    let tokens = Lexer::new(&source, &lexicon).tokenize()?;
+    let mut parser = Parser::new(tokens).with_pipeline(CompilerPipeline::V130);
+    let program = parser.parse()?;
+
+    let mut types = types::TypeRegistry::new();
+    let (raylib_type_ids, _raylib_struct_ids) = ffi::raylib::register_raylib_types(&mut types);
+
+    let mut symbols = hir::SymbolTable::default();
+    let module_ast = {
+        let mut lowering = hir::LoweringContext {
+            symbols: &mut symbols,
+            types: &mut types,
+            diagnostics: Vec::new(),
+        };
+        lowering
+            .lower_v121_program(program)
+            .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags))?
+    };
+
+    let mut callables = ffi::CallableRegistry::default();
+    ffi::raylib::register_raylib_functions(&mut types, &mut callables, &raylib_type_ids);
+
+    let mut semantic = semantic_gate::SemanticContext {
+        types,
+        symbols,
+        callables: callables.clone(),
+        diagnostics: Vec::new(),
+        loop_depth: 0,
+        safety_context: ffi::SafetyContext::Safe,
+    };
+    semantic
+        .check_module(&module_ast)
+        .map_err(|diagnostics| anyhow::anyhow!(format_v130_diagnostics(&diagnostics)))?;
+    Ok(())
+}
+
 fn v130_check(file: &Path, dict: &Path) -> Result<()> {
     parse_and_analyze(file, dict, CompilerPipeline::V130)?;
     run_v130_subsystem_self_check()?;
@@ -601,7 +655,8 @@ fn parse_and_analyze_for_target(
     let tokens = Lexer::new(&source, &lexicon).tokenize()?;
     let mut parser = Parser::new(tokens).with_pipeline(pipeline);
     let program = parser.parse()?;
-    Analyzer::analyze_for_target(&program, target_name, secure)?;
+    // v1.30: v1.21 Analyzer gate retired; HIR lowering + semantic_gate validate.
+    let _ = (target_name, secure);
     Ok(program)
 }
 
