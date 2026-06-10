@@ -137,6 +137,9 @@ pub struct LlvmCompiler<'ctx> {
     callables_predeclared: bool,
     // v1.44 G12: Hardware zone depth counter (MMIO volatile semantics)
     hw_zone_depth: u32,
+    // sret: caller-provided return buffer + its LLVM type, for the current
+    // struct-returning function (None when the function returns a scalar).
+    current_sret: Option<(PointerValue<'ctx>, inkwell::types::StructType<'ctx>)>,
 }
 
 /// Backend trait for version-gated codegen. v1.21 uses direct compilation;
@@ -174,6 +177,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             callable_names: HashMap::new(),
             callables_predeclared: false,
             hw_zone_depth: 0,
+            current_sret: None,
         }
     }
 
@@ -444,6 +448,24 @@ pub fn compile_v130(
 impl<'ctx> LlvmCompiler<'ctx> {
     /// Emit a HIR function definition into the LLVM module.
     #[cfg(feature = "v1_30")]
+    /// If `ty` is a struct, rebuild its LLVM struct type from the registry layout.
+    #[cfg(feature = "v1_30")]
+    fn resolve_struct_llvm(&self, ty: crate::types::TypeRef) -> Result<Option<inkwell::types::StructType<'ctx>>> {
+        let layout = match self.types.as_ref() {
+            Some(t) => match t.resolve(ty.id) {
+                crate::types::TypeKind::Struct(lid) => t.get_struct_layout(*lid).cloned(),
+                _ => None,
+            },
+            None => None,
+        };
+        let layout = match layout { Some(l) => l, None => return Ok(None) };
+        let mut field_llvm: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
+        for f in &layout.fields {
+            field_llvm.push(self.hir_type_to_llvm(crate::types::TypeRef { id: f.ty })?);
+        }
+        Ok(Some(self.context.struct_type(&field_llvm, false)))
+    }
+
     fn emit_v130_function(
         &mut self,
         function: &crate::hir::HirFunction,
@@ -455,6 +477,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
         let mut param_types: Vec<BasicTypeEnum<'ctx>> = Vec::new();
         for param in &function.params {
             param_types.push(self.hir_type_to_llvm(param.ty)?);
+        }
+
+        // 1b. Struct-return ABI (sret): a struct-returning function takes a
+        // hidden leading pointer to a caller-allocated buffer, fills it, and
+        // returns that pointer (as i64).
+        let sret_struct = self.resolve_struct_llvm(function.return_type)?;
+        if let Some(st) = sret_struct {
+            param_types.insert(0, st.ptr_type(AddressSpace::default()).into());
         }
 
         // 2. Determine return type. A Unit-returning function must be an LLVM
@@ -484,12 +514,19 @@ impl<'ctx> LlvmCompiler<'ctx> {
         let entry = self.context.append_basic_block(func, "entry");
         self.builder.position_at_end(entry);
 
+        // Record the sret buffer pointer (param 0) for the return handler.
+        self.current_sret = sret_struct.map(|st| {
+            let pv = func.get_nth_param(0).unwrap().into_pointer_value();
+            (pv, st)
+        });
+        let param_offset = if self.current_sret.is_some() { 1 } else { 0 };
+
         // 4. Clear locals from previous function
         self.hir_local_allocs.clear();
 
         // 5. Allocate parameters as local variables
         for (idx, HirParam { local, ty: _, .. }) in function.params.iter().enumerate() {
-            let param_val = func.get_nth_param(idx as u32)
+            let param_val = func.get_nth_param((idx + param_offset) as u32)
                 .ok_or_else(|| anyhow!("function param {} out of range", idx))?;
             let alloca = self.create_entry_alloca(func, &format!("param_{}", idx));
             self.builder.build_store(alloca, param_val)
@@ -505,6 +542,12 @@ impl<'ctx> LlvmCompiler<'ctx> {
             if function.return_type.id == self.unit_type_id() {
                 self.builder.build_return(None)
                     .context("failed to build implicit void return")?;
+            } else if let Some((sret_ptr, _)) = self.current_sret {
+                let ret = self.builder
+                    .build_ptr_to_int(sret_ptr, self.i64_type, "sret_ret")
+                    .context("sret implicit return")?;
+                self.builder.build_return(Some(&ret))
+                    .context("failed to build implicit sret return")?;
             } else {
                 // All HIR expressions produce i64 — return 0 as default
                 let zero = self.i64_type.const_int(0, false);
@@ -513,6 +556,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
         }
 
+        self.current_sret = None;
         Ok(())
     }
 
@@ -642,8 +686,35 @@ impl<'ctx> LlvmCompiler<'ctx> {
             HirStmt::Return(expr) => {
                 if let Some(val_expr) = expr {
                     let val = self.emit_hir_expr(val_expr, func)?;
-                    self.builder.build_return(Some(&val))
-                        .context("failed to build return")?;
+                    if let Some((sret_ptr, struct_ty)) = self.current_sret {
+                        let src = self.builder
+                            .build_int_to_ptr(val, struct_ty.ptr_type(AddressSpace::default()), "ret_src")
+                            .context("sret src int->ptr")?;
+                        let n = struct_ty.count_fields();
+                        for i in 0..n {
+                            let sf = unsafe {
+                                self.builder.build_struct_gep(struct_ty, src, i, "ret_sf")
+                                    .context("sret src gep")?
+                            };
+                            let df = unsafe {
+                                self.builder.build_struct_gep(struct_ty, sret_ptr, i, "ret_df")
+                                    .context("sret dst gep")?
+                            };
+                            let fty = struct_ty.get_field_type_at_index(i)
+                                .ok_or_else(|| anyhow!("sret field type"))?;
+                            let v = self.builder.build_load(fty, sf, "ret_fv")
+                                .context("sret field load")?;
+                            self.builder.build_store(df, v).context("sret field store")?;
+                        }
+                        let ret = self.builder
+                            .build_ptr_to_int(sret_ptr, self.i64_type, "sret_ret")
+                            .context("sret ptr->int")?;
+                        self.builder.build_return(Some(&ret))
+                            .context("failed to build sret return")?;
+                    } else {
+                        self.builder.build_return(Some(&val))
+                            .context("failed to build return")?;
+                    }
                 } else {
                     self.builder.build_return(None)
                         .context("failed to build void return")?;
@@ -725,7 +796,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 }
             }
             HirExprKind::Call { callee, args } => {
-                self.emit_hir_call(*callee, args, func)
+                self.emit_hir_call(*callee, args, func, expr.ty)
             }
             HirExprKind::Field { base, field_index } => {
                 let base_val = self.emit_hir_expr(base, func)?;
@@ -960,6 +1031,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         callee: crate::types::CallableId,
         args: &[crate::hir::HirExpr],
         func: FunctionValue<'ctx>,
+        ret_ty: crate::types::TypeRef,
     ) -> Result<IntValue<'ctx>> {
         // Resolve the callee by NAME (the HIR Call.callee is a SymbolTable id,
         // independent of the FFI registry), avoiding aliasing a builtin like
@@ -1011,8 +1083,18 @@ impl<'ctx> LlvmCompiler<'ctx> {
             self.declare_extern_func(&signature)?
         };
 
+        // Struct-return ABI: if the callee returns a struct, allocate the result
+        // buffer in the caller frame and pass it as the hidden sret argument.
+        let sret_buf = match self.resolve_struct_llvm(ret_ty)? {
+            Some(st) => Some(self.create_entry_alloca_typed(func, "sret_buf", st.into())),
+            None => None,
+        };
+
         // Evaluate arguments and emit the call.
         let mut llvm_args: Vec<BasicValueEnum<'ctx>> = Vec::new();
+        if let Some(buf) = sret_buf {
+            llvm_args.push(buf.into());
+        }
         for arg in args {
             let val = self.emit_hir_expr(arg, func)?;
             llvm_args.push(val.into());
