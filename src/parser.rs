@@ -893,10 +893,7 @@ impl Parser {
     fn parse_postfix(&mut self, mut expr: Expr) -> Result<Expr, ParseError> {
         while self.check(TokenKind::Dot) {
             self.advance(); // consume '.'
-            let member = self
-                .consume(TokenKind::Identifier, "field name after '.'")?
-                .lexeme
-                .clone();
+            let member = self.consume_member_name("field name after '.'")?;
             if self.check(TokenKind::LeftParen) {
                 // Method calls on an expression result are not supported yet:
                 // Expr::MethodCall carries a name, not an expression.
@@ -1026,7 +1023,7 @@ impl Parser {
             // v1.30.1-alpha: pintu.hantar(val), pintu.terima()
             if self.check(TokenKind::Dot) {
                 self.advance(); // consume '.'
-                let member = self.consume(TokenKind::Identifier, "field or method name after '.'")?.lexeme.clone();
+                let member = self.consume_member_name("field or method name after '.'")?;
                 // Bare field access `obj.field` (not followed by '(').
                 if !self.check(TokenKind::LeftParen) {
                     return Ok(Expr::FieldAccess {
@@ -1187,6 +1184,31 @@ impl Parser {
     fn check(&self, kind: TokenKind) -> bool {
         self.peek().kind == kind
     }
+    /// Consume a member/field name after `.`. Field names can collide with
+    /// keywords (e.g. gate refs `Net.Send`, `Storage.Baca`); accept any
+    /// word-like token (identifier or keyword) but reject punctuation and
+    /// numeric/string literals.
+    fn consume_member_name(&mut self, ctx: &str) -> Result<String, ParseError> {
+        let is_ident = self.check(TokenKind::Identifier);
+        let lexeme = self.peek().lexeme.clone();
+        let word_like = is_ident
+            || lexeme
+                .chars()
+                .next()
+                .map_or(false, |ch| ch.is_alphabetic() || ch == '_');
+        if word_like {
+            Ok(self.advance().lexeme.clone())
+        } else {
+            let (line, column) = (self.peek().line, self.peek().column);
+            Err(ParseError::Expected {
+                expected: ctx.to_string(),
+                found: lexeme,
+                line,
+                column,
+            })
+        }
+    }
+
     fn advance(&mut self) -> &Token {
         if !self.is_at_end() {
             self.current += 1;
