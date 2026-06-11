@@ -635,6 +635,18 @@ impl Parser {
         if self.matches(TokenKind::TypeU32) {
             return Ok(Type::U32);
         }
+        if self.matches(TokenKind::TypeI8) {
+            return Ok(Type::I8);
+        }
+        if self.matches(TokenKind::TypeI16) {
+            return Ok(Type::I16);
+        }
+        if self.matches(TokenKind::TypeU8) {
+            return Ok(Type::U8);
+        }
+        if self.matches(TokenKind::TypeU64) {
+            return Ok(Type::U64);
+        }
         if self.matches(TokenKind::TypeF64) {
             return Ok(Type::F64);
         }
