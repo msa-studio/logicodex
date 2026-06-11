@@ -128,6 +128,8 @@ pub struct LlvmCompiler<'ctx> {
     declared_funcs: HashMap<String, FunctionValue<'ctx>>,
     // v1.35+: HIR codegen support — local allocations and callable resolution
     hir_local_allocs: HashMap<u32, PointerValue<'ctx>>,
+    // Declared type of each HIR local, for fixed-width wrapping on assignment.
+    hir_local_types: HashMap<u32, crate::types::TypeRef>,
     hir_callable_funcs: HashMap<u32, FunctionValue<'ctx>>,
     // v1.36+: Struct registry — symbol_id → LLVM struct type
     hir_struct_types: HashMap<u32, inkwell::types::StructType<'ctx>>,
@@ -171,6 +173,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             types: None,
             declared_funcs: HashMap::new(),
             hir_local_allocs: HashMap::new(),
+            hir_local_types: HashMap::new(),
             hir_callable_funcs: HashMap::new(),
             hir_struct_types: HashMap::new(),
             hir_struct_names: HashMap::new(),
@@ -603,20 +606,26 @@ impl<'ctx> LlvmCompiler<'ctx> {
     ) -> Result<()> {
         use crate::hir::{HirStmt};
         match stmt {
-            HirStmt::Let { local, ty: _, value } => {
+            HirStmt::Let { local, ty, value } => {
                 let alloca = self.create_entry_alloca(func, &format!("local_{}", local.0));
                 if let Some(val_expr) = value {
                     let val = self.emit_hir_expr(val_expr, func)?;
+                    let val = self.wrap_to_width(val, *ty)?;
                     self.builder.build_store(alloca, val)
                         .context("failed to store let value")?;
                 }
                 self.hir_local_allocs.insert(local.0, alloca);
+                self.hir_local_types.insert(local.0, *ty);
                 Ok(())
             }
             HirStmt::Assign { target, value } => {
                 let val = self.emit_hir_expr(value, func)?;
                 match &target.kind {
                     crate::hir::HirExprKind::Local(local_id) => {
+                        let val = match self.hir_local_types.get(&local_id.0).copied() {
+                            Some(lty) => self.wrap_to_width(val, lty)?,
+                            None => val,
+                        };
                         let ptr = self.hir_local_allocs.get(&local_id.0)
                             .ok_or_else(|| anyhow!("assign target local {} not found", local_id.0))?;
                         self.builder.build_store(*ptr, val)
@@ -645,6 +654,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
                                 self.builder.build_struct_gep(struct_type, ptr, *field_index as u32, "assign_field_ptr")
                                     .context("field assign gep")?
                             };
+                            let fty = crate::types::TypeRef { id: layout.fields[*field_index].ty };
+                            let val = self.wrap_to_width(val, fty)?;
                             self.builder.build_store(field_ptr, val)
                                 .context("field assign store")?;
                         }
@@ -724,6 +735,40 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
+    /// Emulate fixed-width integer semantics on the uniform i64 working value:
+    /// truncate to the type's bit width then re-extend (sign- or zero-extend)
+    /// back to i64, so the value wraps exactly as a register of that width would.
+    /// A no-op for 64-bit ints and non-integer types.
+    #[cfg(feature = "v1_30")]
+    fn wrap_to_width(&self, value: IntValue<'ctx>, ty: crate::types::TypeRef) -> Result<IntValue<'ctx>> {
+        let prim = match self.types.as_ref() {
+            Some(t) => match t.resolve(ty.id) {
+                TypeKind::Primitive(p) => *p,
+                _ => return Ok(value),
+            },
+            None => return Ok(value),
+        };
+        let bits = match prim.int_bits() {
+            Some(b) if b < 64 => b,
+            _ => return Ok(value),
+        };
+        let narrow_ty = self.context.custom_width_int_type(bits);
+        let truncated = self
+            .builder
+            .build_int_truncate(value, narrow_ty, "wrap_trunc")
+            .context("wrap truncate")?;
+        let extended = if prim.is_unsigned_int() {
+            self.builder
+                .build_int_z_extend(truncated, self.i64_type, "wrap_zext")
+                .context("wrap zext")?
+        } else {
+            self.builder
+                .build_int_s_extend(truncated, self.i64_type, "wrap_sext")
+                .context("wrap sext")?
+        };
+        Ok(extended)
+    }
+
     #[cfg(feature = "v1_30")]
     fn emit_hir_expr(
         &mut self,
@@ -752,7 +797,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             HirExprKind::Binary { left, op, right } => {
                 let l = self.emit_hir_expr(left, func)?;
                 let r = self.emit_hir_expr(right, func)?;
-                match op {
+                let result = (match op {
                     BinaryOpAst::Add => self.builder.build_int_add(l, r, "addtmp").context("add"),
                     BinaryOpAst::Sub => self.builder.build_int_sub(l, r, "subtmp").context("sub"),
                     BinaryOpAst::Mul => self.builder.build_int_mul(l, r, "multmp").context("mul"),
@@ -780,11 +825,12 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     BinaryOpAst::BitXor => self.builder.build_xor(l, r, "xortmp").context("xor"),
                     BinaryOpAst::ShiftLeft => self.builder.build_left_shift(l, r, "shltmp").context("shl"),
                     BinaryOpAst::ShiftRight => self.builder.build_right_shift(l, r, true, "shrtmp").context("shr"),
-                }
+                })?;
+                self.wrap_to_width(result, expr.ty)
             }
             HirExprKind::Unary { op, expr } => {
                 let val = self.emit_hir_expr(expr, func)?;
-                match op {
+                let result = (match op {
                     UnaryOpAst::Negate => self.builder.build_int_neg(val, "negtmp").context("neg"),
                     UnaryOpAst::LogicalNot => {
                         let b = self.i64_to_bool(val, "notcond")?;
@@ -793,7 +839,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     }
                     UnaryOpAst::AddressOf => Ok(self.i64_type.const_int(0, false)), // placeholder
                     UnaryOpAst::Deref => Ok(self.i64_type.const_int(0, false)), // placeholder
-                }
+                })?;
+                self.wrap_to_width(result, expr.ty)
             }
             HirExprKind::Call { callee, args } => {
                 self.emit_hir_call(*callee, args, func, expr.ty)
