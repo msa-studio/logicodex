@@ -105,6 +105,110 @@ pub enum PrimitiveType {
     Unit,
 }
 
+impl PrimitiveType {
+    /// Bit width of an integer primitive (`None` for non-integers).
+    #[allow(dead_code)]
+    pub fn int_bits(self) -> Option<u32> {
+        match self {
+            PrimitiveType::I8 | PrimitiveType::U8 => Some(8),
+            PrimitiveType::I16 | PrimitiveType::U16 => Some(16),
+            PrimitiveType::I32 | PrimitiveType::U32 => Some(32),
+            PrimitiveType::I64 | PrimitiveType::U64 => Some(64),
+            _ => None,
+        }
+    }
+
+    /// Whether this primitive is a signed integer (drives sext vs zext).
+    #[allow(dead_code)]
+    pub fn is_signed_int(self) -> bool {
+        matches!(
+            self,
+            PrimitiveType::I8 | PrimitiveType::I16 | PrimitiveType::I32 | PrimitiveType::I64
+        )
+    }
+
+    /// Whether this primitive is an unsigned integer.
+    #[allow(dead_code)]
+    pub fn is_unsigned_int(self) -> bool {
+        matches!(
+            self,
+            PrimitiveType::U8 | PrimitiveType::U16 | PrimitiveType::U32 | PrimitiveType::U64
+        )
+    }
+}
+
+/// Legacy / foreign source-language scalar types, used ONLY during translation
+/// from other languages (C, Pascal, ...) into Logicodex. These never appear on
+/// the normal Logicodex compilation path and never reach codegen: a translation
+/// front-end maps each to its canonical native `PrimitiveType` via
+/// `canonical_native()` *before* HIR lowering. Kept deliberately inert so the
+/// normal path carries zero overhead. Extend this enum as new source languages
+/// are supported.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LegacyType {
+    // ── C family ──
+    CChar,
+    CSignedChar,
+    CUnsignedChar,
+    CShort,
+    CUnsignedShort,
+    CInt,
+    CUnsignedInt,
+    CLong,
+    CUnsignedLong,
+    CLongLong,
+    CUnsignedLongLong,
+    CSizeT,
+    CSsizeT,
+    CIntPtr,
+    CUIntPtr,
+    CPtrDiffT,
+    CWCharT,
+    CChar16T,
+    CChar32T,
+    CBool,
+    CFloat,
+    CDouble,
+    CLongDouble,
+    CVoid,
+    // ── Pascal family ──
+    PascalShortInt,
+    PascalByte,
+    PascalSmallInt,
+    PascalWord,
+    PascalInteger,
+    PascalLongWord,
+    PascalInt64,
+}
+
+#[allow(dead_code)]
+impl LegacyType {
+    /// Canonical native Logicodex primitive this legacy type lowers to.
+    /// Invoked by translation front-ends only; never on the normal path.
+    pub fn canonical_native(self) -> PrimitiveType {
+        use LegacyType::*;
+        match self {
+            CChar | CSignedChar | PascalShortInt => PrimitiveType::I8,
+            CUnsignedChar | PascalByte => PrimitiveType::U8,
+            CShort | PascalSmallInt => PrimitiveType::I16,
+            CUnsignedShort | PascalWord => PrimitiveType::U16,
+            CInt | PascalInteger => PrimitiveType::I32,
+            CUnsignedInt | PascalLongWord => PrimitiveType::U32,
+            CBool => PrimitiveType::Bool,
+            CVoid => PrimitiveType::Unit,
+            CFloat => PrimitiveType::F32,
+            CDouble | CLongDouble => PrimitiveType::F64,
+            CChar16T => PrimitiveType::U16,
+            CChar32T => PrimitiveType::U32,
+            CWCharT => PrimitiveType::I32, // wchar_t: 32-bit signed on Linux/macOS
+            CPtrDiffT => PrimitiveType::I64,
+            CLong | CLongLong | CSsizeT | CIntPtr | PascalInt64 => PrimitiveType::I64,
+            CUnsignedLong | CUnsignedLongLong | CSizeT | CUIntPtr => PrimitiveType::U64,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Mutability {
     Immutable,

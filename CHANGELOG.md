@@ -24,6 +24,7 @@ See `docs/architecture/hir-decision.md`.
 - Call return-type inference: each callable's return type is resolved in a pre-pass and attached to `Call` expressions (previously typed `Unknown`), enabling precise typing of call results
 - Struct returns via the **sret ABI**: a struct-returning function takes a hidden caller-allocated buffer pointer, copies its fields into it on return, and returns that pointer
 - Chained postfix field access: `buat().x` (field access on a call result) and `a.b.c` now parse via a `parse_postfix` loop in `unary()`
+- Foreign-type translation scaffold: `LegacyType` enum (full C scalar family + Pascal) with `canonical_native()` mapping to native primitives — inert, translation-only; plus integer width helpers (`int_bits`, `is_signed_int`). See `docs/architecture/foreign-types.md`
 
 ### Fixed
 - Returning a struct by value no longer yields a dangling pointer (second field previously read garbage); struct returns now copy into a caller-provided buffer (sret)
