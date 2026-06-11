@@ -33,7 +33,7 @@ Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebas
 | WASM backend | PARTIAL | LLVM path exists, no linker/runtime/CI | Issue #10 |
 | Freestanding x86_64 | PARTIAL | Code complete, never booted in QEMU | Issue #11 |
 | Raylib FFI | PARTIAL | 55 wrappers, partial API coverage | Issue #12 |
-| CI/CD | PARTIAL | Failing, 148/148 claim false | Issue #13 |
+| CI/CD | PARTIAL | Suite does not compile: 5/34 test targets build, 29 fail (drift: removed net, AST evolution, visibility); "148/148" was false | Issue #13 |
 | HIR lowering | FULL | Active — Issue #02 resolved (ACTIVATE) | structs, enums+match, fns, control flow |
 | Deterministic execution | SKELETON | Framework only, no runtime integration | Issue #14 |
 | Freestanding aarch64 | SKELETON | LLVM triple only | Issue #15 |

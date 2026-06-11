@@ -92,8 +92,9 @@ Architecture-correlated benchmark framework with 4 layers. 20 new files (~2,200 
 - `benches/harness/compare_baseline.py` — Regression detection tool
 - `docs/RFC_TEMPLATE.md` — Architecture Freeze enforcement template
 
-### Validation: 148/148 ✅
-v1.45 Benchmark Framework: 11/11 | v1.44 Freestanding: 15/15 | v1.43 Raylib Audio: 80/80 | v1.42 Raylib Pending: 9/9 | Host Reactor: 20/20 | WASM: 13/13 | **Total: 148/148 ✅**
+### Validation
+
+> **Correction (2026-06):** the previously stated "148/148 ✅" was not reproducible. A full `cargo test --features v1_30` inventory shows **5 of 34 test targets compile**; the remaining 29 fail to compile due to test-suite drift (removed `net` module, AST evolution, visibility changes). The suite requires rehabilitation (Issue #13 / ROADMAP P1-D2). No verified aggregate pass count is claimed until the suite compiles.
 
 ---
 
