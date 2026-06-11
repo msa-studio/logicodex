@@ -48,7 +48,7 @@ lowered to an if/else chain, wildcard).
 - Call return-type inference wired (Call expressions carry their callee's return type).
 - Struct returns made sound via the sret ABI (caller-allocated buffer; no dangling pointers).
 - Parser supports chained postfix field access (`buat().x`, `a.b.c`).
+- Fixed-width integers (all 8 widths) with true wrapping at every boundary (init, assignment, fields, per-op arithmetic, params, returns, call results); uniform i64 representation retained.
 
 ## Known stopgaps (tracked, not blockers)
-- Integer widths uniform i64 (no real fixed-width ints yet).
 - Method calls on expression results (`buat().m()`) not yet supported.

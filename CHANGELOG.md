@@ -24,6 +24,7 @@ See `docs/architecture/hir-decision.md`.
 - Call return-type inference: each callable's return type is resolved in a pre-pass and attached to `Call` expressions (previously typed `Unknown`), enabling precise typing of call results
 - Struct returns via the **sret ABI**: a struct-returning function takes a hidden caller-allocated buffer pointer, copies its fields into it on return, and returns that pointer
 - Chained postfix field access: `buat().x` (field access on a call result) and `a.b.c` now parse via a `parse_postfix` loop in `unary()`
+- Fixed-width integers (I8/I16/I32/I64/U8/U16/U32/U64): true wrapping via `wrap_to_width` (truncate to width then sign/zero-extend) at every boundary — literal/let init, assignment, struct-field store, each arithmetic/unary op (per-op wrap), incoming parameters, return values, and call results. Uniform i64 storage/working model retained (no layout/ABI change); only values wrap. All 8 widths enabled via `named_type_id` uppercase aliases
 - Foreign-type translation scaffold: `LegacyType` enum (full C scalar family + Pascal) with `canonical_native()` mapping to native primitives — inert, translation-only; plus integer width helpers (`int_bits`, `is_signed_int`). See `docs/architecture/foreign-types.md`
 
 ### Fixed
@@ -45,7 +46,6 @@ See `docs/architecture/hir-decision.md`.
 - Roadmap subsystems (OS/freestanding, capability/sharded/actor runtime) intact — dead_code = honest "not yet wired"
 
 ### Known stopgaps
-- Integer widths uniform i64 (no real fixed-width ints yet)
 - Method calls on expression results (`buat().m()`) not yet supported (`Expr::MethodCall` carries a name, not an expression)
 
 ## [v1.45.0-alpha] — 2026-05-25 — Quantitative Benchmark Framework (Layers 1-3)
