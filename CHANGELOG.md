@@ -25,10 +25,12 @@ See `docs/architecture/hir-decision.md`.
 - Struct returns via the **sret ABI**: a struct-returning function takes a hidden caller-allocated buffer pointer, copies its fields into it on return, and returns that pointer
 - Chained postfix field access: `buat().x` (field access on a call result) and `a.b.c` now parse via a `parse_postfix` loop in `unary()`
 - Fixed-width integers (I8/I16/I32/I64/U8/U16/U32/U64): true wrapping via `wrap_to_width` (truncate to width then sign/zero-extend) at every boundary — literal/let init, assignment, struct-field store, each arithmetic/unary op (per-op wrap), incoming parameters, return values, and call results. Uniform i64 storage/working model retained (no layout/ABI change); only values wrap. All 8 widths enabled via `named_type_id` uppercase aliases
+- Capability verification (Issue #07): the dormant tier2 Capability Fabric is now wired into `check` — each `Service` `requires` clause is validated against the standard gate vocabulary (`all_standard_domains`). A malformed gate (not `Domain.Operation`) is an error; a well-formed gate outside the vocabulary is a warning. Compile-time only, consistent with the fabric's zero-runtime-mediation design
 - Foreign-type translation scaffold: `LegacyType` enum (full C scalar family + Pascal) with `canonical_native()` mapping to native primitives — inert, translation-only; plus integer width helpers (`int_bits`, `is_signed_int`). See `docs/architecture/foreign-types.md`
 
 ### Fixed
 - Returning a struct by value no longer yields a dangling pointer (second field previously read garbage); struct returns now copy into a caller-provided buffer (sret)
+- Service declarations now parse: field names (`port`/`requires`/`handler`/`policy`) and bareword values that lex as keywords are accepted (previously the parser required identifiers and rejected its own field keywords)
 
 ### Changed
 - `check` runs full v1.30 validation (parse → lower → semantic_gate)
