@@ -475,6 +475,52 @@ fn parse_and_analyze(file: &Path, dict: &Path, pipeline: CompilerPipeline) -> Re
 
 #[cfg(feature = "v1_30")]
 #[cfg(feature = "v1_30")]
+/// Compile-time capability check using the tier2 Capability Fabric vocabulary.
+/// Each `Service` `requires` clause must name a gate. A clearly malformed gate
+/// (not `Domain.Operation`) is a hard error; a well-formed gate outside the
+/// standard vocabulary is a warning (the vocabulary may not list it yet). This
+/// keeps with the fabric's "zero runtime mediation" design: capabilities are
+/// verified purely at compile time, with no runtime overhead.
+fn validate_capabilities(program: &ast::Program) -> Result<()> {
+    let known: std::collections::HashSet<(String, String)> =
+        logicodex::tier2::gate::all_standard_domains()
+            .into_iter()
+            .flat_map(|(_d, gates)| gates.into_iter().map(|g| (g.domain, g.operation)))
+            .collect();
+    let mut errors: Vec<String> = Vec::new();
+    for stmt in &program.statements {
+        if let ast::Stmt::Service {
+            name,
+            requires: Some(req),
+            ..
+        } = stmt
+        {
+            match logicodex::tier2::gate::GateRef::parse(req) {
+                Ok(g) => {
+                    if !known.contains(&(g.domain.clone(), g.operation.clone())) {
+                        eprintln!(
+                            "warning: service '{}' requires '{}', which is not in the standard capability vocabulary",
+                            name, req
+                        );
+                    }
+                }
+                Err(_) => errors.push(format!(
+                    "service '{}' has a malformed capability '{}' (expected Domain.Operation)",
+                    name, req
+                )),
+            }
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!(
+            "capability check failed:\n  {}",
+            errors.join("\n  ")
+        ))
+    }
+}
+
 fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
     // Full v1.30 validation: parse -> lower (AST->HIR) -> semantic_gate.
     // Replaces the retired v1.21 Analyzer as `check`'s validation pass.
@@ -485,6 +531,9 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
     let tokens = Lexer::new(&source, &lexicon).tokenize()?;
     let mut parser = Parser::new(tokens).with_pipeline(CompilerPipeline::V130);
     let program = parser.parse()?;
+
+    // Compile-time capability check (tier2 Capability Fabric vocabulary).
+    validate_capabilities(&program)?;
 
     let mut types = types::TypeRegistry::new();
     let (raylib_type_ids, _raylib_struct_ids) = ffi::raylib::register_raylib_types(&mut types);

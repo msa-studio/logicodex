@@ -336,10 +336,12 @@ impl Parser {
         let mut policy = "Block".to_string();
         
         while !self.check(TokenKind::End) {
-            let field = self.consume(TokenKind::Identifier, "service field name")?.lexeme.clone();
+            // Field names (port/requires/handler/policy) may lex as keywords or
+            // identifiers; accept whichever token appears and match on its lexeme.
+            let field = self.advance().lexeme.clone();
             self.consume(TokenKind::Colon, "':' after service field")?;
             
-            match field.as_str() {
+            match field.to_lowercase().as_str() {
                 "port" => {
                     let val = self.consume(TokenKind::Integer, "port number")?.lexeme.clone();
                     port = val.parse().unwrap_or(0);
@@ -356,11 +358,10 @@ impl Parser {
                     }
                 }
                 "handler" => {
-                    handler = self.consume(TokenKind::Identifier, "handler name")?.lexeme.clone();
+                    handler = self.advance().lexeme.clone();
                 }
                 "policy" => {
-                    let pol = self.consume(TokenKind::Identifier, "policy name")?.lexeme.clone();
-                    policy = pol;
+                    policy = self.advance().lexeme.clone();
                 }
                 _ => {
                     // Abaikan field tak dikenali
