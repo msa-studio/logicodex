@@ -27,7 +27,7 @@ Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebas
 | Dual license + policy docs | FULL | Production | MPL-2.0 / MIT, SECURITY.md |
 | Compiler pipeline | FULL | HIR on execution path | .ldx → HIR → LLVM → native; sole path (v1.46) |
 | Actor-model | PARTIAL | Types + semantic complete, no runtime | Runtime is stub |
-| Capability security | PARTIAL | Compile-time works, runtime stub | Issue #07 |
+| Capability security | PARTIAL | Compile-time vocabulary check active (`check` validates Service gates); runtime + provider-topology pending | Issue #07 |
 | Sharded runtime | PARTIAL | Threads + affinity exist, messaging missing | Issue #08 |
 | Network reactor | PARTIAL | Syscalls exist, socket lifecycle missing | Issue #09 |
 | WASM backend | PARTIAL | LLVM path exists, no linker/runtime/CI | Issue #10 |
@@ -135,7 +135,7 @@ The following evidence must be provided to exit Phase 1:
 ### Open Issues
 
 - Issue #02 — HIR lowering (decision pending)
-- Issue #07 — Capability security runtime (compile-time done, stubbed)
+- Issue #07 — Capability security runtime (compile-time vocabulary check wired into `check` v1.46; runtime + provider-topology still pending)
 - Issue #08 — Sharded runtime messaging (threads exist, channels missing)
 - Issue #09 — Network reactor socket lifecycle (syscalls done)
 - Issue #10 — WASM linker + runtime (LLVM path done)
