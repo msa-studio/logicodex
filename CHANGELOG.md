@@ -45,6 +45,9 @@ See `docs/architecture/hir-decision.md`.
 - `CompilerPipeline::V121` variant (`--pipeline v1.21` now a deprecated alias)
 - Dead `unimplemented_feature` + `UnimplementedFeature` variant
 
+### Architecture
+- Adopted the **tiered runtime doctrine** (`docs/architecture/runtime-doctrine.md`): *Zero Runtime Core, Optional Runtime Profiles, Portable Semantic IR*. The core stays runtime-free (everything compile-away: types, fixed-width ints, structs/enums, control flow, FFI boundary, static capability validation); runtime features (actors, channels, sandbox I/O, runtime capability enforcement) are opt-in profiles layered above the backend. Resolves the #07 zero-runtime-vs-enforcement tension (validation=core, enforcement=profile)
+
 ### Notes
 - Compiler-guided dead-code removal; `cargo fix` for mechanical lints; zero regression
 - Roadmap subsystems (OS/freestanding, capability/sharded/actor runtime) intact — dead_code = honest "not yet wired"
