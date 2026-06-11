@@ -1083,6 +1083,26 @@ impl Parser {
             self.consume(TokenKind::RightParen, ")")?;
             return Ok(Expr::Grouped(Box::new(expr)));
         }
+        // Fallback: a word-like keyword used as a namespaced base, e.g. the gate
+        // domain in `HW.GPIO`. Only fires when immediately followed by `.` (member
+        // access); bare keywords in expression position still error. The trailing
+        // `.field` is handled by the postfix loop in `unary()`.
+        {
+            let word_like = self
+                .peek()
+                .lexeme
+                .chars()
+                .next()
+                .map_or(false, |ch| ch.is_alphabetic() || ch == '_');
+            let next_is_dot = self
+                .tokens
+                .get(self.current + 1)
+                .map_or(false, |t| t.kind == TokenKind::Dot);
+            if word_like && next_is_dot {
+                let name = self.advance().lexeme.clone();
+                return Ok(Expr::Variable(name));
+            }
+        }
         let t = self.peek();
         Err(ParseError::Unexpected {
             found: t.lexeme.clone(),
