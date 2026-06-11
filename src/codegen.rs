@@ -142,6 +142,9 @@ pub struct LlvmCompiler<'ctx> {
     // sret: caller-provided return buffer + its LLVM type, for the current
     // struct-returning function (None when the function returns a scalar).
     current_sret: Option<(PointerValue<'ctx>, inkwell::types::StructType<'ctx>)>,
+    // Declared return type of the function being emitted, for fixed-width
+    // wrapping of returned scalar values.
+    current_return_ty: Option<crate::types::TypeRef>,
 }
 
 /// Backend trait for version-gated codegen. v1.21 uses direct compilation;
@@ -181,6 +184,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             callables_predeclared: false,
             hw_zone_depth: 0,
             current_sret: None,
+            current_return_ty: None,
         }
     }
 
@@ -522,18 +526,25 @@ impl<'ctx> LlvmCompiler<'ctx> {
             let pv = func.get_nth_param(0).unwrap().into_pointer_value();
             (pv, st)
         });
+        self.current_return_ty = Some(function.return_type);
         let param_offset = if self.current_sret.is_some() { 1 } else { 0 };
 
         // 4. Clear locals from previous function
         self.hir_local_allocs.clear();
 
         // 5. Allocate parameters as local variables
-        for (idx, HirParam { local, ty: _, .. }) in function.params.iter().enumerate() {
+        for (idx, HirParam { local, ty, .. }) in function.params.iter().enumerate() {
             let param_val = func.get_nth_param((idx + param_offset) as u32)
                 .ok_or_else(|| anyhow!("function param {} out of range", idx))?;
+            // Fixed-width: wrap an incoming narrow-typed parameter to its width.
+            let param_val = match param_val {
+                BasicValueEnum::IntValue(iv) => BasicValueEnum::IntValue(self.wrap_to_width(iv, *ty)?),
+                other => other,
+            };
             let alloca = self.create_entry_alloca(func, &format!("param_{}", idx));
             self.builder.build_store(alloca, param_val)
                 .context("failed to store parameter")?;
+            self.hir_local_types.insert(local.0, *ty);
             self.hir_local_allocs.insert(local.0, alloca);
         }
 
@@ -560,6 +571,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
 
         self.current_sret = None;
+        self.current_return_ty = None;
         Ok(())
     }
 
@@ -723,6 +735,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         self.builder.build_return(Some(&ret))
                             .context("failed to build sret return")?;
                     } else {
+                        let val = match self.current_return_ty {
+                            Some(rty) => self.wrap_to_width(val, rty)?,
+                            None => val,
+                        };
                         self.builder.build_return(Some(&val))
                             .context("failed to build return")?;
                     }
@@ -1156,7 +1172,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             .with_context(|| format!("failed to build call to '{}'", label))?;
 
         match call_site.try_as_basic_value().left() {
-            Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+            Some(BasicValueEnum::IntValue(iv)) => self.wrap_to_width(iv, ret_ty),
             _ => Ok(self.i64_type.const_int(0, false)),
         }
     }
