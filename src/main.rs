@@ -303,7 +303,8 @@ fn compile_v130_pipeline(
     // v1.42 P7: WASM target — Raylib is native-desktop only, block all Raylib functions
     if target.is_wasm() {
         let raylib_names: Vec<String> = callables.signatures.iter()
-            .filter(|sig| ffi::raylib::is_struct_constructor(&sig.name) || is_raylib_function(&sig.name))
+            .filter(|sig| (ffi::raylib::is_struct_constructor(&sig.name) || is_raylib_function(&sig.name))
+                && source_references_word(&source, &sig.name))
             .map(|sig| sig.name.clone())
             .collect();
         if !raylib_names.is_empty() {
@@ -352,6 +353,33 @@ fn compile_v130_pipeline(
 
 /// v1.42 P7: Check if a function name is a Raylib function.
 /// Used to filter out Raylib functions when targeting WASM.
+/// True if `b` can appear inside an identifier.
+fn is_ident_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
+/// True if `word` appears in `source` as a whole word (identifier-boundary
+/// aware), i.e. the program actually references it. Used to detect real Raylib
+/// usage rather than the unconditional extern declarations.
+fn source_references_word(source: &str, word: &str) -> bool {
+    if word.is_empty() {
+        return false;
+    }
+    let bytes = source.as_bytes();
+    let mut search_from = 0usize;
+    while let Some(rel) = source[search_from..].find(word) {
+        let start = search_from + rel;
+        let end = start + word.len();
+        let before_ok = start == 0 || !is_ident_byte(bytes[start - 1]);
+        let after_ok = end >= bytes.len() || !is_ident_byte(bytes[end]);
+        if before_ok && after_ok {
+            return true;
+        }
+        search_from = start + 1;
+    }
+    false
+}
+
 fn is_raylib_function(name: &str) -> bool {
     const RAYLIB_FUNCTIONS: &[&str] = &[
         "InitWindow", "CloseWindow", "WindowShouldClose", "SetTargetFPS",
