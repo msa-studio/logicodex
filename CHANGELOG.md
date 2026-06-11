@@ -31,6 +31,8 @@ See `docs/architecture/hir-decision.md`.
 ### Fixed
 - Returning a struct by value no longer yields a dangling pointer (second field previously read garbage); struct returns now copy into a caller-provided buffer (sret)
 - Service declarations now parse: field names (`port`/`requires`/`handler`/`policy`) and bareword values that lex as keywords are accepted (previously the parser required identifiers and rejected its own field keywords)
+- Member access accepts keyword-named members: `expr.NAME` where `NAME` collides with a keyword now parses (via `consume_member_name`), enabling gate operations like `Net.Send`, `Storage.Baca`, `UI.Papar`
+- Keyword namespace bases: a word-like keyword immediately followed by `.` is parsed as a `Variable` base (e.g. the `HW` domain in `HW.GPIO`); bare keywords in expression position still error
 
 ### Changed
 - `check` runs full v1.30 validation (parse → lower → semantic_gate)
