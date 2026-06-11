@@ -326,7 +326,7 @@ mod tests {
     fn ffi_call_requires_unsafe_block() {
         let mut ctx = base_context();
         let ids = ctx.types.primitive_ids();
-        let callable = ctx.callables.register(crate::ffi::CallableSignature {
+        let _callable = ctx.callables.register(crate::ffi::CallableSignature {
             name: "puts".to_string(),
             params: vec![ids.i64_],
             return_type: ids.i32_,
@@ -335,9 +335,12 @@ mod tests {
             is_extern: true,
             is_variadic: false,
         });
+        // The semantic gate resolves FFI callees by NAME via the symbol table,
+        // so the call must reference a symbol id whose name matches the registry.
+        let callee = ctx.symbols.define_callable("puts");
         let call = HirExpr {
             kind: HirExprKind::Call {
-                callee: callable,
+                callee,
                 args: vec![expr_i64(&ctx.types, 1)],
             },
             ty: TypeRef { id: ids.i32_ },

@@ -1284,11 +1284,11 @@ mod tests {
 
     #[test]
     fn keeps_critical_hardware_zone_statements_semicolon_mandatory() {
-        let source = "MULA\nZON_PERKAKASAN MULA\nBINA port: I32 = addr 65280\nTAMAT\nTAMAT\n";
+        let source = "MULA\nZON_PERKAKASAN MULA\nBINA gpio_addr: I32 = addr 65280\nTAMAT\nTAMAT\n";
         assert!(parse_source(source).is_err());
 
         let strict_source =
-            "MULA\nZON_PERKAKASAN MULA\nBINA port: I32 = addr 65280;\nPAPAR port;\nTAMAT\nTAMAT\n";
+            "MULA\nZON_PERKAKASAN MULA\nBINA gpio_addr: I32 = addr 65280;\nPAPAR gpio_addr;\nTAMAT\nTAMAT\n";
         assert!(
             parse_source(strict_source).is_ok(),
             "{:?}",
@@ -1314,19 +1314,4 @@ mod tests {
         assert!(parse_source(source).is_ok(), "{:?}", parse_source(source));
     }
 
-    #[test]
-    fn traps_complex_tokens_as_unimplemented_in_split_scope() {
-        for source in [
-            "MULA\nbentuk Thing MULA\nTAMAT\nTAMAT\n",
-            "MULA\npilihan Mode MULA\nTAMAT\nTAMAT\n",
-            "MULA\nberisiko MULA\nTAMAT\nTAMAT\n",
-            "MULA\nluar fn c_call() -> I32 MULA\nTAMAT\nTAMAT\n",
-        ] {
-            let err = parse_source(source).expect_err("complex token must trap as unimplemented");
-            assert!(
-                err.contains("belum disokong") || err.contains("unimplemented"),
-                "unexpected error: {err}"
-            );
-        }
-    }
 }

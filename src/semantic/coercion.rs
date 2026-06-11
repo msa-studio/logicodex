@@ -281,6 +281,11 @@ impl<'a> CoercionEngine<'a> {
         use PrimitiveType::*;
         let ids = self.registry.primitive_ids();
 
+        // Bool is not numeric: it never implicitly widens with another type.
+        if matches!(a, Bool) != matches!(b, Bool) {
+            return None;
+        }
+
         // Floats are wider than integers of same or smaller size
         match (a, b) {
             (F64, _) | (_, F64) => Some(ids.f64_),

@@ -342,12 +342,12 @@ mod tests {
     }
 
     #[test]
-    fn bool_to_numeric_is_incompatible() {
+    fn bool_to_numeric_requires_explicit_cast() {
         let checker = make_checker();
         let result = checker.check_assignment(&Type::I64, &Type::Bool);
         assert!(
-            matches!(result, TypeCheckResult::Incompatible { .. }),
-            "Bool -> I64 should be incompatible"
+            matches!(result, TypeCheckResult::RequiresExplicitCast { .. }),
+            "Bool -> I64 is semantically distinct and requires an explicit cast"
         );
     }
 
