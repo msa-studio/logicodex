@@ -135,7 +135,7 @@ The following evidence must be provided to exit Phase 1:
 ### Open Issues
 
 - Issue #02 — HIR lowering (decision pending)
-- Issue #07 — Capability security runtime (compile-time vocabulary check wired into `check` v1.46; runtime + provider-topology still pending)
+- Issue #07 — Capability security runtime (compile-time vocabulary check wired into `check` v1.46; runtime + provider-topology still pending) — see `docs/architecture/capability-topology.md`
 - Issue #08 — Sharded runtime messaging (threads exist, channels missing)
 - Issue #09 — Network reactor socket lifecycle (syscalls done)
 - Issue #10 — WASM linker + runtime (LLVM path done)
