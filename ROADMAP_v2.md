@@ -12,7 +12,7 @@
 
 ## Executive Summary
 
-Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebase has **9/22 capabilities fully implemented**, **8/22 partially implemented**, and **4/22 at skeleton level** (HIR activated v1.46; see `docs/architecture/hir-decision.md`). This roadmap replaces aspirational timelines with **phase-gated milestones** where each phase has strict entry criteria, measurable deliverables, mandatory audit checkpoints, and exit proof requirements. **No phase may begin until the previous phase's audit is signed off.**
+Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebase has **10/22 capabilities fully implemented**, **8/22 partially implemented**, and **4/22 at skeleton level** (HIR activated and fixed-width integers landed v1.46; see `docs/architecture/hir-decision.md`). This roadmap replaces aspirational timelines with **phase-gated milestones** where each phase has strict entry criteria, measurable deliverables, mandatory audit checkpoints, and exit proof requirements. **No phase may begin until the previous phase's audit is signed off.**
 
 ### Honest Maturity Matrix (v1.45.0-alpha)
 
@@ -20,6 +20,7 @@ Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebas
 |--------|--------|-------|-------|
 | Bilingual alias-to-canonical | FULL | Production | 60 dict entries, 200+ aliases |
 | Compile-time type checking | FULL | Production | 32 error variants |
+| Fixed-width integers | FULL | Production | All 8 widths (I8–U64), wrapping at every boundary; first-class tokens (v1.46) |
 | Bilingual error diagnostics | FULL | Production | Malay + English |
 | Benchmark framework | FULL | Production | 4 layers, 6 Criterion benchmarks |
 | Validator tiering | FULL | Production | Tier A=6, B=13, C=8 |
