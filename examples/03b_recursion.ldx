@@ -1,38 +1,9 @@
-# ============================================================
-# LEVEL 3B: RECURSIVE FUNCTION
-# Purpose: Test function calls itself (factorial)
-# Grammar: Recursive FUNGSI/FN call
-# DEBUG STRATEGY:
-#   If recursion fails: semantic recursion check may block it
-#   Check: semantic.rs has audio_safety recursion check
-#   If blocked by recursion ban: the semantic analyzer rejects it
-#   Workaround: May need to disable audio safety for this example
-# ============================================================
-
-# --- Malay ---
+# Tahap 3b — Rekursi
 FUNGSI faktorial(n: I32) -> I32 MULA
-    JIKA n <= 1 MAKA
-        PULANG 1
-    MELAINKAN
-        PULANG n * faktorial(n - 1)
-
-BINA f5: I32 = faktorial(5)
-PAPAR f5
-
-# --- Expert Canonical ---
-FN factorial(n: i32) -> I32 {
-    IF n <= 1 then
-        RETURN 1
-    else
-        RETURN n * factorial(n - 1)
-}
-
-LET f5: I32 = factorial(5)
-PRINT f5
-
-# --- Expected Output ---
-# 120
-
-# --- Known Limitations ---
-# Semantic checker may reject recursion (audio safety).
-# If rejected, the semantic error will indicate which rule triggered.
+    JIKA n <= 1 MULA
+        PULANG 1;
+    TAMAT
+    PULANG n * faktorial(n - 1);
+TAMAT
+BINA f5: I32 = faktorial(5);
+PAPAR f5;

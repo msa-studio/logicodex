@@ -1,29 +1,6 @@
-# ============================================================
-# LEVEL 3A: FUNCTION DEFINITION
-# Purpose: Test FUNGSI/FN declaration, parameters, RETURN type, body
-# Grammar: FUNGSI name(param: Type) -> ReturnType MULA ... TAMAT
-# DEBUG STRATEGY:
-#   If function parse fails: parse_item() → parse_function() path
-#   Check: Function must have RETURN type arrow (->)
-#   Check: Parameters must have type annotations
-#   Common fail: "PULANG x" inside function — check parse_return()
-# ============================================================
-
-# --- Malay ---
+# Tahap 3a — Fungsi
 FUNGSI tambah(a: I32, b: I32) -> I32 MULA
-    PULANG a + b
+    PULANG a + b;
 TAMAT
-
-BINA hasil: I32 = tambah(3, 4)
-PAPAR hasil
-
-# --- Expert Canonical ---
-FN add(a: i32, b: i32) -> I32 {
-    RETURN a + b
-}
-
-LET result: I32 = add(3, 4)
-PRINT result
-
-# --- Expected Output ---
-# 7
+BINA hasil: I32 = tambah(3, 4);
+PAPAR hasil;

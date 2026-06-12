@@ -1,0 +1,8 @@
+# Tahap 4c — Enum (PILIHAN) & varian
+PILIHAN Warna MULA
+    Merah;
+    Hijau;
+    Biru;
+TAMAT
+BINA w: Warna = Warna::Merah;
+PAPAR 1;

@@ -1,28 +1,6 @@
-# ============================================================
-# LEVEL 2B: WHILE LOOP
-# Purpose: Test while/SELAGI LOOP with counter
-# Grammar: SELAGI/WHILE condition MULA/TAMAT or { }
-# DEBUG STRATEGY:
-#   If LOOP infinite: BREAK condition not being checked
-#   If "SELAGI i < 5 MULA" fails: parse_while() Malay keyword issue
-#   Note: Loop body must use MULA/TAMAT or { } — NOT both mixed
-#   Variable mutation inside LOOP: check semantic allows it
-# ============================================================
-
-# --- Malay ---
-BINA i: I32 = 0
+# Tahap 2b — Gelung selagi
+BINA i: I32 = 0;
 SELAGI i < 5 MULA
-    PAPAR i
-    i = i + 1
+    PAPAR i;
+    i = i + 1;
 TAMAT
-
-# --- Expert Canonical ---
-LET i: I32 = 0
-WHILE i < 5 {
-    PRINT i
-    i = i + 1
-}
-
-# --- Known Limitations ---
-# "for" LOOP is NOT a token — use WHILE with counter
-# Loop variable must be declared outside the loop

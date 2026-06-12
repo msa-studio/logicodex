@@ -1,36 +1,10 @@
-# ============================================================
-# LEVEL 1B: ARITHMETIC OPERATIONS
-# Purpose: Test all arithmetic operators with correct precedence
-# Grammar: +, -, *, /, parentheses for grouping
-# DEBUG STRATEGY:
-#   If "a + b" fails: binary operator parsing (parse_binary_expr)
-#   If "(a + b) * c" fails: precedence or parentheses
-#   IMPORTANT: Unary minus (-x) is NOT parsed — use "0 - x" instead
-#   Division by zero: semantic check should catch this
-# ============================================================
-
-# --- Malay ---
-BINA a: I32 = 10
-BINA b: I32 = 3
-BINA sum: I32 = a + b
-BINA diff: I32 = a - b
-BINA prod: I32 = a * b
-BINA quot: I32 = a / b
-BINA expr: I32 = (a + b) * 2
-PAPAR sum
-PAPAR expr
-
-# --- Expert Canonical ---
-LET a: I32 = 10
-LET b: I32 = 3
-LET sum: I32 = a + b
-LET diff: I32 = a - b
-LET prod: I32 = a * b
-LET quot: I32 = a / b
-LET expr: I32 = (a + b) * 2
-PRINT sum
-PRINT expr
-
-# --- Known Limitations ---
-# Unary minus (-5) is NOT parsed — use (0 - 5) instead
-# a++ and a-- are NOT supported
+# Tahap 1b — Aritmetik
+BINA a: I32 = 10;
+BINA b: I32 = 3;
+BINA jumlah: I32 = a + b;
+BINA beza: I32 = a - b;
+BINA darab: I32 = a * b;
+BINA bahagi: I32 = a / b;
+BINA ungkapan: I32 = (a + b) * 2;
+PAPAR jumlah;
+PAPAR ungkapan;

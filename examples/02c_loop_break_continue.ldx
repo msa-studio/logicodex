@@ -1,34 +1,12 @@
-# ============================================================
-# LEVEL 2C: INFINITE LOOP WITH BREAK/CONTINUE
-# Purpose: Test ULANG/loop, HENTI/break, TERUS/continue
-# Grammar: ULANG body + HENTI to exit + TERUS to skip
-# DEBUG STRATEGY:
-#   If infinite: HENTI not breaking out of loop
-#   If "TERUS" not working: CONTINUE statement not implemented
-#   Check: break/CONTINUE only valid inside LOOP context
-# ============================================================
-
-# --- Malay ---
-BINA i: I32 = 0
+# Tahap 2c — Ulang + henti (break) / terus (continue)
+BINA i: I32 = 0;
 ULANG MULA
-    i = i + 1
-    JIKA i < 3 MAKA
-        TERUS
-    JIKA i >= 5 MAKA
-        HENTI
-    PAPAR i
+    i = i + 1;
+    JIKA i < 3 MULA
+        TERUS;
+    TAMAT
+    JIKA i >= 5 MULA
+        HENTI;
+    TAMAT
+    PAPAR i;
 TAMAT
-
-# --- Expert Canonical ---
-LET i: I32 = 0
-LOOP {
-    i = i + 1
-    IF i < 3 then
-        continue
-    IF i >= 5 then
-        break
-    PRINT i
-}
-
-# --- Expected Output ---
-# Should PRINT: 3, 4 (skips 1,2 via continue; breaks at 5)

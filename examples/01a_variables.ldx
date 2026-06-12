@@ -1,33 +1,7 @@
-# ============================================================
-# LEVEL 1A: VARIABLES AND TYPES
-# Purpose: Test variable declaration, type annotation, assignment
-# Grammar: let/BINA, :Type, =, ;
-# Types supported: I32, I64, U16, U32, F64, BOOL
-# DEBUG STRATEGY:
-#   If "BINA x: I32 = 5" fails: parse_let() or type parser issue
-#   If "x = 10" fails: assignment statement not implemented
-#   Note: Type inference from literal is NOT implemented — must declare type
-# ============================================================
-
-# --- Malay ---
-BINA x: I32 = 5
-BINA y: I64 = 1000000
-BINA z: F64 = 3.14
-BINA flag: BOOL = BENAR
-PAPAR x
-x = 10
-PAPAR x
-
-# --- Expert Canonical ---
-LET x: I32 = 5
-LET y: I64 = 1000000
-LET z: F64 = 3.14
-LET flag: BOOL = true
-PRINT x
-x = 10
-PRINT x
-
-# --- Expected Output ---
-# 5
-# 10
-# (values may differ based on PRINT implementation)
+# Tahap 1a — Pembolehubah & umpukan
+BINA x: I32 = 5;
+BINA y: I64 = 1000000;
+BINA flag: BOOL = BENAR;
+PAPAR x;
+x = 10;
+PAPAR x;

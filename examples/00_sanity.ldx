@@ -1,19 +1,2 @@
-# ============================================================
-# LEVEL 0: SANITY CHECK
-# Purpose: Minimal valid program — tests lexer + parser + codegen
-# Grammar: PRINT statement, integer literal, newline handling
-# DEBUG STRATEGY:
-#   If this fails: The parser doesn't recognise the most basic syntax.
-#   Check: Is the lexer producing tokens? Is parse_statement() matching?
-#   Common causes: Missing dict/core_map.json, newline handling bug
-# ============================================================
-
-# --- Malay ---
-PAPAR 42
-
-# --- Expert Canonical ---
-PRINT 42
-
-# --- Expected Output ---
-# If compiled and run: should PRINT "42" (or LLVM IR containing 42)
-# If checked: should parse without errors
+# Tahap 0 — Sanity: program sah minimum
+PAPAR 42;

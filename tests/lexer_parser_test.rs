@@ -66,7 +66,6 @@ fn malay_start_end_and_expert_braces_map_to_same_token_kinds() {
 }
 
 #[test]
-#[ignore = "shipped examples use outdated syntax (missing mandatory semicolons; pre-block if-syntax like JIKA..MAKA) and fail `check`; pending a dedicated example-repair pass (tracked product issue)"]
 fn shipped_examples_pass_semantic_check() {
     // Drift-resistant: auto-discover every shipped example rather than naming
     // specific files (which fall out of sync when examples are reorganized).

@@ -1,0 +1,8 @@
+# Tahap 4a — Struct (BENTUK): bina & akses medan
+BENTUK Titik MULA
+    x: I32;
+    y: I32;
+TAMAT
+BINA p: Titik = Titik(3, 4);
+PAPAR p.x;
+PAPAR p.y;

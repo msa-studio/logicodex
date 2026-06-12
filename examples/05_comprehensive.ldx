@@ -1,90 +1,19 @@
-# ============================================================
-# LEVEL 5: COMPREHENSIVE STRESS TEST
-# Purpose: Combine all working grammar features in one file
-# Grammar: variables, arithmetic, control flow, functions, match, bitwise
-# DEBUG STRATEGY:
-#   Run this file through: logicodex check stress.ldx
-#   If specific line fails: isolate that feature in its own level test
-#   Use --verbose flag IF available to see which pass fails (lex/parse/semantic)
-#   This file tests: lexer → parser → semantic → codegen pipeline end-to-end
-# ============================================================
-
-# --- Malay ---
-FUNGSI fibonacci(n: I32) -> I32 MULA
-    JIKA n <= 1 MAKA
-        PULANG n
-    MELAINKAN
-        PULANG fibonacci(n - 1) + fibonacci(n - 2)
+# Tahap 5 — Komprehensif: fungsi + struct + gelung + jika
+BENTUK Kira MULA
+    nilai: I32;
 TAMAT
-
-FUNGSI main() -> I32 MULA
-    # Variable declarations
-    BINA hitung: I32 = 0
-    BINA jumlah: I32 = 0
-
-    # While LOOP with counter
-    SELAGI hitung < 10 MULA
-        hitung = hitung + 1
-
-        # Skip even numbers
-        JIKA hitung bit_dan 1 == 0 MAKA
-            TERUS
-
-        # Accumulate
-        jumlah = jumlah + hitung
-    TAMAT
-
-    # Fibonacci calculation
-    BINA fib6: I32 = fibonacci(6)
-
-    # Result/match
-    BINA keputusan: RESULT = OK fib6
-    BINA akhir: I32 = MATCH keputusan MULA
-        OK v => v + jumlah
-        ERR _ => 0
-        _ => 99
-    TAMAT
-
-    PAPAR akhir
-    PULANG 0
+FUNGSI dua_kali(n: I32) -> I32 MULA
+    PULANG n * 2;
 TAMAT
-
-# --- Expert Canonical ---
-FN fibonacci(n: i32) -> I32 {
-    IF n <= 1 then
-        RETURN n
-    else
-        RETURN fibonacci(n - 1) + fibonacci(n - 2)
-}
-
-FN main() -> I32 {
-    LET count: I32 = 0
-    LET sum: I32 = 0
-
-    WHILE count < 10 {
-        count = count + 1
-
-        IF count & 1 == 0 then
-            continue
-
-        sum = sum + count
-    }
-
-    LET fib6: I32 = fibonacci(6)
-
-    LET decision: Result = OK fib6
-    LET final_val: I32 = MATCH decision {
-        OK v => v + sum
-        ERR _ => 0
-        _ => 99
-    }
-
-    PRINT final_val
-    RETURN 0
-}
-
-# --- Expected Output ---
-# fibonacci(6) = 8
-# sum of odd 1..10 = 1+3+5+7+9 = 25
-# final = 8 + 25 = 33
-# Should PRINT: 33
+BINA jumlah: I32 = 0;
+BINA i: I32 = 1;
+SELAGI i <= 5 MULA
+    jumlah = jumlah + dua_kali(i);
+    i = i + 1;
+TAMAT
+JIKA jumlah > 20 MULA
+    PAPAR jumlah;
+TAMAT
+MELAINKAN MULA
+    PAPAR 0;
+TAMAT
