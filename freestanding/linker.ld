@@ -1,0 +1,10 @@
+ENTRY(_start)
+SECTIONS {
+  . = 1M;
+  .boot : { KEEP(*(.multiboot_header)) }
+  .text : { *(.text .text.*) }
+  .rodata : { *(.rodata .rodata.*) }
+  .data : { *(.data .data.*) }
+  .bss : { *(.bss .bss.*) *(COMMON) }
+  /DISCARD/ : { *(.eh_frame) *(.note .note.*) *(.comment) *(.gnu*) }
+}

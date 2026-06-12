@@ -1,0 +1,20 @@
+[package]
+name = "logicodex-kernel"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone workspace — do NOT join the parent logicodex workspace
+# (different target, no_std, must not pull in inkwell/clap/std).
+[workspace]
+
+[[bin]]
+name = "logicodex-kernel"
+path = "src/main.rs"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = 2
+lto = false
