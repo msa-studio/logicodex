@@ -403,7 +403,7 @@ Ini bukan "projek mati" — ini adalah **projek matang**. Seperti kernel Linux y
 | Metrik | Nilai |
 |---|---|
 | **Jumlah LOC** | ~43,600 |
-| **Validator checks** | 148/148 ✅ |
+| **Validator checks** | see CHANGELOG (count corrected 2026-06) |
 | **Deferred items** | 25/25 diselesaikan (1 by design) |
 | **Releases** | v1.21 → v1.45 (14 releases) |
 | **Backend targets** | Native (ELF), WASM (wasm32-unknown-unknown), Freestanding (x86_64/aarch64/riscv64) |

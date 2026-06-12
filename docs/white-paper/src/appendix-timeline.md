@@ -94,4 +94,4 @@ Garis masa pembangunan Logicodex dari v1.21 hingga v1.45.
 | v1.43 | ~41,000 | 250 | 250 | — |
 | v1.44 | ~42,000 | 265 | 265 | 15 resolved |
 | v1.44.1 | ~42,500 | 275 | 275 | — |
-| **v1.45** | **~43,600** | **400+** | **148** | **25 resolved** |
+| **v1.45** | **~43,600** | **400+** | **see CHANGELOG** | **25 resolved** |

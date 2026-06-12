@@ -12,7 +12,7 @@
 
 ## Executive Summary
 
-Logicodex has **strong architectural discipline** (148/148 checks, architecture freeze, RFC process, zero regression) with **infrastructure rapidly improving** — all P0 and P1 gaps have been fixed in this session. Remaining gaps are P2/P3 tooling enhancements.
+Logicodex has **strong architectural discipline** (validation checks (see CHANGELOG), architecture freeze, RFC process, zero regression) with **infrastructure rapidly improving** — all P0 and P1 gaps have been fixed in this session. Remaining gaps are P2/P3 tooling enhancements.
 
 | Category | Score | Max | Grade |
 |---|---|---|---|
@@ -246,7 +246,7 @@ cargo fuzz add parse_fuzz --target=parser
 | Practice | Status | Evidence |
 |---|---|---|
 | Architecture freeze | ✅ | RFC template, 4 alignment checks |
-| Zero regression | ✅ | 148/148 checks, 14 releases |
+| Zero regression | ✅ | validation checks (see CHANGELOG), 14 releases |
 | Version discipline | ✅ | Semantic versioning, alpha labels |
 | Dual licensing | ✅ | MIT + Apache-2.0 |
 | Trademark protection | ✅ | TRADEMARK.md, NOTICE-TRADEMARK |

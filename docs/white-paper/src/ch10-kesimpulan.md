@@ -15,7 +15,7 @@ Dalam tempoh beberapa bulan, Logicodex telah berkembang dari compiler core alpha
 | Metrik | Nilai | Interpretasi |
 |---|---|---|
 | **Total LOC** | ~43,600 | Sistem platform lengkap |
-| **Validator checks** | 148/148 ✅ | Tiapa kegagalan dalam sejarah projek |
+| **Validator checks** | the validation suite (see CHANGELOG) ✅ | Tiapa kegagalan dalam sejarah projek |
 | **Unit tests** | 400+ | Liputan 69% test-to-source |
 | **Benchmark files** | 20 | 4 layer micro ke security |
 | **Releases** | v1.21 → v1.45 (14 releases) | Iterasi pantas tanpa regression |
@@ -38,7 +38,7 @@ Setiap daripada 9 keputusan utama telah terbukti melalui data:
 | Taint FSM | Semua 4 serangan stress test bertahan |
 | CapabilityGraph IR | 6/6 verify() checks, konsisten Native/WASM/.cap |
 | CTL Mapper | 6 domain mappings, hardware dihalang dalam WASM |
-| 3 Backend Target | 148/148 checks lulus pada semua target |
+| 3 Backend Target | validation checks (see CHANGELOG) lulus pada semua target |
 | StrictAudioContext | 0 violation dalam kod production |
 | Architecture Freeze | Integriti arkitektur terpelihara |
 
@@ -52,7 +52,7 @@ Dokumen ini menggunakan tiga tier status: **SELESAI** (dihantar dan disahkan), *
 
 | Fasa | Nama | Status | Bukti Penerimaan |
 |---|---|---|---|
-| **v1.21** | Core Compiler | ✅ **SELESAI** | 148/148 checks; lexer, parser, AST, semantic, LLVM |
+| **v1.21** | Core Compiler | ✅ **SELESAI** | validation checks (see CHANGELOG); lexer, parser, AST, semantic, LLVM |
 | **v1.30** | Threading + IO + Audio | ✅ **SELESAI** | 400+ tests; actor-model, zero-copy, 4-Ketuk IO |
 | **v1.32** | Capability Fabric | ✅ **SELESAI** | 10/10 checks; Gate/Door, topology verify, `.cap` |
 | **v1.37** | Network Runtime | ✅ **SELESAI** | 29/29 checks; epoll, taint FSM, direct syscalls |

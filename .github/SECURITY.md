@@ -4,9 +4,10 @@
 
 | Version | Status |
 |---------|--------|
-| v1.45.0-alpha | ✅ Current — receiving security updates |
-| v1.44.x | ✅ Supported |
-| v1.43.x and earlier | ❌ No longer supported |
+| v1.30.0-alpha (current engine) | ✅ Current — receiving security updates |
+| Earlier alpha snapshots | ❌ No longer supported |
+
+> Pre-release alpha: best-effort security support only; not for production use.
 
 ## Reporting a Vulnerability
 

@@ -71,6 +71,33 @@ gates guard behaviour via the real binary:
 
 ---
 
+## Maturity matrix
+
+Tiers: **FULL** (working, tested) · **PARTIAL** (works for some cases, gaps) · **SKELETON** (types/triple only).
+
+| Capability | Tier |
+|---|---|
+| Bilingual lexer, parser, AST | FULL |
+| Type checking + fixed-width ints (I8–U64) | FULL |
+| HIR lowering (sole execution path) | FULL |
+| Compiler pipeline → native exe | FULL |
+| Bilingual diagnostics | FULL |
+| Benchmark framework, validator tiering | FULL |
+| Compile-time capability vocabulary check | PARTIAL (runtime + provider-topology pending) |
+| Actor model | PARTIAL (types + semantics; no runtime) |
+| Sharded runtime / network reactor | PARTIAL (`src/net` not compiled) |
+| WASM backend | PARTIAL (emits object; no linker) |
+| Freestanding x86_64 | PARTIAL (4 known gaps; not QEMU-booted) |
+| Raylib FFI | PARTIAL (not wired to HIR) |
+| CI/CD | PARTIAL (suite green; 2-week stability pending) |
+| Deterministic execution | SKELETON |
+| Freestanding aarch64 / riscv64 | SKELETON |
+| Self-hosting, package manager, LSP | SKELETON |
+
+Full detail and issue links: `ROADMAP_v2.md`.
+
+---
+
 ## Quick start
 
 ```bash

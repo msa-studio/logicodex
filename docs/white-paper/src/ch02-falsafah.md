@@ -41,7 +41,7 @@ Satu program yang tidak deterministik:
 
 > **"Mustahil untuk mengalami race condition atau memory leak"** — kerana semuanya diverifikasi pada masa kompil.
 
-Pernyataan ini bukan tuntutan marketing. Ia adalah tuntutan kejuruteraan yang disokong oleh 148 validator checks yang lulus, termasuk 400+ unit tests, 20 file benchmark, dan 14 alpha releases tanpa regression.
+Pernyataan ini bukan tuntutan marketing. Ia tuntutan kejuruteraan yang disokong oleh suite ujian yang lulus (lihat CHANGELOG untuk kiraan terkini) dan benchmark, dengan rekod alpha releases.
 
 ---
 

@@ -1,6 +1,6 @@
 # Contributing to Logicodex
 
-Thank you for contributing to **Logicodex**, the current logicodex v 1.21 alpha compiler for the Logicodex programming language. This repository is currently under a feature-freeze discipline for compiler-integrity restoration. Contributions should therefore prioritize correctness, repeatable validation, diagnostic clarity, and physical examples before proposing new language features.
+Thank you for your interest in **Logicodex** (engine `v1.30.0-alpha`), a research-grade compiler for the Logicodex programming language. The project is maintained by a single developer (Mohamad Supardi Abdul) and is under a feature-freeze discipline focused on compiler-integrity restoration. Contributions should prioritize correctness, repeatable validation (`cargo test --features v1_30` must stay green), diagnostic clarity, and verified examples (every `examples/*.ldx` must pass `check`) over new language features. To propose becoming a co-maintainer, open an issue describing sustained prior contributions.
 
 ## Development Environment
 
