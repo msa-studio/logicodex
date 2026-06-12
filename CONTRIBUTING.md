@@ -11,29 +11,29 @@ rustup toolchain install 1.75.0
 rustup component add rustfmt --toolchain 1.75.0
 sudo apt-get update
 sudo apt-get install -y llvm-15 llvm-15-dev clang-15 lld-15
-cargo +1.75.0 check
-cargo +1.75.0 test
+cargo +1.75.0 check --features v1_30
+cargo +1.75.0 test --features v1_30
 ```
 
 If your system uses a non-standard LLVM installation path, set `LLVM_SYS_150_PREFIX` before running Cargo.
 
 ```bash
 export LLVM_SYS_150_PREFIX=/usr/lib/llvm-15
-cargo check
-cargo test
+cargo check --features v1_30
+cargo test --features v1_30
 ```
 
 ## Repository Integrity Rules
 
-Compiler changes must preserve the active v1.21 architecture unless a maintainer explicitly approves a staged migration. Do not replace working core files with broad rewrites when a smaller, auditable change is sufficient. In particular, `src/main.rs` must remain the CLI driver that connects the lexer, parser, semantic analyzer, and LLVM code generator, while `src/ast.rs` must remain the shared AST contract consumed by parser, semantic analysis, and backend code generation.
+Compiler changes must preserve the active architecture unless a maintainer explicitly approves a staged migration. The execution path is **HIR-based**: source → lexer → parser → AST → HIR lowering → semantic gate → LLVM codegen (the legacy v1.21 AST-codegen path was retired; see `docs/architecture/hir-decision.md`). Do not replace working core files with broad rewrites when a smaller, auditable change is sufficient. In particular, `src/main.rs` must remain the CLI driver, `src/ast.rs` the shared AST contract, and `src/hir.rs` the sole lowering path into codegen.
 
 | Area | Requirement | Validation |
 |---|---|---|
 | Formatting | Rust code must be rustfmt-compliant. | `cargo fmt --all -- --check` |
 | Compiler health | The crate must type-check with the pinned dependencies. | `cargo check` |
-| Regression coverage | Unit and integration tests must pass. | `cargo test` |
-| Examples | New examples must use syntax accepted by the current parser and semantic analyzer. | `cargo run --quiet -- check examples/name.ldx` |
-| Reflex example compatibility | The refreshed example suite must remain valid under the default v1.21-alpha path and the opt-in v1.30.0-alpha probe. | `for file in examples/*.ldx; do cargo run --quiet -- check "$file"; cargo run --quiet -- v130-check "$file"; done` |
+| Regression coverage | Unit and integration tests must pass. | `cargo test --features v1_30` |
+| Examples | New examples must use syntax accepted by the current parser. | `cargo run --features v1_30 -- check examples/name.ldx` |
+| Example phase-gate | Every shipped example must pass `check` (enforced by the `shipped_examples_pass_semantic_check` test). | `for f in examples/*.ldx; do cargo run --features v1_30 -- check "$f"; done` |
 | Safety-sensitive syntax | Hardware and raw-address examples must remain explicitly gated. | Prefer `--target freestanding --object-only` validation when exercising backend object generation. |
 
 ## Adding or Updating Dictionary Tokens
@@ -56,14 +56,11 @@ Before requesting review, run the full local validation set and include the comm
 
 ```bash
 cargo fmt --all -- --check
-cargo check
-cargo test
-python3 scripts/check_bilingual_error_annotations.py
-python3.11 scripts/validate_v121_executable_logic.py
+cargo check --features v1_30
+cargo test --features v1_30
 for file in examples/*.ldx; do
-  cargo run --quiet -- check "$file"
-  cargo run --quiet -- v130-check "$file"
+  cargo run --features v1_30 -- check "$file"
 done
 ```
 
-A pull request should explain the integrity problem being fixed, list the files changed, describe any new examples or tests, and state whether any language behavior changed. If the change touches parser, semantic analysis, CLI behavior, or documentation examples, include the full reflex example compatibility result in the PR body. Feature additions should be separated from integrity hotfixes so reviewers can verify repository restoration independently.
+A pull request should explain the integrity problem being fixed, list the files changed, describe any new examples or tests, and state whether any language behavior changed. If the change touches parser, semantic analysis, CLI behavior, or documentation examples, include the example phase-gate result (`check` on every `examples/*.ldx`) in the PR body. Feature additions should be separated from integrity hotfixes so reviewers can verify repository restoration independently.
