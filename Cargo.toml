@@ -34,6 +34,12 @@ opt-level = 3
 panic = "abort"
 strip = "symbols"
 
+# Benchmarks (Criterion) need unwinding and must not inherit release's
+# panic=abort + fat LTO, which produce an unloadable bench harness bitcode.
+[profile.bench]
+panic = "unwind"
+lto = false
+
 [features]
 # v1.30 Option Engine — activates HIR lowering, type system, actor runtime
 v1_30 = []  # Option Engine — gates HIR, layout, ffi, tier2 modules
