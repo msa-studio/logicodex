@@ -1,204 +1,138 @@
 # Logicodex
-
-```
 +------------------------------------------------------------------+
-|  ⚠️  v1.45.0-alpha — Research-grade systems language prototype   |
-|      Not for production. See ROADMAP.md for current phase and    |
-|      maturity status.                                            |
+|  v1.30.0-alpha — Research-grade systems language prototype       |
+|  Not for production. See ROADMAP_v2.md for phase & maturity.     |
 +------------------------------------------------------------------+
-```
 
-**A deterministic systems programming language with compile-time capability security and bilingual (Malay/English) syntax.**
+**A deterministic systems programming language with a zero-runtime core,
+compile-time capability checking, and bilingual (Malay/English) syntax.**
 
----
-
-## Table of Contents
-
-- [What's Actually Working](#whats-actually-working)
-- [Maturity Matrix](#maturity-matrix)
-- [Quick Start](#quick-start)
-- [Current Limitations](#current-limitations)
-- [Documentation Map](#documentation-map)
-- [Governance](#governance)
-- [License](#license)
+> Note on versioning: the engine crate is versioned `1.30.0-alpha` (Cargo);
+> project-milestone docs use a separate `v1.4x` axis. They are different axes,
+> not a contradiction.
 
 ---
 
-## What's Actually Working
+## Identity: Zero Runtime Core, Optional Runtime Profiles
 
-### Compiler Core (Alpha)
-
-| Stage | Status | Detail |
-|---|---|---|
-| Lexer | ✅ Functional | Full Malay/English bilingual lexing — 60 Malay keywords, 200+ keyword aliases |
-| Parser | ✅ Functional | Expression parsing, declarations, function definitions, type annotations |
-| AST | ✅ Functional | Complete AST representation with source-location tracking |
-| Semantic Analysis | ✅ Functional | Name resolution, scope checking, type inference |
-| Type Checker | ✅ Functional | `I32` / `I64` / `F32` / `F64` / `Bool` with 32 typed error variants |
-| LLVM IR Generation | ✅ Functional | Produces native `.o` object files via LLVM backend |
-| HIR | ⚠️ Dormant | Types and structure defined; bypassed in production pipeline |
-
-The compiler successfully compiles source code through the full pipeline to native object files on supported targets.
-
-### Security — Capability System (Alpha)
-
-- ✅ **Compile-time capability gates** — topology verification runs at compile time
-- ✅ **Capability lattice** — grant, revoke, and transfer operations are semantically checked
-- ⚠️ **Hardware gate** — compile-time check validates intent; runtime enforcement is a stub (no actual hardware integration yet)
-
-### Concurrency — Actor Model (Alpha)
-
-- ✅ **Actor types** — `Aktor`, `Mesej`, `Kotak` (Mailbox) types are defined and parse correctly
-- ✅ **Semantic checks** — actor isolation and message-passing rules are validated
-- ❌ **Runtime actor thread pool** — **NOT IMPLEMENTED** (0 lines of code). The actor model exists only as a type system and semantic checker; there is no executing runtime.
-
-### Platform Targets
-
-| Target | Status | Detail |
-|---|---|---|
-| `x86_64-unknown-linux-gnu` | ✅ Native ELF | Produces working `.o` object files |
-| `x86_64-freestanding-elf` | ⚠️ Code complete | ELF generation implemented; not yet booted on real hardware |
-| `wasm32-wasi` | ⚠️ LLVM IR works | IR generation verified; manual linking required for `.wasm` output |
-| `aarch64-freestanding-elf` | ❌ Skeleton | LLVM triple configured only; no code generation |
-| `riscv64-freestanding-elf` | ❌ Skeleton | LLVM triple configured only; no code generation |
-
-### FFI — Foreign Function Interface (Alpha)
-
-- ⚠️ **Raylib bindings** — 55 wrapper functions registered, covering ~11% of the full Raylib API. Basic windowing and drawing primitives available; most of the API surface is not yet wrapped.
-
-### Infrastructure
-
-| Component | Status | Detail |
-|---|---|---|
-| Benchmark framework | ✅ Functional | 4-layer benchmark suite (micro, component, integration, end-to-end) |
-| Validator tiering | ✅ Functional | Tier A (6 tests), Tier B (13 tests), Tier C (8 tests) |
-| CI / Testing | ⚠️ Partial | Tier A + B run in CI; some tests currently failing |
-| Dual licensing | ✅ Active | MIT OR Apache-2.0 at user option |
-| Security policy | ✅ Active | See `SECURITY.md` |
-| Contributing guide | ✅ Active | See `CONTRIBUTING.md` |
+Logicodex is **zero-runtime by default, runtime-capable by profile**. The core
+language lowers to a portable semantic IR and emits native code with no mandatory
+runtime linked in. Features that genuinely need a scheduler/state/sandbox (actors,
+channels, sandboxed I/O, runtime capability enforcement) are **opt-in profiles**,
+not part of the core. See `docs/architecture/runtime-doctrine.md`.
 
 ---
 
-## Maturity Matrix
+## What's actually working (verified)
 
-Legend: 🟢 Alpha — functional and tested in CI &nbsp;|&nbsp; 🟡 Partial — works for some cases, gaps exist &nbsp;|&nbsp; 🔴 Skeleton — types defined, not functional &nbsp;|&nbsp; ⚪ Planned — not started
+The compiler runs a single pipeline: source → lexer → parser → AST → **HIR
+lowering (the sole execution path)** → semantic gate → LLVM codegen → native
+object/executable.
 
-| Capability | Status | Notes |
+| Capability | Status | Detail |
 |---|---|---|
-| Bilingual lexer (MS/EN) | 🟢 Alpha | 60 keywords, 200+ aliases, CI tested |
-| Parser | 🟢 Alpha | Full expression/decl/function grammar |
-| AST construction | 🟢 Alpha | Source-located, traversable |
-| Semantic analysis | 🟢 Alpha | Name resolution, scope checking |
-| Type checker (5 base types) | 🟢 Alpha | I32/I64/F32/F64/Bool + 32 errors |
-| LLVM IR → `.o` code generation | 🟢 Alpha | x86_64-linux-gnu verified |
-| Compile-time capability gates | 🟢 Alpha | Topology verification active |
-| Benchmark framework (4 layers) | 🟢 Alpha | Runs in CI |
-| Validator tiering (A/B/C) | 🟢 Alpha | 6/13/8 tests respectively |
-| HIR (high-level IR) | 🟡 Partial | Structure complete, dormant in pipeline |
-| Capability hardware gate | 🟡 Partial | Compile-time check works; runtime stub |
-| x86_64 freestanding target | 🟡 Partial | Code complete, not hardware-booted |
-| WASM target | 🟡 Partial | LLVM IR emitted, manual linking needed |
-| Actor semantic checks | 🟡 Partial | Types + isolation rules enforced |
-| CI pipeline | 🟡 Partial | Tier A+B execute; some failures |
-| Raylib FFI | 🟡 Partial | 55 wrappers (~11% coverage) |
-| Actor runtime (thread pool) | 🔴 Skeleton | 0 LOC — types exist, no execution |
-| aarch64 freestanding target | 🔴 Skeleton | LLVM triple only |
-| riscv64 freestanding target | 🔴 Skeleton | LLVM triple only |
-| Actor mailbox scheduler | 🔴 Skeleton | Type defined, no runtime logic |
-| Self-hosted compilation | ⚪ Planned | Not started |
-| Package manager (`pakej`) | ⚪ Planned | Not started |
+| Bilingual lexer (MS/EN) | Working | Malay + English keywords |
+| Parser | Working | Expressions, declarations, functions, types |
+| HIR lowering | Working | The **sole** execution path (v1.21 AST-codegen retired) |
+| Semantic analysis | Working | Name/scope/type checks, FFI-unsafe gate |
+| Type checker | Working | `I32/I64/F32/F64/Bool` + full fixed-width ints `I8/I16/I32/I64/U8/U16/U32/U64` (wrap at every boundary) |
+| LLVM codegen → native | Working | Emits `.ll`/`.o` and links a native executable on x86_64 Linux |
+| Variables, arithmetic, booleans | Working | See `examples/01a`–`01c` |
+| Control flow | Working | if/else (`JIKA…MULA…TAMAT MELAINKAN`), while (`SELAGI`), loop (`ULANG`) + break/continue |
+| Functions & recursion | Working | `FUNGSI … MULA … PULANG …; TAMAT` |
+| Structs & enums | Working | `BENTUK` construct/field-access, `PILIHAN` variants |
+| Compile-time capability check | Working | `check` validates each `Service requires` gate against the standard vocabulary |
 
-**Audit summary: 7/22 capabilities at 🟢 Alpha, 9/22 at 🟡 Partial, 5/22 at 🔴 Skeleton, 2/22 at ⚪ Planned.**
+All of the above are exercised by the test suite and by the check-gated programs
+in `examples/`.
+
+## Not yet built (honest)
+
+These are **runtime-profile** work per the doctrine — labelled, not pretended:
+
+- Actor runtime (thread pool / mailbox scheduler) — types parse, no execution
+- Channels / async / sandboxed I/O
+- Runtime capability **enforcement** (compile-time validation works; runtime gate does not)
+- Capability provider-topology (`docs/architecture/capability-topology.md`)
+- WASM linking — emits a `wasm32` object, but final `.wasm` needs `wasm-ld` (not bundled)
+- Full freestanding (4 known gaps: IDT handlers, panic-UART, MMIO codegen, x86_64 SSE2)
+- Network reactor / sharded runtime (`src/net` is not compiled)
+- Raylib FFI is not wired into the HIR path
+- Float literals (`3.14`) do not yet parse (`.` is field-access); `^` (xor) has no token
+
+## Testing
+
+`cargo test --features v1_30` compiles and runs green: **228 passing, 0 failing,
+4 ignored** (the 4 are documented freestanding gaps). Two drift-resistant phase
+gates guard behaviour via the real binary:
+
+- `tests/e2e_pipeline.rs` — compiles/checks fixtures through the CLI
+- `shipped_examples_pass_semantic_check` — every `examples/*.ldx` must pass `check`
 
 ---
 
-## Quick Start
-
-### Hello World (Bilingual)
-
-Logicodex accepts Malay or English keywords interchangeably:
-
-```
-// Malay syntax
-fungsi utama(): Tiada {
-    cetak_baris("Selamat Dunia!");
-}
-```
-
-```
-// English syntax — equivalent
-function main(): Void {
-    print_line("Hello World!");
-}
-```
-
-### Compilation
+## Quick start
 
 ```bash
-# Build the compiler
-cargo build --release
+# Build the compiler (the v1_30 feature is required)
+cargo build --features v1_30
 
-# Compile a source file (produces .o object file)
-./target/release/logicodex compile src.ms --target x86_64-unknown-linux-gnu
+# Semantic-check a program
+./target/debug/logicodex check examples/01a_variables.ldx
 
-# Link to produce executable
-clang output.o -o myprogram
-./myprogram
+# Compile to native and run
+./target/debug/logicodex compile --emit-ir examples/00_sanity.ldx
+./examples/00_sanity        # prints 42
 ```
 
-### Supported Targets
+### Hello (current syntax)
+PAPAR 42;
+A slightly larger, verified program (Malay canonical):
+FUNGSI tambah(a: I32, b: I32) -> I32 MULA
+PULANG a + b;
+TAMAT
+BINA hasil: I32 = tambah(3, 4);
+PAPAR hasil;
 
-```bash
-# x86_64 Linux (native) — produces working object files
-./logicodex compile src.ms --target x86_64-unknown-linux-gnu
+Statements end with `;`. Blocks use `MULA … TAMAT` (or `{ … }`). See `examples/`
+for one verified program per language feature — these are kept correct by the
+phase-gate test.
 
-# x86_64 freestanding — code complete, not hardware-booted
-./logicodex compile src.ms --target x86_64-freestanding-elf
+### Targets
 
-# WASM — LLVM IR works, manual linking required
-./logicodex compile src.ms --target wasm32-wasi
-```
+`compile --target <native|host|freestanding|wasm>` (default `native`). Only
+`native` produces a runnable executable today; `wasm` emits an object needing
+external linking; freestanding has known gaps. Targets sit under the runtime
+profiles described in the doctrine.
 
 ---
 
-## Current Limitations
-
-1. **No actor runtime.** Actor types parse and semantically check, but there is zero implementation of the thread pool, mailbox scheduler, or message dispatcher. Actors cannot actually execute.
-
-2. **No ARM64 or RISC-V code generation.** Only the LLVM target triple is configured; no instruction selection, no ABI lowering, no object file output.
-
-3. **CI is failing.** Tier A and B tests run, but several are currently red. The project does not have a clean baseline.
-
-4. **No self-hosted compilation.** The compiler is written in Rust and bootstrapped via `cargo`. There is no Logicodex-in-Logicodex path.
-
-5. **HIR is dead code.** The High-Level IR module is fully typed and structured but is bypassed in the production compilation pipeline. It contributes nothing to the working compiler.
-
-6. **WASM requires manual linking.** The compiler emits LLVM IR that is valid for the `wasm32-wasi` target, but producing a final `.wasm` module requires manual `wasm-ld` invocation with correct flags.
-
-7. **Capability hardware gate is a stub.** The compile-time topology verification works, but the runtime path that would interact with hardware security features (TPM, enclaves, etc.) is an empty function body.
-
-8. **FFI coverage is minimal.** Only ~11% of the Raylib API is wrapped. Most functions, constants, and complex types (shaders, audio, models) are not accessible from Logicodex.
-
----
-
-## Documentation Map
+## Documentation map
 
 | Document | Purpose |
 |---|---|
-| [`ROADMAP.md`](ROADMAP.md) | Current development phase, milestone tracking, estimated dates |
-| [`ROADMAP_POLICY.md`](ROADMAP_POLICY.md) | Phase-gating policy, promotion criteria, maturity definitions |
-| [`SPECIFICATION.md`](SPECIFICATION.md) | Language specification: syntax, semantics, type system, capability model |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to contribute, coding standards, commit conventions |
-| [`SECURITY.md`](SECURITY.md) | Security policy, vulnerability reporting, threat model |
-| [`CHANGELOG.md`](CHANGELOG.md) | Version history and release notes |
+| [`docs/DOCUMENTATION_POLICY.md`](docs/DOCUMENTATION_POLICY.md) | Doc tiers + the documentation phase gate |
+| [`docs/architecture/runtime-doctrine.md`](docs/architecture/runtime-doctrine.md) | Zero-runtime core + optional profiles |
+| [`docs/architecture/hir-decision.md`](docs/architecture/hir-decision.md) | Why HIR is the sole execution path |
+| [`docs/architecture/capability-topology.md`](docs/architecture/capability-topology.md) | What capability checking does / defers |
+| [`ROADMAP_v2.md`](ROADMAP_v2.md) | Phases, maturity matrix |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history |
+| [`examples/`](examples/) | One verified program per feature |
+
+> Other documents (`MANUAL.md`, `SPECIFICATION.md`, the `docs/guide` book, the
+> `docs/white-paper` book, grammar/syntax analyses) are mid-repair and may still
+> reflect older syntax. They are being brought current under the documentation
+> phase gate; treat `examples/` and this README as the syntax source of truth
+> until then.
 
 ---
 
 ## Governance
 
-This project follows **strict phase-gated development**. Capabilities do not progress from Skeleton → Partial → Alpha without explicit review against documented criteria. See [`ROADMAP_POLICY.md`](ROADMAP_POLICY.md) for the promotion rules, review checklist, and current phase boundaries.
-
-**v1.45.0-alpha is a research prototype.** It is suitable for experimentation, language design feedback, and compiler frontend research. It is **not suitable** for production systems, shipping applications, or security-critical workloads.
+Phase-gated development: capabilities do not advance without review against
+documented criteria. **v1.30.0-alpha is a research prototype** — suitable for
+language-design feedback and compiler research, **not** for production or
+security-critical workloads.
 
 ---
 
@@ -210,21 +144,9 @@ Logicodex is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**.
 > If a copy of the MPL was not distributed with this file, You can obtain one at
 > https://mozilla.org/MPL/2.0/.
 
-### Why MPL-2.0?
-
-MPL-2.0 is a **file-level copyleft** license that:
-
-- ✅ **Preserves open semantics** — modifications to Logicodex source files must be shared under MPL-2.0
-- ✅ **Allows ecosystem adoption** — you can use Logicodex in proprietary projects via separate files
-- ✅ **Protects core evolution** — prevents silent proprietary mutation of compiler core files
-- ✅ **Enables commercial growth** — compatible with proprietary tooling and extensions
-- ✅ **GPL-compatible** — can be combined with GPL v2+, LGPL 2.1+, AGPL 3.0+ projects
-
-### Historical Licenses
-
-Versions prior to this licensing update were distributed under MIT OR Apache-2.0.
-The previous license files (`LICENSE-MIT`, `LICENSE-APACHE`) are retained for
-historical reference but no longer apply to current or future distributions.
+Versions prior to the licensing update were distributed under MIT OR Apache-2.0;
+the previous license files are retained for historical reference but no longer
+apply to current or future distributions.
 
 SPDX-License-Identifier: MPL-2.0
 

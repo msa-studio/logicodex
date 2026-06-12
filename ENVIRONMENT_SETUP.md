@@ -1,3 +1,5 @@
+> ⚠️ **NOT UPDATED — will revisit.** This document predates the current syntax/architecture and may contain stale information. Authoritative current references: `README.md`, `examples/`, and `docs/architecture/`. Tracked under `docs/DOCUMENTATION_POLICY.md`.
+
 # Logicodex Compiler Success Environment Setup Guide
 
 Dokumen ini mengandungi spesifikasi konfigurasi persekitaran (**Environment Baseline**) yang telah disahkan stabil untuk membina dan menjalankan **Enjin Kompiler Logicodex v1.21-alpha** daripada kod sumber asli Rust dan LLVM.

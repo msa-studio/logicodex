@@ -1,3 +1,5 @@
+> ⚠️ **NOT UPDATED — will revisit.** This document predates the current syntax/architecture and may contain stale information. Authoritative current references: `README.md`, `examples/`, and `docs/architecture/`. Tracked under `docs/DOCUMENTATION_POLICY.md`.
+
 # Logicodex — Getting Started & Complete Syntax Reference
 
 > **Version:** v1.45.0-alpha  

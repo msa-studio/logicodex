@@ -1,3 +1,5 @@
+> ⚠️ **NOT UPDATED — will revisit.** This document predates the current syntax/architecture and may contain stale information. Authoritative current references: `README.md`, `examples/`, and `docs/architecture/`. Tracked under `docs/DOCUMENTATION_POLICY.md`.
+
 # Logicodex Grammar and Dictionary
 
 This document describes the **grammar** and **token dictionary** for **current Logicodex v1.21-alpha** based on the `dict/core_map.json` schema v2.[1] The current dictionary defines **expert canonical shorthand mode** through the `expert` field as the canonical compiler reference, while `primary_ms` is the main human-facing Malay alias. The `aliases` field contains explicitly accepted English pseudocode and compatibility spellings.
