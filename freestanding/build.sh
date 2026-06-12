@@ -10,6 +10,5 @@ if [ "${1:-}" = "boot" ]; then
   timeout 10 qemu-system-x86_64 -kernel "$K.elf32" \
     -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
     -serial stdio -display none -no-reboot
-  code=$?
-  printf '\n>>> QEMU_EXIT_CODE=%s (33 = clean isa-debug-exit)\n' "$code"
+  printf '\n>>> QEMU_EXIT_CODE=%s (33 = clean isa-debug-exit)\n' "$?"
 fi
