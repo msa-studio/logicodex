@@ -226,13 +226,27 @@ fn g8_build_target_machine_with_arch_exists() {
 // ─── G9: +soft-float → +sse2 ───
 
 #[test]
-#[ignore = "freestanding gap: x86_64 SSE2 target feature not set; pending freestanding profile"]
 fn g9_x86_64_uses_sse2_not_soft_float() {
+    // The codegen feature is already correct (llvm_features() => "+sse2").
+    // The previous test parsed the WRONG match arm (llvm_triple) and so could
+    // never see "+sse2"; scope to llvm_features() before extracting the arm.
     let target = include_str!("../src/os/target.rs");
-    let x86_section = target.split("Self::X86_64 =>").nth(1)
-        .unwrap_or("").split("Self::Aarch64").next().unwrap_or("");
-    assert!(x86_section.contains("+sse2"), "G9: x86_64 must use +sse2");
-    assert!(!x86_section.contains("+soft-float"), "G9: x86_64 must NOT use +soft-float");
+    let features = target
+        .split("fn llvm_features")
+        .nth(1)
+        .expect("llvm_features() present")
+        .split("fn ")
+        .next()
+        .unwrap_or("");
+    let x86 = features
+        .split("Self::X86_64 =>")
+        .nth(1)
+        .expect("X86_64 arm in llvm_features()")
+        .split("Self::")
+        .next()
+        .unwrap_or("");
+    assert!(x86.contains("+sse2"), "G9: x86_64 must use +sse2, got {x86:?}");
+    assert!(!x86.contains("+soft-float"), "G9: x86_64 must NOT use +soft-float");
 }
 
 // ─── G11: Interrupt Handling ───
