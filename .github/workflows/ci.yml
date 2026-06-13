@@ -76,7 +76,7 @@ jobs:
         run: cargo test 2>&1 | tee test-output.log
       - name: Upload test log
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-output-log
           path: test-output.log
