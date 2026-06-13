@@ -7,7 +7,6 @@
 // =========================================================================
 pub mod coercion;
 pub mod registry;
-#[cfg(feature = "v1_30")]
 pub mod type_checker;
 
 use crate::ast::{BinaryOp, Expr, MatchPattern, Program, Stmt, Type};

@@ -225,7 +225,6 @@ pub struct TypeRegistry {
     enum_variants: std::collections::HashMap<String, Vec<String>>,
     /// Cached enum layouts, indexed by EnumLayoutId.0
     /// v1.38: Added for enum layout computation (E2)
-    #[cfg(feature = "v1_30")]
     enum_layouts: Vec<crate::layout::EnumLayout>,
 }
 
@@ -293,7 +292,6 @@ impl TypeRegistry {
             kinds,
             struct_layouts: Vec::new(),
             enum_variants: std::collections::HashMap::new(),
-            #[cfg(feature = "v1_30")]
             enum_layouts: Vec::new(),
             primitive_cache: PrimitiveTypeIds {
                 bool_,
@@ -526,7 +524,6 @@ impl TypeRegistry {
     }
 
     /// v1.38 E2: Register an enum layout, returning its EnumLayoutId.
-    #[cfg(feature = "v1_30")]
     pub fn register_enum_layout(&mut self, layout: crate::layout::EnumLayout) -> EnumLayoutId {
         let id = EnumLayoutId(self.enum_layouts.len() as u32);
         self.enum_layouts.push(layout);
@@ -534,7 +531,6 @@ impl TypeRegistry {
     }
 
     /// v1.38 E2: Lookup a cached enum layout by its ID.
-    #[cfg(feature = "v1_30")]
     pub fn get_enum_layout(&self, id: EnumLayoutId) -> Option<&crate::layout::EnumLayout> {
         self.enum_layouts.get(id.0 as usize)
     }
@@ -545,7 +541,6 @@ impl TypeRegistry {
     }
 
     /// Find a callable by name (placeholder)
-    #[cfg(feature = "v1_30")]
     pub fn lookup_callable(&self, _name: &str) -> Option<(CallableId, crate::ffi::CallableSignature)> {
         None  // TODO: implement callable lookup
     }
