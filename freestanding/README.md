@@ -20,5 +20,5 @@ Expected QEMU exit code: 33  (isa-debug-exit, clean)
 
 ## os/ integration (bridge demo kernel <-> compiler runtime)
 - [x] O1: extract uart.rs -> shared no_std crate `logicodex-os`; kernel uses real `logicodex_os::uart` for all serial (verified: boot serial driven by extracted compiler runtime, exit 33)
-- [ ] O2: extract interrupts.rs (IDT-256) -> kernel uses real os/ IDT
+- [x] O2: port interrupts.rs (rich IDT-256 + EXCEPTION_NAMES + 8259 PIC remap/IRQ) to STABLE in logicodex-os (asm-stub dispatch, not nightly x86-interrupt ABI); kernel uses logicodex_os::interrupts::idt_init. Verified: EXC 3 (Breakpoint) named via real EXCEPTION_NAMES, exit 33
 - [ ] O3: extract startup/allocator/panic (gating cleanup)
