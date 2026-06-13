@@ -55,7 +55,7 @@ These are **runtime-profile** work per the doctrine — labelled, not pretended:
 - Runtime capability **enforcement** (compile-time validation works; runtime gate does not)
 - Capability provider-topology (`docs/architecture/capability-topology.md`)
 - WASM linking — emits a `wasm32` object, but final `.wasm` needs `wasm-ld` (not bundled)
-- Freestanding x86_64 **boots in QEMU** (multiboot1 -> long-mode -> serial -> clean exit); runtime in shared crate `logicodex-os`. All 4 freestanding gaps closed: IDT-256+32 handlers, panic->UART, SSE2, MMIO volatile codegen (`ZON_PERKAKASAN` emits `store/load volatile`). Deferred: MMIO address-backed register decls (g12 stage 2), full crt0 (zero-BSS/.data), end-to-end .ldx->kernel emission
+- Freestanding x86_64 **boots in QEMU** (multiboot1 -> long-mode -> serial -> clean exit); runtime in shared crate `logicodex-os`. All 4 freestanding gaps closed: IDT-256+32 handlers, panic->UART, SSE2, MMIO codegen complete (`ZON_PERKAKASAN` + `HW reg: ty = ALAMAT n;` -> volatile load/store to inttoptr(address)). Deferred: full crt0 (zero-BSS/.data, trigger-based), end-to-end .ldx->kernel emission
 - Network reactor / sharded runtime (`src/net` is not compiled)
 - Raylib FFI is not wired into the HIR path
 - Float literals (`3.14`) do not yet parse (`.` is field-access); `^` (xor) has no token
@@ -87,7 +87,7 @@ Tiers: **FULL** (working, tested) · **PARTIAL** (works for some cases, gaps) ·
 | Actor model | PARTIAL (types + semantics; no runtime) |
 | Sharded runtime / network reactor | PARTIAL (`src/net` not compiled) |
 | WASM backend | PARTIAL (emits object; no linker) |
-| Freestanding x86_64 | PARTIAL (boots in QEMU; runtime in `logicodex-os`; all 4 gaps closed; g12 stage-2 + full crt0 deferred) |
+| Freestanding x86_64 | PARTIAL (boots in QEMU; runtime in `logicodex-os`; all 4 gaps closed incl. full MMIO; full crt0 + .ldx->kernel deferred) |
 | Raylib FFI | PARTIAL (not wired to HIR) |
 | CI/CD | PARTIAL (suite green; 2-week stability pending) |
 | Deterministic execution | SKELETON |
