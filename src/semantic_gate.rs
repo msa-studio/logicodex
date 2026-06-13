@@ -121,6 +121,9 @@ impl SemanticContext {
                 self.check_block(block);
                 self.safety_context = previous;
             }
+            HirStmt::HardwareDecl { .. } => {
+                // Hardware register declaration: no sub-expressions to check.
+            }
             HirStmt::Expr(expr) => self.check_expression(expr),
             HirStmt::Return(expr) => {
                 if let Some(expr) = expr {

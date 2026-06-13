@@ -139,6 +139,8 @@ pub struct LlvmCompiler<'ctx> {
     callables_predeclared: bool,
     // v1.44 G12: Hardware zone depth counter (MMIO volatile semantics)
     hw_zone_depth: u32,
+    // v1.44 G12 stage 2: HIR local id -> fixed MMIO address (inttoptr-backed).
+    hw_decl_addrs: HashMap<u32, i64>,
     // sret: caller-provided return buffer + its LLVM type, for the current
     // struct-returning function (None when the function returns a scalar).
     current_sret: Option<(PointerValue<'ctx>, inkwell::types::StructType<'ctx>)>,
@@ -183,6 +185,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             callable_names: HashMap::new(),
             callables_predeclared: false,
             hw_zone_depth: 0,
+            hw_decl_addrs: HashMap::new(),
             current_sret: None,
             current_return_ty: None,
         }
@@ -596,6 +599,20 @@ impl<'ctx> LlvmCompiler<'ctx> {
     // ─── HIR Block / Statement / Expression Emitters ───
 
     #[cfg(feature = "v1_30")]
+    /// Resolve a HIR local's backing pointer: an MMIO address (inttoptr) for
+    /// hardware-declared registers, otherwise its stack alloca.
+    fn local_ptr(&self, local_id: u32) -> Result<PointerValue<'ctx>> {
+        if let Some(&addr) = self.hw_decl_addrs.get(&local_id) {
+            let addr_val = self.i64_type.const_int(addr as u64, false);
+            self.builder
+                .build_int_to_ptr(addr_val, self.i64_type.ptr_type(AddressSpace::default()), "mmio_ptr")
+                .context("mmio inttoptr")
+        } else {
+            self.hir_local_allocs.get(&local_id).copied()
+                .ok_or_else(|| anyhow!("local {} not allocated", local_id))
+        }
+    }
+
     /// v1.44 G12: emit a hardware (MMIO) zone. Increments the zone depth so
     /// that memory operations inside the body are emitted as *volatile*
     /// (the optimizer must not elide or reorder MMIO accesses).
@@ -678,8 +695,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                             Some(lty) => self.wrap_to_width(val, lty)?,
                             None => val,
                         };
-                        let ptr = *self.hir_local_allocs.get(&local_id.0)
-                            .ok_or_else(|| anyhow!("assign target local {} not found", local_id.0))?;
+                        let ptr = self.local_ptr(local_id.0)?;
                         if self.hw_zone_depth > 0 {
                             self.emit_mmio_volatile_write(ptr, val.into())?;
                         } else {
@@ -748,6 +764,13 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
             HirStmt::HardwareZone(block) => {
                 self.emit_hardware_zone(block, func)
+            }
+            HirStmt::HardwareDecl { local, ty, address } => {
+                // MMIO register: address-backed (no alloca). local_ptr resolves
+                // it to inttoptr(address); reads/writes are volatile in a zone.
+                self.hw_decl_addrs.insert(local.0, *address);
+                self.hir_local_types.insert(local.0, *ty);
+                Ok(())
             }
             HirStmt::Expr(expr) => {
                 let _ = self.emit_hir_expr(expr, func)?;
@@ -847,8 +870,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 LiteralAst::Unit => Ok(self.i64_type.const_int(0, false)),
             }
             HirExprKind::Local(local_id) => {
-                let ptr = *self.hir_local_allocs.get(&local_id.0)
-                    .ok_or_else(|| anyhow!("local {} not allocated", local_id.0))?;
+                let ptr = self.local_ptr(local_id.0)?;
                 let name = format!("local_{}", local_id.0);
                 let loaded = if self.hw_zone_depth > 0 {
                     self.emit_mmio_volatile_read(self.i64_type.into(), ptr, &name)?

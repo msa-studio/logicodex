@@ -74,6 +74,7 @@ pub enum StmtAst {
     Continue,
     UnsafeBlock(BlockAst),
     HardwareZone(BlockAst),
+    HardwareDecl { name: String, ty: Option<TypeAst>, address: i64 },
     Expr(ExprAst),
     Return(Option<ExprAst>),
 }
@@ -332,6 +333,7 @@ pub enum HirStmt {
     },
     UnsafeBlock(HirBlock),
     HardwareZone(HirBlock),
+    HardwareDecl { local: LocalId, ty: TypeRef, address: i64 },
     Expr(HirExpr),
     Return(Option<HirExpr>),
 }
@@ -817,6 +819,11 @@ impl<'a> LoweringContext<'a> {
             StmtAst::Continue => HirStmt::Continue { target_depth: 0 },
             StmtAst::UnsafeBlock(block) => HirStmt::UnsafeBlock(self.lower_block(block)),
             StmtAst::HardwareZone(block) => HirStmt::HardwareZone(self.lower_block(block)),
+            StmtAst::HardwareDecl { name, ty, address } => {
+                let ty = ty.map(|ty| self.lower_type(ty)).unwrap_or_else(|| unknown_ref(self.types));
+                let local = self.symbols.define_local(name, ty);
+                HirStmt::HardwareDecl { local, ty, address }
+            }
             StmtAst::Expr(expr) => HirStmt::Expr(self.lower_expr(expr, span)),
             StmtAst::Return(expr) => HirStmt::Return(expr.map(|expr| self.lower_expr(expr, span))),
         };
@@ -1305,8 +1312,18 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
                 span: Span::unknown(),
             }).collect(),
         }),
-        Stmt::Use { .. } | Stmt::HardwareDecl { .. } => {
-            // Use imports + hardware register decls are not yet HIR-lowered.
+        // v1.44 G12 stage 2: hardware register decl binds `name` to a fixed
+        // MMIO address; codegen resolves it via inttoptr (not an alloca).
+        Stmt::HardwareDecl { name, ty, address } => StmtAst::HardwareDecl {
+            name,
+            ty: Some(lower_type_ast(ty)),
+            address: match address {
+                ast::Expr::AddressOfLiteral(v) => v,
+                _ => 0,
+            },
+        },
+        Stmt::Use { .. } => {
+            // Use imports are not yet HIR-lowered.
             StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit))
         }
         Stmt::Function { .. } | Stmt::StructDecl { .. } | Stmt::EnumDecl { .. } | Stmt::ExternBlock { .. } => {
