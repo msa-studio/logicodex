@@ -2,7 +2,6 @@
 #![no_main]
 
 use core::arch::global_asm;
-use core::panic::PanicInfo;
 use logicodex_os::{interrupts, uart};
 
 global_asm!(
@@ -123,15 +122,3 @@ pub extern "C" fn kmain() -> ! {
     loop { unsafe { core::arch::asm!("hlt") }; }
 }
 
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    uart::uart_puts("\r\nPANIC");
-    if let Some(loc) = info.location() {
-        uart::uart_puts(" at ");
-        uart::uart_puts(loc.file());
-        uart::uart_puts(":");
-        uart::uart_decimal(loc.line() as u64);
-    }
-    uart::uart_newline();
-    loop { unsafe { core::arch::asm!("hlt") }; }
-}

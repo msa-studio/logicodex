@@ -4,3 +4,4 @@
 //! freestanding emission. Pure-core: no std, no inkwell.
 pub mod uart;
 pub mod interrupts;
+pub mod panic;
