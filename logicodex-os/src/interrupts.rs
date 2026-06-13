@@ -259,9 +259,7 @@ extern "C" fn exception_dispatch(vector: u64, _error: u64) {
     if vector == 3 {
         return; // breakpoint trap: return to continue
     }
-    loop {
-        unsafe { asm!("hlt") };
-    }
+    crate::startup::halt()
 }
 
 // ─── Port I/O ───

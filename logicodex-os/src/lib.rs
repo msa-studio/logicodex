@@ -6,3 +6,4 @@ pub mod uart;
 pub mod interrupts;
 pub mod panic;
 pub mod allocator;
+pub mod startup;

@@ -42,7 +42,5 @@ fn panic(info: &PanicInfo) -> ! {
             options(nomem, nostack)
         );
     }
-    loop {
-        unsafe { core::arch::asm!("hlt") };
-    }
+    crate::startup::halt()
 }
