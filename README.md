@@ -62,8 +62,8 @@ These are **runtime-profile** work per the doctrine — labelled, not pretended:
 
 ## Testing
 
-`cargo test --features v1_30` compiles and runs green: **232 passing, 0 failing,
-0 ignored** (the 4 are documented freestanding gaps). Two drift-resistant phase
+`cargo test --features v1_30` compiles and runs green: **229 passing, 0 failing,
+3 ignored** (g1/g10/g14 string-test crt0, deferred — see #3; the live kernel uses a multiboot _start). Two drift-resistant phase
 gates guard behaviour via the real binary:
 
 - `tests/e2e_pipeline.rs` — compiles/checks fixtures through the CLI
@@ -87,7 +87,7 @@ Tiers: **FULL** (working, tested) · **PARTIAL** (works for some cases, gaps) ·
 | Actor model | PARTIAL (types + semantics; no runtime) |
 | Sharded runtime / network reactor | PARTIAL (`src/net` not compiled) |
 | WASM backend | PARTIAL (emits object; no linker) |
-| Freestanding x86_64 | PARTIAL (boots in QEMU; runtime in `logicodex-os`; all 4 gaps closed incl. full MMIO; full crt0 + .ldx->kernel deferred) |
+| Freestanding x86_64 | PARTIAL (boots in QEMU; runtime in `logicodex-os`; 4 gaps closed incl. full MMIO; crt0 tests g1/g10/g14 + .ldx->kernel deferred) |
 | Raylib FFI | PARTIAL (not wired to HIR) |
 | CI/CD | PARTIAL (suite green; 2-week stability pending) |
 | Deterministic execution | SKELETON |
