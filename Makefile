@@ -1,7 +1,7 @@
 # Logicodex Makefile
 # Simple task automation for common development operations
 
-.PHONY: all build test test-all fmt lint bench clean install
+.PHONY: all build test test-all fmt lint bench clean install boot boot-evidence
 
 LLVM_DIR ?= /usr/lib/llvm-15
 RUSTFLAGS ?= -L$(LLVM_DIR)/lib
@@ -60,3 +60,14 @@ validate:
 	@echo "=== Tier A validators ==="
 	@for v in scripts/validators/tier_a_core/*.py; do echo "--- $$(basename $$v) ---"; python3 "$$v"; done
 	@echo "=== All checks passed ==="
+
+# Freestanding x86_64 kernel: build -> elf32 -> QEMU boot (clean exit 33)
+boot:
+	cd freestanding && ./build.sh boot
+
+# CI-friendly: boot, capture serial, assert clean isa-debug-exit (33). Fails CI if not.
+boot-evidence:
+	@cd freestanding && ./build.sh boot 2>&1 | tee /tmp/logicodex-boot.log
+	@echo "--- boot evidence (serial capture) ---"
+	@grep -q "QEMU_EXIT_CODE=33" /tmp/logicodex-boot.log && echo "PASS: clean boot, exit 33" || (echo "FAIL: no clean exit 33 in serial log" && exit 1)
+	@grep -q "Logicodex" /tmp/logicodex-boot.log && echo "PASS: serial printed 'Logicodex'" || (echo "FAIL: 'Logicodex' not on serial" && exit 1)

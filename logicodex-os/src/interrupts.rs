@@ -217,27 +217,84 @@ isr_common:
 
 .section .rodata
 .align 8
-.global isr_stub_table
-isr_stub_table:
-    .quad isr0,  isr1,  isr2,  isr3,  isr4,  isr5,  isr6,  isr7
-    .quad isr8,  isr9,  isr10, isr11, isr12, isr13, isr14, isr15
-    .quad isr16, isr17, isr18, isr19, isr20, isr21, isr22, isr23
-    .quad isr24, isr25, isr26, isr27, isr28, isr29, isr30, isr31
+// isr_stub_table removed: absolute .quad relocs (R_X86_64_64) break
+// static-model linking at 1MB. Handler addresses are taken in Rust instead
+// (see idt_init), which emits RIP-relative LEA — no absolute data relocs.
 "#
 );
 
 extern "C" {
-    static isr_stub_table: [u64; 32];
+    fn isr0();
+    fn isr1();
+    fn isr2();
+    fn isr3();
+    fn isr4();
+    fn isr5();
+    fn isr6();
+    fn isr7();
+    fn isr8();
+    fn isr9();
+    fn isr10();
+    fn isr11();
+    fn isr12();
+    fn isr13();
+    fn isr14();
+    fn isr15();
+    fn isr16();
+    fn isr17();
+    fn isr18();
+    fn isr19();
+    fn isr20();
+    fn isr21();
+    fn isr22();
+    fn isr23();
+    fn isr24();
+    fn isr25();
+    fn isr26();
+    fn isr27();
+    fn isr28();
+    fn isr29();
+    fn isr30();
+    fn isr31();
 }
 
 /// Install the 32 CPU-exception handlers and load the IDTR.
 /// Call once after the GDT is active, before enabling interrupts.
 pub unsafe fn idt_init() {
-    let mut i = 0usize;
-    while i < 32 {
-        IDT.set_handler(i, isr_stub_table[i]);
-        i += 1;
-    }
+    // Take each stub address individually: rustc emits a RIP-relative LEA
+    // per call, avoiding any absolute pointer array in .rodata.
+    IDT.set_handler(0, isr0 as usize as u64);
+    IDT.set_handler(1, isr1 as usize as u64);
+    IDT.set_handler(2, isr2 as usize as u64);
+    IDT.set_handler(3, isr3 as usize as u64);
+    IDT.set_handler(4, isr4 as usize as u64);
+    IDT.set_handler(5, isr5 as usize as u64);
+    IDT.set_handler(6, isr6 as usize as u64);
+    IDT.set_handler(7, isr7 as usize as u64);
+    IDT.set_handler(8, isr8 as usize as u64);
+    IDT.set_handler(9, isr9 as usize as u64);
+    IDT.set_handler(10, isr10 as usize as u64);
+    IDT.set_handler(11, isr11 as usize as u64);
+    IDT.set_handler(12, isr12 as usize as u64);
+    IDT.set_handler(13, isr13 as usize as u64);
+    IDT.set_handler(14, isr14 as usize as u64);
+    IDT.set_handler(15, isr15 as usize as u64);
+    IDT.set_handler(16, isr16 as usize as u64);
+    IDT.set_handler(17, isr17 as usize as u64);
+    IDT.set_handler(18, isr18 as usize as u64);
+    IDT.set_handler(19, isr19 as usize as u64);
+    IDT.set_handler(20, isr20 as usize as u64);
+    IDT.set_handler(21, isr21 as usize as u64);
+    IDT.set_handler(22, isr22 as usize as u64);
+    IDT.set_handler(23, isr23 as usize as u64);
+    IDT.set_handler(24, isr24 as usize as u64);
+    IDT.set_handler(25, isr25 as usize as u64);
+    IDT.set_handler(26, isr26 as usize as u64);
+    IDT.set_handler(27, isr27 as usize as u64);
+    IDT.set_handler(28, isr28 as usize as u64);
+    IDT.set_handler(29, isr29 as usize as u64);
+    IDT.set_handler(30, isr30 as usize as u64);
+    IDT.set_handler(31, isr31 as usize as u64);
     IDTR.limit = (core::mem::size_of::<Idt>() - 1) as u16;
     IDTR.base = core::ptr::addr_of!(IDT) as u64;
     asm!("lidt [{}]", in(reg) core::ptr::addr_of!(IDTR),
