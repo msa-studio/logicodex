@@ -3,6 +3,8 @@
 
 use core::arch::global_asm;
 use logicodex_os::{interrupts, uart};
+extern crate alloc;
+use alloc::vec::Vec;
 
 global_asm!(
     r#"
@@ -117,6 +119,14 @@ pub extern "C" fn kmain() -> ! {
     unsafe { interrupts::idt_init(); }
     uart::uart_puts("idt\r\n");
     unsafe { core::arch::asm!("int3") };
+    let mut v: Vec<u64> = Vec::new();
+    let mut i = 1u64;
+    while i <= 5 { v.push(i); i += 1; }
+    let mut sum = 0u64;
+    for x in &v { sum += *x; }
+    uart::uart_puts("heap sum=");
+    uart::uart_decimal(sum);
+    uart::uart_newline();
     uart::uart_puts("Logicodex\r\n");
     unsafe { outb(0xf4, 0x10); }
     loop { unsafe { core::arch::asm!("hlt") }; }
