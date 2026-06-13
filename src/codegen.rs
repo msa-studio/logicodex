@@ -52,7 +52,7 @@ use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::types::{BasicType, BasicTypeEnum, IntType};
 use inkwell::AddressSpace;
-use inkwell::values::{BasicValueEnum, FunctionValue, IntValue, PointerValue};
+use inkwell::values::{BasicValue, BasicValueEnum, FunctionValue, IntValue, PointerValue};
 use inkwell::IntPredicate;
 use std::collections::HashMap;
 use std::path::Path;
@@ -596,6 +596,46 @@ impl<'ctx> LlvmCompiler<'ctx> {
     // ─── HIR Block / Statement / Expression Emitters ───
 
     #[cfg(feature = "v1_30")]
+    /// v1.44 G12: emit a hardware (MMIO) zone. Increments the zone depth so
+    /// that memory operations inside the body are emitted as *volatile*
+    /// (the optimizer must not elide or reorder MMIO accesses).
+    fn emit_hardware_zone(
+        &mut self,
+        block: &crate::hir::HirBlock,
+        func: FunctionValue<'ctx>,
+    ) -> Result<()> {
+        self.hw_zone_depth += 1;
+        let r = self.emit_hir_block(block, func);
+        self.hw_zone_depth -= 1;
+        r
+    }
+
+    /// v1.44 G12: volatile store for MMIO (used when hw_zone_depth > 0).
+    fn emit_mmio_volatile_write(
+        &self,
+        ptr: PointerValue<'ctx>,
+        val: BasicValueEnum<'ctx>,
+    ) -> Result<()> {
+        let store = self.builder.build_store(ptr, val).context("mmio volatile store")?;
+        store.set_volatile(true).map_err(|_| anyhow!("failed to set store volatile"))?;
+        Ok(())
+    }
+
+    /// v1.44 G12: volatile load for MMIO (used when hw_zone_depth > 0).
+    fn emit_mmio_volatile_read(
+        &self,
+        ty: BasicTypeEnum<'ctx>,
+        ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<BasicValueEnum<'ctx>> {
+        let val = self.builder.build_load(ty, ptr, name).context("mmio volatile load")?;
+        val.as_instruction_value()
+            .ok_or_else(|| anyhow!("load produced no instruction"))?
+            .set_volatile(true)
+            .map_err(|_| anyhow!("failed to set load volatile"))?;
+        Ok(val)
+    }
+
     fn emit_hir_block(
         &mut self,
         block: &crate::hir::HirBlock,
@@ -638,10 +678,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                             Some(lty) => self.wrap_to_width(val, lty)?,
                             None => val,
                         };
-                        let ptr = self.hir_local_allocs.get(&local_id.0)
+                        let ptr = *self.hir_local_allocs.get(&local_id.0)
                             .ok_or_else(|| anyhow!("assign target local {} not found", local_id.0))?;
-                        self.builder.build_store(*ptr, val)
-                            .context("failed to store assign value")?;
+                        if self.hw_zone_depth > 0 {
+                            self.emit_mmio_volatile_write(ptr, val.into())?;
+                        } else {
+                            self.builder.build_store(ptr, val)
+                                .context("failed to store assign value")?;
+                        }
                     }
                     crate::hir::HirExprKind::Field { base, field_index } => {
                         // p.field = val: int->ptr the struct i64, gep field, store.
@@ -701,6 +745,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
             HirStmt::UnsafeBlock(block) => {
                 self.emit_hir_block(block, func)
+            }
+            HirStmt::HardwareZone(block) => {
+                self.emit_hardware_zone(block, func)
             }
             HirStmt::Expr(expr) => {
                 let _ = self.emit_hir_expr(expr, func)?;
@@ -800,11 +847,16 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 LiteralAst::Unit => Ok(self.i64_type.const_int(0, false)),
             }
             HirExprKind::Local(local_id) => {
-                let ptr = self.hir_local_allocs.get(&local_id.0)
+                let ptr = *self.hir_local_allocs.get(&local_id.0)
                     .ok_or_else(|| anyhow!("local {} not allocated", local_id.0))?;
-                Ok(self.builder.build_load(self.i64_type, *ptr, &format!("local_{}", local_id.0))
-                    .context("failed to load local")?
-                    .into_int_value())
+                let name = format!("local_{}", local_id.0);
+                let loaded = if self.hw_zone_depth > 0 {
+                    self.emit_mmio_volatile_read(self.i64_type.into(), ptr, &name)?
+                } else {
+                    self.builder.build_load(self.i64_type, ptr, &name)
+                        .context("failed to load local")?
+                };
+                Ok(loaded.into_int_value())
             }
             HirExprKind::Global(_symbol_id) => {
                 // Global: try to resolve as a zero-argument function call

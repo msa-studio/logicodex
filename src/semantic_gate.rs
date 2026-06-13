@@ -114,6 +114,13 @@ impl SemanticContext {
                 self.check_block(block);
                 self.safety_context = previous;
             }
+            HirStmt::HardwareZone(block) => {
+                // MMIO zone: inherently unsafe context (volatile hardware access).
+                let previous = self.safety_context;
+                self.safety_context = SafetyContext::Unsafe;
+                self.check_block(block);
+                self.safety_context = previous;
+            }
             HirStmt::Expr(expr) => self.check_expression(expr),
             HirStmt::Return(expr) => {
                 if let Some(expr) = expr {

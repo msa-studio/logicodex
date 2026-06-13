@@ -73,6 +73,7 @@ pub enum StmtAst {
     Break,
     Continue,
     UnsafeBlock(BlockAst),
+    HardwareZone(BlockAst),
     Expr(ExprAst),
     Return(Option<ExprAst>),
 }
@@ -330,6 +331,7 @@ pub enum HirStmt {
         target_depth: u32,
     },
     UnsafeBlock(HirBlock),
+    HardwareZone(HirBlock),
     Expr(HirExpr),
     Return(Option<HirExpr>),
 }
@@ -814,6 +816,7 @@ impl<'a> LoweringContext<'a> {
             StmtAst::Break => HirStmt::Break { target_depth: 0 },
             StmtAst::Continue => HirStmt::Continue { target_depth: 0 },
             StmtAst::UnsafeBlock(block) => HirStmt::UnsafeBlock(self.lower_block(block)),
+            StmtAst::HardwareZone(block) => HirStmt::HardwareZone(self.lower_block(block)),
             StmtAst::Expr(expr) => HirStmt::Expr(self.lower_expr(expr, span)),
             StmtAst::Return(expr) => HirStmt::Return(expr.map(|expr| self.lower_expr(expr, span))),
         };
@@ -1294,8 +1297,16 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
                 span: Span::unknown(),
             }).collect(),
         }),
-        Stmt::Use { .. } | Stmt::HardwareDecl { .. } | Stmt::HardwareZone { .. } => {
-            // These v1.21-specific constructs are dropped in HIR lowering
+        // v1.44 G12: hardware zone preserved; codegen emits its memory ops as
+        // volatile MMIO (see emit_hardware_zone). Body is lowered like a block.
+        Stmt::HardwareZone { body } => StmtAst::HardwareZone(BlockAst {
+            statements: body.into_iter().map(|s| Spanned {
+                node: lower_stmt_ast(s),
+                span: Span::unknown(),
+            }).collect(),
+        }),
+        Stmt::Use { .. } | Stmt::HardwareDecl { .. } => {
+            // Use imports + hardware register decls are not yet HIR-lowered.
             StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit))
         }
         Stmt::Function { .. } | Stmt::StructDecl { .. } | Stmt::EnumDecl { .. } | Stmt::ExternBlock { .. } => {

@@ -288,7 +288,6 @@ fn g11_exception_handlers_count() {
 // ─── G12: MMIO Volatile Codegen ───
 
 #[test]
-#[ignore = "freestanding gap: emit_hardware_zone() MMIO codegen not implemented; pending freestanding profile"]
 fn g12_mmio_codegen_exists() {
     let codegen = include_str!("../src/codegen.rs");
     assert!(codegen.contains("emit_hardware_zone"), "G12: emit_hardware_zone() missing");
