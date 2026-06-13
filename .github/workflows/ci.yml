@@ -1,28 +1,24 @@
-# CI Pipeline for Logicodex Language Engine
+# ============================================================================
+# Logicodex CI — single-engine (HIR) era.
 #
-# Architecture:
-#   v1.21 (default): Stable pipeline — no flag needed
-#   v1.30 (optional): Option Engine — activated via --pipeline v1.30 or --edition v1.30
+# Guards what actually protects the code today:
+#   check        — formatting + clippy + cargo check
+#   test         — cargo build + full cargo test suite (includes the shipped-
+#                  examples semantic-check gate) — the real drift-resistant QA
+#   freestanding — x86_64 QEMU boot proof (make boot-evidence) + the one live
+#                  freestanding validator
 #
-# Both pipelines are built and tested in CI. The v1.30 Option Engine is NOT dormant;
-# it is an 80%-complete HIR lowering pipeline with its own test suite.
-#
-# CI structure:
-#   1. check     → cargo check (v1.21 default)
-#   2. test      → cargo test + examples + validators (v1.21 focus)
-#   3. v130-test → cargo test hir_codegen + v130-check + v1.30 example (Option Engine)
-#   4. deploy    → Release packaging (main branch only)
-#
-# Freestanding-only modules (os/startup, os/allocator, os/uart) are gated with
-# #[cfg(target_os = "none")] and excluded from hosted CI builds.
-
+# NOTE: the v1.21-v1.45 sprint/pipeline validators were archived under
+# scripts/validators/_archive_pre_hir/ — they structurally test a retired
+# architecture and are not run here. See that folder's README.
+# ============================================================================
 name: CI
 
 on:
   push:
-    branches: [main, feat/v130-single-engine]
+    branches: [main]
   pull_request:
-    branches: [main, feat/v130-single-engine]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -32,402 +28,74 @@ env:
 
 jobs:
   check:
-    name: Check
+    name: Check (fmt + clippy + build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install LLVM 15
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.75
+      - uses: dtolnay/rust-toolchain@1.75.0
         with:
           components: rustfmt, clippy
-
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Check formatting
+      - name: Format check
         run: cargo fmt --all -- --check
-        continue-on-error: true
-
-      - name: Check build (v1.21 default)
-        run: cargo check 2>&1 | tee build-check.log
-
-      - name: Show build errors
-        if: failure()
-        run: |
-          echo "=== BUILD CHECK ERRORS ==="
-          cat build-check.log | grep -E "^error" | head -20
-          echo "=== FULL ERROR CONTEXT ==="
-          tail -80 build-check.log
-
-      - name: Upload build check log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-check-log
-          path: build-check.log
+      - name: Clippy
+        run: cargo clippy --all-targets
+      - name: cargo check
+        run: cargo check --all-targets
 
   test:
-    name: Test v1.21
+    name: Test (full suite)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install LLVM 15
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
-
-      - uses: dtolnay/rust-toolchain@1.75
-
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - uses: dtolnay/rust-toolchain@1.75.0
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build release (v1.21)
-        run: cargo build --release --message-format=short 2>&1 | tee build-release.log
-        env:
-          RUST_BACKTRACE: 1
-
-      - name: Show build errors
-        if: failure()
-        run: |
-          echo "=== BUILD ERRORS ==="
-          cat build-release.log | grep -E "^error" | head -20
-          echo "=== FULL ERROR CONTEXT ==="
-          tail -80 build-release.log
-
-      - name: Upload build release log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-release-log
-          path: build-release.log
-
-      - name: Run unit tests (v1.21)
-        run: cargo test 2>&1 | tee test-output.log
-
-      - name: Show test failures
-        if: failure()
-        run: |
-          echo "=== TEST FAILURES ==="
-          grep -E "^test .* FAILED|^failures:|^thread '.*' panicked" test-output.log | head -30
-          echo "=== FULL TEST OUTPUT (last 100 lines) ==="
-          tail -100 test-output.log
-
-      - name: Run Tier A validators (core)
-        run: |
-          echo "════════════════════════════════════════════════════════════"
-          echo "  TIER A VALIDATORS — Completeness Reports (informational)  "
-          echo "════════════════════════════════════════════════════════════"
-          exit_code=0
-          for v in scripts/validators/tier_a_core/*.py; do
-            echo ""
-            echo "━━━ $(basename "$v") ━━━"
-            python3 "$v" || exit_code=1
-          done
-          if [ $exit_code -ne 0 ]; then
-            echo ""
-            echo "⚠️  Tier A: Some completeness checks failed — expected pre-Phase 2"
-          fi
-          exit 0
-        continue-on-error: true
-
-      - name: Run Tier B validators (feature)
-        run: |
-          echo "════════════════════════════════════════════════════════════"
-          echo "  TIER B VALIDATORS — Completeness Reports (informational)  "
-          echo "════════════════════════════════════════════════════════════"
-          exit_code=0
-          for v in scripts/validators/tier_b_feature/*.py; do
-            echo ""
-            echo "━━━ $(basename "$v") ━━━"
-            python3 "$v" || exit_code=1
-          done
-          if [ $exit_code -ne 0 ]; then
-            echo ""
-            echo "⚠️  Tier B: Some completeness checks failed — expected pre-Phase 2"
-          fi
-          exit 0
-        continue-on-error: true
-
-      - name: Verify binary exists
-        run: |
-          ls -la target/release/logicodex || echo "Binary not found, will build via cargo run"
-          cargo build --release --message-format=short
-          ls -la target/release/logicodex
-
-      - name: Check v1.21 examples
-        run: |
-          echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║  LOGICODEX v1.21 EXAMPLE VALIDATOR — DEBUG MODE           ║"
-          echo "╚════════════════════════════════════════════════════════════╝"
-          echo ""
-          failed=0
-          fail_log=""
-          for f in examples/*.ldx; do
-            if [ -f "$f" ]; then
-              name=$(basename "$f")
-              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-              echo "  [TEST] $name"
-              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-              echo "  File: $f"
-              echo "  Size: $(wc -c < "$f") bytes, $(wc -l < "$f") lines"
-              echo "  --- SOURCE ---"
-              nl -ba "$f" | sed 's/^/  | /'
-              echo "  --- COMPILER OUTPUT ---"
-
-              set +e
-              output=$(cargo run --release -- --pipeline v1.21 check "$f" 2>&1)
-              exit_code=$?
-              set -e
-
-              echo "$output" >> example-check.log
-
-              if [ $exit_code -ne 0 ]; then
-                echo "  ❌ FAILED (exit code: $exit_code)"
-                echo "$output" | sed 's/^/  | ERROR: /'
-                echo ""
-                echo "  --- FAILURE ANALYSIS ---"
-                echo "  Possible causes:"
-                echo "  1. Parser rejected syntax (check token in error message)"
-                echo "  2. Missing semicolon after statement"
-                echo "  3. Beginner mode disabled (inside hardware zone?)"
-                echo "  4. v1.30-only feature used in v1.21 mode"
-                echo ""
-                failed=1
-                fail_log="${fail_log}\n  ❌ ${name}"
-              else
-                echo "  ✅ PASSED"
-                echo "$output" | sed 's/^/  | OK: /'
-              fi
-              echo "" >> example-check.log
-            fi
-          done
-
-          echo ""
-          echo "════════════════════════════════════════════════════════════"
-          echo "  SUMMARY"
-          echo "════════════════════════════════════════════════════════════"
-          if [ $failed -eq 1 ]; then
-            echo "  ❌ FAILED — The following examples have errors:"
-            echo -e "$fail_log"
-            echo ""
-            echo "  Common fixes:"
-            echo "  - Use MULA/TAMAT (beginner) or { } (expert) consistently"
-            echo "  - Add semicolons after statements inside {} blocks"
-            echo "  - Check variable names match declared identifiers"
-            echo "  - Verify v1.21 features only (no struct/enum/unsafe)"
-            echo ""
-            echo "  --- FIRST ERROR ---"
-            head -30 example-check.log
-            echo "  --- END FIRST ERROR ---"
-            cat example-check.log
-            exit 1
-          else
-            echo "  ✅ ALL EXAMPLES PASSED"
-            echo "════════════════════════════════════════════════════════════"
-          fi
-
-      - name: Upload example check log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: example-check-debug-log
-          path: example-check.log
-
-      - name: Upload v1.21 binary artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: logicodex-v1.21-linux-x64
-          path: target/release/logicodex
-
-  v130-test:
-    name: Test v1.30 Option Engine
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install LLVM 15
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
-
-      - uses: dtolnay/rust-toolchain@1.75
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target/
-          key: ${{ runner.os }}-cargo-v130-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build release
-        run: cargo build --release --features v1_30 --message-format=short 2>&1 | tee v130-build.log
-        env:
-          RUST_BACKTRACE: 1
-
-      - name: Show build errors
-        if: failure()
-        run: |
-          echo "=== v1.30 BUILD ERRORS ==="
-          cat v130-build.log | grep -E "^error" | head -20
-          echo "=== FULL ERROR CONTEXT ==="
-          tail -80 v130-build.log
-
-      - name: Upload v1.30 build log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: v130-build-log
-          path: v130-build.log
-
-      - name: Run HIR codegen tests (v1.30)
-        run: cargo test --features v1_30 hir_codegen 2>&1 | tee v130-test.log
-
-      - name: Show v1.30 test failures
-        if: failure()
-        run: |
-          echo "=== v1.30 TEST FAILURES ==="
-          grep -E "^test .* FAILED|^failures:|^thread '.*' panicked" v130-test.log | head -30
-          echo "=== FULL TEST OUTPUT (last 100 lines) ==="
-          tail -100 v130-test.log
-
-      - name: Upload v1.30 test log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: v130-test-log
-          path: v130-test.log
-
-      - name: Run v130 subsystem self-check
-        run: |
-          echo "════════════════════════════════════════════════════════════"
-          echo "  v1.30 Option Engine — Subsystem Self-Check               "
-          echo "════════════════════════════════════════════════════════════"
-          # v130-check validates v1.21 semantics + v1.30 subsystem internally
-          cargo run --release --features v1_30 -- v130-check examples/dormant/v1_30/raylib_spinning_box.ldx 2>&1 | tee v130-selfcheck.log
-          echo "════════════════════════════════════════════════════════════"
-
-      - name: Check v1.30 examples (Option Engine pipeline)
-        run: |
-          echo "════════════════════════════════════════════════════════════"
-          echo "  v1.30 Option Engine — Example Validation                 "
-          echo "════════════════════════════════════════════════════════════"
-          failed=0
-          fail_log=""
-          for f in examples/dormant/v1_30/*.ldx; do
-            if [ -f "$f" ]; then
-              name=$(basename "$f")
-              echo ""
-              echo "━━━ Testing: $name ━━━"
-              set +e
-              output=$(cargo run --release --features v1_30 -- --pipeline v1.30 -- check "$f" 2>&1)
-              exit_code=$?
-              set -e
-              echo "$output" >> v130-example-check.log
-              if [ $exit_code -ne 0 ]; then
-                echo "  ❌ FAILED (exit code: $exit_code)"
-                echo "$output" | sed 's/^/  | ERROR: /'
-                failed=1
-                fail_log="${fail_log}\n  ❌ ${name}"
-              else
-                echo "  ✅ PASSED"
-                echo "$output" | sed 's/^/  | OK: /'
-              fi
-            fi
-          done
-
-          echo ""
-          echo "════════════════════════════════════════════════════════════"
-          echo "  v1.30 Example Summary"
-          echo "════════════════════════════════════════════════════════════"
-          if [ $failed -eq 1 ]; then
-            echo "  ❌ FAILED:$fail_log"
-            echo ""
-            echo "  Note: v1.30 Option Engine is under active development."
-            echo "        Some features may not be fully codegenned yet."
-            echo ""
-            cat v130-example-check.log
-            exit 1
-          else
-            echo "  ✅ ALL v1.30 EXAMPLES PASSED"
-            echo "════════════════════════════════════════════════════════════"
-          fi
-
-      - name: Upload v1.30 example check log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: v130-example-check-log
-          path: v130-example-check.log
-
-      - name: Upload v1.30 binary artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: logicodex-v1.30-linux-x64
-          path: target/release/logicodex
-
-  deploy:
-    name: Deploy
-    needs: [check, test]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install LLVM 15
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
-
-      - uses: dtolnay/rust-toolchain@1.75
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build release binary (v1.21)
+      - name: Build
         run: cargo build --release
-
-      - name: Package binary
-        run: |
-          mkdir -p dist
-          cp target/release/logicodex dist/logicodex-v1.21-linux-x64
-          cp -r examples dist/examples
-          cp README.md dist/README.md
-          cp SPECIFICATION.md dist/SPECIFICATION.md
-          tar -czf logicodex-v1.21-linux-x64.tar.gz -C dist .
-
-      - name: Upload release tarball
-        if: success()
+      - name: Run full test suite
+        run: cargo test 2>&1 | tee test-output.log
+      - name: Upload test log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: logicodex-v1.21-linux-x64-release
-          path: logicodex-v1.21-linux-x64.tar.gz
+          name: test-output-log
+          path: test-output.log
+
+  freestanding:
+    name: Freestanding x86_64 QEMU boot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.75.0
+        with:
+          targets: x86_64-unknown-none
+      - name: Install QEMU + binutils
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 binutils
+      - name: Boot evidence (multiboot -> long-mode -> serial 'Logicodex' -> clean exit 33)
+        # build.sh unsets RUSTFLAGS internally so the inherited LLVM -L flag does
+        # not override the freestanding target's relocation-model/linker rustflags.
+        run: make boot-evidence
+      - name: Freestanding capability validator
+        run: python3 scripts/validators/tier_c_stress/validate_v144_freestanding.py
