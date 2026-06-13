@@ -33,7 +33,7 @@ Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebas
 | WASM backend | PARTIAL | LLVM path exists, no linker/runtime/CI | Issue #10 |
 | Freestanding x86_64 | PARTIAL | Boots in QEMU (multiboot1 -> long-mode -> COM1 serial 'Logicodex' -> clean exit 33). Runtime in shared crate logicodex-os (uart/IDT-256+PIC/panic/allocator/halt). Pending: end-to-end .ldx->kernel emission, MMIO codegen (g12), full crt0 | Issue #11 |
 | Raylib FFI | PARTIAL | 55 wrappers, partial API coverage | Issue #12 |
-| CI/CD | PARTIAL | Suite compiles & green: 231 passed / 0 failed / 1 ignored (documented freestanding gaps); drift-resistant e2e + example phase-gates added. 2-week CI stability pending | Issue #13 |
+| CI/CD | PARTIAL | Suite compiles & green: 232 passed / 0 failed / 0 ignored (documented freestanding gaps); drift-resistant e2e + example phase-gates added. 2-week CI stability pending | Issue #13 |
 | HIR lowering | FULL | Active — Issue #02 resolved (ACTIVATE) | structs, enums+match, fns, control flow |
 | Deterministic execution | SKELETON | Framework only, no runtime integration | Issue #14 |
 | Freestanding aarch64 | SKELETON | LLVM triple only | Issue #15 |
