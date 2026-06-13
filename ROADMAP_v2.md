@@ -31,7 +31,7 @@ Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebas
 | Sharded runtime | PARTIAL | Threads + affinity exist, messaging missing | Issue #08 |
 | Network reactor | PARTIAL | Syscalls exist, socket lifecycle missing | Issue #09 |
 | WASM backend | PARTIAL | LLVM path exists, no linker/runtime/CI | Issue #10 |
-| Freestanding x86_64 | PARTIAL | Code complete, never booted in QEMU | Issue #11 |
+| Freestanding x86_64 | PARTIAL | Boots in QEMU (multiboot1 -> long-mode -> COM1 serial 'Logicodex' -> clean exit 33). Runtime in shared crate logicodex-os (uart/IDT-256+PIC/panic/allocator/halt). Pending: end-to-end .ldx->kernel emission, MMIO codegen (g12), full crt0 | Issue #11 |
 | Raylib FFI | PARTIAL | 55 wrappers, partial API coverage | Issue #12 |
 | CI/CD | PARTIAL | Suite compiles & green: 229 passed / 0 failed / 3 ignored (documented freestanding gaps); drift-resistant e2e + example phase-gates added. 2-week CI stability pending | Issue #13 |
 | HIR lowering | FULL | Active — Issue #02 resolved (ACTIVATE) | structs, enums+match, fns, control flow |
@@ -111,7 +111,7 @@ Restore project credibility by fixing CI, hardening the compiler core, booting x
 - [ ] **P1-A2** — Validator count audit: `grep -r "148" docs/ README.md` returns zero matches
 - [ ] **P1-A3** — README audit: README.md maturity matrix matches this roadmap's Section 2
 - [ ] **P1-A4** — Documentation audit: `docs/` directory scanned; all claims rated FULL/PARTIAL/SKELETON with issue links
-- [ ] **P1-A5** — QEMU boot evidence: Screenshot or CI artifact showing serial output "Logicodex" from QEMU x86_64
+- [x] **P1-A5** — QEMU boot evidence: `freestanding/` kernel via `./build.sh boot` emits serial `BLogicodex` and exits cleanly (QEMU exit 33). Path: multiboot1 -> 32-bit stub -> long-mode transition (PAE+identity paging+GDT) -> COM1 serial -> isa-debug-exit. Runtime modules live in shared crate `logicodex-os`.
 - [ ] **P1-A6** — HIR decision document exists and is committed to `docs/architecture/hir-decision.md`
 - [ ] **P1-A7** — Test stability log: 14 consecutive days of passing tests (CI history or manual log)
 - [ ] **P1-A8** — Contributing guide reviewed and approved

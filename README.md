@@ -55,7 +55,7 @@ These are **runtime-profile** work per the doctrine — labelled, not pretended:
 - Runtime capability **enforcement** (compile-time validation works; runtime gate does not)
 - Capability provider-topology (`docs/architecture/capability-topology.md`)
 - WASM linking — emits a `wasm32` object, but final `.wasm` needs `wasm-ld` (not bundled)
-- Full freestanding (4 known gaps: IDT handlers, panic-UART, MMIO codegen, x86_64 SSE2)
+- Freestanding x86_64 **boots in QEMU** (multiboot1 -> long-mode -> serial -> clean exit); runtime extracted to shared crate `logicodex-os`. Done: IDT-256 + 32 exception handlers, panic->UART, SSE2 feature. Deferred: MMIO codegen (g12), full crt0 (zero-BSS/.data), end-to-end .ldx->kernel emission
 - Network reactor / sharded runtime (`src/net` is not compiled)
 - Raylib FFI is not wired into the HIR path
 - Float literals (`3.14`) do not yet parse (`.` is field-access); `^` (xor) has no token
@@ -87,7 +87,7 @@ Tiers: **FULL** (working, tested) · **PARTIAL** (works for some cases, gaps) ·
 | Actor model | PARTIAL (types + semantics; no runtime) |
 | Sharded runtime / network reactor | PARTIAL (`src/net` not compiled) |
 | WASM backend | PARTIAL (emits object; no linker) |
-| Freestanding x86_64 | PARTIAL (4 known gaps; not QEMU-booted) |
+| Freestanding x86_64 | PARTIAL (boots in QEMU; runtime in `logicodex-os`; g12 MMIO + full crt0 deferred) |
 | Raylib FFI | PARTIAL (not wired to HIR) |
 | CI/CD | PARTIAL (suite green; 2-week stability pending) |
 | Deterministic execution | SKELETON |
