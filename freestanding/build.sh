@@ -6,8 +6,6 @@ set -e
 # [target.x86_64-unknown-none].rustflags, dropping relocation-model=static
 # and -Tlinker.ld -> the freestanding link fails with R_X86_64 reloc errors.
 unset RUSTFLAGS
-# Force a clean kernel rebuild: cargo's incremental cache can hold a stale
-# failed-link state across edits to the linker.ld / asm relocs.
 cargo build
 K=target/x86_64-unknown-none/debug/logicodex-kernel
 objcopy -O elf32-i386 "$K" "$K.elf32"
