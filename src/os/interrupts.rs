@@ -225,7 +225,7 @@ pub unsafe fn idt_init() {
 
 /// Default handler for CPU exceptions.
 /// Prints exception info via UART and halts.
-#[unsafe(no_mangle)]
+#[no_mangle]
 extern "x86-interrupt" fn default_exception_handler(frame: InterruptStackFrame) {
     let vector = frame.vector as usize;
     let name = if vector < 32 {
@@ -267,7 +267,7 @@ pub struct InterruptStackFrame {
 
 macro_rules! exception_handler {
     ($name:ident, $vector:expr) => {
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         extern "x86-interrupt" fn $name(frame: InterruptStackFrame) {
             let mut f = frame;
             f.vector = $vector;
@@ -305,7 +305,7 @@ static EXCEPTION_HANDLERS: [fn(InterruptStackFrame); 32] = [
 // Stub handlers for reserved vectors
 macro_rules! default_handler {
     ($name:ident, $vector:expr) => {
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         extern "x86-interrupt" fn $name(frame: InterruptStackFrame) {
             let mut f = frame;
             f.vector = $vector;
@@ -337,7 +337,7 @@ default_handler!(default_handler_31, 31);
 
 macro_rules! irq_handler {
     ($name:ident, $irq:expr) => {
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         extern "x86-interrupt" fn $name(_frame: InterruptStackFrame) {
             // Send EOI
             unsafe { pic_eoi($irq); }

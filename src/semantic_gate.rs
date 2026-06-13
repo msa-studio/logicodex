@@ -81,7 +81,11 @@ impl SemanticContext {
                 self.check_expression(target);
                 self.check_expression(value);
             }
-            HirStmt::If { condition, then_branch, else_branch } => {
+            HirStmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 self.check_expression(condition);
                 self.check_block(then_branch);
                 if let Some(else_branch) = else_branch {
@@ -436,17 +440,17 @@ pub fn validate_module(module: &HirModule, types: TypeRegistry) -> Result<(), Ve
 
 /// Run the semantic gatekeeper and print any diagnostics.
 /// Returns true if validation passed.
-pub fn validate_module_with_reporting(
-    module: &HirModule,
-    types: TypeRegistry,
-) -> bool {
+pub fn validate_module_with_reporting(module: &HirModule, types: TypeRegistry) -> bool {
     match validate_module(module, types) {
         Ok(()) => {
             println!("logicodex v1.38: Semantic gatekeeper validation passed");
             true
         }
         Err(diagnostics) => {
-            eprintln!("logicodex v1.38: Semantic gatekeeper found {} issue(s):", diagnostics.len());
+            eprintln!(
+                "logicodex v1.38: Semantic gatekeeper found {} issue(s):",
+                diagnostics.len()
+            );
             for d in &diagnostics {
                 eprintln!("  [{:?}] {}", d.severity, d.message_en);
             }

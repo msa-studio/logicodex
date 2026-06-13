@@ -52,7 +52,9 @@ impl TargetArch {
 pub enum CompilationTarget {
     Native,
     /// v1.44: Freestanding with architecture selection
-    Freestanding { arch: TargetArch },
+    Freestanding {
+        arch: TargetArch,
+    },
     /// v1.40: WebAssembly target — generates .wasm via LLVM WASM backend
     Wasm,
 }
@@ -66,17 +68,21 @@ impl CompilationTarget {
                 "x86_64" | "x64" => TargetArch::X86_64,
                 "aarch64" | "arm64" => TargetArch::Aarch64,
                 "riscv64" | "riscv" | "rv64" => TargetArch::Riscv64,
-                other => return Err(anyhow!(
-                    "unsupported freestanding architecture `{other}`; \
+                other => {
+                    return Err(anyhow!(
+                        "unsupported freestanding architecture `{other}`; \
                      expected `x86_64`, `aarch64`, or `riscv64`"
-                )),
+                    ))
+                }
             };
             return Ok(Self::Freestanding { arch });
         }
 
         match value {
             "native" | "host" => Ok(Self::Native),
-            "freestanding" => Ok(Self::Freestanding { arch: TargetArch::X86_64 }),
+            "freestanding" => Ok(Self::Freestanding {
+                arch: TargetArch::X86_64,
+            }),
             "wasm" | "wasm32" => Ok(Self::Wasm),
             other => Err(anyhow!(
                 "unsupported Logicodex target `{other}`; \

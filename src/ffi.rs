@@ -7,12 +7,11 @@
 // the current v1.21-alpha split-implementation boundary.
 // =============================================================================================================================================================================
 
+pub mod math;
 pub mod raylib;
 pub mod raylib_sys;
-pub mod math;
 
 // v1.42: Re-export Raylib helpers for external use
-
 
 use crate::hir::HirExpr;
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span};
@@ -188,7 +187,11 @@ impl<'a> FfiGatekeeper<'a> {
 
     /// v1.42 P8: Check if `actual` type can be coerced to `expected` type.
     /// Implements the widening coercion matrix for numeric types.
-    fn is_compatible_with_coercion(&self, actual: crate::types::TypeId, expected: crate::types::TypeId) -> bool {
+    fn is_compatible_with_coercion(
+        &self,
+        actual: crate::types::TypeId,
+        expected: crate::types::TypeId,
+    ) -> bool {
         // Exact match always OK
         if self.types.is_equivalent(actual, expected) {
             return true;

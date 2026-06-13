@@ -22,7 +22,6 @@ impl TypeRegistry {
     }
 }
 
-
 /// Enhanced type checker that uses CoercionEngine for validation.
 /// Provides detailed error messages explaining why a coercion failed.
 pub struct TypeChecker<'a> {
@@ -39,9 +38,17 @@ pub enum TypeCheckResult {
     /// Widening conversion (safe, implicit).
     ImplicitWidening { from: String, to: String },
     /// Narrowing conversion — requires explicit cast.
-    RequiresExplicitCast { from: String, to: String, suggestion: String },
+    RequiresExplicitCast {
+        from: String,
+        to: String,
+        suggestion: String,
+    },
     /// Incompatible types — no valid conversion.
-    Incompatible { from: String, to: String, reason: String },
+    Incompatible {
+        from: String,
+        to: String,
+        reason: String,
+    },
 }
 
 impl TypeChecker<'_> {
@@ -69,10 +76,21 @@ impl TypeChecker<'_> {
                 // (O(n) but n is small for the primitive set)
                 let ids = self.registry.primitive_ids();
                 let all_ids = [
-                    ids.bool_, ids.i8_, ids.i16_, ids.i32_, ids.i64_,
-                    ids.u8_, ids.u16_, ids.u32_, ids.u64_,
-                    ids.f32_, ids.f64_, ids.string, ids.unit,
-                    ids.never, ids.unknown,
+                    ids.bool_,
+                    ids.i8_,
+                    ids.i16_,
+                    ids.i32_,
+                    ids.i64_,
+                    ids.u8_,
+                    ids.u16_,
+                    ids.u32_,
+                    ids.u64_,
+                    ids.f32_,
+                    ids.f64_,
+                    ids.string,
+                    ids.unit,
+                    ids.never,
+                    ids.unknown,
                 ];
                 all_ids
                     .iter()
@@ -214,8 +232,12 @@ impl TypeChecker<'_> {
                 return Err(format!(
                     "Struct constructor '{}' expects {} arguments, got {}. \
                      / Pembina struktur '{}' memerlukan {} argumen, mendapat {}.",
-                    callee_name, layout.fields.len(), args.len(),
-                    callee_name, layout.fields.len(), args.len(),
+                    callee_name,
+                    layout.fields.len(),
+                    args.len(),
+                    callee_name,
+                    layout.fields.len(),
+                    args.len(),
                 ));
             }
             // Sprint 3: validate each argument type against field type
@@ -235,11 +257,7 @@ impl TypeChecker<'_> {
 
     /// Generate a bilingual error message for a type mismatch.
     /// Returns (malay_message, english_message).
-    pub fn format_error(
-        &self,
-        name: &str,
-        result: &TypeCheckResult,
-    ) -> (String, String) {
+    pub fn format_error(&self, name: &str, result: &TypeCheckResult) -> (String, String) {
         match result {
             TypeCheckResult::Ok | TypeCheckResult::ImplicitWidening { .. } => {
                 (String::new(), String::new()) // no error
@@ -304,8 +322,7 @@ mod tests {
     // Uses Box::leak to extend lifetime to 'static for test convenience.
     // This is acceptable in tests (small, bounded leak).
     fn make_checker() -> TypeChecker<'static> {
-        let registry: &'static TypeRegistry =
-            Box::leak(Box::new(TypeRegistry::new()));
+        let registry: &'static TypeRegistry = Box::leak(Box::new(TypeRegistry::new()));
         TypeChecker::new(registry)
     }
 

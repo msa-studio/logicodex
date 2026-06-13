@@ -101,9 +101,16 @@ pub enum Stmt {
         body: Vec<Stmt>,
     },
     /// Variable assignment: target = value (target can be any Expr)
-    Assign { target: Expr, value: Expr },
+    Assign {
+        target: Expr,
+        value: Expr,
+    },
     /// Buffer index assignment: buf[index] = value
-    IndexAssign { target: String, index: Expr, value: Expr },
+    IndexAssign {
+        target: String,
+        index: Expr,
+        value: Expr,
+    },
     /// v1.33.0-alpha: Service manifest — deterministic network reactor.
     /// Syntax: `service WebServer { port: 443, requires: Net.Admin, handler: WebHandler, policy: Block }`
     Service {
@@ -156,7 +163,10 @@ pub struct Param {
 pub enum Expr {
     Integer(i64),
     /// Unary operation: op expr
-    Unary { op: String, operand: Box<Expr> },
+    Unary {
+        op: String,
+        operand: Box<Expr>,
+    },
     Boolean(bool),
     StringLiteral(String),
     Variable(String),
@@ -179,9 +189,13 @@ pub enum Expr {
         index: Box<Expr>,
     },
     /// Ketuk 2: Result construction — Ok(value)
-    Ok { value: Box<Expr> },
+    Ok {
+        value: Box<Expr>,
+    },
     /// Ketuk 2: Result construction — Err(error)
-    Err { value: Box<Expr> },
+    Err {
+        value: Box<Expr>,
+    },
     /// Ketuk 3: File Handle ABI — Method call on opaque type.
     /// Syntax: h.read(1024), h.close(), h.seek(0, Start)
     MethodCall {
@@ -190,9 +204,15 @@ pub enum Expr {
         args: Vec<Expr>,
     },
     /// Field access: net.admin
-    FieldAccess { base: Box<Expr>, field: String },
+    FieldAccess {
+        base: Box<Expr>,
+        field: String,
+    },
     /// Enum variant reference: `Warna::Merah`.
-    EnumVariant { enum_name: String, variant: String },
+    EnumVariant {
+        enum_name: String,
+        variant: String,
+    },
     /// v1.30.1-alpha: Spawn a Kotak (create OS thread).
     /// Syntax: `lahirkan SensorSuhu()`
     Spawn {
@@ -281,18 +301,31 @@ pub enum Type {
     /// User-defined named type (struct/enum), resolved during lowering.
     Named(String),
     // ─── Ketuk 1: Core Memory Model ───
-    Slice { element: Box<Type> },
-    Buffer { element: Box<Type> },
+    Slice {
+        element: Box<Type>,
+    },
+    Buffer {
+        element: Box<Type>,
+    },
     /// Ketuk 2: Result type for IO operations — Ok(T) or Err(E).
     /// Syntax: Result<T, E>
-    Result { ok: Box<Type>, err: Box<Type> },
+    Result {
+        ok: Box<Type>,
+        err: Box<Type>,
+    },
     /// Ketuk 3: File Handle ABI — Opaque type (internal structure hidden).
     /// Syntax: FileHandle, FileMode
-    Opaque { name: String },
+    Opaque {
+        name: String,
+    },
     // ─── v1.30.1-alpha: Threading Foundation — Kotak & Pintu ───
     /// Channel<T, U> — SPSC channel with type-level capability.
     /// Syntax: Channel<SensorSuhu, KotakEnjin, DataSuhu>
-    Channel { from: String, to: String, message_type: String },
+    Channel {
+        from: String,
+        to: String,
+        message_type: String,
+    },
 }
 
 impl Type {
@@ -365,7 +398,11 @@ impl Type {
     /// v1.30.1-alpha: Get Pintu capability (from, to, message_type).
     pub fn channel_capability(&self) -> Option<(&str, &str, &str)> {
         match self {
-            Type::Channel { from, to, message_type } => Some((from, to, message_type)),
+            Type::Channel {
+                from,
+                to,
+                message_type,
+            } => Some((from, to, message_type)),
             _ => None,
         }
     }
@@ -431,7 +468,11 @@ impl fmt::Display for Type {
             Type::Result { ok, err } => write!(f, "Result<{ok}, {err}>"),
             Type::Opaque { name } => write!(f, "{name}"),
             Type::Named(name) => write!(f, "{name}"),
-            Type::Channel { from, to, message_type } => {
+            Type::Channel {
+                from,
+                to,
+                message_type,
+            } => {
                 write!(f, "Channel<{from}, {to}, {message_type}>")
             }
         }

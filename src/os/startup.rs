@@ -25,7 +25,7 @@ const STACK_TOP: u64 = 0x200000;
 /// # Safety
 /// Called only once at boot. Must not return.
 #[cfg(target_os = "none")]
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn _start() -> ! {
     unsafe {
         // Step 1: Set stack pointer

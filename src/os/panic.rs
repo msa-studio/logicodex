@@ -11,7 +11,6 @@
 // Hosted targets use std::panic::set_hook() instead.
 // =========================================================================
 
-
 use core::fmt::Write;
 
 /// Panic handler for bare-metal (no_std, no OS) targets.
@@ -47,12 +46,7 @@ fn panic(info: &PanicInfo) -> ! {
     let mut uart = UartWriter;
     let _ = writeln!(uart, "\n\n!!! LOGICODEX PANIC !!!");
     if let Some(loc) = info.location() {
-        let _ = writeln!(
-            uart,
-            "  File: {}:{}",
-            loc.file(),
-            loc.line()
-        );
+        let _ = writeln!(uart, "  File: {}:{}", loc.file(), loc.line());
     }
     if let Some(msg) = info.message() {
         let _ = write!(uart, "  Message: ");

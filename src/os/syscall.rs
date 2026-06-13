@@ -19,8 +19,8 @@ pub mod linux {
     pub const SYS_FSTAT: u64 = 5;
 
     // v1.37 Network Runtime syscalls
-    pub const SYS_RECV: u64 = 17;   // recvfrom on some arch, but recv=17 on x86_64
-    pub const SYS_SEND: u64 = 16;   // sendto on some arch, but send=16 on x86_64
+    pub const SYS_RECV: u64 = 17; // recvfrom on some arch, but recv=17 on x86_64
+    pub const SYS_SEND: u64 = 16; // sendto on some arch, but send=16 on x86_64
     pub const SYS_SOCKET: u64 = 41;
     pub const SYS_ACCEPT: u64 = 43;
     pub const SYS_BIND: u64 = 49;
@@ -131,13 +131,17 @@ pub mod windows {
 
     /// v1.38 F1: Windows fallback for sys_recv — not applicable on Windows.
     pub fn win_recv_fallback(_fd: i32, _buf: &mut [u8]) -> Result<usize, i32> {
-        eprintln!("logicodex v1.38: Windows recv not implemented — use WSARecv via CallableRegistry");
+        eprintln!(
+            "logicodex v1.38: Windows recv not implemented — use WSARecv via CallableRegistry"
+        );
         Err(-1)
     }
 
     /// v1.38 F1: Windows fallback for sys_send — not applicable on Windows.
     pub fn win_send_fallback(_fd: i32, _buf: &[u8]) -> Result<usize, i32> {
-        eprintln!("logicodex v1.38: Windows send not implemented — use WSASend via CallableRegistry");
+        eprintln!(
+            "logicodex v1.38: Windows send not implemented — use WSASend via CallableRegistry"
+        );
         Err(-1)
     }
 }

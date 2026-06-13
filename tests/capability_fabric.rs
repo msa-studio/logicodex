@@ -6,9 +6,8 @@
 // =========================================================================
 
 use logicodex::tier2::{
-    CapabilityTopology, TopologyViolation, TopologyVerifyResult,
-    GateContract, GateDomain, GateRef, GateType,
-    diff_topology,
+    diff_topology, CapabilityTopology, GateContract, GateDomain, GateRef, GateType,
+    TopologyVerifyResult, TopologyViolation,
 };
 
 // ─── 1. GateRef creation ───

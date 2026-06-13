@@ -148,7 +148,12 @@ pub enum CommType {
 
 impl CommEdge {
     /// Cipta Door edge (cross-shard safe).
-    pub fn door(from: impl Into<String>, to: impl Into<String>, message_type: impl Into<String>, capacity: usize) -> Self {
+    pub fn door(
+        from: impl Into<String>,
+        to: impl Into<String>,
+        message_type: impl Into<String>,
+        capacity: usize,
+    ) -> Self {
         Self {
             from: from.into(),
             to: to.into(),
@@ -202,7 +207,10 @@ impl ServiceGraph {
 
     /// Semua edges yang cross-shard (Door only).
     pub fn cross_shard_edges(&self) -> Vec<&CommEdge> {
-        self.edges.iter().filter(|e| e.is_cross_shard && e.comm_type == CommType::Door).collect()
+        self.edges
+            .iter()
+            .filter(|e| e.is_cross_shard && e.comm_type == CommType::Door)
+            .collect()
     }
 
     /// Bilangan servis.
@@ -211,7 +219,7 @@ impl ServiceGraph {
     }
 
     /// Bilangan edges.
-pub fn edge_count(&self) -> usize {
+    pub fn edge_count(&self) -> usize {
         self.edges.len()
     }
 }
@@ -266,15 +274,27 @@ pub enum ShardViolation {
     /// Servis tidak di-assign ke mana-mana shard
     UnassignedService { service: String },
     /// Servis di-assign ke lebih dari satu shard
-    DuplicateAssignment { service: String, shard_a: u32, shard_b: u32 },
+    DuplicateAssignment {
+        service: String,
+        shard_a: u32,
+        shard_b: u32,
+    },
     /// Cross-shard communication bukan melalui Door
     ForbiddenDirectCrossShard { from: String, to: String },
     /// Budget melebihi had
-    BudgetOverflow { shard_id: u32, budget: u32, usage: u32 },
+    BudgetOverflow {
+        shard_id: u32,
+        budget: u32,
+        usage: u32,
+    },
     /// Shard tanpa servis
     EmptyShard { shard_id: u32 },
     /// Core ID conflict (dua shard pin ke core sama)
-    CoreConflict { shard_a: u32, shard_b: u32, core_id: u32 },
+    CoreConflict {
+        shard_a: u32,
+        shard_b: u32,
+        core_id: u32,
+    },
 }
 
 impl ShardTopology {
@@ -393,15 +413,19 @@ impl ShardTopology {
     pub fn to_manifest_json(&self) -> String {
         let mut lines = Vec::new();
         lines.push("{".to_string());
-        
+
         // Shards
         lines.push("  \"shards\": [".to_string());
         for (i, a) in self.assignments.iter().enumerate() {
-            let services = a.services.iter()
+            let services = a
+                .services
+                .iter()
                 .map(|s| format!("\"{}\"", s))
                 .collect::<Vec<_>>()
                 .join(", ");
-            let gates = a.gates.iter()
+            let gates = a
+                .gates
+                .iter()
                 .map(|g| format!("\"{}\"", g.canonical()))
                 .collect::<Vec<_>>()
                 .join(", ");
@@ -427,11 +451,23 @@ impl ShardTopology {
         // Stats
         let result = self.verify();
         lines.push(format!("  \"stats\": {{"));
-        lines.push(format!("    \"total_services\": {},", result.total_services));
+        lines.push(format!(
+            "    \"total_services\": {},",
+            result.total_services
+        ));
         lines.push(format!("    \"total_shards\": {},", result.total_shards));
-        lines.push(format!("    \"cross_shard_doors\": {},", result.cross_shard_doors));
-        lines.push(format!("    \"total_budget_mb\": {},", result.total_budget_mb));
-        lines.push(format!("    \"estimated_usage_mb\": {},", result.estimated_usage_mb));
+        lines.push(format!(
+            "    \"cross_shard_doors\": {},",
+            result.cross_shard_doors
+        ));
+        lines.push(format!(
+            "    \"total_budget_mb\": {},",
+            result.total_budget_mb
+        ));
+        lines.push(format!(
+            "    \"estimated_usage_mb\": {},",
+            result.estimated_usage_mb
+        ));
         lines.push(format!("    \"valid\": {}", result.valid));
         lines.push("  }".to_string());
         lines.push("}".to_string());

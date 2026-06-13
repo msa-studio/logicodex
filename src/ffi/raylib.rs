@@ -10,12 +10,10 @@
 // =========================================================================
 
 use super::raylib_sys;
-use super::{
-    CallableRegistry, CallableSafety, CallableSignature, CallingConvention,
-};
-use crate::layout::{LayoutEngine, LayoutRequest, LayoutFieldRequest};
+use super::{CallableRegistry, CallableSafety, CallableSignature, CallingConvention};
+use crate::layout::{LayoutEngine, LayoutFieldRequest, LayoutRequest};
 
-use crate::types::{TypeRegistry};
+use crate::types::TypeRegistry;
 
 /// Type IDs for Raylib struct types, populated by `register_raylib_types()`.
 #[derive(Debug, Clone, Copy)]
@@ -49,10 +47,26 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
         .compute_struct_layout(LayoutRequest {
             name: "Color".into(),
             fields: vec![
-                LayoutFieldRequest { name: "r".into(), ty: ids.u8_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "g".into(), ty: ids.u8_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "b".into(), ty: ids.u8_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "a".into(), ty: ids.u8_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest {
+                    name: "r".into(),
+                    ty: ids.u8_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "g".into(),
+                    ty: ids.u8_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "b".into(),
+                    ty: ids.u8_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "a".into(),
+                    ty: ids.u8_,
+                    span: crate::span::Span::unknown(),
+                },
             ],
             attributes: Vec::new(),
             span: crate::span::Span::unknown(),
@@ -65,8 +79,16 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
         .compute_struct_layout(LayoutRequest {
             name: "Vector2".into(),
             fields: vec![
-                LayoutFieldRequest { name: "x".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "y".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest {
+                    name: "x".into(),
+                    ty: ids.f32_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "y".into(),
+                    ty: ids.f32_,
+                    span: crate::span::Span::unknown(),
+                },
             ],
             attributes: Vec::new(),
             span: crate::span::Span::unknown(),
@@ -79,10 +101,26 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
         .compute_struct_layout(LayoutRequest {
             name: "Rectangle".into(),
             fields: vec![
-                LayoutFieldRequest { name: "x".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "y".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "width".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "height".into(), ty: ids.f32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest {
+                    name: "x".into(),
+                    ty: ids.f32_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "y".into(),
+                    ty: ids.f32_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "width".into(),
+                    ty: ids.f32_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "height".into(),
+                    ty: ids.f32_,
+                    span: crate::span::Span::unknown(),
+                },
             ],
             attributes: Vec::new(),
             span: crate::span::Span::unknown(),
@@ -95,11 +133,31 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
         .compute_struct_layout(LayoutRequest {
             name: "Texture2D".into(),
             fields: vec![
-                LayoutFieldRequest { name: "id".into(), ty: ids.u32_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "width".into(), ty: ids.i32_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "height".into(), ty: ids.i32_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "mipmaps".into(), ty: ids.i32_, span: crate::span::Span::unknown() },
-                LayoutFieldRequest { name: "format".into(), ty: ids.i32_, span: crate::span::Span::unknown() },
+                LayoutFieldRequest {
+                    name: "id".into(),
+                    ty: ids.u32_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "width".into(),
+                    ty: ids.i32_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "height".into(),
+                    ty: ids.i32_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "mipmaps".into(),
+                    ty: ids.i32_,
+                    span: crate::span::Span::unknown(),
+                },
+                LayoutFieldRequest {
+                    name: "format".into(),
+                    ty: ids.i32_,
+                    span: crate::span::Span::unknown(),
+                },
             ],
             attributes: Vec::new(),
             span: crate::span::Span::unknown(),
@@ -123,10 +181,15 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
 }
 
 pub use raylib_sys::{
-    // Core types
-    Color, Texture2D, Vector2,
     // Audio types (v1.43)
-    AudioCallback, AudioStream, Music, Sound,
+    AudioCallback,
+    AudioStream,
+    // Core types
+    Color,
+    Music,
+    Sound,
+    Texture2D,
+    Vector2,
 };
 
 /// Type IDs for all Raylib constructible struct types.
@@ -461,9 +524,9 @@ pub fn is_struct_constructor(name: &str) -> bool {
 /// Returns None if not a known constructor.
 pub fn struct_constructor_arity(name: &str) -> Option<usize> {
     match name {
-        "Color" => Some(4),      // r, g, b, a
-        "Vector2" => Some(2),    // x, y
-        "Rectangle" => Some(4),  // x, y, width, height
+        "Color" => Some(4),     // r, g, b, a
+        "Vector2" => Some(2),   // x, y
+        "Rectangle" => Some(4), // x, y, width, height
         _ => None,
     }
 }
@@ -526,17 +589,45 @@ pub fn register_raylib_functions(
     register_fn!("BeginDrawing", &[], ids.unit);
     register_fn!("EndDrawing", &[], ids.unit);
     register_fn!("ClearBackground", &[struct_ids.color], ids.unit);
-    register_fn!("DrawText", &[c_string, ids.i32_, ids.i32_, ids.i32_, struct_ids.color], ids.unit);
-    register_fn!("DrawRectangle", &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, struct_ids.color], ids.unit);
-    register_fn!("DrawCircle", &[ids.i32_, ids.i32_, ids.f32_, struct_ids.color], ids.unit);
-    register_fn!("DrawLine", &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, struct_ids.color], ids.unit);
-    register_fn!("DrawRectangleLines", &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, struct_ids.color], ids.unit);
-    register_fn!("DrawPixel", &[ids.i32_, ids.i32_, struct_ids.color], ids.unit);
+    register_fn!(
+        "DrawText",
+        &[c_string, ids.i32_, ids.i32_, ids.i32_, struct_ids.color],
+        ids.unit
+    );
+    register_fn!(
+        "DrawRectangle",
+        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, struct_ids.color],
+        ids.unit
+    );
+    register_fn!(
+        "DrawCircle",
+        &[ids.i32_, ids.i32_, ids.f32_, struct_ids.color],
+        ids.unit
+    );
+    register_fn!(
+        "DrawLine",
+        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, struct_ids.color],
+        ids.unit
+    );
+    register_fn!(
+        "DrawRectangleLines",
+        &[ids.i32_, ids.i32_, ids.i32_, ids.i32_, struct_ids.color],
+        ids.unit
+    );
+    register_fn!(
+        "DrawPixel",
+        &[ids.i32_, ids.i32_, struct_ids.color],
+        ids.unit
+    );
 
     // ─── Textures (3 functions) ───
     // v1.42: Texture2D passed as struct type
     register_fn!("LoadTexture", &[c_string], struct_ids.texture2d);
-    register_fn!("DrawTexture", &[struct_ids.texture2d, ids.i32_, ids.i32_, struct_ids.color], ids.unit);
+    register_fn!(
+        "DrawTexture",
+        &[struct_ids.texture2d, ids.i32_, ids.i32_, struct_ids.color],
+        ids.unit
+    );
     register_fn!("UnloadTexture", &[struct_ids.texture2d], ids.unit);
 
     // ─── Input (6 functions) ───
@@ -582,7 +673,10 @@ pub fn register_raylib_functions(
 
 /// Backward-compatible wrapper for tests that don't have struct IDs.
 /// Looks up struct types from TypeRegistry by name.
-pub fn register_raylib_functions_compat(registry: &mut TypeRegistry, callables: &mut CallableRegistry) {
+pub fn register_raylib_functions_compat(
+    registry: &mut TypeRegistry,
+    callables: &mut CallableRegistry,
+) {
     let (type_ids, _) = register_raylib_types(registry);
     register_raylib_functions(registry, callables, &type_ids);
 }
@@ -607,10 +701,20 @@ fn register_math_functions(registry: &mut TypeRegistry, callables: &mut Callable
     }
 
     // clamp(v: F32, min: F32, max: F32) → F32
-    register_fn!("clamp", &[ids.f32_, ids.f32_, ids.f32_], ids.f32_, CallableSafety::Safe);
+    register_fn!(
+        "clamp",
+        &[ids.f32_, ids.f32_, ids.f32_],
+        ids.f32_,
+        CallableSafety::Safe
+    );
 
     // lerp(a: F32, b: F32, t: F32) → F32
-    register_fn!("lerp", &[ids.f32_, ids.f32_, ids.f32_], ids.f32_, CallableSafety::Safe);
+    register_fn!(
+        "lerp",
+        &[ids.f32_, ids.f32_, ids.f32_],
+        ids.f32_,
+        CallableSafety::Safe
+    );
 
     // remap(value: F32, low1: F32, high1: F32, low2: F32, high2: F32) → F32
     register_fn!(
@@ -621,13 +725,17 @@ fn register_math_functions(registry: &mut TypeRegistry, callables: &mut Callable
     );
 
     // normalize(value: F32, low: F32, high: F32) → F32
-    register_fn!("normalize", &[ids.f32_, ids.f32_, ids.f32_], ids.f32_, CallableSafety::Safe);
+    register_fn!(
+        "normalize",
+        &[ids.f32_, ids.f32_, ids.f32_],
+        ids.f32_,
+        CallableSafety::Safe
+    );
 }
 
 /// v1.42 P4: Math utility implementations exposed as extern-C shims
 /// so they can be called from LLVM-generated code via the CallableRegistry.
 pub mod math_shims {
-    
 
     /// Shim: clamp(v: f32, min: f32, max: f32) → f32
     #[no_mangle]
@@ -643,7 +751,13 @@ pub mod math_shims {
 
     /// Shim: remap(value: f32, low1: f32, high1: f32, low2: f32, high2: f32) → f32
     #[no_mangle]
-    pub extern "C" fn logicodex_remap_f32(value: f32, low1: f32, high1: f32, low2: f32, high2: f32) -> f32 {
+    pub extern "C" fn logicodex_remap_f32(
+        value: f32,
+        low1: f32,
+        high1: f32,
+        low2: f32,
+        high2: f32,
+    ) -> f32 {
         super::super::math::remap(value, low1, high1, low2, high2)
     }
 

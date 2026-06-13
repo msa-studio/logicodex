@@ -95,7 +95,11 @@ enum Commands {
         secure: bool,
         #[arg(long, default_value = "native", value_parser = ["native", "host", "freestanding", "wasm"], help = "Select target: native, freestanding, or wasm (WebAssembly)")]
         target: String,
-        #[arg(long, default_value = "v1.30", help = "Select compiler pipeline: v1.30 (default) or v1.21 (legacy)")]
+        #[arg(
+            long,
+            default_value = "v1.30",
+            help = "Select compiler pipeline: v1.30 (default) or v1.21 (legacy)"
+        )]
         pipeline: String,
     },
     Check {
@@ -103,7 +107,11 @@ enum Commands {
         file: PathBuf,
         #[arg(long, default_value = "dict/core_map.json")]
         dict: PathBuf,
-        #[arg(long, default_value = "v1.30", help = "Select compiler pipeline: v1.30 (default) or v1.21 (legacy)")]
+        #[arg(
+            long,
+            default_value = "v1.30",
+            help = "Select compiler pipeline: v1.30 (default) or v1.21 (legacy)"
+        )]
         pipeline: String,
     },
     #[command(
@@ -142,10 +150,25 @@ fn main() -> Result<()> {
             target,
             pipeline,
         }) => {
-            let pipeline = pipeline.parse::<CompilerPipeline>().map_err(anyhow::Error::msg)?;
-            compile(&file, output, &dict, emit_ir, object_only, secure, &target, pipeline)
+            let pipeline = pipeline
+                .parse::<CompilerPipeline>()
+                .map_err(anyhow::Error::msg)?;
+            compile(
+                &file,
+                output,
+                &dict,
+                emit_ir,
+                object_only,
+                secure,
+                &target,
+                pipeline,
+            )
         }
-        Some(Commands::Check { file, dict, pipeline }) => {
+        Some(Commands::Check {
+            file,
+            dict,
+            pipeline,
+        }) => {
             {
                 let _ = pipeline;
                 v130_validate_file(&file, &dict)?;
@@ -185,9 +208,7 @@ fn compile(
 
     // Sprint 3: Version-gated compilation — V130 uses HIR + CallableRegistry path
     let artifact = match pipeline {
-        CompilerPipeline::V130 => {
-            compile_v130_pipeline(file, dict, &object_path, emit_ir, target)?
-        }
+        CompilerPipeline::V130 => compile_v130_pipeline(file, dict, &object_path, emit_ir, target)?,
     };
     if let Some(ir_path) = artifact.ir_path.as_ref() {
         println!("LLVM IR written to {}", ir_path.display());
@@ -202,8 +223,10 @@ fn compile(
             write_freestanding_plan(&output_path)?;
         }
         if target.is_wasm() {
-            println!("WASM module written to {} (use wasm-ld to link with WASI libc)",
-                artifact.object_path.display());
+            println!(
+                "WASM module written to {} (use wasm-ld to link with WASI libc)",
+                artifact.object_path.display()
+            );
         }
         return Ok(());
     }
@@ -222,13 +245,12 @@ fn compile(
 
     // v1.40: WASM target — emit .wasm via LLVM wasm32-unknown-unknown backend
     if target.is_wasm() {
+        println!("WASM module written to {}", artifact.object_path.display());
+        println!("  Triple: {}", target.llvm_triple()); // wasm32-unknown-unknown
         println!(
-            "WASM module written to {}",
+            "  Use: wasm-ld --no-entry -o output.wasm {} --export-all",
             artifact.object_path.display()
         );
-        println!("  Triple: {}", target.llvm_triple()); // wasm32-unknown-unknown
-        println!("  Use: wasm-ld --no-entry -o output.wasm {} --export-all",
-            artifact.object_path.display());
         return Ok(());
     }
 
@@ -273,7 +295,8 @@ fn compile_v130_pipeline(
             types: &mut types,
             diagnostics: Vec::new(),
         };
-        lowering.lower_program(program)
+        lowering
+            .lower_program(program)
             .map_err(|diags| anyhow::anyhow!("v1.21 HIR lowering failed: {:?}", diags))?
     };
 
@@ -283,9 +306,13 @@ fn compile_v130_pipeline(
 
     // v1.42 P7: WASM target — Raylib is native-desktop only, block all Raylib functions
     if target.is_wasm() {
-        let raylib_names: Vec<String> = callables.signatures.iter()
-            .filter(|sig| (ffi::raylib::is_struct_constructor(&sig.name) || is_raylib_function(&sig.name))
-                && source_references_word(&source, &sig.name))
+        let raylib_names: Vec<String> = callables
+            .signatures
+            .iter()
+            .filter(|sig| {
+                (ffi::raylib::is_struct_constructor(&sig.name) || is_raylib_function(&sig.name))
+                    && source_references_word(&source, &sig.name)
+            })
             .map(|sig| sig.name.clone())
             .collect();
         if !raylib_names.is_empty() {
@@ -297,7 +324,9 @@ fn compile_v130_pipeline(
             ));
         }
         // Remove all Raylib functions from the callable registry
-        callables.signatures.retain(|sig| !is_raylib_function(&sig.name));
+        callables
+            .signatures
+            .retain(|sig| !is_raylib_function(&sig.name));
     }
 
     // Build id->name map for codegen call routing before `symbols` is moved.
@@ -363,13 +392,34 @@ fn source_references_word(source: &str, word: &str) -> bool {
 
 fn is_raylib_function(name: &str) -> bool {
     const RAYLIB_FUNCTIONS: &[&str] = &[
-        "InitWindow", "CloseWindow", "WindowShouldClose", "SetTargetFPS",
-        "GetFPS", "GetFrameTime", "GetTime", "GetScreenWidth", "GetScreenHeight",
-        "BeginDrawing", "EndDrawing", "ClearBackground", "DrawText",
-        "DrawRectangle", "DrawCircle", "DrawLine", "DrawRectangleLines", "DrawPixel",
-        "LoadTexture", "DrawTexture", "UnloadTexture",
-        "IsKeyDown", "IsKeyPressed", "GetKeyPressed",
-        "IsMouseButtonPressed", "GetMouseX", "GetMouseY", "GetMousePosition",
+        "InitWindow",
+        "CloseWindow",
+        "WindowShouldClose",
+        "SetTargetFPS",
+        "GetFPS",
+        "GetFrameTime",
+        "GetTime",
+        "GetScreenWidth",
+        "GetScreenHeight",
+        "BeginDrawing",
+        "EndDrawing",
+        "ClearBackground",
+        "DrawText",
+        "DrawRectangle",
+        "DrawCircle",
+        "DrawLine",
+        "DrawRectangleLines",
+        "DrawPixel",
+        "LoadTexture",
+        "DrawTexture",
+        "UnloadTexture",
+        "IsKeyDown",
+        "IsKeyPressed",
+        "GetKeyPressed",
+        "IsMouseButtonPressed",
+        "GetMouseX",
+        "GetMouseY",
+        "GetMousePosition",
     ];
     RAYLIB_FUNCTIONS.contains(&name)
 }
@@ -414,8 +464,6 @@ fn compute_module_hash(path: &Path) -> u64 {
 }
 
 fn write_freestanding_plan(output_path: &Path) -> Result<()> {
-    
-
     let mut plan_path = output_path.to_path_buf();
     plan_path.set_extension("freestanding.md");
     let access_plan = PhysicalMemoryAccessPlan::freestanding_default();
@@ -447,8 +495,13 @@ fn write_freestanding_plan(output_path: &Path) -> Result<()> {
          Raw pointer representation (`*int`) is reserved for memory-mapped I/O \
          (VGA `0xB8000`, UART `0x3F8`) under explicit backend safety gates.\n",
         output_path.display(),
-        target_triple, arch, features, code_model,
-        target_triple, code_model, features,
+        target_triple,
+        arch,
+        features,
+        code_model,
+        target_triple,
+        code_model,
+        features,
         access_plan
     );
     fs::write(&plan_path, content).with_context(|| {
@@ -459,7 +512,9 @@ fn write_freestanding_plan(output_path: &Path) -> Result<()> {
     })?;
     println!(
         "Freestanding target plan written to {} (arch: {:?}, triple: {})",
-        plan_path.display(), arch, target_triple
+        plan_path.display(),
+        arch,
+        target_triple
     );
     Ok(())
 }

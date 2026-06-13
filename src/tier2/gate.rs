@@ -51,7 +51,7 @@ impl fmt::Display for GateType {
 
 // ─── GateRef ───
 /// Rujukan ke satu keupayaan (capability) dalam sistem Gate.
-/// 
+///
 /// Format: "Domain.Operation" — contoh: "Storage.Baca", "Net.Send"
 /// Domain = namespace keupayaan (Storage, Net, UI, HW, DB, etc.)
 /// Operation = tindakan spesifik (Baca, Tulis, Raw, Papar, etc.)
@@ -64,7 +64,11 @@ pub struct GateRef {
 
 impl GateRef {
     /// Cipta GateRef baru.
-    pub fn new(domain: impl Into<String>, operation: impl Into<String>, gate_type: GateType) -> Self {
+    pub fn new(
+        domain: impl Into<String>,
+        operation: impl Into<String>,
+        gate_type: GateType,
+    ) -> Self {
         Self {
             domain: domain.into(),
             operation: operation.into(),
@@ -122,7 +126,11 @@ impl GateRef {
 
 impl fmt::Debug for GateRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Gate({}.{} / {})", self.domain, self.operation, self.gate_type)
+        write!(
+            f,
+            "Gate({}.{} / {})",
+            self.domain, self.operation, self.gate_type
+        )
     }
 }
 
@@ -143,10 +151,18 @@ impl fmt::Display for GateParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GateParseError::InvalidFormat(s) => {
-                write!(f, "Format gate tidak sah '{}' — jangkaan 'Domain.Operation'", s)
+                write!(
+                    f,
+                    "Format gate tidak sah '{}' — jangkaan 'Domain.Operation'",
+                    s
+                )
             }
             GateParseError::UnknownGateType(s) => {
-                write!(f, "Jenis gate tidak dikenali '{}' — guna DirectCall/Message/Hardware", s)
+                write!(
+                    f,
+                    "Jenis gate tidak dikenali '{}' — guna DirectCall/Message/Hardware",
+                    s
+                )
             }
         }
     }
@@ -189,12 +205,16 @@ impl GateContract {
 
     /// Check jika modul ini menyediakan gate tertentu.
     pub fn provides_gate(&self, gate: &GateRef) -> bool {
-        self.provides.iter().any(|g| g.domain == gate.domain && g.operation == gate.operation)
+        self.provides
+            .iter()
+            .any(|g| g.domain == gate.domain && g.operation == gate.operation)
     }
 
     /// Check jika modul ini memerlukan gate tertentu.
     pub fn requires_gate(&self, gate: &GateRef) -> bool {
-        self.requires.iter().any(|g| g.domain == gate.domain && g.operation == gate.operation)
+        self.requires
+            .iter()
+            .any(|g| g.domain == gate.domain && g.operation == gate.operation)
     }
 }
 
@@ -205,62 +225,101 @@ pub struct GateDomain;
 
 impl GateDomain {
     /// Storage — operasi fail / storage
-    pub fn storage_read() -> GateRef { GateRef::new("Storage", "Baca", GateType::DirectCall) }
-    pub fn storage_write() -> GateRef { GateRef::new("Storage", "Tulis", GateType::DirectCall) }
-    pub fn storage_delete() -> GateRef { GateRef::new("Storage", "Padam", GateType::DirectCall) }
+    pub fn storage_read() -> GateRef {
+        GateRef::new("Storage", "Baca", GateType::DirectCall)
+    }
+    pub fn storage_write() -> GateRef {
+        GateRef::new("Storage", "Tulis", GateType::DirectCall)
+    }
+    pub fn storage_delete() -> GateRef {
+        GateRef::new("Storage", "Padam", GateType::DirectCall)
+    }
 
     /// Net — operasi rangkaian
-    pub fn net_send() -> GateRef { GateRef::new("Net", "Send", GateType::Message) }
-    pub fn net_recv() -> GateRef { GateRef::new("Net", "Recv", GateType::Message) }
-    pub fn net_raw() -> GateRef { GateRef::new("Net", "Raw", GateType::Hardware) }
+    pub fn net_send() -> GateRef {
+        GateRef::new("Net", "Send", GateType::Message)
+    }
+    pub fn net_recv() -> GateRef {
+        GateRef::new("Net", "Recv", GateType::Message)
+    }
+    pub fn net_raw() -> GateRef {
+        GateRef::new("Net", "Raw", GateType::Hardware)
+    }
 
     /// UI — antaramuka pengguna
-    pub fn ui_display() -> GateRef { GateRef::new("UI", "Papar", GateType::DirectCall) }
-    pub fn ui_input() -> GateRef { GateRef::new("UI", "Input", GateType::Message) }
+    pub fn ui_display() -> GateRef {
+        GateRef::new("UI", "Papar", GateType::DirectCall)
+    }
+    pub fn ui_input() -> GateRef {
+        GateRef::new("UI", "Input", GateType::Message)
+    }
 
     /// HW — hardware / bare-metal
-    pub fn hw_gpio() -> GateRef { GateRef::new("HW", "GPIO", GateType::Hardware) }
-    pub fn hw_timer() -> GateRef { GateRef::new("HW", "Timer", GateType::Hardware) }
-    pub fn hw_dma() -> GateRef { GateRef::new("HW", "DMA", GateType::Hardware) }
+    pub fn hw_gpio() -> GateRef {
+        GateRef::new("HW", "GPIO", GateType::Hardware)
+    }
+    pub fn hw_timer() -> GateRef {
+        GateRef::new("HW", "Timer", GateType::Hardware)
+    }
+    pub fn hw_dma() -> GateRef {
+        GateRef::new("HW", "DMA", GateType::Hardware)
+    }
 
     /// Audio — audio processing
-    pub fn audio_play() -> GateRef { GateRef::new("Audio", "Main", GateType::Message) }
-    pub fn audio_record() -> GateRef { GateRef::new("Audio", "Rakam", GateType::Message) }
+    pub fn audio_play() -> GateRef {
+        GateRef::new("Audio", "Main", GateType::Message)
+    }
+    pub fn audio_record() -> GateRef {
+        GateRef::new("Audio", "Rakam", GateType::Message)
+    }
 
     /// Crypto — kriptografi (selalu DirectCall, inline-able)
-    pub fn crypto_hash() -> GateRef { GateRef::new("Crypto", "Hash", GateType::DirectCall) }
-    pub fn crypto_encrypt() -> GateRef { GateRef::new("Crypto", "Encrypt", GateType::DirectCall) }
+    pub fn crypto_hash() -> GateRef {
+        GateRef::new("Crypto", "Hash", GateType::DirectCall)
+    }
+    pub fn crypto_encrypt() -> GateRef {
+        GateRef::new("Crypto", "Encrypt", GateType::DirectCall)
+    }
 }
 
 // ─── Semua domain sebagai vec (untuk validator, documentation) ───
 pub fn all_standard_domains() -> Vec<(String, Vec<GateRef>)> {
     vec![
-        ("Storage".to_string(), vec![
-            GateDomain::storage_read(),
-            GateDomain::storage_write(),
-            GateDomain::storage_delete(),
-        ]),
-        ("Net".to_string(), vec![
-            GateDomain::net_send(),
-            GateDomain::net_recv(),
-            GateDomain::net_raw(),
-        ]),
-        ("UI".to_string(), vec![
-            GateDomain::ui_display(),
-            GateDomain::ui_input(),
-        ]),
-        ("HW".to_string(), vec![
-            GateDomain::hw_gpio(),
-            GateDomain::hw_timer(),
-            GateDomain::hw_dma(),
-        ]),
-        ("Audio".to_string(), vec![
-            GateDomain::audio_play(),
-            GateDomain::audio_record(),
-        ]),
-        ("Crypto".to_string(), vec![
-            GateDomain::crypto_hash(),
-            GateDomain::crypto_encrypt(),
-        ]),
+        (
+            "Storage".to_string(),
+            vec![
+                GateDomain::storage_read(),
+                GateDomain::storage_write(),
+                GateDomain::storage_delete(),
+            ],
+        ),
+        (
+            "Net".to_string(),
+            vec![
+                GateDomain::net_send(),
+                GateDomain::net_recv(),
+                GateDomain::net_raw(),
+            ],
+        ),
+        (
+            "UI".to_string(),
+            vec![GateDomain::ui_display(), GateDomain::ui_input()],
+        ),
+        (
+            "HW".to_string(),
+            vec![
+                GateDomain::hw_gpio(),
+                GateDomain::hw_timer(),
+                GateDomain::hw_dma(),
+            ],
+        ),
+        (
+            "Audio".to_string(),
+            vec![GateDomain::audio_play(), GateDomain::audio_record()],
+        ),
+        (
+            "Crypto".to_string(),
+            vec![GateDomain::crypto_hash(), GateDomain::crypto_encrypt()],
+        ),
     ]
 }

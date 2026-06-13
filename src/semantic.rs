@@ -318,9 +318,15 @@ impl Analyzer {
                                     if fn_name == "open" && args.len() >= 2 {
                                         if let Expr::Variable(mode) = &args[1] {
                                             mode.clone()
-                                        } else { "ReadWrite".to_string() }
-                                    } else { "ReadWrite".to_string() }
-                                } else { "ReadWrite".to_string() }
+                                        } else {
+                                            "ReadWrite".to_string()
+                                        }
+                                    } else {
+                                        "ReadWrite".to_string()
+                                    }
+                                } else {
+                                    "ReadWrite".to_string()
+                                }
                             }
                             _ => "ReadWrite".to_string(),
                         };
@@ -374,9 +380,7 @@ impl Analyzer {
                     Expr::Variable(name) => {
                         // Simple variable assignment
                         if self.is_moved(name) {
-                            return Err(SemanticError::UseAfterMove {
-                                name: name.clone(),
-                            });
+                            return Err(SemanticError::UseAfterMove { name: name.clone() });
                         }
                         self.expression(target)?;
                         Ok(())
@@ -461,14 +465,33 @@ impl Analyzer {
                 self.scopes.pop();
                 // Collect Channel declarations within this Actor
                 for stmt in body {
-                    if let Stmt::Let { declared_type: Some(Type::Channel { from, to, message_type }), .. } = stmt {
-                        self.channel_registry.push((from.clone(), to.clone(), message_type.clone()));
+                    if let Stmt::Let {
+                        declared_type:
+                            Some(Type::Channel {
+                                from,
+                                to,
+                                message_type,
+                            }),
+                        ..
+                    } = stmt
+                    {
+                        self.channel_registry.push((
+                            from.clone(),
+                            to.clone(),
+                            message_type.clone(),
+                        ));
                     }
                 }
                 result
             }
             // v1.33.0-alpha: Service manifest validation
-            Stmt::Service { name, port, requires, handler: _, policy } => {
+            Stmt::Service {
+                name,
+                port,
+                requires,
+                handler: _,
+                policy,
+            } => {
                 // Duplicate service name check
                 if self.actor_registry.contains(name) {
                     // Service name clash dengan actor name
@@ -508,14 +531,21 @@ impl Analyzer {
                         match &arm.pattern {
                             MatchPattern::Ok { .. } => has_ok = true,
                             MatchPattern::Err { .. } => has_err = true,
-                            MatchPattern::Wildcard => { has_ok = true; has_err = true; }
+                            MatchPattern::Wildcard => {
+                                has_ok = true;
+                                has_err = true;
+                            }
                             _ => {}
                         }
                         self.scoped_block(&arm.body)?;
                     }
                     if !has_ok || !has_err {
                         return Err(SemanticError::NonExhaustiveMatch {
-                            missing: if !has_ok { "Ok".to_string() } else { "Err".to_string() },
+                            missing: if !has_ok {
+                                "Ok".to_string()
+                            } else {
+                                "Err".to_string()
+                            },
                         });
                     }
                 } else {
@@ -600,8 +630,17 @@ impl Analyzer {
     // ─── Ketuk 3: File Handle ABI ───
 
     fn register_handle(&mut self, name: &str, mode: &str) {
-        self.handle_registry.insert(name.to_string(), (Type::Opaque { name: "FileHandle".to_string() }, true));
-        self.handle_permissions.insert(name.to_string(), mode.to_string());
+        self.handle_registry.insert(
+            name.to_string(),
+            (
+                Type::Opaque {
+                    name: "FileHandle".to_string(),
+                },
+                true,
+            ),
+        );
+        self.handle_permissions
+            .insert(name.to_string(), mode.to_string());
     }
 
     fn close_handle(&mut self, name: &str) {
@@ -611,13 +650,17 @@ impl Analyzer {
     }
 
     fn is_handle_open(&self, name: &str) -> bool {
-        self.handle_registry.get(name).map(|(_, open)| *open).unwrap_or(false)
+        self.handle_registry
+            .get(name)
+            .map(|(_, open)| *open)
+            .unwrap_or(false)
     }
 
     fn check_handle_permission(&self, name: &str, required: &str) -> bool {
-        self.handle_permissions.get(name).map(|mode| {
-            mode == "ReadWrite" || mode == required
-        }).unwrap_or(false)
+        self.handle_permissions
+            .get(name)
+            .map(|mode| mode == "ReadWrite" || mode == required)
+            .unwrap_or(false)
     }
 
     fn validate_buffer_index(
@@ -633,12 +676,12 @@ impl Analyzer {
         }
 
         // Look up buffer provenance
-        let (_, capacity) = self
-            .buffer_registry
-            .get(buf_name)
-            .ok_or_else(|| SemanticError::NotABuffer {
-                name: buf_name.to_string(),
-            })?;
+        let (_, capacity) =
+            self.buffer_registry
+                .get(buf_name)
+                .ok_or_else(|| SemanticError::NotABuffer {
+                    name: buf_name.to_string(),
+                })?;
 
         // If index is a compile-time constant, check against capacity
         if let Expr::Integer(idx) = index_expr {
@@ -680,11 +723,17 @@ impl Analyzer {
             // Ketuk 2: Result constructors
             Expr::Ok { value } => {
                 let inner = self.expression(value)?;
-                Ok(Type::Result { ok: Box::new(inner), err: Box::new(Type::I64) })
+                Ok(Type::Result {
+                    ok: Box::new(inner),
+                    err: Box::new(Type::I64),
+                })
             }
             Expr::Err { value } => {
                 let inner = self.expression(value)?;
-                Ok(Type::Result { ok: Box::new(Type::I64), err: Box::new(inner) })
+                Ok(Type::Result {
+                    ok: Box::new(Type::I64),
+                    err: Box::new(inner),
+                })
             }
             Expr::Index { base, index } => {
                 // Ketuk 1: Buffer/Slice indexing — buf[idx]
@@ -718,7 +767,11 @@ impl Analyzer {
                     }),
                 }
             }
-            Expr::MethodCall { object, method, args } => {
+            Expr::MethodCall {
+                object,
+                method,
+                args,
+            } => {
                 // Ketuk 3: File Handle ABI — method call on opaque type
                 // Validate handle is open
                 if !self.is_handle_open(object) {
@@ -755,25 +808,51 @@ impl Analyzer {
                 }
                 // Return Result type for read/write operations
                 match method.as_str() {
-                    "read" | "baca" => Ok(Type::Result { ok: Box::new(Type::Slice { element: Box::new(Type::U32) }), err: Box::new(Type::Opaque { name: "IoError".to_string() }) }),
-                    "write" | "tulis" => Ok(Type::Result { ok: Box::new(Type::I64), err: Box::new(Type::Opaque { name: "IoError".to_string() }) }),
-                    "close" | "tutup" => Ok(Type::Opaque { name: "Unit".to_string() }),
-                    _ => Ok(Type::Opaque { name: "Unknown".to_string() }),
+                    "read" | "baca" => Ok(Type::Result {
+                        ok: Box::new(Type::Slice {
+                            element: Box::new(Type::U32),
+                        }),
+                        err: Box::new(Type::Opaque {
+                            name: "IoError".to_string(),
+                        }),
+                    }),
+                    "write" | "tulis" => Ok(Type::Result {
+                        ok: Box::new(Type::I64),
+                        err: Box::new(Type::Opaque {
+                            name: "IoError".to_string(),
+                        }),
+                    }),
+                    "close" | "tutup" => Ok(Type::Opaque {
+                        name: "Unit".to_string(),
+                    }),
+                    _ => Ok(Type::Opaque {
+                        name: "Unknown".to_string(),
+                    }),
                 }
             }
             // v1.30.1-alpha: Threading expressions
             Expr::Spawn { actor_name, args } => {
                 if !self.actor_registry.contains(actor_name) {
-                    return Err(SemanticError::ActorNotFound { name: actor_name.clone() });
+                    return Err(SemanticError::ActorNotFound {
+                        name: actor_name.clone(),
+                    });
                 }
-                for arg in args { self.expression(arg)?; }
-                Ok(Type::Opaque { name: "ThreadHandle".to_string() })
+                for arg in args {
+                    self.expression(arg)?;
+                }
+                Ok(Type::Opaque {
+                    name: "ThreadHandle".to_string(),
+                })
             }
-            Expr::Send { channel_name, value } => {
+            Expr::Send {
+                channel_name,
+                value,
+            } => {
                 // Validate Pintu exists in registry
-                let found = self.channel_registry.iter().any(|(f, t, _)| {
-                    f == channel_name || t == channel_name
-                });
+                let found = self
+                    .channel_registry
+                    .iter()
+                    .any(|(f, t, _)| f == channel_name || t == channel_name);
                 if !found {
                     // Check if it's a variable with Pintu type
                     let _ = self.resolve(channel_name); // Will error if not defined
@@ -782,17 +861,27 @@ impl Analyzer {
                 // If value is a variable, mark it as moved via Pintu
                 if let Expr::Variable(var_name) = value.as_ref() {
                     if self.moved_via_channel.contains(var_name) {
-                        return Err(SemanticError::UseAfterSend { name: var_name.clone() });
+                        return Err(SemanticError::UseAfterSend {
+                            name: var_name.clone(),
+                        });
                     }
                     self.moved_via_channel.insert(var_name.clone());
                 }
                 self.expression(value)?;
-                Ok(Type::Opaque { name: "Unit".to_string() })
+                Ok(Type::Opaque {
+                    name: "Unit".to_string(),
+                })
             }
             Expr::Recv { channel_name } => {
                 // Return the message type of the Pintu
-                if let Some((_, _, msg_type)) = self.channel_registry.iter().find(|(_, t, _)| t == channel_name) {
-                    Ok(Type::Opaque { name: msg_type.clone() })
+                if let Some((_, _, msg_type)) = self
+                    .channel_registry
+                    .iter()
+                    .find(|(_, t, _)| t == channel_name)
+                {
+                    Ok(Type::Opaque {
+                        name: msg_type.clone(),
+                    })
                 } else {
                     // Fallback: check variable type
                     if let Ok(ty) = self.resolve(channel_name) {
@@ -804,43 +893,68 @@ impl Analyzer {
             }
             Expr::Join { actor_name } => {
                 if !self.actor_registry.contains(actor_name) {
-                    return Err(SemanticError::ActorNotFound { name: actor_name.clone() });
+                    return Err(SemanticError::ActorNotFound {
+                        name: actor_name.clone(),
+                    });
                 }
-                Ok(Type::Opaque { name: "Unit".to_string() })
+                Ok(Type::Opaque {
+                    name: "Unit".to_string(),
+                })
             }
             // v1.30.1-alpha Phase 3: Backpressure + Scheduler
-            Expr::TrySend { channel_name, value } => {
+            Expr::TrySend {
+                channel_name,
+                value,
+            } => {
                 // Validate channel exists
-                let found = self.channel_registry.iter().any(|(f, t, _)| {
-                    f == channel_name || t == channel_name
-                });
+                let found = self
+                    .channel_registry
+                    .iter()
+                    .any(|(f, t, _)| f == channel_name || t == channel_name);
                 if !found {
                     let _ = self.resolve(channel_name)?;
                 }
                 // Ownership transfer (same as Send)
                 if let Expr::Variable(var_name) = value.as_ref() {
                     if self.moved_via_channel.contains(var_name) {
-                        return Err(SemanticError::UseAfterSend { name: var_name.clone() });
+                        return Err(SemanticError::UseAfterSend {
+                            name: var_name.clone(),
+                        });
                     }
                     self.moved_via_channel.insert(var_name.clone());
                 }
                 self.expression(value)?;
                 // Returns Result<bool, IoError>
-                Ok(Type::Result { ok: Box::new(Type::Bool), err: Box::new(Type::Opaque { name: "IoError".to_string() }) })
+                Ok(Type::Result {
+                    ok: Box::new(Type::Bool),
+                    err: Box::new(Type::Opaque {
+                        name: "IoError".to_string(),
+                    }),
+                })
             }
             Expr::TryRecv { channel_name } => {
-                let found = self.channel_registry.iter().any(|(f, t, _)| {
-                    f == channel_name || t == channel_name
-                });
+                let found = self
+                    .channel_registry
+                    .iter()
+                    .any(|(f, t, _)| f == channel_name || t == channel_name);
                 if !found {
                     let _ = self.resolve(channel_name)?;
                 }
                 // Returns Option<T> — we don't know T at this point, use Opaque
-                Ok(Type::Result { ok: Box::new(Type::Opaque { name: "T".to_string() }), err: Box::new(Type::Opaque { name: "None".to_string() }) })
+                Ok(Type::Result {
+                    ok: Box::new(Type::Opaque {
+                        name: "T".to_string(),
+                    }),
+                    err: Box::new(Type::Opaque {
+                        name: "None".to_string(),
+                    }),
+                })
             }
             Expr::Yield => {
                 // Yield always succeeds, returns Unit
-                Ok(Type::Opaque { name: "Unit".to_string() })
+                Ok(Type::Opaque {
+                    name: "Unit".to_string(),
+                })
             }
             Expr::Sleep { duration_ms } => {
                 let dur_ty = self.expression(duration_ms)?;
@@ -852,12 +966,18 @@ impl Analyzer {
                         right: dur_ty,
                     });
                 }
-                Ok(Type::Opaque { name: "Unit".to_string() })
+                Ok(Type::Opaque {
+                    name: "Unit".to_string(),
+                })
             }
-            Expr::TimeoutRecv { channel_name, timeout_ms } => {
-                let found = self.channel_registry.iter().any(|(f, t, _)| {
-                    f == channel_name || t == channel_name
-                });
+            Expr::TimeoutRecv {
+                channel_name,
+                timeout_ms,
+            } => {
+                let found = self
+                    .channel_registry
+                    .iter()
+                    .any(|(f, t, _)| f == channel_name || t == channel_name);
                 if !found {
                     let _ = self.resolve(channel_name)?;
                 }
@@ -871,7 +991,14 @@ impl Analyzer {
                     });
                 }
                 // Returns Result<T, RecvTimeout>
-                Ok(Type::Result { ok: Box::new(Type::Opaque { name: "T".to_string() }), err: Box::new(Type::Opaque { name: "RecvTimeout".to_string() }) })
+                Ok(Type::Result {
+                    ok: Box::new(Type::Opaque {
+                        name: "T".to_string(),
+                    }),
+                    err: Box::new(Type::Opaque {
+                        name: "RecvTimeout".to_string(),
+                    }),
+                })
             }
             Expr::Call { callee, args } => {
                 // Sprint 2.5: Function/struct constructor call
@@ -1053,7 +1180,12 @@ const AUDIO_FORBIDDEN_IO: &[&str] = &["Print", "DrawText", "InitWindow", "ClearB
 
 /// Functions considered unsafe for audio callbacks.
 const AUDIO_FORBIDDEN_CALLS: &[&str] = &[
-    "malloc", "free", "fopen", "fclose", "pthread_create", "spawn",
+    "malloc",
+    "free",
+    "fopen",
+    "fclose",
+    "pthread_create",
+    "spawn",
 ];
 
 impl Analyzer {
@@ -1077,37 +1209,39 @@ impl Analyzer {
 
     /// v1.42 P6: Validate a single audio callback function body.
     /// Walks the AST and checks for all 4 violation types.
-    fn verify_audio_safety(
-        &self,
-        func_name: &str,
-        stmts: &[Stmt],
-    ) -> Result<(), SemanticError> {
+    fn verify_audio_safety(&self, func_name: &str, stmts: &[Stmt]) -> Result<(), SemanticError> {
         for stmt in stmts {
             self.verify_audio_stmt(func_name, stmt)?;
         }
         Ok(())
     }
 
-    fn verify_audio_stmt(
-        &self,
-        func_name: &str,
-        stmt: &Stmt,
-    ) -> Result<(), SemanticError> {
+    fn verify_audio_stmt(&self, func_name: &str, stmt: &Stmt) -> Result<(), SemanticError> {
         match stmt {
             Stmt::Print { .. } => Err(SemanticError::AudioViolationIo {
                 function: func_name.to_string(),
             }),
             Stmt::ExprStmt { value } => self.verify_audio_expr(func_name, value),
             Stmt::Let { value, .. } => self.verify_audio_expr(func_name, value),
-            Stmt::If { condition, then_branch, else_branch } => {
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 self.verify_audio_expr(func_name, condition)?;
-                for s in then_branch { self.verify_audio_stmt(func_name, s)?; }
-                for s in else_branch { self.verify_audio_stmt(func_name, s)?; }
+                for s in then_branch {
+                    self.verify_audio_stmt(func_name, s)?;
+                }
+                for s in else_branch {
+                    self.verify_audio_stmt(func_name, s)?;
+                }
                 Ok(())
             }
             Stmt::While { condition, body } => {
                 self.verify_audio_expr(func_name, condition)?;
-                for s in body { self.verify_audio_stmt(func_name, s)?; }
+                for s in body {
+                    self.verify_audio_stmt(func_name, s)?;
+                }
                 Ok(())
             }
             Stmt::Loop { body: _ } => {
@@ -1115,30 +1249,34 @@ impl Analyzer {
                 Err(SemanticError::AudioViolationUnboundedLoop)
             }
             Stmt::For { body, .. } => {
-                for s in body { self.verify_audio_stmt(func_name, s)?; }
+                for s in body {
+                    self.verify_audio_stmt(func_name, s)?;
+                }
                 Ok(())
             }
             Stmt::Block(stmts) => {
-                for s in stmts { self.verify_audio_stmt(func_name, s)?; }
+                for s in stmts {
+                    self.verify_audio_stmt(func_name, s)?;
+                }
                 Ok(())
             }
             Stmt::HardwareZone { body: stmts } => {
-                for s in stmts { self.verify_audio_stmt(func_name, s)?; }
+                for s in stmts {
+                    self.verify_audio_stmt(func_name, s)?;
+                }
                 Ok(())
             }
             Stmt::UnsafeBlock { body } => {
-                for s in body { self.verify_audio_stmt(func_name, s)?; }
+                for s in body {
+                    self.verify_audio_stmt(func_name, s)?;
+                }
                 Ok(())
             }
             _ => Ok(()),
         }
     }
 
-    fn verify_audio_expr(
-        &self,
-        func_name: &str,
-        expr: &Expr,
-    ) -> Result<(), SemanticError> {
+    fn verify_audio_expr(&self, func_name: &str, expr: &Expr) -> Result<(), SemanticError> {
         match expr {
             Expr::Call { callee, .. } => {
                 if let Expr::Variable(name) = callee.as_ref() {
@@ -1177,7 +1315,12 @@ impl Analyzer {
     /// Helper: find function body by name in the AST.
     fn find_function_body(&self, program: &Program, name: &str) -> Option<Vec<Stmt>> {
         for stmt in &program.statements {
-            if let Stmt::Function { name: func_name, body, .. } = stmt {
+            if let Stmt::Function {
+                name: func_name,
+                body,
+                ..
+            } = stmt
+            {
                 if func_name == name {
                     return Some(body.clone());
                 }

@@ -7,10 +7,10 @@
 // =========================================================================
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::fmt;
 use std::fs;
 use std::path::Path;
 use thiserror::Error;
-use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenKind {
@@ -112,8 +112,8 @@ pub enum TokenKind {
     RightParen,
     LeftBracket,
     RightBracket,
-    LeftBrace,   // {
-    RightBrace,  // }
+    LeftBrace,  // {
+    RightBrace, // }
     Colon,
     Semicolon,
     Comma,

@@ -34,9 +34,15 @@
 fn g1_startup_code_exists() {
     let startup = include_str!("../src/os/startup.rs");
     assert!(startup.contains("fn _start"), "G1: _start function missing");
-    assert!(startup.contains("STACK_TOP"), "G1: Stack pointer init missing");
+    assert!(
+        startup.contains("STACK_TOP"),
+        "G1: Stack pointer init missing"
+    );
     assert!(startup.contains("__bss_start"), "G1: BSS zeroing missing");
-    assert!(startup.contains("__data_start"), "G1: Data segment copy missing");
+    assert!(
+        startup.contains("__data_start"),
+        "G1: Data segment copy missing"
+    );
     assert!(startup.contains("fn halt"), "G1: halt function missing");
 }
 
@@ -54,8 +60,14 @@ fn g1_stack_top_is_reasonable() {
 fn g10_bss_data_segment_init() {
     // G10 is verified within G1 — BSS zeroing + data copy
     let startup = include_str!("../src/os/startup.rs");
-    assert!(startup.contains("write_bytes"), "G10: BSS zeroing via write_bytes");
-    assert!(startup.contains("copy_nonoverlapping"), "G10: Data copy via copy_nonoverlapping");
+    assert!(
+        startup.contains("write_bytes"),
+        "G10: BSS zeroing via write_bytes"
+    );
+    assert!(
+        startup.contains("copy_nonoverlapping"),
+        "G10: Data copy via copy_nonoverlapping"
+    );
 }
 
 #[test]
@@ -63,7 +75,10 @@ fn g10_bss_data_segment_init() {
 fn g14_stack_pointer_initialized() {
     // G14 is part of G1 — rsp = STACK_TOP at _start
     let startup = include_str!("../src/os/startup.rs");
-    assert!(startup.contains("mov rsp"), "G14: Stack pointer initialization");
+    assert!(
+        startup.contains("mov rsp"),
+        "G14: Stack pointer initialization"
+    );
 }
 
 // ─── G2: Panic Handler ───
@@ -72,8 +87,14 @@ fn g14_stack_pointer_initialized() {
 fn g2_panic_handler_exists() {
     // Validates the canonical, QEMU-proven freestanding panic handler.
     let panic = include_str!("../logicodex-os/src/panic.rs");
-    assert!(panic.contains("panic_handler"), "G2: #[panic_handler] missing");
-    assert!(panic.contains("xor rax"), "G2: sensitive register wipe missing");
+    assert!(
+        panic.contains("panic_handler"),
+        "G2: #[panic_handler] missing"
+    );
+    assert!(
+        panic.contains("xor rax"),
+        "G2: sensitive register wipe missing"
+    );
     assert!(panic.contains("uart_puts"), "G2: UART output missing");
     assert!(panic.contains("halt"), "G2: halt after panic missing");
 }
@@ -81,10 +102,22 @@ fn g2_panic_handler_exists() {
 #[test]
 fn g2_panic_clears_sse_registers() {
     let panic = include_str!("../src/os/panic.rs");
-    assert!(panic.contains("pxor xmm0"), "G2: SSE register xmm0 clearing");
-    assert!(panic.contains("pxor xmm1"), "G2: SSE register xmm1 clearing");
-    assert!(panic.contains("pxor xmm2"), "G2: SSE register xmm2 clearing");
-    assert!(panic.contains("pxor xmm3"), "G2: SSE register xmm3 clearing");
+    assert!(
+        panic.contains("pxor xmm0"),
+        "G2: SSE register xmm0 clearing"
+    );
+    assert!(
+        panic.contains("pxor xmm1"),
+        "G2: SSE register xmm1 clearing"
+    );
+    assert!(
+        panic.contains("pxor xmm2"),
+        "G2: SSE register xmm2 clearing"
+    );
+    assert!(
+        panic.contains("pxor xmm3"),
+        "G2: SSE register xmm3 clearing"
+    );
 }
 
 // ─── G3: Linker Script ───
@@ -107,9 +140,18 @@ fn g3_linker_script_exists() {
 #[test]
 fn g4_allocator_exists() {
     let alloc = include_str!("../src/os/allocator.rs");
-    assert!(alloc.contains("struct BumpAllocator"), "G4: BumpAllocator struct missing");
-    assert!(alloc.contains("impl GlobalAlloc"), "G4: GlobalAlloc impl missing");
-    assert!(alloc.contains("global_allocator"), "G4: #[global_allocator] missing");
+    assert!(
+        alloc.contains("struct BumpAllocator"),
+        "G4: BumpAllocator struct missing"
+    );
+    assert!(
+        alloc.contains("impl GlobalAlloc"),
+        "G4: GlobalAlloc impl missing"
+    );
+    assert!(
+        alloc.contains("global_allocator"),
+        "G4: #[global_allocator] missing"
+    );
     assert!(alloc.contains("fn alloc"), "G4: alloc() missing");
     assert!(alloc.contains("fn dealloc"), "G4: dealloc() missing");
 }
@@ -143,7 +185,10 @@ fn g5_vga_exists() {
     let uart = include_str!("../src/os/uart.rs");
     assert!(uart.contains("VgaWriter"), "G5: VgaWriter missing");
     assert!(uart.contains("0xB8000"), "G5: VGA buffer address missing");
-    assert!(uart.contains("vga_entry_color"), "G5: VGA color function missing");
+    assert!(
+        uart.contains("vga_entry_color"),
+        "G5: VGA color function missing"
+    );
 }
 
 #[test]
@@ -159,8 +204,14 @@ fn g5_uart_port_addresses() {
 #[test]
 fn g5_uart_macros_exist() {
     let uart = include_str!("../src/os/uart.rs");
-    assert!(uart.contains("macro_rules! uart_print"), "G5: uart_print! macro missing");
-    assert!(uart.contains("macro_rules! uart_println"), "G5: uart_println! macro missing");
+    assert!(
+        uart.contains("macro_rules! uart_print"),
+        "G5: uart_print! macro missing"
+    );
+    assert!(
+        uart.contains("macro_rules! uart_println"),
+        "G5: uart_println! macro missing"
+    );
 }
 
 // ─── G6: no_std Support ───
@@ -169,7 +220,10 @@ fn g5_uart_macros_exist() {
 fn g6_no_std_attr_exists() {
     let lib = include_str!("../src/lib.rs");
     assert!(lib.contains("no_std"), "G6: no_std attribute missing");
-    assert!(lib.contains("extern crate alloc"), "G6: extern crate alloc missing");
+    assert!(
+        lib.contains("extern crate alloc"),
+        "G6: extern crate alloc missing"
+    );
 }
 
 #[test]
@@ -186,16 +240,20 @@ fn g6_alloc_reexports() {
 #[test]
 fn g7_source_provider_exists() {
     let sp = include_str!("../src/os/source_provider.rs");
-    assert!(sp.contains("trait SourceProvider"), "G7: SourceProvider trait missing");
-    assert!(sp.contains("EmbeddedProvider"), "G7: EmbeddedProvider missing");
+    assert!(
+        sp.contains("trait SourceProvider"),
+        "G7: SourceProvider trait missing"
+    );
+    assert!(
+        sp.contains("EmbeddedProvider"),
+        "G7: EmbeddedProvider missing"
+    );
     assert!(sp.contains("BinaryProvider"), "G7: BinaryProvider missing");
 }
 
 #[test]
 fn g7_embedded_provider_works() {
-    let sources = &[
-        ("hello.ldx", "print \"Hello\""),
-    ];
+    let sources = &[("hello.ldx", "print \"Hello\"")];
     // Verify the logic (cannot import due to module structure)
     assert_eq!(sources[0].0, "hello.ldx");
     assert_eq!(sources[0].1, "print \"Hello\"");
@@ -206,7 +264,10 @@ fn g7_embedded_provider_works() {
 #[test]
 fn g8_target_arch_enum_exists() {
     let target = include_str!("../src/os/target.rs");
-    assert!(target.contains("enum TargetArch"), "G8: TargetArch enum missing");
+    assert!(
+        target.contains("enum TargetArch"),
+        "G8: TargetArch enum missing"
+    );
     assert!(target.contains("X86_64"), "G8: X86_64 variant");
     assert!(target.contains("Aarch64"), "G8: Aarch64 variant");
     assert!(target.contains("Riscv64"), "G8: Riscv64 variant");
@@ -215,24 +276,45 @@ fn g8_target_arch_enum_exists() {
 #[test]
 fn g8_freestanding_takes_arch() {
     let target = include_str!("../src/os/target.rs");
-    assert!(target.contains("Freestanding { arch"), "G8: Freestanding takes arch");
-    assert!(target.contains("freestanding-x86_64"), "G8: freestanding-x86_64 parsing");
-    assert!(target.contains("freestanding-aarch64"), "G8: freestanding-aarch64 parsing");
-    assert!(target.contains("freestanding-riscv64"), "G8: freestanding-riscv64 parsing");
+    assert!(
+        target.contains("Freestanding { arch"),
+        "G8: Freestanding takes arch"
+    );
+    assert!(
+        target.contains("freestanding-x86_64"),
+        "G8: freestanding-x86_64 parsing"
+    );
+    assert!(
+        target.contains("freestanding-aarch64"),
+        "G8: freestanding-aarch64 parsing"
+    );
+    assert!(
+        target.contains("freestanding-riscv64"),
+        "G8: freestanding-riscv64 parsing"
+    );
 }
 
 #[test]
 fn g8_arch_triples_correct() {
     let target = include_str!("../src/os/target.rs");
     assert!(target.contains("x86_64-unknown-none"), "G8: x86_64 triple");
-    assert!(target.contains("aarch64-unknown-none"), "G8: aarch64 triple");
-    assert!(target.contains("riscv64gc-unknown-none-elf"), "G8: riscv64 triple");
+    assert!(
+        target.contains("aarch64-unknown-none"),
+        "G8: aarch64 triple"
+    );
+    assert!(
+        target.contains("riscv64gc-unknown-none-elf"),
+        "G8: riscv64 triple"
+    );
 }
 
 #[test]
 fn g8_build_target_machine_with_arch_exists() {
     let target = include_str!("../src/os/target.rs");
-    assert!(target.contains("build_target_machine_with_arch"), "G8: build_target_machine_with_arch() missing");
+    assert!(
+        target.contains("build_target_machine_with_arch"),
+        "G8: build_target_machine_with_arch() missing"
+    );
 }
 
 // ─── G9: +soft-float → +sse2 ───
@@ -257,8 +339,14 @@ fn g9_x86_64_uses_sse2_not_soft_float() {
         .split("Self::")
         .next()
         .unwrap_or("");
-    assert!(x86.contains("+sse2"), "G9: x86_64 must use +sse2, got {x86:?}");
-    assert!(!x86.contains("+soft-float"), "G9: x86_64 must NOT use +soft-float");
+    assert!(
+        x86.contains("+sse2"),
+        "G9: x86_64 must use +sse2, got {x86:?}"
+    );
+    assert!(
+        !x86.contains("+soft-float"),
+        "G9: x86_64 must NOT use +soft-float"
+    );
 }
 
 // ─── G11: Interrupt Handling ───
@@ -302,11 +390,26 @@ fn g11_exception_handlers_count() {
 #[test]
 fn g12_mmio_codegen_exists() {
     let codegen = include_str!("../src/codegen.rs");
-    assert!(codegen.contains("emit_hardware_zone"), "G12: emit_hardware_zone() missing");
-    assert!(codegen.contains("emit_mmio_volatile_write"), "G12: emit_mmio_volatile_write() missing");
-    assert!(codegen.contains("emit_mmio_volatile_read"), "G12: emit_mmio_volatile_read() missing");
-    assert!(codegen.contains("set_volatile"), "G12: volatile store/load missing");
-    assert!(codegen.contains("hw_zone_depth"), "G12: hw_zone_depth tracking missing");
+    assert!(
+        codegen.contains("emit_hardware_zone"),
+        "G12: emit_hardware_zone() missing"
+    );
+    assert!(
+        codegen.contains("emit_mmio_volatile_write"),
+        "G12: emit_mmio_volatile_write() missing"
+    );
+    assert!(
+        codegen.contains("emit_mmio_volatile_read"),
+        "G12: emit_mmio_volatile_read() missing"
+    );
+    assert!(
+        codegen.contains("set_volatile"),
+        "G12: volatile store/load missing"
+    );
+    assert!(
+        codegen.contains("hw_zone_depth"),
+        "G12: hw_zone_depth tracking missing"
+    );
 }
 
 // ─── G13: Multiboot Header ───
@@ -314,9 +417,15 @@ fn g12_mmio_codegen_exists() {
 #[test]
 fn g13_multiboot_exists() {
     let mb = include_str!("../lib/startup/multiboot_header.rs");
-    assert!(mb.contains("MultibootHeader"), "G13: MultibootHeader struct missing");
+    assert!(
+        mb.contains("MultibootHeader"),
+        "G13: MultibootHeader struct missing"
+    );
     assert!(mb.contains("0x1BADB002"), "G13: Multiboot magic missing");
-    assert!(mb.contains("link_section"), "G13: link_section attribute missing");
+    assert!(
+        mb.contains("link_section"),
+        "G13: link_section attribute missing"
+    );
 }
 
 #[test]
@@ -360,6 +469,11 @@ fn all_15_files_exist() {
         ("build.rs", "G15"),
     ];
     for (path, name) in &files {
-        assert!(std::path::Path::new(path).exists(), "{}: {} must exist", name, path);
+        assert!(
+            std::path::Path::new(path).exists(),
+            "{}: {} must exist",
+            name,
+            path
+        );
     }
 }

@@ -145,9 +145,7 @@ impl<'a> LayoutEngine<'a> {
             Some(TypeKind::Struct(layout_id)) => {
                 // Lookup cached layout from TypeRegistry
                 match self.types.get_struct_layout(*layout_id) {
-                    Some(layout) => {
-                        Ok((layout.total_size_bytes, layout.alignment_bytes))
-                    }
+                    Some(layout) => Ok((layout.total_size_bytes, layout.alignment_bytes)),
                     None => Err(layout_error(
                         span,
                         format!(

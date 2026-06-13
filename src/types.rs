@@ -1,5 +1,3 @@
-
-
 // =========================================================================
 // Logicodex v1.30 architecture simulation: registry-backed type identities.
 //
@@ -537,12 +535,15 @@ impl TypeRegistry {
 
     /// Look up a type by name (placeholder)
     pub fn type_name(&self, _id: TypeId) -> Option<String> {
-        None  // TODO: implement reverse lookup
+        None // TODO: implement reverse lookup
     }
 
     /// Find a callable by name (placeholder)
-    pub fn lookup_callable(&self, _name: &str) -> Option<(CallableId, crate::ffi::CallableSignature)> {
-        None  // TODO: implement callable lookup
+    pub fn lookup_callable(
+        &self,
+        _name: &str,
+    ) -> Option<(CallableId, crate::ffi::CallableSignature)> {
+        None // TODO: implement callable lookup
     }
 
     // ─── FFI Type Aliases ───
@@ -624,7 +625,9 @@ impl TypeRegistry {
             })
             .map(|(i, _)| TypeId(i as u32))
             .unwrap_or_else(|| {
-                panic!("void_ptr not pre-interned: call c_void_ptr() during TypeRegistry construction")
+                panic!(
+                    "void_ptr not pre-interned: call c_void_ptr() during TypeRegistry construction"
+                )
             })
     }
 

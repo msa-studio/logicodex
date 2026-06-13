@@ -45,10 +45,7 @@ impl<'a> TypeInspector<'a> {
         matches!(
             self.registry.resolve(id),
             TypeKind::Primitive(
-                PrimitiveType::I8
-                    | PrimitiveType::I16
-                    | PrimitiveType::I32
-                    | PrimitiveType::I64
+                PrimitiveType::I8 | PrimitiveType::I16 | PrimitiveType::I32 | PrimitiveType::I64
             )
         )
     }
@@ -58,10 +55,7 @@ impl<'a> TypeInspector<'a> {
         matches!(
             self.registry.resolve(id),
             TypeKind::Primitive(
-                PrimitiveType::U8
-                    | PrimitiveType::U16
-                    | PrimitiveType::U32
-                    | PrimitiveType::U64
+                PrimitiveType::U8 | PrimitiveType::U16 | PrimitiveType::U32 | PrimitiveType::U64
             )
         )
     }
@@ -150,7 +144,10 @@ impl<'a> TypeInspector<'a> {
     pub fn type_name(&self, id: TypeId) -> String {
         match self.registry.resolve(id) {
             TypeKind::Primitive(p) => format!("{:?}", p),
-            TypeKind::Pointer { pointee, mutability } => {
+            TypeKind::Pointer {
+                pointee,
+                mutability,
+            } => {
                 let pointee_name = self.type_name(*pointee);
                 match mutability {
                     crate::types::Mutability::Mutable => {
@@ -176,19 +173,19 @@ impl<'a> TypeInspector<'a> {
     /// Returns the C ABI info if valid, or an error message.
     pub fn validate_ffi_type(&self, id: TypeId) -> Result<CAbiInfo, String> {
         match self.registry.resolve(id) {
-            TypeKind::Primitive(_)
-            | TypeKind::Pointer { .. }
-            | TypeKind::Function(_) => Ok(self.registry.c_abi_info(id)),
+            TypeKind::Primitive(_) | TypeKind::Pointer { .. } | TypeKind::Function(_) => {
+                Ok(self.registry.c_abi_info(id))
+            }
             TypeKind::Array { .. } => {
                 // Arrays can be passed as pointers in C
                 Ok(self.registry.c_abi_info(id))
             }
-            TypeKind::Struct(_) => Err(
-                "Struct types in FFI require explicit layout (Sprint 3)".to_string(),
-            ),
-            TypeKind::Enum(_) => Err(
-                "Enum types in FFI require explicit representation (Sprint 3)".to_string(),
-            ),
+            TypeKind::Struct(_) => {
+                Err("Struct types in FFI require explicit layout (Sprint 3)".to_string())
+            }
+            TypeKind::Enum(_) => {
+                Err("Enum types in FFI require explicit representation (Sprint 3)".to_string())
+            }
             TypeKind::Never => Err("Never type cannot be used in FFI".to_string()),
             TypeKind::Unknown => Err("Unknown type cannot be used in FFI".to_string()),
         }
@@ -200,10 +197,7 @@ impl<'a> TypeInspector<'a> {
         if from == to {
             return true;
         }
-        match (
-            self.registry.resolve(from),
-            self.registry.resolve(to),
-        ) {
+        match (self.registry.resolve(from), self.registry.resolve(to)) {
             // Integer widening
             (TypeKind::Primitive(PrimitiveType::I32), TypeKind::Primitive(PrimitiveType::I64)) => {
                 true
@@ -221,10 +215,9 @@ impl<'a> TypeInspector<'a> {
                 true
             }
             // Same-width promotions (precision-preserving)
-            (
-                TypeKind::Primitive(PrimitiveType::I32),
-                TypeKind::Primitive(PrimitiveType::F32),
-            ) => true, // exactly representable up to 2^24
+            (TypeKind::Primitive(PrimitiveType::I32), TypeKind::Primitive(PrimitiveType::F32)) => {
+                true
+            } // exactly representable up to 2^24
             _ => false,
         }
     }

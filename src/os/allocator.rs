@@ -138,7 +138,11 @@ unsafe impl GlobalAlloc for BumpAllocator {
         let new_ptr = self.alloc(new_layout);
         if !new_ptr.is_null() {
             let old_size = layout.size();
-            let copy_size = if old_size < new_size { old_size } else { new_size };
+            let copy_size = if old_size < new_size {
+                old_size
+            } else {
+                new_size
+            };
             core::ptr::copy_nonoverlapping(ptr, new_ptr, copy_size);
         }
         new_ptr
@@ -181,7 +185,11 @@ mod tests {
     fn align_up_power_of_2() {
         for align in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] {
             let result = align_up(align - 1, align);
-            assert_eq!(result, align, "align_up({}-1, {}) = {}", align, align, result);
+            assert_eq!(
+                result, align,
+                "align_up({}-1, {}) = {}",
+                align, align, result
+            );
         }
     }
 
@@ -189,7 +197,10 @@ mod tests {
     fn heap_constants_are_reasonable() {
         assert!(HEAP_START > 0x200000, "Heap must be above stack at 2MB");
         assert!(HEAP_SIZE > 0, "Heap size must be positive");
-        assert!(HEAP_START + HEAP_SIZE < 0x80000000, "Heap must be below 2GB");
+        assert!(
+            HEAP_START + HEAP_SIZE < 0x80000000,
+            "Heap must be below 2GB"
+        );
     }
 
     #[test]
@@ -222,8 +233,12 @@ mod tests {
         assert!(alloc.used() >= 128, "Used should be at least 128 bytes");
 
         // Dealloc is a no-op but should not crash
-        unsafe { alloc.dealloc(ptr1, layout); }
-        unsafe { alloc.dealloc(ptr2, layout); }
+        unsafe {
+            alloc.dealloc(ptr1, layout);
+        }
+        unsafe {
+            alloc.dealloc(ptr2, layout);
+        }
     }
 
     #[test]
@@ -233,10 +248,16 @@ mod tests {
         for align in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512] {
             let layout = Layout::from_size_align(16, align).unwrap();
             let ptr = unsafe { alloc.alloc(layout) };
-            assert!(!ptr.is_null(), "Allocation with align {} should succeed", align);
+            assert!(
+                !ptr.is_null(),
+                "Allocation with align {} should succeed",
+                align
+            );
             assert_eq!(
-                (ptr as usize) % align, 0,
-                "Pointer must be aligned to {}", align
+                (ptr as usize) % align,
+                0,
+                "Pointer must be aligned to {}",
+                align
             );
         }
     }

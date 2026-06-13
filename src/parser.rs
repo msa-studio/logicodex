@@ -5,7 +5,9 @@
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
-use crate::ast::{BinaryOp, ExternFnDecl, Expr, MatchArm, MatchPattern, Param, Program, Stmt, Type};
+use crate::ast::{
+    BinaryOp, Expr, ExternFnDecl, MatchArm, MatchPattern, Param, Program, Stmt, Type,
+};
 use crate::lexer::{Token, TokenKind};
 use thiserror::Error;
 
@@ -319,31 +321,40 @@ impl Parser {
 
     /// v1.30.1-alpha: Parse `kotak Name { ... }`
     fn actor_statement(&mut self) -> Result<Stmt, ParseError> {
-        let name = self.consume(TokenKind::Identifier, "Actor name after 'actor'")?.lexeme.clone();
+        let name = self
+            .consume(TokenKind::Identifier, "Actor name after 'actor'")?
+            .lexeme
+            .clone();
         let body = self.block()?;
         Ok(Stmt::Actor { name, body })
     }
 
     // v1.33.0-alpha: Service manifest — deterministic network reactor
     fn service_statement(&mut self) -> Result<Stmt, ParseError> {
-        let name = self.consume(TokenKind::Identifier, "Service name after 'service'")?.lexeme.clone();
+        let name = self
+            .consume(TokenKind::Identifier, "Service name after 'service'")?
+            .lexeme
+            .clone();
         self.consume(TokenKind::Start, "block start MULA or {")?;
-        
+
         // Parse service fields: port, requires, handler, policy
         let mut port = 0u16;
         let mut requires = None;
         let mut handler = String::new();
         let mut policy = "Block".to_string();
-        
+
         while !self.check(TokenKind::End) {
             // Field names (port/requires/handler/policy) may lex as keywords or
             // identifiers; accept whichever token appears and match on its lexeme.
             let field = self.advance().lexeme.clone();
             self.consume(TokenKind::Colon, "':' after service field")?;
-            
+
             match field.to_lowercase().as_str() {
                 "port" => {
-                    let val = self.consume(TokenKind::Integer, "port number")?.lexeme.clone();
+                    let val = self
+                        .consume(TokenKind::Integer, "port number")?
+                        .lexeme
+                        .clone();
                     port = val.parse().unwrap_or(0);
                 }
                 "requires" => {
@@ -368,20 +379,29 @@ impl Parser {
                     self.advance(); // skip value
                 }
             }
-            
+
             // Optional comma between fields
             if self.matches(TokenKind::Comma) {
                 // consume comma
             }
         }
-        
+
         self.consume(TokenKind::End, "block end TAMAT or }")?;
-        Ok(Stmt::Service { name, port, requires, handler, policy })
+        Ok(Stmt::Service {
+            name,
+            port,
+            requires,
+            handler,
+            policy,
+        })
     }
 
     /// BUGFIX #2: Parse `buf[index] = value` as Stmt::Assign
     fn index_assignment_statement(&mut self) -> Result<Stmt, ParseError> {
-        let name = self.consume(TokenKind::Identifier, "buffer name")?.lexeme.clone();
+        let name = self
+            .consume(TokenKind::Identifier, "buffer name")?
+            .lexeme
+            .clone();
         self.consume(TokenKind::LeftBracket, "'[' after buffer name")?;
         let index = self.expression()?;
         self.consume(TokenKind::RightBracket, "']' after index")?;
@@ -408,7 +428,10 @@ impl Parser {
 
     /// Parse `name = value` as Stmt::Assign with a Variable target.
     fn variable_assignment_statement(&mut self) -> Result<Stmt, ParseError> {
-        let name = self.consume(TokenKind::Identifier, "variable name")?.lexeme.clone();
+        let name = self
+            .consume(TokenKind::Identifier, "variable name")?
+            .lexeme
+            .clone();
         self.consume(TokenKind::Assign, "'=' after variable name")?;
         let value = self.expression()?;
         self.consume_statement_terminator("; after assignment", false)?;
@@ -459,7 +482,10 @@ impl Parser {
             if self.matches(TokenKind::Assign) {
                 let value = self.expression()?;
                 self.consume_statement_terminator("; after assignment", false)?;
-                Stmt::Assign { target: expr, value }
+                Stmt::Assign {
+                    target: expr,
+                    value,
+                }
             } else {
                 self.consume_statement_terminator("; after expression", false)?;
                 Stmt::ExprStmt { value: expr }
@@ -667,7 +693,9 @@ impl Parser {
         if self.matches(TokenKind::LeftBracket) {
             self.consume(TokenKind::RightBracket, "']' after '[' in slice type")?;
             let element = self.parse_type()?;
-            return Ok(Type::Slice { element: Box::new(element) });
+            return Ok(Type::Slice {
+                element: Box::new(element),
+            });
         }
         // Ketuk 1: Core Memory Model — Buffer syntax: Buffer<T> or Buffer<T, N>
         if self.matches(TokenKind::Buffer) {
@@ -681,7 +709,9 @@ impl Parser {
                 0 // unknown capacity — runtime enforcement only
             };
             self.consume(TokenKind::Greater, "'>' after Buffer type")?;
-            return Ok(Type::Buffer { element: Box::new(element) });
+            return Ok(Type::Buffer {
+                element: Box::new(element),
+            });
         }
         // Ketuk 2: Result type syntax: Result<T, E>
         if self.matches(TokenKind::Result) {
@@ -690,22 +720,40 @@ impl Parser {
             self.consume(TokenKind::Comma, "',' between Ok and Err types")?;
             let err = self.parse_type()?;
             self.consume(TokenKind::Greater, "'>' after Result type")?;
-            return Ok(Type::Result { ok: Box::new(ok), err: Box::new(err) });
+            return Ok(Type::Result {
+                ok: Box::new(ok),
+                err: Box::new(err),
+            });
         }
         // Ketuk 3: File Handle ABI — Opaque types
         if self.matches(TokenKind::FileHandle) {
-            return Ok(Type::Opaque { name: "FileHandle".to_string() });
+            return Ok(Type::Opaque {
+                name: "FileHandle".to_string(),
+            });
         }
         // v1.30.1-alpha: Pintu<T, U, V> — SPSC channel with type-level capability
         if self.matches(TokenKind::Channel) {
             self.consume(TokenKind::Less, "'<' after 'Pintu'")?;
-            let from = self.consume(TokenKind::Identifier, "sender Kotak name")?.lexeme.clone();
+            let from = self
+                .consume(TokenKind::Identifier, "sender Kotak name")?
+                .lexeme
+                .clone();
             self.consume(TokenKind::Comma, "',' after sender")?;
-            let to = self.consume(TokenKind::Identifier, "receiver Kotak name")?.lexeme.clone();
+            let to = self
+                .consume(TokenKind::Identifier, "receiver Kotak name")?
+                .lexeme
+                .clone();
             self.consume(TokenKind::Comma, "',' after receiver")?;
-            let message_type = self.consume(TokenKind::Identifier, "message type")?.lexeme.clone();
+            let message_type = self
+                .consume(TokenKind::Identifier, "message type")?
+                .lexeme
+                .clone();
             self.consume(TokenKind::Greater, "'>' after message type")?;
-            return Ok(Type::Channel { from, to, message_type });
+            return Ok(Type::Channel {
+                from,
+                to,
+                message_type,
+            });
         }
         // User-defined named type (struct/enum) — any bare identifier.
         if self.check(TokenKind::Identifier) {
@@ -858,10 +906,16 @@ impl Parser {
     fn unary(&mut self) -> Result<Expr, ParseError> {
         if self.matches(TokenKind::Minus) {
             let operand = self.unary()?;
-            Ok(Expr::Unary { op: "-".to_string(), operand: Box::new(operand) })
+            Ok(Expr::Unary {
+                op: "-".to_string(),
+                operand: Box::new(operand),
+            })
         } else if self.matches(TokenKind::Bang) {
             let operand = self.unary()?;
-            Ok(Expr::Unary { op: "!".to_string(), operand: Box::new(operand) })
+            Ok(Expr::Unary {
+                op: "!".to_string(),
+                operand: Box::new(operand),
+            })
         } else {
             let expr = self.primary()?;
             self.parse_postfix(expr)
@@ -898,7 +952,8 @@ impl Parser {
                 // Method calls on an expression result are not supported yet:
                 // Expr::MethodCall carries a name, not an expression.
                 return Err(ParseError::Expected {
-                    expected: "field access (method calls on call results are not yet supported)".to_string(),
+                    expected: "field access (method calls on call results are not yet supported)"
+                        .to_string(),
                     found: self.peek().lexeme.clone(),
                     line: self.peek().line,
                     column: self.peek().column,
@@ -936,13 +991,18 @@ impl Parser {
         }
         // v1.30.1-alpha: Spawn — lahirkan KotakName()
         if self.matches(TokenKind::Spawn) {
-            let actor_name = self.consume(TokenKind::Identifier, "Kotak name after 'lahirkan'")?.lexeme.clone();
+            let actor_name = self
+                .consume(TokenKind::Identifier, "Kotak name after 'lahirkan'")?
+                .lexeme
+                .clone();
             self.consume(TokenKind::LeftParen, "'(' after Kotak name")?;
             let mut args = Vec::new();
             if !self.check(TokenKind::RightParen) {
                 loop {
                     args.push(self.expression()?);
-                    if !self.matches(TokenKind::Comma) { break; }
+                    if !self.matches(TokenKind::Comma) {
+                        break;
+                    }
                 }
             }
             self.consume(TokenKind::RightParen, "')' after lahirkan args")?;
@@ -950,7 +1010,10 @@ impl Parser {
         }
         // v1.30.1-alpha: Join — join ActorName
         if self.matches(TokenKind::Join) {
-            let actor_name = self.consume(TokenKind::Identifier, "Actor name after 'join'")?.lexeme.clone();
+            let actor_name = self
+                .consume(TokenKind::Identifier, "Actor name after 'join'")?
+                .lexeme
+                .clone();
             return Ok(Expr::Join { actor_name });
         }
         // v1.30.1-alpha Phase 3: Yield — yield control to scheduler
@@ -964,31 +1027,46 @@ impl Parser {
             self.consume(TokenKind::LeftParen, "'(' after 'sleep'")?;
             let duration_ms = self.expression()?;
             self.consume(TokenKind::RightParen, "')' after sleep duration")?;
-            return Ok(Expr::Sleep { duration_ms: Box::new(duration_ms) });
+            return Ok(Expr::Sleep {
+                duration_ms: Box::new(duration_ms),
+            });
         }
         // Ketuk 2: Ok(value) and Err(value) result constructors
         if self.matches(TokenKind::Ok) {
             self.consume(TokenKind::LeftParen, "'(' after 'Ok'")?;
             let value = self.expression()?;
             self.consume(TokenKind::RightParen, "')' after Ok value")?;
-            return Ok(Expr::Ok { value: Box::new(value) });
+            return Ok(Expr::Ok {
+                value: Box::new(value),
+            });
         }
         if self.matches(TokenKind::Err) {
             self.consume(TokenKind::LeftParen, "'(' after 'Err'")?;
             let value = self.expression()?;
             self.consume(TokenKind::RightParen, "')' after Err value")?;
-            return Ok(Expr::Err { value: Box::new(value) });
+            return Ok(Expr::Err {
+                value: Box::new(value),
+            });
         }
         if self.matches(TokenKind::Identifier) {
             let name = self.previous().lexeme.clone();
             // Enum variant path: `Enum::Variant` (two `:` tokens; no `::` token).
             if self.check(TokenKind::Colon)
-                && self.tokens.get(self.current + 1).map_or(false, |t| t.kind == TokenKind::Colon)
+                && self
+                    .tokens
+                    .get(self.current + 1)
+                    .map_or(false, |t| t.kind == TokenKind::Colon)
             {
                 self.advance(); // first ':'
                 self.advance(); // second ':'
-                let variant = self.consume(TokenKind::Identifier, "variant name after '::'")?.lexeme.clone();
-                return Ok(Expr::EnumVariant { enum_name: name, variant });
+                let variant = self
+                    .consume(TokenKind::Identifier, "variant name after '::'")?
+                    .lexeme
+                    .clone();
+                return Ok(Expr::EnumVariant {
+                    enum_name: name,
+                    variant,
+                });
             }
             // Check if followed by '(' → function or struct constructor call
             if self.check(TokenKind::LeftParen) {
@@ -1037,7 +1115,10 @@ impl Parser {
                 if method == "send" {
                     let value = self.expression()?;
                     self.consume(TokenKind::RightParen, "')' after send value")?;
-                    return Ok(Expr::Send { channel_name: name, value: Box::new(value) });
+                    return Ok(Expr::Send {
+                        channel_name: name,
+                        value: Box::new(value),
+                    });
                 }
                 if method == "recv" {
                     self.consume(TokenKind::RightParen, "')' after recv'")?;
@@ -1047,7 +1128,10 @@ impl Parser {
                 if method == "try_send" {
                     let value = self.expression()?;
                     self.consume(TokenKind::RightParen, "')' after try_send value")?;
-                    return Ok(Expr::TrySend { channel_name: name, value: Box::new(value) });
+                    return Ok(Expr::TrySend {
+                        channel_name: name,
+                        value: Box::new(value),
+                    });
                 }
                 if method == "try_recv" {
                     self.consume(TokenKind::RightParen, "')' after try_recv'")?;
@@ -1056,13 +1140,18 @@ impl Parser {
                 if method == "timeout_recv" {
                     let timeout_ms = self.expression()?;
                     self.consume(TokenKind::RightParen, "')' after timeout_recv'")?;
-                    return Ok(Expr::TimeoutRecv { channel_name: name, timeout_ms: Box::new(timeout_ms) });
+                    return Ok(Expr::TimeoutRecv {
+                        channel_name: name,
+                        timeout_ms: Box::new(timeout_ms),
+                    });
                 }
                 let mut args = Vec::new();
                 if !self.check(TokenKind::RightParen) {
                     loop {
                         args.push(self.expression()?);
-                        if !self.matches(TokenKind::Comma) { break; }
+                        if !self.matches(TokenKind::Comma) {
+                            break;
+                        }
                     }
                 }
                 self.consume(TokenKind::RightParen, "')' after method args")?;
@@ -1177,7 +1266,6 @@ impl Parser {
         self.critical_depth == 0
             && (lexeme.eq_ignore_ascii_case("henti") || lexeme.eq_ignore_ascii_case("langkau"))
     }
-
 
     fn matches(&mut self, kind: TokenKind) -> bool {
         if self.check(kind) {
@@ -1313,5 +1401,4 @@ mod tests {
         let source = "MULA\nBINA x = 0\nSELAGI x < 3 DAN benar MULA\nPAPAR x\nHENTI\nTAMAT\nULANG MULA\nLANGKAU\nTAMAT\nBINA y = (1 << 2) | 1 & 3\nTAMAT\n";
         assert!(parse_source(source).is_ok(), "{:?}", parse_source(source));
     }
-
 }

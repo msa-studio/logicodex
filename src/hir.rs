@@ -11,7 +11,9 @@
 use crate::ast;
 use crate::ffi::SafetyContext;
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span, Spanned};
-use crate::types::{CallableId, Mutability, PrimitiveType, TypeId, TypeKind, TypeRef, TypeRegistry};
+use crate::types::{
+    CallableId, Mutability, PrimitiveType, TypeId, TypeKind, TypeRef, TypeRegistry,
+};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -74,7 +76,11 @@ pub enum StmtAst {
     Continue,
     UnsafeBlock(BlockAst),
     HardwareZone(BlockAst),
-    HardwareDecl { name: String, ty: Option<TypeAst>, address: i64 },
+    HardwareDecl {
+        name: String,
+        ty: Option<TypeAst>,
+        address: i64,
+    },
     Expr(ExprAst),
     Return(Option<ExprAst>),
 }
@@ -333,7 +339,11 @@ pub enum HirStmt {
     },
     UnsafeBlock(HirBlock),
     HardwareZone(HirBlock),
-    HardwareDecl { local: LocalId, ty: TypeRef, address: i64 },
+    HardwareDecl {
+        local: LocalId,
+        ty: TypeRef,
+        address: i64,
+    },
     Expr(HirExpr),
     Return(Option<HirExpr>),
 }
@@ -533,20 +543,31 @@ impl<'a> LoweringContext<'a> {
 
         for stmt in program.statements {
             match stmt {
-                Stmt::Function { name, params, return_type, body } => {
+                Stmt::Function {
+                    name,
+                    params,
+                    return_type,
+                    body,
+                } => {
                     functions.push(Spanned {
                         node: ItemAst::Function(FunctionAst {
                             name,
-                            params: params.into_iter().map(|p| ParamAst {
-                                name: p.name,
-                                ty: lower_type_ast(p.ty),
-                            }).collect(),
+                            params: params
+                                .into_iter()
+                                .map(|p| ParamAst {
+                                    name: p.name,
+                                    ty: lower_type_ast(p.ty),
+                                })
+                                .collect(),
                             return_type: return_type.map(lower_type_ast),
                             body: BlockAst {
-                                statements: body.into_iter().map(|s| Spanned {
-                                    node: lower_stmt_ast(s),
-                                    span: Span::unknown(),
-                                }).collect(),
+                                statements: body
+                                    .into_iter()
+                                    .map(|s| Spanned {
+                                        node: lower_stmt_ast(s),
+                                        span: Span::unknown(),
+                                    })
+                                    .collect(),
                             },
                             is_unsafe: false,
                         }),
@@ -557,11 +578,14 @@ impl<'a> LoweringContext<'a> {
                     functions.push(Spanned {
                         node: ItemAst::Struct(StructDeclAst {
                             name,
-                            fields: fields.into_iter().map(|p| FieldAst {
-                                name: p.name,
-                                ty: lower_type_ast(p.ty),
-                                visibility: VisibilityAst::Private,
-                            }).collect(),
+                            fields: fields
+                                .into_iter()
+                                .map(|p| FieldAst {
+                                    name: p.name,
+                                    ty: lower_type_ast(p.ty),
+                                    visibility: VisibilityAst::Private,
+                                })
+                                .collect(),
                             attributes: Vec::new(),
                         }),
                         span: Span::unknown(),
@@ -571,13 +595,22 @@ impl<'a> LoweringContext<'a> {
                     functions.push(Spanned {
                         node: ItemAst::Enum(EnumDeclAst {
                             name: name.clone(),
-                            variants: variants.into_iter().map(|v| EnumVariantAst { name: v, payload: EnumPayloadAst::Unit }).collect(),
+                            variants: variants
+                                .into_iter()
+                                .map(|v| EnumVariantAst {
+                                    name: v,
+                                    payload: EnumPayloadAst::Unit,
+                                })
+                                .collect(),
                             repr: None,
                         }),
                         span: Span::unknown(),
                     });
                 }
-                Stmt::ExternBlock { abi, functions: decls } => {
+                Stmt::ExternBlock {
+                    abi,
+                    functions: decls,
+                } => {
                     functions.push(Spanned {
                         node: ItemAst::ExternBlock(ExternBlockAst {
                             abi: match abi.as_str() {
@@ -586,15 +619,25 @@ impl<'a> LoweringContext<'a> {
                                 "fastcall" | "FastCall" => crate::ffi::CallingConvention::FastCall,
                                 _ => crate::ffi::CallingConvention::C,
                             },
-                            functions: decls.into_iter().map(|f| ExternFnAst {
-                                name: f.name,
-                                params: f.params.into_iter().map(|p| ParamAst {
-                                    name: p.name,
-                                    ty: lower_type_ast(p.ty),
-                                }).collect(),
-                                return_type: f.return_type.map(lower_type_ast).unwrap_or(TypeAst::Unit),
-                                is_variadic: false,
-                            }).collect(),
+                            functions: decls
+                                .into_iter()
+                                .map(|f| ExternFnAst {
+                                    name: f.name,
+                                    params: f
+                                        .params
+                                        .into_iter()
+                                        .map(|p| ParamAst {
+                                            name: p.name,
+                                            ty: lower_type_ast(p.ty),
+                                        })
+                                        .collect(),
+                                    return_type: f
+                                        .return_type
+                                        .map(lower_type_ast)
+                                        .unwrap_or(TypeAst::Unit),
+                                    is_variadic: false,
+                                })
+                                .collect(),
                         }),
                         span: Span::unknown(),
                     });
@@ -615,7 +658,9 @@ impl<'a> LoweringContext<'a> {
                     name: "main".to_string(),
                     params: Vec::new(),
                     return_type: Some(TypeAst::Unit),
-                    body: BlockAst { statements: top_level_stmts },
+                    body: BlockAst {
+                        statements: top_level_stmts,
+                    },
                     is_unsafe: false,
                 }),
                 span: Span::unknown(),
@@ -803,7 +848,11 @@ impl<'a> LoweringContext<'a> {
                 target: self.lower_expr(target, span),
                 value: self.lower_expr(value, span),
             },
-            StmtAst::If { condition, then_branch, else_branch } => HirStmt::If {
+            StmtAst::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => HirStmt::If {
                 condition: self.lower_expr(condition, span),
                 then_branch: self.lower_block(then_branch),
                 else_branch: else_branch.map(|b| self.lower_block(b)),
@@ -820,7 +869,9 @@ impl<'a> LoweringContext<'a> {
             StmtAst::UnsafeBlock(block) => HirStmt::UnsafeBlock(self.lower_block(block)),
             StmtAst::HardwareZone(block) => HirStmt::HardwareZone(self.lower_block(block)),
             StmtAst::HardwareDecl { name, ty, address } => {
-                let ty = ty.map(|ty| self.lower_type(ty)).unwrap_or_else(|| unknown_ref(self.types));
+                let ty = ty
+                    .map(|ty| self.lower_type(ty))
+                    .unwrap_or_else(|| unknown_ref(self.types));
                 let local = self.symbols.define_local(name, ty);
                 HirStmt::HardwareDecl { local, ty, address }
             }
@@ -952,7 +1003,9 @@ impl<'a> LoweringContext<'a> {
                 }
             }
             ExprAst::EnumVariant { enum_name, variant } => {
-                let tag = self.types.enum_variant_tag(&enum_name, &variant)
+                let tag = self
+                    .types
+                    .enum_variant_tag(&enum_name, &variant)
                     .or_else(|| self.types.enum_variant_tag_any(&variant))
                     .unwrap_or(0);
                 let i64_id = self.types.primitive(PrimitiveType::I64);
@@ -971,7 +1024,12 @@ impl<'a> LoweringContext<'a> {
                 let (field_index, field_ty) = if let Some(lid) = struct_layout_id {
                     match self.types.get_struct_layout(lid) {
                         Some(layout) => match layout.fields.iter().position(|f| f.name == field) {
-                            Some(idx) => (idx, TypeRef { id: layout.fields[idx].ty }),
+                            Some(idx) => (
+                                idx,
+                                TypeRef {
+                                    id: layout.fields[idx].ty,
+                                },
+                            ),
                             None => (0usize, unknown_ref(self.types)),
                         },
                         None => (0usize, unknown_ref(self.types)),
@@ -1007,7 +1065,10 @@ impl<'a> LoweringContext<'a> {
                     .map(|arg| self.lower_expr(arg, span))
                     .collect();
                 HirExpr {
-                    kind: HirExprKind::Spawn { actor_name, args: lowered_args },
+                    kind: HirExprKind::Spawn {
+                        actor_name,
+                        args: lowered_args,
+                    },
                     ty: unit_ref(self.types),
                     span,
                 }
@@ -1017,10 +1078,16 @@ impl<'a> LoweringContext<'a> {
                 ty: unit_ref(self.types),
                 span,
             },
-            ExprAst::ChannelSend { channel_name, value } => {
+            ExprAst::ChannelSend {
+                channel_name,
+                value,
+            } => {
                 let lowered = self.lower_expr(*value, span);
                 HirExpr {
-                    kind: HirExprKind::ChannelSend { channel_name, value: Box::new(lowered) },
+                    kind: HirExprKind::ChannelSend {
+                        channel_name,
+                        value: Box::new(lowered),
+                    },
                     ty: unit_ref(self.types),
                     span,
                 }
@@ -1031,10 +1098,16 @@ impl<'a> LoweringContext<'a> {
                 span,
             },
             // ─── v1.30 Phase 3: Backpressure + Scheduler (A4) ───
-            ExprAst::ChannelTrySend { channel_name, value } => {
+            ExprAst::ChannelTrySend {
+                channel_name,
+                value,
+            } => {
                 let lowered = self.lower_expr(*value, span);
                 HirExpr {
-                    kind: HirExprKind::ChannelTrySend { channel_name, value: Box::new(lowered) },
+                    kind: HirExprKind::ChannelTrySend {
+                        channel_name,
+                        value: Box::new(lowered),
+                    },
                     ty: bool_ref(self.types),
                     span,
                 }
@@ -1196,7 +1269,10 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
     let mk_block = |body: Vec<ast::Stmt>| BlockAst {
         statements: body
             .into_iter()
-            .map(|s| Spanned { node: lower_stmt_ast(s), span: Span::unknown() })
+            .map(|s| Spanned {
+                node: lower_stmt_ast(s),
+                span: Span::unknown(),
+            })
             .collect(),
     };
     let mut else_branch: Option<BlockAst> = None;
@@ -1208,7 +1284,10 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
             }
             ast::MatchPattern::Identifier(name) => {
                 conditional.push((
-                    ExprAst::EnumVariant { enum_name: String::new(), variant: name },
+                    ExprAst::EnumVariant {
+                        enum_name: String::new(),
+                        variant: name,
+                    },
                     mk_block(arm.body),
                 ));
             }
@@ -1231,7 +1310,10 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
             else_branch: acc.take(),
         };
         acc = Some(BlockAst {
-            statements: vec![Spanned { node: if_stmt, span: Span::unknown() }],
+            statements: vec![Spanned {
+                node: if_stmt,
+                span: Span::unknown(),
+            }],
         });
     }
     match acc {
@@ -1249,7 +1331,11 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
 fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
     use ast::Stmt;
     match stmt {
-        Stmt::Let { name, declared_type, value } => StmtAst::Let {
+        Stmt::Let {
+            name,
+            declared_type,
+            value,
+        } => StmtAst::Let {
             name,
             ty: declared_type.map(lower_type_ast),
             value: Some(lower_expr_ast(value)),
@@ -1264,53 +1350,75 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
             target: lower_expr_ast(target),
             value: lower_expr_ast(value),
         },
-        Stmt::If { condition, then_branch, else_branch } => StmtAst::If {
+        Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => StmtAst::If {
             condition: lower_expr_ast(condition),
             then_branch: BlockAst {
-                statements: then_branch.into_iter().map(|s| Spanned {
-                    node: lower_stmt_ast(s),
-                    span: Span::unknown(),
-                }).collect(),
+                statements: then_branch
+                    .into_iter()
+                    .map(|s| Spanned {
+                        node: lower_stmt_ast(s),
+                        span: Span::unknown(),
+                    })
+                    .collect(),
             },
             else_branch: Some(BlockAst {
-                statements: else_branch.into_iter().map(|s| Spanned {
-                    node: lower_stmt_ast(s),
-                    span: Span::unknown(),
-                }).collect(),
+                statements: else_branch
+                    .into_iter()
+                    .map(|s| Spanned {
+                        node: lower_stmt_ast(s),
+                        span: Span::unknown(),
+                    })
+                    .collect(),
             }),
         },
         Stmt::While { condition, body } => StmtAst::While {
             condition: lower_expr_ast(condition),
             body: BlockAst {
-                statements: body.into_iter().map(|s| Spanned {
-                    node: lower_stmt_ast(s),
-                    span: Span::unknown(),
-                }).collect(),
+                statements: body
+                    .into_iter()
+                    .map(|s| Spanned {
+                        node: lower_stmt_ast(s),
+                        span: Span::unknown(),
+                    })
+                    .collect(),
             },
         },
         Stmt::Loop { body } => StmtAst::Loop {
             body: BlockAst {
-                statements: body.into_iter().map(|s| Spanned {
-                    node: lower_stmt_ast(s),
-                    span: Span::unknown(),
-                }).collect(),
+                statements: body
+                    .into_iter()
+                    .map(|s| Spanned {
+                        node: lower_stmt_ast(s),
+                        span: Span::unknown(),
+                    })
+                    .collect(),
             },
         },
         Stmt::Break => StmtAst::Break,
         Stmt::Continue => StmtAst::Continue,
         Stmt::UnsafeBlock { body } => StmtAst::UnsafeBlock(BlockAst {
-            statements: body.into_iter().map(|s| Spanned {
-                node: lower_stmt_ast(s),
-                span: Span::unknown(),
-            }).collect(),
+            statements: body
+                .into_iter()
+                .map(|s| Spanned {
+                    node: lower_stmt_ast(s),
+                    span: Span::unknown(),
+                })
+                .collect(),
         }),
         // v1.44 G12: hardware zone preserved; codegen emits its memory ops as
         // volatile MMIO (see emit_hardware_zone). Body is lowered like a block.
         Stmt::HardwareZone { body } => StmtAst::HardwareZone(BlockAst {
-            statements: body.into_iter().map(|s| Spanned {
-                node: lower_stmt_ast(s),
-                span: Span::unknown(),
-            }).collect(),
+            statements: body
+                .into_iter()
+                .map(|s| Spanned {
+                    node: lower_stmt_ast(s),
+                    span: Span::unknown(),
+                })
+                .collect(),
         }),
         // v1.44 G12 stage 2: hardware register decl binds `name` to a fixed
         // MMIO address; codegen resolves it via inttoptr (not an alloca).
@@ -1326,7 +1434,10 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
             // Use imports are not yet HIR-lowered.
             StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit))
         }
-        Stmt::Function { .. } | Stmt::StructDecl { .. } | Stmt::EnumDecl { .. } | Stmt::ExternBlock { .. } => {
+        Stmt::Function { .. }
+        | Stmt::StructDecl { .. }
+        | Stmt::EnumDecl { .. }
+        | Stmt::ExternBlock { .. } => {
             // These should have been extracted at the item level, not statements
             StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit))
         }
@@ -1358,13 +1469,19 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             args: args.into_iter().map(lower_expr_ast).collect(),
         },
         ast::Expr::Join { actor_name } => ExprAst::Join { actor_name },
-        ast::Expr::Send { channel_name, value } => ExprAst::ChannelSend {
+        ast::Expr::Send {
+            channel_name,
+            value,
+        } => ExprAst::ChannelSend {
             channel_name,
             value: Box::new(lower_expr_ast(*value)),
         },
         ast::Expr::Recv { channel_name } => ExprAst::ChannelRecv { channel_name },
         // ─── v1.30 Phase 3: Backpressure + Scheduler (A4) ───
-        ast::Expr::TrySend { channel_name, value } => ExprAst::ChannelTrySend {
+        ast::Expr::TrySend {
+            channel_name,
+            value,
+        } => ExprAst::ChannelTrySend {
             channel_name,
             value: Box::new(lower_expr_ast(*value)),
         },
@@ -1377,7 +1494,10 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
                 args: vec![dur],
             }
         }
-        ast::Expr::TimeoutRecv { channel_name, timeout_ms } => {
+        ast::Expr::TimeoutRecv {
+            channel_name,
+            timeout_ms,
+        } => {
             let to = lower_expr_ast(*timeout_ms);
             ExprAst::Call {
                 callee: Box::new(ExprAst::Variable("logicodex_timeout_recv".to_string())),
@@ -1388,7 +1508,9 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             base: Box::new(lower_expr_ast(*base)),
             field,
         },
-        ast::Expr::EnumVariant { enum_name, variant } => ExprAst::EnumVariant { enum_name, variant },
+        ast::Expr::EnumVariant { enum_name, variant } => {
+            ExprAst::EnumVariant { enum_name, variant }
+        }
         _ => ExprAst::Literal(LiteralAst::Unit),
     }
 }

@@ -21,15 +21,15 @@ extern crate alloc;
 // v1.44 G6: Re-export alloc types for no_std compatibility
 #[cfg(target_os = "none")]
 pub use alloc::{
-    string::String, string::ToString, vec::Vec, boxed::Box,
-    collections::HashMap, collections::HashSet, format,
+    boxed::Box, collections::HashMap, collections::HashSet, format, string::String,
+    string::ToString, vec::Vec,
 };
 
 // v1.44 G6: On hosted targets, re-export from std for uniform API
 #[cfg(not(target_os = "none"))]
 pub use std::{
-    string::String, string::ToString, vec::Vec, boxed::Box,
-    collections::HashMap, collections::HashSet, format,
+    boxed::Box, collections::HashMap, collections::HashSet, format, string::String,
+    string::ToString, vec::Vec,
 };
 
 // Core v1.21 modules (always compiled)

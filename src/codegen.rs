@@ -7,7 +7,9 @@
 // =========================================================================
 
 use crate::ffi::{CallableRegistry, CallableSignature};
-use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind};
+use crate::os::target::{
+    build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind,
+};
 use crate::types::{PrimitiveType, TypeId, TypeKind, TypeRegistry};
 use anyhow::{anyhow, Context as AnyhowContext, Result};
 use inkwell::basic_block::BasicBlock;
@@ -15,8 +17,8 @@ use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::types::{BasicType, BasicTypeEnum, IntType};
-use inkwell::AddressSpace;
 use inkwell::values::{BasicValue, BasicValueEnum, FunctionValue, IntValue, PointerValue};
+use inkwell::AddressSpace;
 use inkwell::IntPredicate;
 use std::collections::HashMap;
 use std::path::Path;
@@ -98,7 +100,7 @@ pub struct LlvmCompiler<'ctx> {
     // v1.36+: Struct registry — symbol_id → LLVM struct type
     hir_struct_types: HashMap<u32, inkwell::types::StructType<'ctx>>,
     hir_struct_names: HashMap<String, u32>, // name → symbol_id
-    callable_names: HashMap<u32, String>, // CallableId.0 → name (call routing)
+    callable_names: HashMap<u32, String>,   // CallableId.0 → name (call routing)
     // v1.38 A6: CallableRegistry predeclaration tracking
     callables_predeclared: bool,
     // v1.44 G12: Hardware zone depth counter (MMIO volatile semantics)
@@ -116,7 +118,11 @@ pub struct LlvmCompiler<'ctx> {
 /// Backend trait for version-gated codegen. v1.21 uses direct compilation;
 /// v1.30+ uses this trait for HIR-based codegen.
 pub trait CodegenBackend {
-    fn compile_hir_module(&mut self, module: &crate::hir::HirModule, options: &CodegenOptions) -> Result<CodegenArtifact>;
+    fn compile_hir_module(
+        &mut self,
+        module: &crate::hir::HirModule,
+        options: &CodegenOptions,
+    ) -> Result<CodegenArtifact>;
 }
 
 impl<'ctx> LlvmCompiler<'ctx> {
@@ -179,25 +185,38 @@ impl<'ctx> LlvmCompiler<'ctx> {
             TypeKind::Primitive(PrimitiveType::F32) => Ok(self.context.f32_type().into()),
             TypeKind::Primitive(PrimitiveType::F64) => Ok(self.context.f64_type().into()),
             TypeKind::Primitive(PrimitiveType::Unit) => Ok(self.context.i8_type().into()), // void represented as i8
-            TypeKind::Pointer { .. } => Ok(self.context.i8_type().ptr_type(inkwell::AddressSpace::default()).into()),
-            other => Err(anyhow!("type_id_to_llvm: unsupported type kind: {:?}", other)),
+            TypeKind::Pointer { .. } => Ok(self
+                .context
+                .i8_type()
+                .ptr_type(inkwell::AddressSpace::default())
+                .into()),
+            other => Err(anyhow!(
+                "type_id_to_llvm: unsupported type kind: {:?}",
+                other
+            )),
         }
     }
 
     /// Declare an extern function in the LLVM module (or retrieve existing declaration).
-    fn declare_extern_func(&mut self, signature: &CallableSignature) -> Result<FunctionValue<'ctx>> {
+    fn declare_extern_func(
+        &mut self,
+        signature: &CallableSignature,
+    ) -> Result<FunctionValue<'ctx>> {
         let name = &signature.name;
         if let Some(func) = self.declared_funcs.get(name) {
             return Ok(*func);
         }
         // Convert param types
-        let mut llvm_param_types: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(signature.params.len());
+        let mut llvm_param_types: Vec<BasicTypeEnum<'ctx>> =
+            Vec::with_capacity(signature.params.len());
         for param_id in &signature.params {
             llvm_param_types.push(self.type_id_to_llvm(*param_id)?);
         }
         let ret_type = self.type_id_to_llvm(signature.return_type)?;
         let fn_type = self.basic_type_fn_type(ret_type, &llvm_param_types, signature.is_variadic);
-        let func = self.module.add_function(name, fn_type, Some(inkwell::module::Linkage::External));
+        let func =
+            self.module
+                .add_function(name, fn_type, Some(inkwell::module::Linkage::External));
         self.declared_funcs.insert(name.clone(), func);
         Ok(func)
     }
@@ -212,7 +231,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
         if let Some(func) = self.declared_funcs.get(name) {
             return *func;
         }
-        let func = self.module.add_function(name, fn_type, Some(inkwell::module::Linkage::External));
+        let func =
+            self.module
+                .add_function(name, fn_type, Some(inkwell::module::Linkage::External));
         self.declared_funcs.insert(name.to_string(), func);
         func
     }
@@ -291,10 +312,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
         param_types: &[BasicTypeEnum<'ctx>],
         is_variadic: bool,
     ) -> inkwell::types::FunctionType<'ctx> {
-        let meta_params: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> = param_types
-            .iter()
-            .map(|t| (*t).into())
-            .collect();
+        let meta_params: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> =
+            param_types.iter().map(|t| (*t).into()).collect();
         match ret_type {
             BasicTypeEnum::IntType(t) => t.fn_type(&meta_params, is_variadic),
             BasicTypeEnum::FloatType(t) => t.fn_type(&meta_params, is_variadic),
@@ -304,7 +323,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
             BasicTypeEnum::VectorType(t) => t.fn_type(&meta_params, is_variadic),
         }
     }
-
 }
 
 /// Entry point for v1.30 HIR-to-object compilation.
@@ -324,16 +342,22 @@ pub fn compile_v130(
         .with_callable_names(callable_names);
 
     // v1.38 A6: Pre-declare all callable functions so they're available during HIR codegen
-    compiler.predeclare_callables()
+    compiler
+        .predeclare_callables()
         .unwrap_or_else(|e| eprintln!("logicodex v1.38: predeclare_callables warning: {}", e));
 
     // v1.38 I1: Run semantic gatekeeper as final validation pass before codegen
     {
-        let types_clone = compiler.types.as_ref()
+        let types_clone = compiler
+            .types
+            .as_ref()
             .map(|t| t.clone())
             .unwrap_or_else(TypeRegistry::new);
         if let Err(diagnostics) = crate::semantic_gate::validate_module(hir_module, types_clone) {
-            eprintln!("logicodex v1.38: Semantic gatekeeper warnings ({}):", diagnostics.len());
+            eprintln!(
+                "logicodex v1.38: Semantic gatekeeper warnings ({}):",
+                diagnostics.len()
+            );
             for d in &diagnostics {
                 eprintln!("  [{:?}] {}", d.code, d.message_en);
             }
@@ -348,8 +372,11 @@ pub fn compile_v130(
                 compiler.emit_v130_function(function, options.target)?;
             }
             crate::hir::HirItem::Struct(struct_decl) => {
-                compiler.register_hir_struct(struct_decl)
-                    .unwrap_or_else(|e| eprintln!("logicodex v1.30: struct registration warning: {}", e));
+                compiler
+                    .register_hir_struct(struct_decl)
+                    .unwrap_or_else(|e| {
+                        eprintln!("logicodex v1.30: struct registration warning: {}", e)
+                    });
             }
             crate::hir::HirItem::Enum(_) => {
                 eprintln!("logicodex v1.30: enum items are processed at semantic time");
@@ -384,9 +411,17 @@ pub fn compile_v130(
             inkwell::targets::FileType::Object,
             object_path,
         )
-        .map_err(|e| anyhow!("failed to emit {} file {}: {e}",
-            if options.target.is_wasm() { "wasm" } else { "object" },
-            object_path.display()))?;
+        .map_err(|e| {
+            anyhow!(
+                "failed to emit {} file {}: {e}",
+                if options.target.is_wasm() {
+                    "wasm"
+                } else {
+                    "object"
+                },
+                object_path.display()
+            )
+        })?;
 
     let ir_path = if options.emit_ir {
         let mut ir_path = object_path.to_path_buf();
@@ -419,7 +454,10 @@ pub fn compile_v130(
 impl<'ctx> LlvmCompiler<'ctx> {
     /// Emit a HIR function definition into the LLVM module.
     /// If `ty` is a struct, rebuild its LLVM struct type from the registry layout.
-    fn resolve_struct_llvm(&self, ty: crate::types::TypeRef) -> Result<Option<inkwell::types::StructType<'ctx>>> {
+    fn resolve_struct_llvm(
+        &self,
+        ty: crate::types::TypeRef,
+    ) -> Result<Option<inkwell::types::StructType<'ctx>>> {
         let layout = match self.types.as_ref() {
             Some(t) => match t.resolve(ty.id) {
                 crate::types::TypeKind::Struct(lid) => t.get_struct_layout(*lid).cloned(),
@@ -427,7 +465,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
             },
             None => None,
         };
-        let layout = match layout { Some(l) => l, None => return Ok(None) };
+        let layout = match layout {
+            Some(l) => l,
+            None => return Ok(None),
+        };
         let mut field_llvm: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
         for f in &layout.fields {
             field_llvm.push(self.hir_type_to_llvm(crate::types::TypeRef { id: f.ty })?);
@@ -440,7 +481,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         function: &crate::hir::HirFunction,
         _target: CompilationTarget,
     ) -> Result<()> {
-        use crate::hir::{HirParam};
+        use crate::hir::HirParam;
 
         // 1. Determine LLVM parameter types
         let mut param_types: Vec<BasicTypeEnum<'ctx>> = Vec::new();
@@ -496,15 +537,19 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
         // 5. Allocate parameters as local variables
         for (idx, HirParam { local, ty, .. }) in function.params.iter().enumerate() {
-            let param_val = func.get_nth_param((idx + param_offset) as u32)
+            let param_val = func
+                .get_nth_param((idx + param_offset) as u32)
                 .ok_or_else(|| anyhow!("function param {} out of range", idx))?;
             // Fixed-width: wrap an incoming narrow-typed parameter to its width.
             let param_val = match param_val {
-                BasicValueEnum::IntValue(iv) => BasicValueEnum::IntValue(self.wrap_to_width(iv, *ty)?),
+                BasicValueEnum::IntValue(iv) => {
+                    BasicValueEnum::IntValue(self.wrap_to_width(iv, *ty)?)
+                }
                 other => other,
             };
             let alloca = self.create_entry_alloca(func, &format!("param_{}", idx));
-            self.builder.build_store(alloca, param_val)
+            self.builder
+                .build_store(alloca, param_val)
                 .context("failed to store parameter")?;
             self.hir_local_types.insert(local.0, *ty);
             self.hir_local_allocs.insert(local.0, alloca);
@@ -516,18 +561,22 @@ impl<'ctx> LlvmCompiler<'ctx> {
         // 7. Ensure the function has a terminator (implicit return if needed)
         if !self.current_block_has_terminator() {
             if function.return_type.id == self.unit_type_id() {
-                self.builder.build_return(None)
+                self.builder
+                    .build_return(None)
                     .context("failed to build implicit void return")?;
             } else if let Some((sret_ptr, _)) = self.current_sret {
-                let ret = self.builder
+                let ret = self
+                    .builder
                     .build_ptr_to_int(sret_ptr, self.i64_type, "sret_ret")
                     .context("sret implicit return")?;
-                self.builder.build_return(Some(&ret))
+                self.builder
+                    .build_return(Some(&ret))
                     .context("failed to build implicit sret return")?;
             } else {
                 // All HIR expressions produce i64 — return 0 as default
                 let zero = self.i64_type.const_int(0, false);
-                self.builder.build_return(Some(&zero))
+                self.builder
+                    .build_return(Some(&zero))
                     .context("failed to build implicit zero return")?;
             }
         }
@@ -543,10 +592,18 @@ impl<'ctx> LlvmCompiler<'ctx> {
         extern_fn: &crate::hir::HirExternFunction,
     ) -> Result<()> {
         let signature = {
-            let callables = self.callables.as_ref()
+            let callables = self
+                .callables
+                .as_ref()
                 .ok_or_else(|| anyhow!("extern function codegen: CallableRegistry not attached"))?;
-            callables.get(extern_fn.callable)
-                .ok_or_else(|| anyhow!("extern function CallableId({}) not found in registry", extern_fn.callable.0))?
+            callables
+                .get(extern_fn.callable)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "extern function CallableId({}) not found in registry",
+                        extern_fn.callable.0
+                    )
+                })?
                 .clone()
         };
         let func = self.declare_extern_func(&signature)?;
@@ -562,10 +619,16 @@ impl<'ctx> LlvmCompiler<'ctx> {
         if let Some(&addr) = self.hw_decl_addrs.get(&local_id) {
             let addr_val = self.i64_type.const_int(addr as u64, false);
             self.builder
-                .build_int_to_ptr(addr_val, self.i64_type.ptr_type(AddressSpace::default()), "mmio_ptr")
+                .build_int_to_ptr(
+                    addr_val,
+                    self.i64_type.ptr_type(AddressSpace::default()),
+                    "mmio_ptr",
+                )
                 .context("mmio inttoptr")
         } else {
-            self.hir_local_allocs.get(&local_id).copied()
+            self.hir_local_allocs
+                .get(&local_id)
+                .copied()
                 .ok_or_else(|| anyhow!("local {} not allocated", local_id))
         }
     }
@@ -590,8 +653,13 @@ impl<'ctx> LlvmCompiler<'ctx> {
         ptr: PointerValue<'ctx>,
         val: BasicValueEnum<'ctx>,
     ) -> Result<()> {
-        let store = self.builder.build_store(ptr, val).context("mmio volatile store")?;
-        store.set_volatile(true).map_err(|_| anyhow!("failed to set store volatile"))?;
+        let store = self
+            .builder
+            .build_store(ptr, val)
+            .context("mmio volatile store")?;
+        store
+            .set_volatile(true)
+            .map_err(|_| anyhow!("failed to set store volatile"))?;
         Ok(())
     }
 
@@ -602,7 +670,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
         ptr: PointerValue<'ctx>,
         name: &str,
     ) -> Result<BasicValueEnum<'ctx>> {
-        let val = self.builder.build_load(ty, ptr, name).context("mmio volatile load")?;
+        let val = self
+            .builder
+            .build_load(ty, ptr, name)
+            .context("mmio volatile load")?;
         val.as_instruction_value()
             .ok_or_else(|| anyhow!("load produced no instruction"))?
             .set_volatile(true)
@@ -629,14 +700,15 @@ impl<'ctx> LlvmCompiler<'ctx> {
         stmt: &crate::hir::HirStmt,
         func: FunctionValue<'ctx>,
     ) -> Result<()> {
-        use crate::hir::{HirStmt};
+        use crate::hir::HirStmt;
         match stmt {
             HirStmt::Let { local, ty, value } => {
                 let alloca = self.create_entry_alloca(func, &format!("local_{}", local.0));
                 if let Some(val_expr) = value {
                     let val = self.emit_hir_expr(val_expr, func)?;
                     let val = self.wrap_to_width(val, *ty)?;
-                    self.builder.build_store(alloca, val)
+                    self.builder
+                        .build_store(alloca, val)
                         .context("failed to store let value")?;
                 }
                 self.hir_local_allocs.insert(local.0, alloca);
@@ -655,7 +727,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         if self.hw_zone_depth > 0 {
                             self.emit_mmio_volatile_write(ptr, val.into())?;
                         } else {
-                            self.builder.build_store(ptr, val)
+                            self.builder
+                                .build_store(ptr, val)
                                 .context("failed to store assign value")?;
                         }
                     }
@@ -664,27 +737,46 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         let base_val = self.emit_hir_expr(base, func)?;
                         let layout = match self.types.as_ref() {
                             Some(t) => match t.resolve(base.ty.id) {
-                                crate::types::TypeKind::Struct(lid) => t.get_struct_layout(*lid).cloned(),
+                                crate::types::TypeKind::Struct(lid) => {
+                                    t.get_struct_layout(*lid).cloned()
+                                }
                                 _ => None,
                             },
                             None => None,
                         };
                         if let Some(layout) = layout {
-                            let mut field_llvm: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
+                            let mut field_llvm: Vec<BasicTypeEnum<'ctx>> =
+                                Vec::with_capacity(layout.fields.len());
                             for f in &layout.fields {
-                                field_llvm.push(self.hir_type_to_llvm(crate::types::TypeRef { id: f.ty })?);
+                                field_llvm.push(
+                                    self.hir_type_to_llvm(crate::types::TypeRef { id: f.ty })?,
+                                );
                             }
                             let struct_type = self.context.struct_type(&field_llvm, false);
-                            let ptr = self.builder
-                                .build_int_to_ptr(base_val, struct_type.ptr_type(AddressSpace::default()), "assign_base_ptr")
+                            let ptr = self
+                                .builder
+                                .build_int_to_ptr(
+                                    base_val,
+                                    struct_type.ptr_type(AddressSpace::default()),
+                                    "assign_base_ptr",
+                                )
                                 .context("field assign int->ptr")?;
                             let field_ptr = unsafe {
-                                self.builder.build_struct_gep(struct_type, ptr, *field_index as u32, "assign_field_ptr")
+                                self.builder
+                                    .build_struct_gep(
+                                        struct_type,
+                                        ptr,
+                                        *field_index as u32,
+                                        "assign_field_ptr",
+                                    )
                                     .context("field assign gep")?
                             };
-                            let fty = crate::types::TypeRef { id: layout.fields[*field_index].ty };
+                            let fty = crate::types::TypeRef {
+                                id: layout.fields[*field_index].ty,
+                            };
                             let val = self.wrap_to_width(val, fty)?;
-                            self.builder.build_store(field_ptr, val)
+                            self.builder
+                                .build_store(field_ptr, val)
                                 .context("field assign store")?;
                         }
                     }
@@ -692,35 +784,37 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 }
                 Ok(())
             }
-            HirStmt::If { condition, then_branch, else_branch } => {
-                self.emit_hir_if(condition, then_branch, else_branch.as_ref(), func)
-            }
-            HirStmt::While { condition, body } => {
-                self.emit_hir_while(condition, body, func)
-            }
-            HirStmt::Loop { body } => {
-                self.emit_hir_loop(body, func)
-            }
+            HirStmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => self.emit_hir_if(condition, then_branch, else_branch.as_ref(), func),
+            HirStmt::While { condition, body } => self.emit_hir_while(condition, body, func),
+            HirStmt::Loop { body } => self.emit_hir_loop(body, func),
             HirStmt::Break { .. } => {
-                let target = self.loop_targets.last()
-                    .ok_or_else(|| anyhow!("break outside loop"))?.break_block;
-                self.builder.build_unconditional_branch(target)
+                let target = self
+                    .loop_targets
+                    .last()
+                    .ok_or_else(|| anyhow!("break outside loop"))?
+                    .break_block;
+                self.builder
+                    .build_unconditional_branch(target)
                     .context("failed to build break")?;
                 Ok(())
             }
             HirStmt::Continue { .. } => {
-                let target = self.loop_targets.last()
-                    .ok_or_else(|| anyhow!("continue outside loop"))?.continue_block;
-                self.builder.build_unconditional_branch(target)
+                let target = self
+                    .loop_targets
+                    .last()
+                    .ok_or_else(|| anyhow!("continue outside loop"))?
+                    .continue_block;
+                self.builder
+                    .build_unconditional_branch(target)
                     .context("failed to build continue")?;
                 Ok(())
             }
-            HirStmt::UnsafeBlock(block) => {
-                self.emit_hir_block(block, func)
-            }
-            HirStmt::HardwareZone(block) => {
-                self.emit_hardware_zone(block, func)
-            }
+            HirStmt::UnsafeBlock(block) => self.emit_hir_block(block, func),
+            HirStmt::HardwareZone(block) => self.emit_hardware_zone(block, func),
             HirStmt::HardwareDecl { local, ty, address } => {
                 // MMIO register: address-backed (no alloca). local_ptr resolves
                 // it to inttoptr(address); reads/writes are volatile in a zone.
@@ -736,40 +830,56 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 if let Some(val_expr) = expr {
                     let val = self.emit_hir_expr(val_expr, func)?;
                     if let Some((sret_ptr, struct_ty)) = self.current_sret {
-                        let src = self.builder
-                            .build_int_to_ptr(val, struct_ty.ptr_type(AddressSpace::default()), "ret_src")
+                        let src = self
+                            .builder
+                            .build_int_to_ptr(
+                                val,
+                                struct_ty.ptr_type(AddressSpace::default()),
+                                "ret_src",
+                            )
                             .context("sret src int->ptr")?;
                         let n = struct_ty.count_fields();
                         for i in 0..n {
                             let sf = unsafe {
-                                self.builder.build_struct_gep(struct_ty, src, i, "ret_sf")
+                                self.builder
+                                    .build_struct_gep(struct_ty, src, i, "ret_sf")
                                     .context("sret src gep")?
                             };
                             let df = unsafe {
-                                self.builder.build_struct_gep(struct_ty, sret_ptr, i, "ret_df")
+                                self.builder
+                                    .build_struct_gep(struct_ty, sret_ptr, i, "ret_df")
                                     .context("sret dst gep")?
                             };
-                            let fty = struct_ty.get_field_type_at_index(i)
+                            let fty = struct_ty
+                                .get_field_type_at_index(i)
                                 .ok_or_else(|| anyhow!("sret field type"))?;
-                            let v = self.builder.build_load(fty, sf, "ret_fv")
+                            let v = self
+                                .builder
+                                .build_load(fty, sf, "ret_fv")
                                 .context("sret field load")?;
-                            self.builder.build_store(df, v).context("sret field store")?;
+                            self.builder
+                                .build_store(df, v)
+                                .context("sret field store")?;
                         }
-                        let ret = self.builder
+                        let ret = self
+                            .builder
                             .build_ptr_to_int(sret_ptr, self.i64_type, "sret_ret")
                             .context("sret ptr->int")?;
-                        self.builder.build_return(Some(&ret))
+                        self.builder
+                            .build_return(Some(&ret))
                             .context("failed to build sret return")?;
                     } else {
                         let val = match self.current_return_ty {
                             Some(rty) => self.wrap_to_width(val, rty)?,
                             None => val,
                         };
-                        self.builder.build_return(Some(&val))
+                        self.builder
+                            .build_return(Some(&val))
                             .context("failed to build return")?;
                     }
                 } else {
-                    self.builder.build_return(None)
+                    self.builder
+                        .build_return(None)
                         .context("failed to build void return")?;
                 }
                 Ok(())
@@ -781,7 +891,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
     /// truncate to the type's bit width then re-extend (sign- or zero-extend)
     /// back to i64, so the value wraps exactly as a register of that width would.
     /// A no-op for 64-bit ints and non-integer types.
-    fn wrap_to_width(&self, value: IntValue<'ctx>, ty: crate::types::TypeRef) -> Result<IntValue<'ctx>> {
+    fn wrap_to_width(
+        &self,
+        value: IntValue<'ctx>,
+        ty: crate::types::TypeRef,
+    ) -> Result<IntValue<'ctx>> {
         let prim = match self.types.as_ref() {
             Some(t) => match t.resolve(ty.id) {
                 TypeKind::Primitive(p) => *p,
@@ -815,21 +929,24 @@ impl<'ctx> LlvmCompiler<'ctx> {
         expr: &crate::hir::HirExpr,
         func: FunctionValue<'ctx>,
     ) -> Result<IntValue<'ctx>> {
-        use crate::hir::{HirExprKind, BinaryOpAst, UnaryOpAst, LiteralAst};
+        use crate::hir::{BinaryOpAst, HirExprKind, LiteralAst, UnaryOpAst};
         match &expr.kind {
             HirExprKind::Literal(lit) => match lit {
                 LiteralAst::Integer(v) => Ok(self.i64_type.const_int(*v as u64, true)),
-                LiteralAst::Boolean(v) => Ok(self.bool_to_i64(self.bool_type.const_int(*v as u64, false))),
+                LiteralAst::Boolean(v) => {
+                    Ok(self.bool_to_i64(self.bool_type.const_int(*v as u64, false)))
+                }
                 LiteralAst::String(s) => Ok(self.i64_type.const_int(s.len() as u64, false)),
                 LiteralAst::Unit => Ok(self.i64_type.const_int(0, false)),
-            }
+            },
             HirExprKind::Local(local_id) => {
                 let ptr = self.local_ptr(local_id.0)?;
                 let name = format!("local_{}", local_id.0);
                 let loaded = if self.hw_zone_depth > 0 {
                     self.emit_mmio_volatile_read(self.i64_type.into(), ptr, &name)?
                 } else {
-                    self.builder.build_load(self.i64_type, ptr, &name)
+                    self.builder
+                        .build_load(self.i64_type, ptr, &name)
                         .context("failed to load local")?
                 };
                 Ok(loaded.into_int_value())
@@ -845,7 +962,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     BinaryOpAst::Add => self.builder.build_int_add(l, r, "addtmp").context("add"),
                     BinaryOpAst::Sub => self.builder.build_int_sub(l, r, "subtmp").context("sub"),
                     BinaryOpAst::Mul => self.builder.build_int_mul(l, r, "multmp").context("mul"),
-                    BinaryOpAst::Div => self.builder.build_int_signed_div(l, r, "divtmp").context("div"),
+                    BinaryOpAst::Div => self
+                        .builder
+                        .build_int_signed_div(l, r, "divtmp")
+                        .context("div"),
                     BinaryOpAst::Eq => self.compare_to_i64(IntPredicate::EQ, l, r, "eqtmp"),
                     BinaryOpAst::NotEq => self.compare_to_i64(IntPredicate::NE, l, r, "netmp"),
                     BinaryOpAst::Lt => self.compare_to_i64(IntPredicate::SLT, l, r, "lttmp"),
@@ -864,11 +984,18 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         let v = self.builder.build_or(lb, rb, "ortmp").context("or")?;
                         Ok(self.bool_to_i64(v))
                     }
-                    BinaryOpAst::BitAnd => self.builder.build_and(l, r, "bitandtmp").context("bitand"),
+                    BinaryOpAst::BitAnd => {
+                        self.builder.build_and(l, r, "bitandtmp").context("bitand")
+                    }
                     BinaryOpAst::BitOr => self.builder.build_or(l, r, "bitortmp").context("bitor"),
                     BinaryOpAst::BitXor => self.builder.build_xor(l, r, "xortmp").context("xor"),
-                    BinaryOpAst::ShiftLeft => self.builder.build_left_shift(l, r, "shltmp").context("shl"),
-                    BinaryOpAst::ShiftRight => self.builder.build_right_shift(l, r, true, "shrtmp").context("shr"),
+                    BinaryOpAst::ShiftLeft => {
+                        self.builder.build_left_shift(l, r, "shltmp").context("shl")
+                    }
+                    BinaryOpAst::ShiftRight => self
+                        .builder
+                        .build_right_shift(l, r, true, "shrtmp")
+                        .context("shr"),
                 })?;
                 self.wrap_to_width(result, expr.ty)
             }
@@ -882,13 +1009,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         Ok(self.bool_to_i64(not_b))
                     }
                     UnaryOpAst::AddressOf => Ok(self.i64_type.const_int(0, false)), // placeholder
-                    UnaryOpAst::Deref => Ok(self.i64_type.const_int(0, false)), // placeholder
+                    UnaryOpAst::Deref => Ok(self.i64_type.const_int(0, false)),     // placeholder
                 })?;
                 self.wrap_to_width(result, expr.ty)
             }
-            HirExprKind::Call { callee, args } => {
-                self.emit_hir_call(*callee, args, func, expr.ty)
-            }
+            HirExprKind::Call { callee, args } => self.emit_hir_call(*callee, args, func, expr.ty),
             HirExprKind::Field { base, field_index } => {
                 let base_val = self.emit_hir_expr(base, func)?;
                 let layout = match self.types.as_ref() {
@@ -902,22 +1027,32 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     Some(l) => l,
                     None => return Ok(self.i64_type.const_int(0, false)),
                 };
-                let mut field_llvm: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
+                let mut field_llvm: Vec<BasicTypeEnum<'ctx>> =
+                    Vec::with_capacity(layout.fields.len());
                 for f in &layout.fields {
                     field_llvm.push(self.hir_type_to_llvm(crate::types::TypeRef { id: f.ty })?);
                 }
                 let struct_type = self.context.struct_type(&field_llvm, false);
-                let field_ty = field_llvm.get(*field_index)
+                let field_ty = field_llvm
+                    .get(*field_index)
                     .copied()
                     .unwrap_or_else(|| self.i64_type.into());
-                let ptr = self.builder
-                    .build_int_to_ptr(base_val, struct_type.ptr_type(AddressSpace::default()), "field_base_ptr")
+                let ptr = self
+                    .builder
+                    .build_int_to_ptr(
+                        base_val,
+                        struct_type.ptr_type(AddressSpace::default()),
+                        "field_base_ptr",
+                    )
                     .context("field base int->ptr")?;
                 let field_ptr = unsafe {
-                    self.builder.build_struct_gep(struct_type, ptr, *field_index as u32, "field_ptr")
+                    self.builder
+                        .build_struct_gep(struct_type, ptr, *field_index as u32, "field_ptr")
                         .context("field gep")?
                 };
-                let loaded = self.builder.build_load(field_ty, field_ptr, "field_val")
+                let loaded = self
+                    .builder
+                    .build_load(field_ty, field_ptr, "field_val")
                     .context("field load")?;
                 Ok(loaded.into_int_value())
             }
@@ -930,7 +1065,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 // Declare runtime function: logicodex_spawn(actor_name: *const u8) -> i64
                 let spawn_fn = self.declare_runtime_func(
                     "logicodex_spawn",
-                    self.i64_type.fn_type(&[self.context.i8_type().ptr_type(AddressSpace::default()).into()], false),
+                    self.i64_type.fn_type(
+                        &[self
+                            .context
+                            .i8_type()
+                            .ptr_type(AddressSpace::default())
+                            .into()],
+                        false,
+                    ),
                 );
                 // Evaluate args (passed as pointers or values)
                 let mut llvm_args: Vec<BasicValueEnum<'ctx>> = Vec::new();
@@ -939,137 +1081,193 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     llvm_args.push(val.into());
                 }
                 // Pass actor name as a global string
-                let name_ptr = self.builder.build_global_string_ptr(actor_name, "spawn_actor_name")
+                let name_ptr = self
+                    .builder
+                    .build_global_string_ptr(actor_name, "spawn_actor_name")
                     .context("spawn actor name")?
                     .as_pointer_value();
-                let call_site = self.builder
+                let call_site = self
+                    .builder
                     .build_call(spawn_fn, &[name_ptr.into()], "spawn_call")
                     .context("spawn call")?;
                 match call_site.try_as_basic_value().left() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
+                    },
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
             HirExprKind::Join { actor_name } => {
                 let join_fn = self.declare_runtime_func(
                     "logicodex_join",
-                    self.i64_type.fn_type(&[self.context.i8_type().ptr_type(AddressSpace::default()).into()], false),
+                    self.i64_type.fn_type(
+                        &[self
+                            .context
+                            .i8_type()
+                            .ptr_type(AddressSpace::default())
+                            .into()],
+                        false,
+                    ),
                 );
-                let name_ptr = self.builder.build_global_string_ptr(actor_name, "join_actor_name")
+                let name_ptr = self
+                    .builder
+                    .build_global_string_ptr(actor_name, "join_actor_name")
                     .context("join actor name")?
                     .as_pointer_value();
-                let call_site = self.builder
+                let call_site = self
+                    .builder
                     .build_call(join_fn, &[name_ptr.into()], "join_call")
                     .context("join call")?;
                 match call_site.try_as_basic_value().left() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
+                    },
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
-            HirExprKind::ChannelSend { channel_name, value } => {
+            HirExprKind::ChannelSend {
+                channel_name,
+                value,
+            } => {
                 let send_fn = self.declare_runtime_func(
                     "logicodex_channel_send",
-                    self.i64_type.fn_type(&[
-                        self.context.i8_type().ptr_type(AddressSpace::default()).into(),
-                        self.i64_type.into(),
-                    ], false),
+                    self.i64_type.fn_type(
+                        &[
+                            self.context
+                                .i8_type()
+                                .ptr_type(AddressSpace::default())
+                                .into(),
+                            self.i64_type.into(),
+                        ],
+                        false,
+                    ),
                 );
                 let val = self.emit_hir_expr(value, func)?;
-                let name_ptr = self.builder.build_global_string_ptr(channel_name, "send_channel_name")
+                let name_ptr = self
+                    .builder
+                    .build_global_string_ptr(channel_name, "send_channel_name")
                     .context("send channel name")?
                     .as_pointer_value();
-                let call_site = self.builder
+                let call_site = self
+                    .builder
                     .build_call(send_fn, &[name_ptr.into(), val.into()], "send_call")
                     .context("send call")?;
                 match call_site.try_as_basic_value().left() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
+                    },
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
             HirExprKind::ChannelRecv { channel_name } => {
                 let recv_fn = self.declare_runtime_func(
                     "logicodex_channel_recv",
-                    self.i64_type.fn_type(&[self.context.i8_type().ptr_type(AddressSpace::default()).into()], false),
+                    self.i64_type.fn_type(
+                        &[self
+                            .context
+                            .i8_type()
+                            .ptr_type(AddressSpace::default())
+                            .into()],
+                        false,
+                    ),
                 );
-                let name_ptr = self.builder.build_global_string_ptr(channel_name, "recv_channel_name")
+                let name_ptr = self
+                    .builder
+                    .build_global_string_ptr(channel_name, "recv_channel_name")
                     .context("recv channel name")?
                     .as_pointer_value();
-                let call_site = self.builder
+                let call_site = self
+                    .builder
                     .build_call(recv_fn, &[name_ptr.into()], "recv_call")
                     .context("recv call")?;
                 match call_site.try_as_basic_value().left() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
+                    },
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
             // ─── v1.30 Phase 3: Backpressure + Scheduler (A4) ───
-            HirExprKind::ChannelTrySend { channel_name, value } => {
+            HirExprKind::ChannelTrySend {
+                channel_name,
+                value,
+            } => {
                 let send_fn = self.declare_runtime_func(
                     "logicodex_channel_try_send",
-                    self.i64_type.fn_type(&[
-                        self.context.i8_type().ptr_type(AddressSpace::default()).into(),
-                        self.i64_type.into(),
-                    ], false),
+                    self.i64_type.fn_type(
+                        &[
+                            self.context
+                                .i8_type()
+                                .ptr_type(AddressSpace::default())
+                                .into(),
+                            self.i64_type.into(),
+                        ],
+                        false,
+                    ),
                 );
                 let val = self.emit_hir_expr(value, func)?;
-                let name_ptr = self.builder.build_global_string_ptr(channel_name, "trysend_channel_name")
+                let name_ptr = self
+                    .builder
+                    .build_global_string_ptr(channel_name, "trysend_channel_name")
                     .context("trysend channel name")?
                     .as_pointer_value();
-                let call_site = self.builder
+                let call_site = self
+                    .builder
                     .build_call(send_fn, &[name_ptr.into(), val.into()], "trysend_call")
                     .context("trysend call")?;
                 match call_site.try_as_basic_value().left() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(1, false)), // default: true (success)
-                    }
+                    },
                     None => Ok(self.i64_type.const_int(1, false)),
                 }
             }
             HirExprKind::ChannelTryRecv { channel_name } => {
                 let recv_fn = self.declare_runtime_func(
                     "logicodex_channel_try_recv",
-                    self.i64_type.fn_type(&[self.context.i8_type().ptr_type(AddressSpace::default()).into()], false),
+                    self.i64_type.fn_type(
+                        &[self
+                            .context
+                            .i8_type()
+                            .ptr_type(AddressSpace::default())
+                            .into()],
+                        false,
+                    ),
                 );
-                let name_ptr = self.builder.build_global_string_ptr(channel_name, "tryrecv_channel_name")
+                let name_ptr = self
+                    .builder
+                    .build_global_string_ptr(channel_name, "tryrecv_channel_name")
                     .context("tryrecv channel name")?
                     .as_pointer_value();
-                let call_site = self.builder
+                let call_site = self
+                    .builder
                     .build_call(recv_fn, &[name_ptr.into()], "tryrecv_call")
                     .context("tryrecv call")?;
                 match call_site.try_as_basic_value().left() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)), // default: 0 (None)
-                    }
+                    },
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
             HirExprKind::Yield => {
-                let yield_fn = self.declare_runtime_func(
-                    "logicodex_yield",
-                    self.i64_type.fn_type(&[], false),
-                );
-                let call_site = self.builder
+                let yield_fn =
+                    self.declare_runtime_func("logicodex_yield", self.i64_type.fn_type(&[], false));
+                let call_site = self
+                    .builder
                     .build_call(yield_fn, &[], "yield_call")
                     .context("yield call")?;
                 match call_site.try_as_basic_value().left() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
+                    },
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
@@ -1079,37 +1277,50 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     self.i64_type.fn_type(&[self.i64_type.into()], false),
                 );
                 let dur = self.emit_hir_expr(duration_ms, func)?;
-                let call_site = self.builder
+                let call_site = self
+                    .builder
                     .build_call(sleep_fn, &[dur.into()], "sleep_call")
                     .context("sleep call")?;
                 match call_site.try_as_basic_value().left() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
+                    },
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
-            HirExprKind::ChannelTimeoutRecv { channel_name, timeout_ms } => {
+            HirExprKind::ChannelTimeoutRecv {
+                channel_name,
+                timeout_ms,
+            } => {
                 let recv_fn = self.declare_runtime_func(
                     "logicodex_timeout_recv",
-                    self.i64_type.fn_type(&[
-                        self.context.i8_type().ptr_type(AddressSpace::default()).into(),
-                        self.i64_type.into(),
-                    ], false),
+                    self.i64_type.fn_type(
+                        &[
+                            self.context
+                                .i8_type()
+                                .ptr_type(AddressSpace::default())
+                                .into(),
+                            self.i64_type.into(),
+                        ],
+                        false,
+                    ),
                 );
                 let to = self.emit_hir_expr(timeout_ms, func)?;
-                let name_ptr = self.builder.build_global_string_ptr(channel_name, "torecv_channel_name")
+                let name_ptr = self
+                    .builder
+                    .build_global_string_ptr(channel_name, "torecv_channel_name")
                     .context("torecv channel name")?
                     .as_pointer_value();
-                let call_site = self.builder
+                let call_site = self
+                    .builder
                     .build_call(recv_fn, &[name_ptr.into(), to.into()], "torecv_call")
                     .context("timeout_recv call")?;
                 match call_site.try_as_basic_value().left() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
-                    }
+                    },
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
@@ -1143,7 +1354,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
         // Struct constructor (detected by name via the type registry).
         if let Some(ref n) = name {
-            let is_struct = self.types.as_ref()
+            let is_struct = self
+                .types
+                .as_ref()
                 .map(|t| t.find_struct_by_name(n).is_some())
                 .unwrap_or(false);
             if is_struct || self.hir_struct_names.contains_key(n) {
@@ -1190,10 +1403,14 @@ impl<'ctx> LlvmCompiler<'ctx> {
             llvm_args.push(val.into());
         }
         let label = name.as_deref().unwrap_or("call");
-        let call_site = self.builder
+        let call_site = self
+            .builder
             .build_call(
                 llvm_func,
-                &llvm_args.iter().map(|a| (*a).into()).collect::<Vec<inkwell::values::BasicMetadataValueEnum>>(),
+                &llvm_args
+                    .iter()
+                    .map(|a| (*a).into())
+                    .collect::<Vec<inkwell::values::BasicMetadataValueEnum>>(),
                 &format!("call_{}", label),
             )
             .with_context(|| format!("failed to build call to '{}'", label))?;
@@ -1216,13 +1433,16 @@ impl<'ctx> LlvmCompiler<'ctx> {
         let then_bb = self.context.append_basic_block(func, "then");
         let else_bb = self.context.append_basic_block(func, "else");
         let merge_bb = self.context.append_basic_block(func, "ifcont");
-        self.builder.build_conditional_branch(cond_bool, then_bb, else_bb)
+        self.builder
+            .build_conditional_branch(cond_bool, then_bb, else_bb)
             .context("if branch")?;
 
         self.builder.position_at_end(then_bb);
         self.emit_hir_block(then_branch, func)?;
         if !self.current_block_has_terminator() {
-            self.builder.build_unconditional_branch(merge_bb).context("then→merge")?;
+            self.builder
+                .build_unconditional_branch(merge_bb)
+                .context("then→merge")?;
         }
 
         self.builder.position_at_end(else_bb);
@@ -1230,7 +1450,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
             self.emit_hir_block(else_b, func)?;
         }
         if !self.current_block_has_terminator() {
-            self.builder.build_unconditional_branch(merge_bb).context("else→merge")?;
+            self.builder
+                .build_unconditional_branch(merge_bb)
+                .context("else→merge")?;
         }
 
         self.builder.position_at_end(merge_bb);
@@ -1246,20 +1468,28 @@ impl<'ctx> LlvmCompiler<'ctx> {
         let cond_bb = self.context.append_basic_block(func, "while.cond");
         let body_bb = self.context.append_basic_block(func, "while.body");
         let end_bb = self.context.append_basic_block(func, "while.end");
-        self.builder.build_unconditional_branch(cond_bb).context("while→cond")?;
+        self.builder
+            .build_unconditional_branch(cond_bb)
+            .context("while→cond")?;
 
         self.builder.position_at_end(cond_bb);
         let cond_val = self.emit_hir_expr(condition, func)?;
         let cond_bool = self.i64_to_bool(cond_val, "whilecond")?;
-        self.builder.build_conditional_branch(cond_bool, body_bb, end_bb)
+        self.builder
+            .build_conditional_branch(cond_bool, body_bb, end_bb)
             .context("while branch")?;
 
         self.builder.position_at_end(body_bb);
-        self.loop_targets.push(LoopTarget { continue_block: cond_bb, break_block: end_bb });
+        self.loop_targets.push(LoopTarget {
+            continue_block: cond_bb,
+            break_block: end_bb,
+        });
         self.emit_hir_block(body, func)?;
         self.loop_targets.pop();
         if !self.current_block_has_terminator() {
-            self.builder.build_unconditional_branch(cond_bb).context("while body→cond")?;
+            self.builder
+                .build_unconditional_branch(cond_bb)
+                .context("while body→cond")?;
         }
 
         self.builder.position_at_end(end_bb);
@@ -1273,14 +1503,21 @@ impl<'ctx> LlvmCompiler<'ctx> {
     ) -> Result<()> {
         let body_bb = self.context.append_basic_block(func, "loop.body");
         let end_bb = self.context.append_basic_block(func, "loop.end");
-        self.builder.build_unconditional_branch(body_bb).context("loop→body")?;
+        self.builder
+            .build_unconditional_branch(body_bb)
+            .context("loop→body")?;
 
         self.builder.position_at_end(body_bb);
-        self.loop_targets.push(LoopTarget { continue_block: body_bb, break_block: end_bb });
+        self.loop_targets.push(LoopTarget {
+            continue_block: body_bb,
+            break_block: end_bb,
+        });
         self.emit_hir_block(body, func)?;
         self.loop_targets.pop();
         if !self.current_block_has_terminator() {
-            self.builder.build_unconditional_branch(body_bb).context("loop body→body")?;
+            self.builder
+                .build_unconditional_branch(body_bb)
+                .context("loop body→body")?;
         }
 
         self.builder.position_at_end(end_bb);
@@ -1290,7 +1527,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
     // ─── HIR Type Helpers ───
 
     fn hir_type_to_llvm(&self, type_ref: crate::types::TypeRef) -> Result<BasicTypeEnum<'ctx>> {
-        let types = self.types.as_ref()
+        let types = self
+            .types
+            .as_ref()
             .ok_or_else(|| anyhow!("hir_type_to_llvm: TypeRegistry not attached"))?;
         // v1.30 codegen uses a uniform i64 integer model: every HIR expression
         // produces an i64, so all integer-typed params/returns are i64 too. This
@@ -1309,7 +1548,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
     fn unit_type_id(&self) -> TypeId {
         // Unit is represented as i8 (void)
-        self.types.as_ref()
+        self.types
+            .as_ref()
             .map(|t| t.primitive(PrimitiveType::Unit))
             .unwrap_or_else(|| TypeId(6)) // fallback
     }
@@ -1334,7 +1574,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
             // Determine whether the return type is void (Unit)
             let is_void = if let Some(types) = self.types.as_ref() {
-                matches!(types.resolve(sig.return_type), crate::types::TypeKind::Primitive(crate::types::PrimitiveType::Unit))
+                matches!(
+                    types.resolve(sig.return_type),
+                    crate::types::TypeKind::Primitive(crate::types::PrimitiveType::Unit)
+                )
             } else {
                 false
             };
@@ -1345,7 +1588,13 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
             // Build function type
             let fn_type = if is_void {
-                self.context.void_type().fn_type(&param_types.iter().map(|t| (*t).into()).collect::<Vec<inkwell::types::BasicMetadataTypeEnum>>(), sig.is_variadic)
+                self.context.void_type().fn_type(
+                    &param_types
+                        .iter()
+                        .map(|t| (*t).into())
+                        .collect::<Vec<inkwell::types::BasicMetadataTypeEnum>>(),
+                    sig.is_variadic,
+                )
             } else {
                 let ret_type: BasicTypeEnum<'ctx> = self.i64_type.into();
                 self.basic_type_fn_type(ret_type, &param_types, sig.is_variadic)
@@ -1360,20 +1609,22 @@ impl<'ctx> LlvmCompiler<'ctx> {
     // ─── v1.36 A5: Struct Registration ───
 
     /// Register a HIR struct declaration, creating its LLVM struct type.
-    fn register_hir_struct(
-        &mut self,
-        struct_decl: &crate::hir::HirStructDecl,
-    ) -> Result<()> {
-        let field_types: Result<Vec<_>> = struct_decl.fields
+    fn register_hir_struct(&mut self, struct_decl: &crate::hir::HirStructDecl) -> Result<()> {
+        let field_types: Result<Vec<_>> = struct_decl
+            .fields
             .iter()
             .map(|f| self.hir_type_to_llvm(f.ty))
             .collect();
         let field_types = field_types?;
         let struct_type = self.context.struct_type(&field_types, false);
         // TODO(inkwell-0.4.0): StructType::set_name() is not available; name set via symbol table only
-        self.hir_struct_types.insert(struct_decl.symbol.0, struct_type);
+        self.hir_struct_types
+            .insert(struct_decl.symbol.0, struct_type);
         // Also store by name if we can resolve it
-        self.hir_struct_names.insert(format!("Struct_{}", struct_decl.symbol.0), struct_decl.symbol.0);
+        self.hir_struct_names.insert(
+            format!("Struct_{}", struct_decl.symbol.0),
+            struct_decl.symbol.0,
+        );
         Ok(())
     }
 
@@ -1410,7 +1661,12 @@ impl<'ctx> LlvmCompiler<'ctx> {
             "Vector2" if args.len() == 2 => {
                 // Use a 2×f32 struct instead of vec_type (inkwell 0.4.0 compat)
                 let vec2_type = self.context.struct_type(
-                    &[self.context.f32_type().into(), self.context.f32_type().into()], false);
+                    &[
+                        self.context.f32_type().into(),
+                        self.context.f32_type().into(),
+                    ],
+                    false,
+                );
                 let alloca = self.create_entry_alloca_typed(
                     func,
                     &format!("vec2_{}_tmp", struct_name),
@@ -1419,25 +1675,36 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 for (i, arg) in args.iter().enumerate() {
                     let val = self.emit_hir_expr(arg, func)?;
                     // Cast i64 arg to f32 via bitcast: truncate i64 → i32, then bitcast to f32
-                    let i32_val = self.builder
-                        .build_int_truncate(val, self.context.i32_type(),
-                            &format!("vec2_i32_{}", i))
+                    let i32_val = self
+                        .builder
+                        .build_int_truncate(
+                            val,
+                            self.context.i32_type(),
+                            &format!("vec2_i32_{}", i),
+                        )
                         .unwrap_or(val);
-                    let f32_val = self.builder.build_bitcast(
-                        i32_val, self.context.f32_type(), &format!("vec2_f32_{}", i))
+                    let f32_val = self
+                        .builder
+                        .build_bitcast(i32_val, self.context.f32_type(), &format!("vec2_f32_{}", i))
                         .context("Vector2 i32→f32 bitcast")?;
                     let field_ptr = unsafe {
-                        self.builder.build_struct_gep(
-                            vec2_type, alloca, i as u32,
-                            &format!("vec2_field_{}", i))
+                        self.builder
+                            .build_struct_gep(
+                                vec2_type,
+                                alloca,
+                                i as u32,
+                                &format!("vec2_field_{}", i),
+                            )
                             .context("Vector2 field gep")?
                     };
-                    self.builder.build_store(field_ptr, f32_val)
+                    self.builder
+                        .build_store(field_ptr, f32_val)
                         .context("Vector2 field store")?;
                 }
                 // For by-value return on x86_64: pack into i64
-                let ptr_as_int = self.builder.build_ptr_to_int(
-                    alloca, self.i64_type, "vec2_ptr")
+                let ptr_as_int = self
+                    .builder
+                    .build_ptr_to_int(alloca, self.i64_type, "vec2_ptr")
                     .context("Vector2 ptr to int")?;
                 Ok(ptr_as_int)
             }
@@ -1445,69 +1712,99 @@ impl<'ctx> LlvmCompiler<'ctx> {
             // ─── Rectangle(x, y, width, height: f32) → 16-byte struct ───
             "Rectangle" if args.len() == 4 => {
                 let rect_type = self.context.struct_type(
-                    &[self.context.f32_type().into(),
-                      self.context.f32_type().into(),
-                      self.context.f32_type().into(),
-                      self.context.f32_type().into()], false);
-                let alloca = self.create_entry_alloca_typed(
-                    func, "rect_tmp", rect_type.into());
+                    &[
+                        self.context.f32_type().into(),
+                        self.context.f32_type().into(),
+                        self.context.f32_type().into(),
+                        self.context.f32_type().into(),
+                    ],
+                    false,
+                );
+                let alloca = self.create_entry_alloca_typed(func, "rect_tmp", rect_type.into());
                 for (i, arg) in args.iter().enumerate() {
                     let val = self.emit_hir_expr(arg, func)?;
                     // Cast i64 arg to f32: truncate i64 → i32, then bitcast to f32
-                    let i32_val = self.builder
-                        .build_int_truncate(val, self.context.i32_type(),
-                            &format!("rect_i32_{}", i))
+                    let i32_val = self
+                        .builder
+                        .build_int_truncate(
+                            val,
+                            self.context.i32_type(),
+                            &format!("rect_i32_{}", i),
+                        )
                         .unwrap_or(val);
-                    let f32_val = self.builder.build_bitcast(
-                        i32_val, self.context.f32_type(), &format!("rect_f32_{}", i))
+                    let f32_val = self
+                        .builder
+                        .build_bitcast(i32_val, self.context.f32_type(), &format!("rect_f32_{}", i))
                         .context("Rectangle i32→f32 bitcast")?;
                     let field_ptr = unsafe {
-                        self.builder.build_struct_gep(rect_type, alloca, i as u32,
-                            &format!("rect_field_{}", i))
+                        self.builder
+                            .build_struct_gep(
+                                rect_type,
+                                alloca,
+                                i as u32,
+                                &format!("rect_field_{}", i),
+                            )
                             .context("Rectangle field gep")?
                     };
-                    self.builder.build_store(field_ptr, f32_val)
+                    self.builder
+                        .build_store(field_ptr, f32_val)
                         .context("Rectangle field store")?;
                 }
                 // Return pointer as i64 (pass-by-reference pattern)
-                let ptr_as_int = self.builder.build_ptr_to_int(
-                    alloca, self.i64_type, "rect_ptr")
+                let ptr_as_int = self
+                    .builder
+                    .build_ptr_to_int(alloca, self.i64_type, "rect_ptr")
                     .context("Rectangle ptr to int")?;
                 Ok(ptr_as_int)
             }
 
             // ─── Generic user struct (registry layout) ───
             _ => {
-                let layout = self.types.as_ref()
+                let layout = self
+                    .types
+                    .as_ref()
                     .and_then(|t| t.find_struct_by_name(struct_name).map(|(_, l)| l.clone()));
                 let layout = match layout {
                     Some(l) => l,
                     None => return Ok(self.i64_type.const_int(0, false)),
                 };
-                let mut field_llvm: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
+                let mut field_llvm: Vec<BasicTypeEnum<'ctx>> =
+                    Vec::with_capacity(layout.fields.len());
                 for f in &layout.fields {
                     field_llvm.push(self.hir_type_to_llvm(crate::types::TypeRef { id: f.ty })?);
                 }
                 let struct_type = self.context.struct_type(&field_llvm, false);
                 let alloca = self.create_entry_alloca_typed(
-                    func, &format!("struct_{}_tmp", struct_name), struct_type.into());
+                    func,
+                    &format!("struct_{}_tmp", struct_name),
+                    struct_type.into(),
+                );
                 for (i, arg) in args.iter().enumerate() {
                     let val = self.emit_hir_expr(arg, func)?;
                     let field_ptr = unsafe {
-                        self.builder.build_struct_gep(struct_type, alloca, i as u32,
-                            &format!("field_{}", i))
+                        self.builder
+                            .build_struct_gep(
+                                struct_type,
+                                alloca,
+                                i as u32,
+                                &format!("field_{}", i),
+                            )
                             .context("struct field gep")?
                     };
-                    self.builder.build_store(field_ptr, val)
+                    self.builder
+                        .build_store(field_ptr, val)
                         .context("struct field store")?;
                 }
-                let ptr_as_int = self.builder.build_ptr_to_int(
-                    alloca, self.i64_type,
-                    &format!("struct_{}_ptr", struct_name))
+                let ptr_as_int = self
+                    .builder
+                    .build_ptr_to_int(
+                        alloca,
+                        self.i64_type,
+                        &format!("struct_{}_ptr", struct_name),
+                    )
                     .context("struct ptr to int")?;
                 Ok(ptr_as_int)
             }
         }
     }
 }
-

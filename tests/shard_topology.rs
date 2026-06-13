@@ -5,8 +5,8 @@
 // =========================================================================
 
 use logicodex::tier2::{
-    CommEdge, CommType, DoorRef, ServiceGraph, ServiceNode, ShardAssignment,
-    ShardTopology, ShardVerifyResult, ShardViolation,
+    CommEdge, CommType, DoorRef, ServiceGraph, ServiceNode, ShardAssignment, ShardTopology,
+    ShardVerifyResult, ShardViolation,
 };
 
 // ─── 1. ShardAssignment basics ───
@@ -52,8 +52,7 @@ fn service_node_new() {
 
 #[test]
 fn service_node_with_policy() {
-    let n = ServiceNode::new("GameServer", 7777, "GameHandler")
-        .with_policy("DropOldest");
+    let n = ServiceNode::new("GameServer", 7777, "GameHandler").with_policy("DropOldest");
     assert_eq!(n.policy, "DropOldest");
 }
 
@@ -122,17 +121,17 @@ fn topology_valid_single_shard() {
 #[test]
 fn topology_valid_multi_shard_with_door() {
     let mut topo = ShardTopology::new();
-    
+
     let mut a0 = ShardAssignment::new(0, 0, 256);
     a0.add_service("WebServer");
     topo.add_assignment(a0);
-    
+
     let mut a1 = ShardAssignment::new(1, 1, 128);
     a1.add_service("MetricsCollector");
     topo.add_assignment(a1);
-    
+
     topo.add_door(DoorRef::new(0, 1, "MetricPayload", 1024));
-    
+
     let result = topo.verify();
     assert!(result.valid, "Should be valid: {:?}", result.violations);
     assert_eq!(result.total_shards, 2);
@@ -144,21 +143,28 @@ fn topology_valid_multi_shard_with_door() {
 #[test]
 fn topology_unassigned_service() {
     let mut topo = ShardTopology::new();
-    topo.service_graph.add_node(ServiceNode::new("Orphan", 80, "H"));
-    
+    topo.service_graph
+        .add_node(ServiceNode::new("Orphan", 80, "H"));
+
     let result = topo.verify();
     assert!(!result.valid);
-    assert!(result.violations.iter().any(|v| matches!(v, ShardViolation::UnassignedService { .. })));
+    assert!(result
+        .violations
+        .iter()
+        .any(|v| matches!(v, ShardViolation::UnassignedService { .. })));
 }
 
 #[test]
 fn topology_empty_shard() {
     let mut topo = ShardTopology::new();
     topo.add_assignment(ShardAssignment::new(0, 0, 256)); // no services
-    
+
     let result = topo.verify();
     assert!(!result.valid);
-    assert!(result.violations.iter().any(|v| matches!(v, ShardViolation::EmptyShard { .. })));
+    assert!(result
+        .violations
+        .iter()
+        .any(|v| matches!(v, ShardViolation::EmptyShard { .. })));
 }
 
 #[test]
@@ -170,10 +176,13 @@ fn topology_core_conflict() {
     a1.add_service("S2");
     topo.add_assignment(a0);
     topo.add_assignment(a1);
-    
+
     let result = topo.verify();
     assert!(!result.valid);
-    assert!(result.violations.iter().any(|v| matches!(v, ShardViolation::CoreConflict { .. })));
+    assert!(result
+        .violations
+        .iter()
+        .any(|v| matches!(v, ShardViolation::CoreConflict { .. })));
 }
 
 #[test]
@@ -185,7 +194,7 @@ fn topology_budget_overflow() {
         a.add_service(format!("S{}", i));
     }
     topo.add_assignment(a);
-    
+
     let result = topo.verify();
     // Budget overflow is a warning-level check — depends on estimated_memory_mb
     // For this test, we just check it doesn't panic
@@ -201,7 +210,7 @@ fn topology_manifest_json() {
     a.add_service("WebServer");
     topo.add_assignment(a);
     topo.add_door(DoorRef::new(0, 1, "Msg", 1024));
-    
+
     let json = topo.to_manifest_json();
     assert!(json.contains("shards"));
     assert!(json.contains("doors"));
@@ -215,7 +224,7 @@ fn topology_manifest_json() {
 fn topology_get_shard() {
     let mut topo = ShardTopology::new();
     topo.add_assignment(ShardAssignment::new(5, 2, 128));
-    
+
     assert!(topo.get_shard(5).is_some());
     assert!(topo.get_shard(99).is_none());
 }
@@ -225,6 +234,6 @@ fn topology_total_budget() {
     let mut topo = ShardTopology::new();
     topo.add_assignment(ShardAssignment::new(0, 0, 256));
     topo.add_assignment(ShardAssignment::new(1, 1, 128));
-    
+
     assert_eq!(topo.total_budget_mb(), 384);
 }

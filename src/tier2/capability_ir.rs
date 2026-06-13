@@ -22,8 +22,8 @@
 
 use super::gate::{GateRef, GateType};
 use super::metadata::{Capability, InlineCost, SemanticSummary};
-use super::shard::{ShardTopology};
-use super::topology::{CapabilityTopology};
+use super::shard::ShardTopology;
+use super::topology::CapabilityTopology;
 use std::collections::HashMap;
 
 // ─── CompileTarget ───
@@ -75,7 +75,11 @@ pub struct CapabilityRef {
 }
 
 impl CapabilityRef {
-    pub fn new(domain: impl Into<String>, operation: impl Into<String>, gate_type: GateType) -> Self {
+    pub fn new(
+        domain: impl Into<String>,
+        operation: impl Into<String>,
+        gate_type: GateType,
+    ) -> Self {
         Self {
             domain: domain.into(),
             operation: operation.into(),
@@ -279,10 +283,7 @@ impl CapabilityGraph {
     // ─── Integration: Build from existing structures ───
 
     /// Build dari SemanticSummary (v1.31) — servis/functions.
-    pub fn from_semantic_summaries(
-        &mut self,
-        summaries: &[SemanticSummary],
-    ) {
+    pub fn from_semantic_summaries(&mut self, summaries: &[SemanticSummary]) {
         for s in summaries {
             let node = IRServiceNode {
                 id: s.symbol_id,
@@ -303,10 +304,7 @@ impl CapabilityGraph {
 
     /// Build dari CapabilityTopology (v1.32) — gate contracts.
     /// v1.38: Fully implemented — imports all gate contracts as IRGateEdge.
-    pub fn from_topology(
-        &mut self,
-        topology: &CapabilityTopology,
-    ) {
+    pub fn from_topology(&mut self, topology: &CapabilityTopology) {
         // Create service nodes for each contract's module
         for (idx, contract) in topology.contracts().iter().enumerate() {
             let module_id = idx as u32;
@@ -341,10 +339,7 @@ impl CapabilityGraph {
     }
 
     /// Build dari ShardTopology (v1.34) — shards + services + doors.
-    pub fn from_shard_topology(
-        &mut self,
-        topology: &ShardTopology,
-    ) {
+    pub fn from_shard_topology(&mut self, topology: &ShardTopology) {
         // Import shards
         for assignment in &topology.assignments {
             let shard = IRShardNode::new(
@@ -481,8 +476,14 @@ impl CapabilityGraph {
                 lines.push(format!("  handler: {},", s.handler));
             }
             for req in &s.requires {
-                lines.push(format!("  requires: {}{},", req.canonical(),
-                    req.wit_mapping.as_ref().map(|w| format!(" ({})", w)).unwrap_or_default()));
+                lines.push(format!(
+                    "  requires: {}{},",
+                    req.canonical(),
+                    req.wit_mapping
+                        .as_ref()
+                        .map(|w| format!(" ({})", w))
+                        .unwrap_or_default()
+                ));
             }
             lines.push("}".to_string());
         }
@@ -497,7 +498,14 @@ impl CapabilityGraph {
             lines.push(format!("shard {} {{", sh.id));
             lines.push(format!("  core: {},", sh.core_id));
             lines.push(format!("  budget_mb: {},", sh.budget_mb));
-            lines.push(format!("  services: [{}],", sh.services.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", ")));
+            lines.push(format!(
+                "  services: [{}],",
+                sh.services
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
             lines.push("}".to_string());
         }
         lines.push(String::new());
@@ -517,7 +525,9 @@ impl CapabilityGraph {
         for gate in &self.gates {
             lines.push(format!(
                 "gate {} → {}: {}",
-                gate.from, gate.to, gate.capability.canonical()
+                gate.from,
+                gate.to,
+                gate.capability.canonical()
             ));
         }
 
@@ -537,9 +547,17 @@ impl CapabilityGraph {
             lines.push(format!("world shard-{} {{", shard_id));
             lines.push("  // Imports — capabilities yang diperlukan".to_string());
             for cap in &shard.allowed_gates {
-                let wit = cap.wit_mapping.as_ref()
+                let wit = cap
+                    .wit_mapping
+                    .as_ref()
                     .map(|w| w.clone())
-                    .unwrap_or_else(|| format!("{}:{}", cap.domain.to_lowercase(), cap.operation.to_lowercase()));
+                    .unwrap_or_else(|| {
+                        format!(
+                            "{}:{}",
+                            cap.domain.to_lowercase(),
+                            cap.operation.to_lowercase()
+                        )
+                    });
                 lines.push(format!("  import {};", wit));
             }
             lines.push("}}".to_string());
@@ -557,7 +575,9 @@ impl CapabilityGraph {
         for (domain, caps) in &domains {
             lines.push(format!("interface {} {{", domain.to_lowercase()));
             for cap in caps {
-                let wit = cap.wit_mapping.as_ref()
+                let wit = cap
+                    .wit_mapping
+                    .as_ref()
                     .map(|w| w.clone())
                     .unwrap_or_else(|| cap.operation.to_lowercase());
                 lines.push(format!("  // {}", cap.canonical()));
@@ -598,11 +618,23 @@ pub struct IRVerifyResult {
 pub enum IRViolation {
     EmptyGraph,
     /// WASM target tak boleh ada hardware gate
-    WasmHardwareGate { service: String, gate: String },
+    WasmHardwareGate {
+        service: String,
+        gate: String,
+    },
     /// Servis di-assign ke shard yang tak wujud
-    InvalidShardAssignment { service: String, shard_id: u32 },
+    InvalidShardAssignment {
+        service: String,
+        shard_id: u32,
+    },
     /// Door menghubungkan servis tak dikenali
-    UnknownServiceInDoor { service_id: u32 },
-    UnknownServiceInGate { service_id: u32 },
-    EmptyShard { shard_id: u32 },
+    UnknownServiceInDoor {
+        service_id: u32,
+    },
+    UnknownServiceInGate {
+        service_id: u32,
+    },
+    EmptyShard {
+        shard_id: u32,
+    },
 }

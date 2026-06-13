@@ -17,11 +17,11 @@
 // This is the core of the "Streaming Semantic Compiler" architecture.
 // =========================================================================
 
+use super::gate::GateContract;
+use super::metadata::{Capability, InlineCost, MetadataGraph, SemanticSummary};
+use super::topology::CapabilityTopology;
 use crate::ast::{Expr, Program, Stmt, Type};
 use crate::semantic::SemanticError;
-use super::gate::{GateContract};
-use super::metadata::{Capability, InlineCost, MetadataGraph, SemanticSummary};
-use super::topology::{CapabilityTopology};
 
 /// Result of running both passes.
 #[derive(Debug)]
@@ -194,9 +194,7 @@ pub fn pass2_streaming(
                 // Infer capabilities from function body
                 let caps = infer_capabilities(body, graph);
                 let stmt_count = count_statements(body);
-                let is_recursive = graph
-                    .get_by_id(symbol_id)
-                    .map_or(false, |s| s.is_recursive);
+                let is_recursive = graph.get_by_id(symbol_id).map_or(false, |s| s.is_recursive);
 
                 if let Some(summary) = graph.lookup_mut(name) {
                     summary.effects = caps;
@@ -224,7 +222,16 @@ pub fn pass2_streaming(
 
                 // Register channel topology from this actor
                 for ch_decl in body {
-                    if let Stmt::Let { declared_type: Some(Type::Channel { from, to, message_type }), .. } = ch_decl {
+                    if let Stmt::Let {
+                        declared_type:
+                            Some(Type::Channel {
+                                from,
+                                to,
+                                message_type,
+                            }),
+                        ..
+                    } = ch_decl
+                    {
                         graph.register_channel(from.clone(), to.clone(), message_type.clone());
                     }
                 }
@@ -343,40 +350,60 @@ fn infer_gate_contract(name: &str, body: &[Stmt]) -> GateContract {
 }
 
 fn infer_stmt_gates(stmt: &Stmt, contract: &mut GateContract) {
-    use super::gate::{GateDomain};
+    use super::gate::GateDomain;
 
     match stmt {
         Stmt::Print { .. } => {
             contract.require(GateDomain::ui_display());
         }
-        Stmt::ExprStmt { value } | Stmt::Let { value, .. }
-        | Stmt::Return { value } | Stmt::Assign { value, .. } => {
+        Stmt::ExprStmt { value }
+        | Stmt::Let { value, .. }
+        | Stmt::Return { value }
+        | Stmt::Assign { value, .. } => {
             infer_expr_gates(value, contract);
         }
-        Stmt::If { condition, then_branch, else_branch } => {
+        Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
             infer_expr_gates(condition, contract);
-            for s in then_branch { infer_stmt_gates(s, contract); }
-            for s in else_branch { infer_stmt_gates(s, contract); }
+            for s in then_branch {
+                infer_stmt_gates(s, contract);
+            }
+            for s in else_branch {
+                infer_stmt_gates(s, contract);
+            }
         }
         Stmt::While { condition, body } => {
             infer_expr_gates(condition, contract);
-            for s in body { infer_stmt_gates(s, contract); }
+            for s in body {
+                infer_stmt_gates(s, contract);
+            }
         }
         Stmt::For { iterable, body, .. } => {
             infer_expr_gates(iterable, contract);
-            for s in body { infer_stmt_gates(s, contract); }
+            for s in body {
+                infer_stmt_gates(s, contract);
+            }
         }
         Stmt::Loop { body } => {
-            for s in body { infer_stmt_gates(s, contract); }
+            for s in body {
+                infer_stmt_gates(s, contract);
+            }
         }
         Stmt::Block(body) | Stmt::UnsafeBlock { body } | Stmt::HardwareZone { body } => {
             contract.require(GateDomain::hw_gpio());
-            for s in body { infer_stmt_gates(s, contract); }
+            for s in body {
+                infer_stmt_gates(s, contract);
+            }
         }
         Stmt::Match { value, arms } => {
             infer_expr_gates(value, contract);
             for arm in arms {
-                for s in &arm.body { infer_stmt_gates(s, contract); }
+                for s in &arm.body {
+                    infer_stmt_gates(s, contract);
+                }
             }
         }
         Stmt::IndexAssign { index, value, .. } => {
@@ -404,7 +431,11 @@ fn infer_expr_gates(expr: &Expr, contract: &mut GateContract) {
             contract.require(GateDomain::net_send());
             infer_expr_gates(value, contract);
         }
-        Expr::Recv { .. } | Expr::TryRecv { .. } | Expr::TimeoutRecv { .. } | Expr::Join { .. } | Expr::Yield => {
+        Expr::Recv { .. }
+        | Expr::TryRecv { .. }
+        | Expr::TimeoutRecv { .. }
+        | Expr::Join { .. }
+        | Expr::Yield => {
             contract.require(GateDomain::net_send());
         }
         Expr::MethodCall { method, args, .. } => {
@@ -514,7 +545,10 @@ fn collect_callees_in_stmt(stmt: &Stmt, out: &mut Vec<String>) {
                 collect_callees_in_stmt(s, out);
             }
         }
-        Stmt::Loop { body } | Stmt::Block(body) | Stmt::UnsafeBlock { body } | Stmt::HardwareZone { body } => {
+        Stmt::Loop { body }
+        | Stmt::Block(body)
+        | Stmt::UnsafeBlock { body }
+        | Stmt::HardwareZone { body } => {
             for s in body {
                 collect_callees_in_stmt(s, out);
             }
@@ -591,22 +625,26 @@ fn stmt_calls_name(stmt: &Stmt, name: &str) -> bool {
                 || then_branch.iter().any(|s| stmt_calls_name(s, name))
                 || else_branch.iter().any(|s| stmt_calls_name(s, name))
         }
-        Stmt::While { condition, body } | Stmt::For { iterable: condition, body, .. } => {
-            expr_calls_name(condition, name) || body.iter().any(|s| stmt_calls_name(s, name))
-        }
-        Stmt::Loop { body } | Stmt::Block(body) | Stmt::UnsafeBlock { body } | Stmt::HardwareZone { body } => {
-            body.iter().any(|s| stmt_calls_name(s, name))
-        }
+        Stmt::While { condition, body }
+        | Stmt::For {
+            iterable: condition,
+            body,
+            ..
+        } => expr_calls_name(condition, name) || body.iter().any(|s| stmt_calls_name(s, name)),
+        Stmt::Loop { body }
+        | Stmt::Block(body)
+        | Stmt::UnsafeBlock { body }
+        | Stmt::HardwareZone { body } => body.iter().any(|s| stmt_calls_name(s, name)),
         Stmt::Match { value, arms } => {
             expr_calls_name(value, name)
-                || arms.iter().any(|arm| arm.body.iter().any(|s| stmt_calls_name(s, name)))
+                || arms
+                    .iter()
+                    .any(|arm| arm.body.iter().any(|s| stmt_calls_name(s, name)))
         }
         Stmt::IndexAssign { index, value, .. } => {
             expr_calls_name(index, name) || expr_calls_name(value, name)
         }
-        Stmt::HardwareDecl { address, .. } => {
-            expr_calls_name(address, name)
-        }
+        Stmt::HardwareDecl { address, .. } => expr_calls_name(address, name),
         _ => false,
     }
 }
@@ -626,21 +664,11 @@ fn expr_calls_name(expr: &Expr, name: &str) -> bool {
         Expr::Grouped(inner) | Expr::Ok { value: inner } | Expr::Err { value: inner } => {
             expr_calls_name(inner, name)
         }
-        Expr::Send { value, .. } | Expr::TrySend { value, .. } => {
-            expr_calls_name(value, name)
-        }
-        Expr::Sleep { duration_ms } => {
-            expr_calls_name(duration_ms, name)
-        }
-        Expr::TimeoutRecv { timeout_ms, .. } => {
-            expr_calls_name(timeout_ms, name)
-        }
-        Expr::FieldAccess { base, .. } | Expr::Index { base, .. } => {
-            expr_calls_name(base, name)
-        }
-        Expr::Spawn { args, .. } => {
-            args.iter().any(|arg| expr_calls_name(arg, name))
-        }
+        Expr::Send { value, .. } | Expr::TrySend { value, .. } => expr_calls_name(value, name),
+        Expr::Sleep { duration_ms } => expr_calls_name(duration_ms, name),
+        Expr::TimeoutRecv { timeout_ms, .. } => expr_calls_name(timeout_ms, name),
+        Expr::FieldAccess { base, .. } | Expr::Index { base, .. } => expr_calls_name(base, name),
+        Expr::Spawn { args, .. } => args.iter().any(|arg| expr_calls_name(arg, name)),
         _ => false,
     }
 }
@@ -649,7 +677,12 @@ fn expr_calls_name(expr: &Expr, name: &str) -> bool {
 fn collect_channels_used(body: &[Stmt]) -> Vec<String> {
     let mut channels = Vec::new();
     for stmt in body {
-        if let Stmt::Let { name, declared_type: Some(Type::Channel { .. }), .. } = stmt {
+        if let Stmt::Let {
+            name,
+            declared_type: Some(Type::Channel { .. }),
+            ..
+        } = stmt
+        {
             channels.push(name.clone());
         }
     }
@@ -669,27 +702,49 @@ fn infer_stmt_capabilities(stmt: &Stmt, caps: &mut Capability) {
     match stmt {
         Stmt::Print { .. } => caps.insert(Capability::IO),
         Stmt::HardwareZone { .. } | Stmt::HardwareDecl { .. } => caps.insert(Capability::HARDWARE),
-        Stmt::ExprStmt { value } | Stmt::Let { value, .. } | Stmt::Return { value } | Stmt::Assign { value, .. } => {
+        Stmt::ExprStmt { value }
+        | Stmt::Let { value, .. }
+        | Stmt::Return { value }
+        | Stmt::Assign { value, .. } => {
             infer_expr_capabilities(value, caps);
         }
-        Stmt::If { condition, then_branch, else_branch } => {
+        Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
             infer_expr_capabilities(condition, caps);
-            for s in then_branch { infer_stmt_capabilities(s, caps); }
-            for s in else_branch { infer_stmt_capabilities(s, caps); }
+            for s in then_branch {
+                infer_stmt_capabilities(s, caps);
+            }
+            for s in else_branch {
+                infer_stmt_capabilities(s, caps);
+            }
         }
-        Stmt::While { condition, body } | Stmt::For { iterable: condition, body, .. } => {
+        Stmt::While { condition, body }
+        | Stmt::For {
+            iterable: condition,
+            body,
+            ..
+        } => {
             caps.insert(Capability::DIVERGING);
             infer_expr_capabilities(condition, caps);
-            for s in body { infer_stmt_capabilities(s, caps); }
+            for s in body {
+                infer_stmt_capabilities(s, caps);
+            }
         }
         Stmt::Loop { body } | Stmt::Block(body) | Stmt::UnsafeBlock { body } => {
             caps.insert(Capability::DIVERGING);
-            for s in body { infer_stmt_capabilities(s, caps); }
+            for s in body {
+                infer_stmt_capabilities(s, caps);
+            }
         }
         Stmt::Match { value, arms } => {
             infer_expr_capabilities(value, caps);
             for arm in arms {
-                for s in &arm.body { infer_stmt_capabilities(s, caps); }
+                for s in &arm.body {
+                    infer_stmt_capabilities(s, caps);
+                }
             }
         }
         Stmt::IndexAssign { index, value, .. } => {
@@ -702,9 +757,14 @@ fn infer_stmt_capabilities(stmt: &Stmt, caps: &mut Capability) {
 
 fn infer_expr_capabilities(expr: &Expr, caps: &mut Capability) {
     match expr {
-        Expr::Spawn { .. } | Expr::Send { .. } | Expr::Recv { .. }
-        | Expr::TrySend { .. } | Expr::TryRecv { .. } | Expr::TimeoutRecv { .. }
-        | Expr::Join { .. } | Expr::Yield => {
+        Expr::Spawn { .. }
+        | Expr::Send { .. }
+        | Expr::Recv { .. }
+        | Expr::TrySend { .. }
+        | Expr::TryRecv { .. }
+        | Expr::TimeoutRecv { .. }
+        | Expr::Join { .. }
+        | Expr::Yield => {
             caps.insert(Capability::CONCURRENT);
         }
         Expr::MethodCall { method, args, .. } => {
@@ -755,4 +815,3 @@ fn infer_expr_capabilities(expr: &Expr, caps: &mut Capability) {
 fn count_statements(body: &[Stmt]) -> usize {
     body.len()
 }
-

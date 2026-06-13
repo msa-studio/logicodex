@@ -23,10 +23,7 @@
 //   - All HW access → Host Reactor → safe host-side implementation
 // =========================================================================
 
-use super::capability_ir::{
-    CapabilityGraph, CapabilityRef,
-};
-
+use super::capability_ir::{CapabilityGraph, CapabilityRef};
 
 // ─── WitDomain ───
 /// Represents a WIT interface domain — the WASI-side projection
@@ -180,8 +177,7 @@ pub fn get_wit_operations(domain: &str) -> Vec<WitOperation> {
             WitOperation::new("Papar", "stdout")
                 .with_param("text", "string")
                 .with_return("result<unit, error>"),
-            WitOperation::new("Input", "stdin")
-                .with_return("result<string, error>"),
+            WitOperation::new("Input", "stdin").with_return("result<string, error>"),
         ],
         "HW" => vec![
             // HW operations are host-reactor mediated
@@ -248,8 +244,13 @@ impl CtlMapper {
     }
 
     /// Add a manual WIT mapping override.
-    pub fn add_override(&mut self, logicodex_canonical: impl Into<String>, wit_string: impl Into<String>) {
-        self.overrides.insert(logicodex_canonical.into(), wit_string.into());
+    pub fn add_override(
+        &mut self,
+        logicodex_canonical: impl Into<String>,
+        wit_string: impl Into<String>,
+    ) {
+        self.overrides
+            .insert(logicodex_canonical.into(), wit_string.into());
     }
 
     /// Map a single CapabilityRef to its WIT equivalent.
@@ -280,10 +281,7 @@ impl CtlMapper {
 
         if !wit_domain.is_known() {
             self.unknown_domains.push(cap.domain.clone());
-            cap.wit_mapping = Some(format!(
-                "logicodex:custom/{}",
-                cap.operation.to_lowercase()
-            ));
+            cap.wit_mapping = Some(format!("logicodex:custom/{}", cap.operation.to_lowercase()));
             self.mappings_applied += 1;
             return;
         }
@@ -291,11 +289,7 @@ impl CtlMapper {
         // 3. Look up specific operation mapping
         let operations = get_wit_operations(&cap.domain);
         if let Some(op) = operations.iter().find(|o| o.logicodex_op == cap.operation) {
-            let wit = format!(
-                "{}/{}",
-                wit_domain.wit_package_interface(),
-                op.wit_op
-            );
+            let wit = format!("{}/{}", wit_domain.wit_package_interface(), op.wit_op);
             cap.wit_mapping = Some(wit);
         } else {
             // Fallback: just use the operation name
@@ -349,7 +343,8 @@ impl CtlMapper {
         lines.push("".to_string());
 
         // Collect all unique imported interfaces
-        let mut interfaces: std::collections::HashMap<String, Vec<&CapabilityRef>> = std::collections::HashMap::new();
+        let mut interfaces: std::collections::HashMap<String, Vec<&CapabilityRef>> =
+            std::collections::HashMap::new();
         for (_, svc) in &graph.services {
             for cap in &svc.requires {
                 let pkg = WitDomain::from_logicodex_domain(&cap.domain).wit_package_interface();
@@ -380,7 +375,8 @@ impl CtlMapper {
                     let iface = wit.split('/').nth(1).unwrap_or("unknown");
                     lines.push(format!(
                         "  import {}: func() → result<string, error>; // {}",
-                        iface, cap.canonical()
+                        iface,
+                        cap.canonical()
                     ));
                 }
             }
@@ -521,7 +517,10 @@ impl CtlMappingStats {
         let mut lines = Vec::new();
         lines.push(format!("CTL Mapping Summary:"));
         lines.push(format!("  Mappings applied: {}", self.mappings_applied));
-        lines.push(format!("  HW gates (host reactor): {}", self.hw_gates_detected));
+        lines.push(format!(
+            "  HW gates (host reactor): {}",
+            self.hw_gates_detected
+        ));
         lines.push(format!("  Overrides used: {}", self.overrides_used));
         if !self.unknown_domains.is_empty() {
             lines.push(format!(

@@ -313,10 +313,7 @@ impl Color {
 
     /// Convert to u32 hex representation.
     pub const fn to_hex(&self) -> u32 {
-        ((self.r as u32) << 24)
-            | ((self.g as u32) << 16)
-            | ((self.b as u32) << 8)
-            | (self.a as u32)
+        ((self.r as u32) << 24) | ((self.g as u32) << 16) | ((self.b as u32) << 8) | (self.a as u32)
     }
 }
 

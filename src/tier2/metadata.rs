@@ -12,8 +12,8 @@
 //   Pass 2: Deep analysis → stream functions one-by-one, discard after codegen
 // =========================================================================
 
-use crate::ast::{Type};
 use super::gate::GateRef;
+use crate::ast::Type;
 use std::collections::HashMap;
 
 // ─── Capability ───
@@ -81,13 +81,27 @@ impl Default for Capability {
 impl std::fmt::Debug for Capability {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut flags = Vec::new();
-        if self.contains(Capability::PURE) { flags.push("PURE"); }
-        if self.contains(Capability::IO) { flags.push("IO"); }
-        if self.contains(Capability::UNSAFE) { flags.push("UNSAFE"); }
-        if self.contains(Capability::CONCURRENT) { flags.push("CONCURRENT"); }
-        if self.contains(Capability::HARDWARE) { flags.push("HARDWARE"); }
-        if self.contains(Capability::DIVERGING) { flags.push("DIVERGING"); }
-        if flags.is_empty() { flags.push("NONE"); }
+        if self.contains(Capability::PURE) {
+            flags.push("PURE");
+        }
+        if self.contains(Capability::IO) {
+            flags.push("IO");
+        }
+        if self.contains(Capability::UNSAFE) {
+            flags.push("UNSAFE");
+        }
+        if self.contains(Capability::CONCURRENT) {
+            flags.push("CONCURRENT");
+        }
+        if self.contains(Capability::HARDWARE) {
+            flags.push("HARDWARE");
+        }
+        if self.contains(Capability::DIVERGING) {
+            flags.push("DIVERGING");
+        }
+        if flags.is_empty() {
+            flags.push("NONE");
+        }
         write!(f, "Capability({})", flags.join("|"))
     }
 }
@@ -185,11 +199,7 @@ impl SemanticSummary {
     }
 
     /// Create a new summary for an actor.
-    pub fn new_actor(
-        symbol_id: u32,
-        name: String,
-        channels_used: Vec<String>,
-    ) -> Self {
+    pub fn new_actor(symbol_id: u32, name: String, channels_used: Vec<String>) -> Self {
         let mut effects = Capability::default();
         effects.insert(Capability::CONCURRENT);
         Self {
@@ -211,7 +221,11 @@ impl SemanticSummary {
     /// Size in bytes (for memory reporting).
     pub fn size_bytes(&self) -> usize {
         let base = std::mem::size_of::<Self>();
-        let params_size = self.params.iter().map(|t| std::mem::size_of_val(t)).sum::<usize>();
+        let params_size = self
+            .params
+            .iter()
+            .map(|t| std::mem::size_of_val(t))
+            .sum::<usize>();
         let channels_size = self.channels_used.iter().map(|s| s.len()).sum::<usize>();
         let callees_size = self.callees.len() * std::mem::size_of::<u32>();
         base + params_size + channels_size + callees_size
@@ -260,7 +274,9 @@ impl MetadataGraph {
 
     /// Look up a symbol by name.
     pub fn lookup(&self, name: &str) -> Option<&SemanticSummary> {
-        self.name_to_id.get(name).and_then(|id| self.summaries.get(id))
+        self.name_to_id
+            .get(name)
+            .and_then(|id| self.summaries.get(id))
     }
 
     /// Look up a symbol by name (mutable).
@@ -325,7 +341,11 @@ impl MetadataGraph {
             .map(|v| v.len() * std::mem::size_of::<u32>())
             .sum();
         let actors_size: usize = self.actor_names.iter().map(|s| s.len()).sum();
-        let channels_size: usize = self.channel_topology.iter().map(|(a, b, c)| a.len() + b.len() + c.len()).sum();
+        let channels_size: usize = self
+            .channel_topology
+            .iter()
+            .map(|(a, b, c)| a.len() + b.len() + c.len())
+            .sum();
         std::mem::size_of::<Self>() + summaries_size + graph_size + actors_size + channels_size
     }
 
@@ -370,7 +390,8 @@ impl MemoryReport {
 
     /// Memory saved compared to keeping full AST.
     pub fn memory_saved_bytes(&self) -> usize {
-        self.estimated_ast_bytes.saturating_sub(self.metadata_graph_bytes)
+        self.estimated_ast_bytes
+            .saturating_sub(self.metadata_graph_bytes)
     }
 
     /// Compression ratio (lower is better).

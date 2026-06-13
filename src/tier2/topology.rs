@@ -106,7 +106,8 @@ impl CapabilityTopology {
             self.consumers.entry(key).or_default().push(symbol_id);
         }
         // Track module → symbol mapping
-        self.module_symbols.insert(contract.module_name.clone(), symbol_id);
+        self.module_symbols
+            .insert(contract.module_name.clone(), symbol_id);
         self.contracts.push(contract);
     }
 
@@ -141,7 +142,11 @@ impl CapabilityTopology {
                 // Cari GateRef asal untuk violation message
                 for symbol_id in consumer_ids {
                     if let Some(contract) = self.find_contract_for_symbol(*symbol_id) {
-                        if let Some(gate) = contract.requires.iter().find(|g| &g.canonical() == gate_key) {
+                        if let Some(gate) = contract
+                            .requires
+                            .iter()
+                            .find(|g| &g.canonical() == gate_key)
+                        {
                             // Cari gate serupa yang available (same domain, different op)
                             let similar = self.find_similar_gates(gate);
                             let symbol_name = contract.module_name.clone();
@@ -241,7 +246,9 @@ impl CapabilityTopology {
 
     fn find_contract_for_symbol(&self, symbol_id: u32) -> Option<&GateContract> {
         // Cari contract yang module_symbols mapping ke symbol_id
-        let module_name = self.module_symbols.iter()
+        let module_name = self
+            .module_symbols
+            .iter()
             .find(|(_, &id)| id == symbol_id)
             .map(|(name, _)| name.as_str())?;
         self.contracts.iter().find(|c| c.module_name == module_name)
@@ -267,19 +274,23 @@ impl CapabilityTopology {
 impl TopologyVerifyResult {
     /// Format violation sebagai string yang readable.
     pub fn format_violations(&self) -> Vec<String> {
-        self.violations.iter().map(|v| {
-            let mut msg = format!(
-                "[VIOLATION] '{}' memerlukan Gate '{}' tapi tiada modul yang menyediakannya",
-                v.symbol_name, v.missing_gate.full()
-            );
-            if !v.similar_available.is_empty() {
-                msg.push_str(&format!(
-                    "\n  Gate berkaitan yang tersedia: {}",
-                    v.similar_available.join(", ")
-                ));
-            }
-            msg
-        }).collect()
+        self.violations
+            .iter()
+            .map(|v| {
+                let mut msg = format!(
+                    "[VIOLATION] '{}' memerlukan Gate '{}' tapi tiada modul yang menyediakannya",
+                    v.symbol_name,
+                    v.missing_gate.full()
+                );
+                if !v.similar_available.is_empty() {
+                    msg.push_str(&format!(
+                        "\n  Gate berkaitan yang tersedia: {}",
+                        v.similar_available.join(", ")
+                    ));
+                }
+                msg
+            })
+            .collect()
     }
 }
 
@@ -294,11 +305,8 @@ pub fn diff_topology(
     let mut escalation_detected = Vec::new();
 
     // Find all unique gate keys in both topologies
-    let mut all_keys: std::collections::HashSet<String> = old_topology
-        .providers
-        .keys()
-        .cloned()
-        .collect();
+    let mut all_keys: std::collections::HashSet<String> =
+        old_topology.providers.keys().cloned().collect();
     all_keys.extend(new_topology.providers.keys().cloned());
     all_keys.extend(old_topology.consumers.keys().cloned());
     all_keys.extend(new_topology.consumers.keys().cloned());
@@ -335,7 +343,10 @@ pub fn diff_topology(
         // in the same domain (e.g., Net.Send → Net.Raw)
         if new_consumed && !old_consumed {
             // This is a new requirement — check if it's a sensitive domain
-            if key.starts_with("Net.Raw") || key.starts_with("HW.") || key.starts_with("Storage.Delete") {
+            if key.starts_with("Net.Raw")
+                || key.starts_with("HW.")
+                || key.starts_with("Storage.Delete")
+            {
                 if let Some(symbol_ids) = new_topology.consumers.get(key) {
                     for sid in symbol_ids {
                         if let Some(contract) = new_topology.find_contract_for_symbol(*sid) {
@@ -383,7 +394,10 @@ impl CapabilityDiff {
         lines.push(format!("Gate baharu: {}", self.added_gates.len()));
         lines.push(format!("Gate dipadam: {}", self.removed_gates.len()));
         if self.has_escalation() {
-            lines.push(format!("⚠️  PRIVILEGE ESCALATION dikesan: {}", self.privilege_escalation.len()));
+            lines.push(format!(
+                "⚠️  PRIVILEGE ESCALATION dikesan: {}",
+                self.privilege_escalation.len()
+            ));
         }
         lines.join("\n")
     }

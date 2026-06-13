@@ -19,14 +19,14 @@ use core::fmt;
 
 // ─── COM1 Port Addresses ───
 
-const PORT_DATA: u16 = 0x3F8;       // Data register (read/write)
-const PORT_IER: u16 = 0x3F8 + 1;    // Interrupt Enable
-const PORT_FCR: u16 = 0x3F8 + 2;    // FIFO Control
-const PORT_LCR: u16 = 0x3F8 + 3;    // Line Control
-const PORT_MCR: u16 = 0x3F8 + 4;    // Modem Control
-const PORT_LSR: u16 = 0x3F8 + 5;    // Line Status (bit 5 = TX empty)
-const PORT_DLL: u16 = 0x3F8 + 0;    // Divisor Latch Low (when DLAB=1)
-const PORT_DLH: u16 = 0x3F8 + 1;    // Divisor Latch High (when DLAB=1)
+const PORT_DATA: u16 = 0x3F8; // Data register (read/write)
+const PORT_IER: u16 = 0x3F8 + 1; // Interrupt Enable
+const PORT_FCR: u16 = 0x3F8 + 2; // FIFO Control
+const PORT_LCR: u16 = 0x3F8 + 3; // Line Control
+const PORT_MCR: u16 = 0x3F8 + 4; // Modem Control
+const PORT_LSR: u16 = 0x3F8 + 5; // Line Status (bit 5 = TX empty)
+const PORT_DLL: u16 = 0x3F8 + 0; // Divisor Latch Low (when DLAB=1)
+const PORT_DLH: u16 = 0x3F8 + 1; // Divisor Latch High (when DLAB=1)
 
 // ─── Divisor for 115200 baud ───
 const BAUD_DIVISOR: u16 = 1; // 115200 = 115200 / 1
@@ -84,7 +84,9 @@ pub unsafe fn uart_write_bytes(bytes: &[u8]) {
 /// Send a string to the UART.
 pub fn uart_puts(s: &str) {
     for byte in s.bytes() {
-        unsafe { uart_putc(byte); }
+        unsafe {
+            uart_putc(byte);
+        }
     }
 }
 
@@ -101,15 +103,23 @@ pub fn uart_hex(n: u64) {
     uart_puts("0x");
     for i in (0..16).rev() {
         let digit = ((n >> (i * 4)) & 0xF) as u8;
-        let c = if digit < 10 { b'0' + digit } else { b'a' + (digit - 10) };
-        unsafe { uart_putc(c); }
+        let c = if digit < 10 {
+            b'0' + digit
+        } else {
+            b'a' + (digit - 10)
+        };
+        unsafe {
+            uart_putc(c);
+        }
     }
 }
 
 /// Send a `u64` as decimal.
 pub fn uart_decimal(n: u64) {
     if n == 0 {
-        unsafe { uart_putc(b'0'); }
+        unsafe {
+            uart_putc(b'0');
+        }
         return;
     }
     let mut buf = [0u8; 20];
@@ -121,7 +131,9 @@ pub fn uart_decimal(n: u64) {
         i += 1;
     }
     for j in (0..i).rev() {
-        unsafe { uart_putc(buf[j]); }
+        unsafe {
+            uart_putc(buf[j]);
+        }
     }
 }
 

@@ -68,8 +68,8 @@ fn main() {
         }
         "macos" => {
             let candidates = [
-                "/opt/homebrew/lib",     // Apple Silicon
-                "/usr/local/lib",        // Intel Mac
+                "/opt/homebrew/lib", // Apple Silicon
+                "/usr/local/lib",    // Intel Mac
             ];
             for path in &candidates {
                 if PathBuf::from(path).join("libraylib.dylib").exists()

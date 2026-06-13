@@ -12,31 +12,32 @@
 //                Pass 2 (stream + verify gates) → Results + .cap file
 // =========================================================================
 
-pub mod metadata;
-pub mod pass;
-pub mod gate;
-pub mod shard;
-pub mod topology;
 pub mod capability_ir;
 pub mod ctl_mapper;
+pub mod gate;
+pub mod metadata;
+pub mod pass;
+pub mod shard;
+pub mod topology;
 
 // Re-exports for convenience
-pub use metadata::{
-    Capability, InlineCost, MemoryReport, MetadataGraph, SemanticSummary,
-};
-pub use pass::{compile_streaming, pass1_predeclare, pass2_streaming, CompileMode, StreamingResult};
-pub use gate::{GateRef, GateType, GateContract, GateDomain, GateParseError};
-pub use topology::{CapabilityTopology, CapabilityDiff, TopologyVerifyResult, TopologyViolation, diff_topology};
-pub use shard::{
-    ShardAssignment, ShardTopology, ShardVerifyResult, ShardViolation,
-    ServiceGraph, ServiceNode, CommEdge, CommType, DoorRef,
-};
 pub use capability_ir::{
-    CapabilityGraph, CapabilityRef, CompileTarget,
-    IRServiceNode, IRShardNode, IRDoorEdge, IRGateEdge,
-    IRVerifyResult, IRViolation,
+    CapabilityGraph, CapabilityRef, CompileTarget, IRDoorEdge, IRGateEdge, IRServiceNode,
+    IRShardNode, IRVerifyResult, IRViolation,
 };
 pub use ctl_mapper::{
-    CtlMapper, CtlMappingStats, WitDomain, WitOperation,
-    get_wit_operations, map_and_generate_wit, map_and_generate_wit_with_overrides,
+    get_wit_operations, map_and_generate_wit, map_and_generate_wit_with_overrides, CtlMapper,
+    CtlMappingStats, WitDomain, WitOperation,
+};
+pub use gate::{GateContract, GateDomain, GateParseError, GateRef, GateType};
+pub use metadata::{Capability, InlineCost, MemoryReport, MetadataGraph, SemanticSummary};
+pub use pass::{
+    compile_streaming, pass1_predeclare, pass2_streaming, CompileMode, StreamingResult,
+};
+pub use shard::{
+    CommEdge, CommType, DoorRef, ServiceGraph, ServiceNode, ShardAssignment, ShardTopology,
+    ShardVerifyResult, ShardViolation,
+};
+pub use topology::{
+    diff_topology, CapabilityDiff, CapabilityTopology, TopologyVerifyResult, TopologyViolation,
 };

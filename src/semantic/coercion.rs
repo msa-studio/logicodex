@@ -27,7 +27,10 @@ pub enum CoercionResult {
 impl CoercionResult {
     /// Check if the coercion is allowed (Identity or Implicit).
     pub fn is_allowed(&self) -> bool {
-        matches!(self, CoercionResult::Identity | CoercionResult::Implicit { .. })
+        matches!(
+            self,
+            CoercionResult::Identity | CoercionResult::Implicit { .. }
+        )
     }
 
     /// Check if an explicit cast is required.
@@ -104,9 +107,10 @@ impl<'a> CoercionEngine<'a> {
                         (_, crate::types::Mutability::Immutable) => {
                             CoercionResult::Implicit { target: to }
                         }
-                        (crate::types::Mutability::Immutable, crate::types::Mutability::Mutable) => {
-                            CoercionResult::RequiresCast { target: to }
-                        }
+                        (
+                            crate::types::Mutability::Immutable,
+                            crate::types::Mutability::Mutable,
+                        ) => CoercionResult::RequiresCast { target: to },
                         _ => CoercionResult::Identity, // same mutability, same pointee
                     }
                 } else {
@@ -129,9 +133,7 @@ impl<'a> CoercionEngine<'a> {
                     mutability: crate::types::Mutability::Immutable,
                 },
             ) => {
-                if self.registry.resolve(*pointee)
-                    == &TypeKind::Primitive(PrimitiveType::I8)
-                {
+                if self.registry.resolve(*pointee) == &TypeKind::Primitive(PrimitiveType::I8) {
                     CoercionResult::Implicit { target: to }
                 } else {
                     CoercionResult::Incompatible
@@ -140,10 +142,7 @@ impl<'a> CoercionEngine<'a> {
 
             // ─── Array to pointer decay (C-style) ───
             // [T; N] → *T  (for FFI compatibility)
-            (
-                TypeKind::Array { element, .. },
-                TypeKind::Pointer { pointee, .. },
-            ) => {
+            (TypeKind::Array { element, .. }, TypeKind::Pointer { pointee, .. }) => {
                 if element == pointee {
                     CoercionResult::Implicit { target: to }
                 } else {
@@ -176,10 +175,7 @@ impl<'a> CoercionEngine<'a> {
         let right_kind = self.registry.resolve(right);
 
         // Both numeric: return the wider type
-        if let (
-            TypeKind::Primitive(left_p),
-            TypeKind::Primitive(right_p),
-        ) = (left_kind, right_kind)
+        if let (TypeKind::Primitive(left_p), TypeKind::Primitive(right_p)) = (left_kind, right_kind)
         {
             return self.wider_primitive(*left_p, *right_p);
         }
@@ -225,9 +221,7 @@ impl<'a> CoercionEngine<'a> {
             (I8, I16 | I32 | I64) => CoercionResult::Implicit { target: to_id },
             (I16, I32 | I64) => CoercionResult::Implicit { target: to_id },
             (I32, I64) => CoercionResult::Implicit { target: to_id },
-            (U8, U16 | U32 | U64 | I16 | I32 | I64) => {
-                CoercionResult::Implicit { target: to_id }
-            }
+            (U8, U16 | U32 | U64 | I16 | I32 | I64) => CoercionResult::Implicit { target: to_id },
             (U16, U32 | U64 | I32 | I64) => CoercionResult::Implicit { target: to_id },
             (U32, U64 | I64) => CoercionResult::Implicit { target: to_id },
 
@@ -310,8 +304,7 @@ mod tests {
     use super::*;
 
     fn setup() -> (&'static TypeRegistry, CoercionEngine<'static>) {
-        let registry: &'static TypeRegistry =
-            Box::leak(Box::new(TypeRegistry::new()));
+        let registry: &'static TypeRegistry = Box::leak(Box::new(TypeRegistry::new()));
         let engine = CoercionEngine::new(registry);
         (registry, engine)
     }
@@ -320,7 +313,10 @@ mod tests {
     fn identity_coercion() {
         let (reg, engine) = setup();
         let ids = reg.primitive_ids();
-        assert_eq!(engine.can_coerce(ids.i32_, ids.i32_), CoercionResult::Identity);
+        assert_eq!(
+            engine.can_coerce(ids.i32_, ids.i32_),
+            CoercionResult::Identity
+        );
     }
 
     #[test]
@@ -391,7 +387,10 @@ mod tests {
 
         // String → *const I8 (for FFI)
         let result = engine.can_coerce(ids.string, c_string);
-        assert!(result.is_allowed(), "String -> *const I8 should be implicit for FFI");
+        assert!(
+            result.is_allowed(),
+            "String -> *const I8 should be implicit for FFI"
+        );
     }
 
     #[test]
