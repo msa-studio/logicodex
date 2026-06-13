@@ -31,7 +31,7 @@ Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebas
 | Sharded runtime | PARTIAL | Threads + affinity exist, messaging missing | Issue #08 |
 | Network reactor | PARTIAL | Syscalls exist, socket lifecycle missing | Issue #09 |
 | WASM backend | PARTIAL | LLVM path exists, no linker/runtime/CI | Issue #10 |
-| Freestanding x86_64 | PARTIAL | Boots in QEMU (multiboot1 -> long-mode -> COM1 serial 'Logicodex' -> clean exit 33). Runtime in shared crate logicodex-os (uart/IDT-256+PIC/panic/allocator/halt). Pending: end-to-end .ldx->kernel emission, MMIO codegen (g12), full crt0 | Issue #11 |
+| Freestanding x86_64 | PARTIAL | Boots in QEMU (multiboot1 -> long-mode -> COM1 serial 'Logicodex' -> clean exit 33). Runtime in shared crate logicodex-os (uart/IDT-256+PIC/panic/allocator/halt). All 4 freestanding gaps closed: IDT-32 (g11), panic-UART (g2), SSE2 (g9), MMIO volatile codegen (g12, verified 'store/load volatile' in IR). Suite 232/0/0. Pending: end-to-end .ldx->kernel emission, MMIO address-backed decls (g12 stage 2), full crt0 | Issue #11 |
 | Raylib FFI | PARTIAL | 55 wrappers, partial API coverage | Issue #12 |
 | CI/CD | PARTIAL | Suite compiles & green: 232 passed / 0 failed / 0 ignored (documented freestanding gaps); drift-resistant e2e + example phase-gates added. 2-week CI stability pending | Issue #13 |
 | HIR lowering | FULL | Active — Issue #02 resolved (ACTIVATE) | structs, enums+match, fns, control flow |
