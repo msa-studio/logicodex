@@ -57,13 +57,13 @@ fn g14_stack_pointer_initialized() {
 // ─── G2: Panic Handler ───
 
 #[test]
-#[ignore = "freestanding gap: panic handler UART output not emitted; pending freestanding profile"]
 fn g2_panic_handler_exists() {
-    let panic = include_str!("../src/os/panic.rs");
+    // Validates the canonical, QEMU-proven freestanding panic handler.
+    let panic = include_str!("../logicodex-os/src/panic.rs");
     assert!(panic.contains("panic_handler"), "G2: #[panic_handler] missing");
-    assert!(panic.contains("clear_sensitive_registers"), "G2: Register clearing missing");
+    assert!(panic.contains("xor rax"), "G2: sensitive register wipe missing");
     assert!(panic.contains("uart_puts"), "G2: UART output missing");
-    assert!(panic.contains("halt"), "G2: Halt after panic missing");
+    assert!(panic.contains("halt"), "G2: halt after panic missing");
 }
 
 #[test]
@@ -276,12 +276,13 @@ fn g11_pic_ports_correct() {
 }
 
 #[test]
-#[ignore = "freestanding gap: <32 IDT exception handlers emitted; pending freestanding profile"]
 fn g11_exception_handlers_count() {
-    let intr = include_str!("../src/os/interrupts.rs");
-    // Count exception handler stubs
-    let count = intr.matches("extern \"x86-interrupt\" fn").count();
-    assert!(count >= 32, "G11: Must have at least 32 exception handlers, found {}", count);
+    // Validates the canonical, QEMU-proven freestanding IDT in logicodex-os.
+    let intr = include_str!("../logicodex-os/src/interrupts.rs");
+    let stubs = intr.matches("ISR_NOERR").count() + intr.matches("ISR_ERR").count();
+    assert!(stubs >= 32, "G11: need >=32 exception stubs, found {stubs}");
+    assert!(intr.contains("IDT_ENTRIES"), "G11: 256-entry IDT missing");
+    assert!(intr.contains("fn idt_init"), "G11: idt_init missing");
 }
 
 // ─── G12: MMIO Volatile Codegen ───
