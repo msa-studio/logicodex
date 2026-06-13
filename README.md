@@ -62,8 +62,8 @@ These are **runtime-profile** work per the doctrine — labelled, not pretended:
 
 ## Testing
 
-`cargo test --features v1_30` compiles and runs green: **228 passing, 0 failing,
-4 ignored** (the 4 are documented freestanding gaps). Two drift-resistant phase
+`cargo test --features v1_30` compiles and runs green: **229 passing, 0 failing,
+3 ignored** (the 4 are documented freestanding gaps). Two drift-resistant phase
 gates guard behaviour via the real binary:
 
 - `tests/e2e_pipeline.rs` — compiles/checks fixtures through the CLI
