@@ -5,3 +5,10 @@ version = 3
 [[package]]
 name = "logicodex-kernel"
 version = "0.1.0"
+dependencies = [
+ "logicodex-os",
+]
+
+[[package]]
+name = "logicodex-os"
+version = "0.1.0"

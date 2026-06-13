@@ -1,0 +1,12 @@
+[package]
+name = "logicodex-os"
+version = "0.1.0"
+edition = "2021"
+
+# Own workspace root: keeps the parent logicodex workspace from claiming this
+# crate, and lets the freestanding kernel path-depend on it cleanly.
+[workspace]
+
+[lib]
+name = "logicodex_os"
+path = "src/lib.rs"

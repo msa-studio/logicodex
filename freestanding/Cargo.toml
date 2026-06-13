@@ -11,6 +11,9 @@ edition = "2021"
 name = "logicodex-kernel"
 path = "src/main.rs"
 
+[dependencies]
+logicodex-os = { path = "../logicodex-os" }
+
 [profile.dev]
 panic = "abort"
 

@@ -3,6 +3,7 @@
 
 use core::arch::global_asm;
 use core::panic::PanicInfo;
+use logicodex_os::uart;
 
 global_asm!(
     r#"
@@ -205,46 +206,10 @@ isr_stub_table:
 "#
 );
 
-const COM1: u16 = 0x3F8;
-
 #[inline]
 unsafe fn outb(port: u16, val: u8) {
     core::arch::asm!("out dx, al", in("dx") port, in("al") val,
         options(nomem, nostack, preserves_flags));
-}
-#[inline]
-unsafe fn inb(port: u16) -> u8 {
-    let val: u8;
-    core::arch::asm!("in al, dx", out("al") val, in("dx") port,
-        options(nomem, nostack, preserves_flags));
-    val
-}
-fn serial_init() {
-    unsafe {
-        outb(COM1 + 1, 0x00);
-        outb(COM1 + 3, 0x80);
-        outb(COM1 + 0, 0x01);
-        outb(COM1 + 1, 0x00);
-        outb(COM1 + 3, 0x03);
-        outb(COM1 + 2, 0xC7);
-        outb(COM1 + 4, 0x0B);
-    }
-}
-fn serial_putc(c: u8) {
-    unsafe {
-        while inb(COM1 + 5) & 0x20 == 0 {}
-        outb(COM1, c);
-    }
-}
-fn serial_puts(s: &[u8]) {
-    for &c in s { serial_putc(c); }
-}
-fn hex_digit(n: u8) -> u8 {
-    if n < 10 { b'0' + n } else { b'a' + (n - 10) }
-}
-fn serial_hex2(b: u8) {
-    serial_putc(hex_digit(b >> 4));
-    serial_putc(hex_digit(b & 0x0F));
 }
 
 #[repr(C, packed)]
@@ -306,46 +271,32 @@ fn idt_init() {
 
 #[no_mangle]
 pub extern "C" fn exception_handler(vector: u64, _error: u64) {
-    serial_puts(b"EXC ");
-    serial_hex2(vector as u8);
-    serial_putc(b'\n');
+    uart::uart_puts("EXC ");
+    uart::uart_decimal(vector);
+    uart::uart_newline();
 }
 
 #[no_mangle]
 pub extern "C" fn kmain() -> ! {
-    serial_init();
-    serial_puts(b"boot\n");
+    unsafe { uart::uart_init(); }
+    uart::uart_puts("boot\r\n");
     idt_init();
-    serial_puts(b"idt\n");
+    uart::uart_puts("idt\r\n");
     unsafe { core::arch::asm!("int3") };
-    serial_puts(b"Logicodex\n");
+    uart::uart_puts("Logicodex\r\n");
     unsafe { outb(0xf4, 0x10); }
     loop { unsafe { core::arch::asm!("hlt") }; }
 }
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    serial_puts(b"\nPANIC");
+    uart::uart_puts("\r\nPANIC");
     if let Some(loc) = info.location() {
-        serial_puts(b" at ");
-        serial_puts(loc.file().as_bytes());
-        serial_putc(b':');
-        // print line number (decimal)
-        let mut line = loc.line();
-        let mut buf = [0u8; 10];
-        let mut i = buf.len();
-        if line == 0 {
-            i -= 1;
-            buf[i] = b'0';
-        } else {
-            while line > 0 {
-                i -= 1;
-                buf[i] = b'0' + (line % 10) as u8;
-                line /= 10;
-            }
-        }
-        serial_puts(&buf[i..]);
+        uart::uart_puts(" at ");
+        uart::uart_puts(loc.file());
+        uart::uart_puts(":");
+        uart::uart_decimal(loc.line() as u64);
     }
-    serial_putc(b'\n');
+    uart::uart_newline();
     loop { unsafe { core::arch::asm!("hlt") }; }
 }
