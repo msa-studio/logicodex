@@ -31,7 +31,7 @@ jobs:
     name: Check (fmt + clippy + build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install LLVM 15
         run: |
           sudo apt-get update
@@ -39,7 +39,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.75.0
         with:
           components: rustfmt, clippy
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -57,13 +57,13 @@ jobs:
     name: Test (full suite)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install LLVM 15
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
       - uses: dtolnay/rust-toolchain@1.75.0
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -76,7 +76,7 @@ jobs:
         run: cargo test 2>&1 | tee test-output.log
       - name: Upload test log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-output-log
           path: test-output.log
@@ -85,7 +85,7 @@ jobs:
     name: Freestanding x86_64 QEMU boot
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@1.75.0
         with:
           targets: x86_64-unknown-none
