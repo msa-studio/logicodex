@@ -6,43 +6,7 @@
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
 
-#[cfg(feature = "v1_30")]
 use crate::ffi::{CallableRegistry, CallableSignature};
-#[cfg(not(feature = "v1_30"))]
-use crate::types::CallableId;
-
-#[cfg(not(feature = "v1_30"))]
-#[derive(Debug, Clone, Default)]
-pub struct CallableRegistry {
-    signatures: Vec<CallableSignature>,
-}
-#[cfg(not(feature = "v1_30"))]
-impl CallableRegistry {
-    pub fn new() -> Self { Self { signatures: Vec::new() } }
-    pub fn find_by_name(&self, _name: &str) -> Option<(CallableId, CallableSignature)> { None }
-    pub fn get(&self, _id: CallableId) -> Option<CallableSignature> { None }
-    pub fn signatures(&self) -> std::slice::Iter<CallableSignature> { self.signatures.iter() }
-}
-
-#[cfg(not(feature = "v1_30"))]
-#[derive(Debug, Clone)]
-pub struct CallableSignature {
-    pub name: String,
-    pub params: Vec<crate::types::TypeId>,
-    pub return_type: crate::types::TypeId,
-    pub is_variadic: bool,
-}
-#[cfg(not(feature = "v1_30"))]
-impl Default for CallableSignature {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            params: Vec::new(),
-            return_type: crate::types::TypeId(0),
-            is_variadic: false,
-        }
-    }
-}
 use crate::os::target::{build_target_machine, build_target_machine_with_arch, CompilationTarget, OutputKind};
 use crate::types::{PrimitiveType, TypeId, TypeKind, TypeRegistry};
 use anyhow::{anyhow, Context as AnyhowContext, Result};
@@ -151,9 +115,7 @@ pub struct LlvmCompiler<'ctx> {
 
 /// Backend trait for version-gated codegen. v1.21 uses direct compilation;
 /// v1.30+ uses this trait for HIR-based codegen.
-#[cfg(feature = "v1_30")]
 pub trait CodegenBackend {
-    #[cfg(feature = "v1_30")]
     fn compile_hir_module(&mut self, module: &crate::hir::HirModule, options: &CodegenOptions) -> Result<CodegenArtifact>;
 }
 
@@ -345,7 +307,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
 }
 
-#[cfg(feature = "v1_30")]
 /// Entry point for v1.30 HIR-to-object compilation.
 /// This is the gate between the v1.21 AST path and the v1.30 HIR path.
 /// v1.21 code never calls this function.
@@ -457,9 +418,7 @@ pub fn compile_v130(
 // =========================================================================
 impl<'ctx> LlvmCompiler<'ctx> {
     /// Emit a HIR function definition into the LLVM module.
-    #[cfg(feature = "v1_30")]
     /// If `ty` is a struct, rebuild its LLVM struct type from the registry layout.
-    #[cfg(feature = "v1_30")]
     fn resolve_struct_llvm(&self, ty: crate::types::TypeRef) -> Result<Option<inkwell::types::StructType<'ctx>>> {
         let layout = match self.types.as_ref() {
             Some(t) => match t.resolve(ty.id) {
@@ -579,7 +538,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
     }
 
     /// Declare a HIR extern function in the LLVM module.
-    #[cfg(feature = "v1_30")]
     fn emit_v130_extern_function(
         &mut self,
         extern_fn: &crate::hir::HirExternFunction,
@@ -598,7 +556,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
     // ─── HIR Block / Statement / Expression Emitters ───
 
-    #[cfg(feature = "v1_30")]
     /// Resolve a HIR local's backing pointer: an MMIO address (inttoptr) for
     /// hardware-declared registers, otherwise its stack alloca.
     fn local_ptr(&self, local_id: u32) -> Result<PointerValue<'ctx>> {
@@ -667,7 +624,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
-    #[cfg(feature = "v1_30")]
     fn emit_hir_stmt(
         &mut self,
         stmt: &crate::hir::HirStmt,
@@ -825,7 +781,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
     /// truncate to the type's bit width then re-extend (sign- or zero-extend)
     /// back to i64, so the value wraps exactly as a register of that width would.
     /// A no-op for 64-bit ints and non-integer types.
-    #[cfg(feature = "v1_30")]
     fn wrap_to_width(&self, value: IntValue<'ctx>, ty: crate::types::TypeRef) -> Result<IntValue<'ctx>> {
         let prim = match self.types.as_ref() {
             Some(t) => match t.resolve(ty.id) {
@@ -855,7 +810,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(extended)
     }
 
-    #[cfg(feature = "v1_30")]
     fn emit_hir_expr(
         &mut self,
         expr: &crate::hir::HirExpr,
@@ -1162,7 +1116,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
-    #[cfg(feature = "v1_30")]
     fn emit_hir_call(
         &mut self,
         callee: crate::types::CallableId,
@@ -1251,7 +1204,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
-    #[cfg(feature = "v1_30")]
     fn emit_hir_if(
         &mut self,
         condition: &crate::hir::HirExpr,
@@ -1285,7 +1237,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
-    #[cfg(feature = "v1_30")]
     fn emit_hir_while(
         &mut self,
         condition: &crate::hir::HirExpr,
@@ -1315,7 +1266,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
-    #[cfg(feature = "v1_30")]
     fn emit_hir_loop(
         &mut self,
         body: &crate::hir::HirBlock,
@@ -1339,7 +1289,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
     // ─── HIR Type Helpers ───
 
-    #[cfg(feature = "v1_30")]
     fn hir_type_to_llvm(&self, type_ref: crate::types::TypeRef) -> Result<BasicTypeEnum<'ctx>> {
         let types = self.types.as_ref()
             .ok_or_else(|| anyhow!("hir_type_to_llvm: TypeRegistry not attached"))?;
@@ -1358,7 +1307,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
-    #[cfg(feature = "v1_30")]
     fn unit_type_id(&self) -> TypeId {
         // Unit is represented as i8 (void)
         self.types.as_ref()
@@ -1370,7 +1318,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
 
     /// Pre-declare all callable functions from the CallableRegistry.
     /// Must be called before codegen if CallableRegistry is attached.
-    #[cfg(feature = "v1_30")]
     fn predeclare_callables(&mut self) -> Result<()> {
         if self.callables_predeclared {
             return Ok(()); // already done
@@ -1413,7 +1360,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
     // ─── v1.36 A5: Struct Registration ───
 
     /// Register a HIR struct declaration, creating its LLVM struct type.
-    #[cfg(feature = "v1_30")]
     fn register_hir_struct(
         &mut self,
         struct_decl: &crate::hir::HirStructDecl,
@@ -1434,7 +1380,6 @@ impl<'ctx> LlvmCompiler<'ctx> {
     /// v1.42: Emit a struct constructor call: `StructName(field1, ...)` → struct value.
     /// Supports: Color(r,g,b,a) → packed u32, Vector2(x,y) → 8-byte struct,
     ///           Rectangle(x,y,w,h) → 16-byte struct.
-    #[cfg(feature = "v1_30")]
     fn emit_hir_struct_constructor(
         &mut self,
         struct_name: &str,

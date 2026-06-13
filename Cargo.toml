@@ -40,13 +40,9 @@ strip = "symbols"
 panic = "unwind"
 lto = false
 
-[features]
-# v1.30 Option Engine = HIR lowering, type system, ffi, tier2 modules.
-# This is now the DEFAULT (single-engine doctrine: HIR is the sole path).
-# The legacy `not(v1_30)` arms are retained transitionally and will be
-# removed once every #[cfg(not(feature="v1_30"))] site is deleted.
-default = ["v1_30"]
-v1_30 = []
+# (No feature flags: HIR is the single, unconditional compilation engine.
+# The former `v1_30` feature gated HIR/ffi/tier2/layout; those are now always
+# compiled. The legacy non-HIR arms have been deleted.)
 
 [profile.dev]
 opt-level = 0

@@ -146,26 +146,14 @@ fn main() -> Result<()> {
             compile(&file, output, &dict, emit_ir, object_only, secure, &target, pipeline)
         }
         Some(Commands::Check { file, dict, pipeline }) => {
-            #[cfg(feature = "v1_30")]
             {
                 let _ = pipeline;
                 v130_validate_file(&file, &dict)?;
             }
-            #[cfg(not(feature = "v1_30"))]
-            {
-                let pipeline = pipeline.parse::<CompilerPipeline>().map_err(anyhow::Error::msg)?;
-                parse_and_analyze(&file, &dict, pipeline)?;
-            }
             println!("{}: semantic validation succeeded", file.display());
             Ok(())
         }
-        #[cfg(feature = "v1_30")]
         Some(Commands::V130Check { file, dict }) => v130_check(&file, &dict),
-        #[cfg(not(feature = "v1_30"))]
-        Some(Commands::V130Check { .. }) => {
-            eprintln!("v1.30 Option Engine not available. Build with --features v1_30");
-            std::process::exit(1);
-        }
         Some(Commands::Tokens { file, dict }) => print_tokens(&file, &dict),
         None => {
             println!("{LOGICODEX_LOGO}\n");
@@ -197,14 +185,8 @@ fn compile(
 
     // Sprint 3: Version-gated compilation — V130 uses HIR + CallableRegistry path
     let artifact = match pipeline {
-        #[cfg(feature = "v1_30")]
         CompilerPipeline::V130 => {
             compile_v130_pipeline(file, dict, &object_path, emit_ir, target)?
-        }
-        #[cfg(not(feature = "v1_30"))]
-        CompilerPipeline::V130 => {
-            eprintln!("v1.30 Option Engine not available. Build with --features v1_30");
-            std::process::exit(1);
         }
     };
     if let Some(ir_path) = artifact.ir_path.as_ref() {
@@ -261,7 +243,6 @@ fn compile(
     Ok(())
 }
 
-#[cfg(feature = "v1_30")]
 /// Sprint 3: v1.30 HIR compilation pipeline with CallableRegistry + Raylib FFI.
 fn compile_v130_pipeline(
     file: &Path,
@@ -501,8 +482,6 @@ fn parse_and_analyze(file: &Path, dict: &Path, pipeline: CompilerPipeline) -> Re
     parse_and_analyze_for_target(file, dict, "native", false, pipeline)
 }
 
-#[cfg(feature = "v1_30")]
-#[cfg(feature = "v1_30")]
 /// Compile-time capability check using the tier2 Capability Fabric vocabulary.
 /// Each `Service` `requires` clause must name a gate. A clearly malformed gate
 /// (not `Domain.Operation`) is a hard error; a well-formed gate outside the
@@ -605,7 +584,6 @@ fn v130_check(file: &Path, dict: &Path) -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "v1_30")]
 fn run_v130_subsystem_self_check() -> Result<()> {
     let mut types = types::TypeRegistry::new();
     let ids = types.primitive_ids();
@@ -690,7 +668,6 @@ fn run_v130_subsystem_self_check() -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "v1_30")]
 fn format_v130_diagnostics(diagnostics: &[span::Diagnostic]) -> String {
     diagnostics
         .iter()
@@ -699,7 +676,6 @@ fn format_v130_diagnostics(diagnostics: &[span::Diagnostic]) -> String {
         .join("\n")
 }
 
-#[cfg(feature = "v1_30")]
 fn format_v130_diagnostic(diagnostic: &span::Diagnostic) -> String {
     format!("{} / {}", diagnostic.message_ms, diagnostic.message_en)
 }
