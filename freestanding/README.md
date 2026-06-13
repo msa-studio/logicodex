@@ -14,6 +14,6 @@ Expected QEMU exit code: 33  (isa-debug-exit, clean)
 ## Status
 - [x] B1 minimal real boot (multiboot → long mode → serial)
 - [x] B2 clean exit (isa-debug-exit)
-- [~] B3: IDT-256 with 32 exception handlers (g11) DONE — int3 routes, iretq returns clean. Next: panic->UART (g2), MMIO (g12), SSE2 (g9), os/ integration
+- [~] B3: IDT-256 with 32 exception handlers (g11) DONE — int3 routes, iretq returns clean. Next: panic->UART (g2) DONE, MMIO (g12), SSE2 (g9), os/ integration
       panic→UART (g2), MMIO codegen (g12), x86_64 SSE2 (g9)
 - [ ] B4 P1-D5 complete

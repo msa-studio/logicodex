@@ -324,6 +324,28 @@ pub extern "C" fn kmain() -> ! {
 }
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    serial_puts(b"\nPANIC");
+    if let Some(loc) = info.location() {
+        serial_puts(b" at ");
+        serial_puts(loc.file().as_bytes());
+        serial_putc(b':');
+        // print line number (decimal)
+        let mut line = loc.line();
+        let mut buf = [0u8; 10];
+        let mut i = buf.len();
+        if line == 0 {
+            i -= 1;
+            buf[i] = b'0';
+        } else {
+            while line > 0 {
+                i -= 1;
+                buf[i] = b'0' + (line % 10) as u8;
+                line /= 10;
+            }
+        }
+        serial_puts(&buf[i..]);
+    }
+    serial_putc(b'\n');
     loop { unsafe { core::arch::asm!("hlt") }; }
 }
