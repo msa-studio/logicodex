@@ -735,38 +735,6 @@ fn register_math_functions(registry: &mut TypeRegistry, callables: &mut Callable
 
 /// v1.42 P4: Math utility implementations exposed as extern-C shims
 /// so they can be called from LLVM-generated code via the CallableRegistry.
-pub mod math_shims {
-
-    /// Shim: clamp(v: f32, min: f32, max: f32) → f32
-    #[no_mangle]
-    pub extern "C" fn logicodex_clamp_f32(v: f32, min: f32, max: f32) -> f32 {
-        super::super::math::clamp(v, min, max)
-    }
-
-    /// Shim: lerp(a: f32, b: f32, t: f32) → f32
-    #[no_mangle]
-    pub extern "C" fn logicodex_lerp_f32(a: f32, b: f32, t: f32) -> f32 {
-        super::super::math::lerp(a, b, t)
-    }
-
-    /// Shim: remap(value: f32, low1: f32, high1: f32, low2: f32, high2: f32) → f32
-    #[no_mangle]
-    pub extern "C" fn logicodex_remap_f32(
-        value: f32,
-        low1: f32,
-        high1: f32,
-        low2: f32,
-        high2: f32,
-    ) -> f32 {
-        super::super::math::remap(value, low1, high1, low2, high2)
-    }
-
-    /// Shim: normalize(value: f32, low: f32, high: f32) → f32
-    #[no_mangle]
-    pub extern "C" fn logicodex_normalize_f32(value: f32, low: f32, high: f32) -> f32 {
-        super::super::math::normalize(value, low, high)
-    }
-}
 
 #[cfg(test)]
 mod tests {
