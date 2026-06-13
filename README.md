@@ -62,7 +62,7 @@ These are **runtime-profile** work per the doctrine — labelled, not pretended:
 
 ## Testing
 
-`cargo test --features v1_30` compiles and runs green: **229 passing, 0 failing,
+`cargo test` compiles and runs green: **229 passing, 0 failing,
 3 ignored** (g1/g10/g14 string-test crt0, deferred — see #3; the live kernel uses a multiboot _start). Two drift-resistant phase
 gates guard behaviour via the real binary:
 
@@ -102,7 +102,7 @@ Full detail and issue links: `ROADMAP_v2.md`.
 
 ```bash
 # Build the compiler (the v1_30 feature is required)
-cargo build --features v1_30
+cargo build
 
 # Semantic-check a program
 ./target/debug/logicodex check examples/01a_variables.ldx

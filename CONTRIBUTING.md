@@ -1,6 +1,6 @@
 # Contributing to Logicodex
 
-Thank you for your interest in **Logicodex** (engine `v1.30.0-alpha`), a research-grade compiler for the Logicodex programming language. The project is maintained by a single developer (Mohamad Supardi Abdul) and is under a feature-freeze discipline focused on compiler-integrity restoration. Contributions should prioritize correctness, repeatable validation (`cargo test --features v1_30` must stay green), diagnostic clarity, and verified examples (every `examples/*.ldx` must pass `check`) over new language features. To propose becoming a co-maintainer, open an issue describing sustained prior contributions.
+Thank you for your interest in **Logicodex** (engine `v1.30.0-alpha`), a research-grade compiler for the Logicodex programming language. The project is maintained by a single developer (Mohamad Supardi Abdul) and is under a feature-freeze discipline focused on compiler-integrity restoration. Contributions should prioritize correctness, repeatable validation (`cargo test` must stay green), diagnostic clarity, and verified examples (every `examples/*.ldx` must pass `check`) over new language features. To propose becoming a co-maintainer, open an issue describing sustained prior contributions.
 
 ## Development Environment
 
@@ -11,16 +11,16 @@ rustup toolchain install 1.75.0
 rustup component add rustfmt --toolchain 1.75.0
 sudo apt-get update
 sudo apt-get install -y llvm-15 llvm-15-dev clang-15 lld-15
-cargo +1.75.0 check --features v1_30
-cargo +1.75.0 test --features v1_30
+cargo +1.75.0 check
+cargo +1.75.0 test
 ```
 
 If your system uses a non-standard LLVM installation path, set `LLVM_SYS_150_PREFIX` before running Cargo.
 
 ```bash
 export LLVM_SYS_150_PREFIX=/usr/lib/llvm-15
-cargo check --features v1_30
-cargo test --features v1_30
+cargo check
+cargo test
 ```
 
 ## Repository Integrity Rules
@@ -31,9 +31,9 @@ Compiler changes must preserve the active architecture unless a maintainer expli
 |---|---|---|
 | Formatting | Rust code must be rustfmt-compliant. | `cargo fmt --all -- --check` |
 | Compiler health | The crate must type-check with the pinned dependencies. | `cargo check` |
-| Regression coverage | Unit and integration tests must pass. | `cargo test --features v1_30` |
-| Examples | New examples must use syntax accepted by the current parser. | `cargo run --features v1_30 -- check examples/name.ldx` |
-| Example phase-gate | Every shipped example must pass `check` (enforced by the `shipped_examples_pass_semantic_check` test). | `for f in examples/*.ldx; do cargo run --features v1_30 -- check "$f"; done` |
+| Regression coverage | Unit and integration tests must pass. | `cargo test` |
+| Examples | New examples must use syntax accepted by the current parser. | `cargo run -- check examples/name.ldx` |
+| Example phase-gate | Every shipped example must pass `check` (enforced by the `shipped_examples_pass_semantic_check` test). | `for f in examples/*.ldx; do cargo run -- check "$f"; done` |
 | Safety-sensitive syntax | Hardware and raw-address examples must remain explicitly gated. | Prefer `--target freestanding --object-only` validation when exercising backend object generation. |
 
 ## Adding or Updating Dictionary Tokens
@@ -56,10 +56,10 @@ Before requesting review, run the full local validation set and include the comm
 
 ```bash
 cargo fmt --all -- --check
-cargo check --features v1_30
-cargo test --features v1_30
+cargo check
+cargo test
 for file in examples/*.ldx; do
-  cargo run --features v1_30 -- check "$file"
+  cargo run -- check "$file"
 done
 ```
 
