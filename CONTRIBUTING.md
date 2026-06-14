@@ -1,6 +1,6 @@
 # Contributing to Logicodex
 
-Thank you for your interest in **Logicodex** (engine `v1.30.0-alpha`), a research-grade compiler for the Logicodex programming language. The project is maintained by a single developer (Mohamad Supardi Abdul) and is under a feature-freeze discipline focused on compiler-integrity restoration. Contributions should prioritize correctness, repeatable validation (`cargo test` must stay green), diagnostic clarity, and verified examples (every `examples/*.ldx` must pass `check`) over new language features. To propose becoming a co-maintainer, open an issue describing sustained prior contributions.
+Thank you for your interest in **Logicodex** (engine `v0.46.0-alpha`), a research-grade compiler for the Logicodex programming language. The project is maintained by a single developer (Mohamad Supardi Abdul) and is under a feature-freeze discipline focused on compiler-integrity restoration. Contributions should prioritize correctness, repeatable validation (`cargo test` must stay green), diagnostic clarity, and verified examples (every `examples/*.ldx` must pass `check`) over new language features. To propose becoming a co-maintainer, open an issue describing sustained prior contributions.
 
 ## Development Environment
 

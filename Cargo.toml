@@ -1,6 +1,6 @@
 [package]
 name = "logicodex"
-version = "1.30.0-alpha"
+version = "0.46.0-alpha"
 edition = "2021"
 authors = ["Mohamad Supardi Abdul <mymsastudio@gmail.com>"]
 description = "Deterministic systems programming language with alias-to-canonical syntax, actor-model concurrency, and compile-time capability security"
@@ -50,9 +50,9 @@ panic = "unwind"
 
 [package.metadata.logicodex]
 language_name = "Logicodex"
-phase = "v1.30.0-alpha"
+phase = "v0.46.0-alpha"
 source_extension = "ldx"
-public_release_label = "v1.30.0-alpha"
+public_release_label = "v0.46.0-alpha"
 rust_channel = "1.75.0"
 llvm_feature = "llvm15-0"
 

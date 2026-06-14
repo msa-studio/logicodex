@@ -6,7 +6,7 @@
 **Last Updated:** 2026-05-25
 **Assessor:** AI-assisted systematic review
 **Scope:** Repository structure, tooling, governance, quality assurance
-**Logicodex Version:** v1.45.0-alpha
+**Logicodex Version:** v0.46.0-alpha
 
 ---
 

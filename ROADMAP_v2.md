@@ -12,9 +12,9 @@
 
 ## Executive Summary
 
-Logicodex is at **v1.45.0-alpha**, maintained by a single developer. The codebase has **10/22 capabilities fully implemented**, **8/22 partially implemented**, and **4/22 at skeleton level** (HIR activated and fixed-width integers landed v1.46; see `docs/architecture/hir-decision.md`). This roadmap replaces aspirational timelines with **phase-gated milestones** where each phase has strict entry criteria, measurable deliverables, mandatory audit checkpoints, and exit proof requirements. **No phase may begin until the previous phase's audit is signed off.**
+Logicodex is at **v0.46.0-alpha**, maintained by a single developer. The codebase has **10/22 capabilities fully implemented**, **8/22 partially implemented**, and **4/22 at skeleton level** (HIR activated and fixed-width integers landed v1.46; see `docs/architecture/hir-decision.md`). This roadmap replaces aspirational timelines with **phase-gated milestones** where each phase has strict entry criteria, measurable deliverables, mandatory audit checkpoints, and exit proof requirements. **No phase may begin until the previous phase's audit is signed off.**
 
-### Honest Maturity Matrix (v1.45.0-alpha)
+### Honest Maturity Matrix (v0.46.0-alpha)
 
 | Domain | Status | Level | Notes |
 |--------|--------|-------|-------|

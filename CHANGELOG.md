@@ -6,22 +6,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
-## [Unreleased] — 2026-06-14 — End-to-End .ldx -> Kernel + Single-Engine Cleanup
+## Versioning realignment (1.x -> 0.x)
 
-### Added
-- End-to-end `.ldx` -> bootable x86_64 kernel (#4): a `.ldx` program compiles to a freestanding object, links with the `logicodex-os` runtime, and boots in QEMU running its own code. CI-guarded via `make boot-e2e` (tested: structs, recursion, fib, multi-arg functions, if/else, nested loops). Closes the end-to-end gap both external audits flagged.
-- `examples/freestanding/{minimal,showcase}.ldx` + `make boot-e2e` regression guard.
+As of 0.46.0-alpha, Logicodex is versioned under the **0.x** series. The earlier
+`1.x` numbering wrongly implied a stable, production-ready, API-committed release
+(SemVer: 1.0 means a committed public API). Logicodex is alpha research-grade
+software that is still partial in many areas, so a `0.x` version is the honest
+label (SemVer: 0.x means pre-1.0, unstable, API may change at any time).
+
+The development-history number is preserved: the work previously tracked as
+`1.46` is now `0.46.0-alpha`. The `1.21`-`1.46` entries below are kept unchanged
+as a historical record; their numbers map onto the `0.x` series (1.46 -> 0.46,
+1.45 -> 0.45, and so on). No past entry has been rewritten - only the current and
+future versioning is corrected.
+
+---
+
+## [0.46.0-alpha] - 2026-06-14 - End-to-End .ldx -> Kernel + Single-Engine Cleanup + Honest Versioning
 
 ### Changed
-- Single-engine cleanup: removed the `v1_30` feature flag entirely (49 cfg sites + dead legacy non-HIR arms). HIR is now the unconditional, sole engine — no flag.
-- Rewrote CI (375 -> 43 lines) for single-engine reality: check (fmt+clippy+build) / test (full suite) / freestanding (boot-evidence + boot-e2e + validator). Bumped actions to Node 24.
+- **Versioning realigned from `1.x` to `0.x`** to honestly reflect pre-1.0,
+  alpha status (see the note above). Current version: `0.46.0-alpha`.
+
+### Added
+- End-to-end `.ldx` -> bootable x86_64 kernel: a `.ldx` program compiles to a
+  freestanding object, links with the `logicodex-os` runtime, and boots in QEMU
+  running its own code. CI-guarded via `make boot-e2e` (tested: structs,
+  recursion, fib, multi-arg functions, if/else, nested loops).
+- `examples/freestanding/{minimal,showcase}.ldx` + `make boot-e2e` regression guard.
+
+### Changed (engine)
+- Single-engine cleanup: removed the `v1_30` feature flag entirely (49 cfg sites
+  + dead legacy non-HIR arms). HIR is now the unconditional, sole engine.
+- Rewrote CI for single-engine reality (check / test / freestanding boot+e2e);
+  bumped actions to Node 24.
 
 ### Removed
-- Archived 26 pre-HIR validators that structurally tested the retired v1.21-v1.45 architecture (kept under `scripts/validators/_archive_pre_hir/` as history). Live QA is now `cargo test` (229/0) + `make boot-evidence`/`boot-e2e`.
+- Archived 26 pre-HIR validators that tested the retired pre-HIR architecture
+  (kept under `scripts/validators/_archive_pre_hir/` as history). Live QA is now
+  `cargo test` + `make boot-evidence`/`boot-e2e`.
 
 ### Fixed
-- `logicodex_clamp_f32` multiply-defined under release LTO (removed dead `math_shims` module).
-- fmt: edition-2024 `#[unsafe(no_mangle)]` -> `#[no_mangle]` for the pinned 1.75 toolchain.
+- `logicodex_clamp_f32` multiply-defined under release LTO (dead `math_shims`).
+- Repo hygiene: removed empty paste artifacts, Windows Zone.Identifier metadata,
+  and stale build/test logs; cleaned stale era references in source comments
+  (now all English, reflecting the single HIR engine); fixed Makefile validator
+  targets to point at the live validator set.
 
 ---
 

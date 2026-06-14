@@ -4,7 +4,7 @@
 
 **User Guide · Tutorials · API Reference · Troubleshooting**
 
-Version: v1.45.0-alpha  
+Version: v0.46.0-alpha  
 Scope: This document teaches you how to use Logicodex. For the language specification and architecture, see [`../SPECIFICATION.md`](../SPECIFICATION.md). For philosophical justifications, see [`white-paper/`](white-paper/).
 
 ---
@@ -617,7 +617,7 @@ program game {
 
 ---
 
-*Logicodex Handbook — v1.45.0-alpha*  
+*Logicodex Handbook — v0.46.0-alpha*  
 *For the full specification: [`SPECIFICATION.md`](../SPECIFICATION.md)*  
 *For detailed justifications: [`white-paper/`](white-paper/)*  
 *For function reference: [`guide/`](guide/)*

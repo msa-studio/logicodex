@@ -2,7 +2,7 @@
 
 # Logicodex Specification
 
-## v1.45.0-alpha — The Deterministic Systems Programming Language
+## v0.46.0-alpha — The Deterministic Systems Programming Language
 
 **Author:** Mohamad Supardi Abdul (`mymsastudio@gmail.com`)  
 **Status:** Alpha  
@@ -542,5 +542,5 @@ The names **Logicodex**, **Logicodex Language**, and the ASCII logo are trademar
 
 ---
 
-*Logicodex Specification — v1.45.0-alpha · Last updated 2026-05-25*  
+*Logicodex Specification — v0.46.0-alpha · Last updated 2026-06-14*  
 *For questions: mymsastudio@gmail.com*

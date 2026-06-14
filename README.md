@@ -1,13 +1,13 @@
 # Logicodex
 +------------------------------------------------------------------+
-|  v1.30.0-alpha — Research-grade systems language prototype       |
+|  v0.46.0-alpha — Research-grade systems language prototype       |
 |  Not for production. See ROADMAP_v2.md for phase & maturity.     |
 +------------------------------------------------------------------+
 
 **A deterministic systems programming language with a zero-runtime core,
 compile-time capability checking, and bilingual (Malay/English) syntax.**
 
-> Note on versioning: the engine crate is versioned `1.30.0-alpha` (Cargo);
+> Note on versioning: the engine crate is versioned `0.46.0-alpha` (Cargo);
 > project-milestone docs use a separate `v1.4x` axis. They are different axes,
 > not a contradiction.
 
@@ -165,7 +165,7 @@ make boot-evidence   # examples/freestanding/minimal.ldx  -> clean boot
 ## Governance
 
 Phase-gated development: capabilities do not advance without review against
-documented criteria. **v1.30.0-alpha is a research prototype** — suitable for
+documented criteria. **v0.46.0-alpha is a research prototype** — suitable for
 language-design feedback and compiler research, **not** for production or
 security-critical workloads.
 
