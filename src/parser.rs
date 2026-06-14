@@ -1,6 +1,6 @@
 // =========================================================================
-// Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
+// Project: Logicodex Language Engine
+// Pipeline: single HIR compilation engine (.ldx -> AST -> HIR -> LLVM)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
@@ -319,7 +319,7 @@ impl Parser {
         self.tokens[current + 1].kind == TokenKind::LeftBracket
     }
 
-    /// v1.30.1-alpha: Parse `kotak Name { ... }`
+    /// Parse `kotak Name { ... }`
     fn actor_statement(&mut self) -> Result<Stmt, ParseError> {
         let name = self
             .consume(TokenKind::Identifier, "Actor name after 'actor'")?
@@ -731,7 +731,7 @@ impl Parser {
                 name: "FileHandle".to_string(),
             });
         }
-        // v1.30.1-alpha: Pintu<T, U, V> — SPSC channel with type-level capability
+        // Pintu<T, U, V> — SPSC channel with type-level capability
         if self.matches(TokenKind::Channel) {
             self.consume(TokenKind::Less, "'<' after 'Pintu'")?;
             let from = self
@@ -989,7 +989,7 @@ impl Parser {
         if self.matches(TokenKind::StringLiteral) {
             return Ok(Expr::StringLiteral(self.previous().lexeme.clone()));
         }
-        // v1.30.1-alpha: Spawn — lahirkan KotakName()
+        // Spawn — lahirkan KotakName()
         if self.matches(TokenKind::Spawn) {
             let actor_name = self
                 .consume(TokenKind::Identifier, "Kotak name after 'lahirkan'")?
@@ -1008,7 +1008,7 @@ impl Parser {
             self.consume(TokenKind::RightParen, "')' after lahirkan args")?;
             return Ok(Expr::Spawn { actor_name, args });
         }
-        // v1.30.1-alpha: Join — join ActorName
+        // Join — join ActorName
         if self.matches(TokenKind::Join) {
             let actor_name = self
                 .consume(TokenKind::Identifier, "Actor name after 'join'")?
@@ -1016,13 +1016,13 @@ impl Parser {
                 .clone();
             return Ok(Expr::Join { actor_name });
         }
-        // v1.30.1-alpha Phase 3: Yield — yield control to scheduler
+        // Yield — yield control to scheduler
         if self.matches(TokenKind::Yield) {
             self.consume(TokenKind::LeftParen, "'(' after 'yield'")?;
             self.consume(TokenKind::RightParen, "')' after 'yield'")?;
             return Ok(Expr::Yield);
         }
-        // v1.30.1-alpha Phase 3: Sleep — sleep(duration_ms)
+        // Sleep — sleep(duration_ms)
         if self.matches(TokenKind::Sleep) {
             self.consume(TokenKind::LeftParen, "'(' after 'sleep'")?;
             let duration_ms = self.expression()?;
@@ -1098,7 +1098,7 @@ impl Parser {
             }
             // Ketuk 3: Check if followed by '.' → method call on opaque type
             // h.read(1024), h.close(), h.seek(0)
-            // v1.30.1-alpha: pintu.hantar(val), pintu.terima()
+            // pintu.hantar(val), pintu.terima()
             if self.check(TokenKind::Dot) {
                 self.advance(); // consume '.'
                 let member = self.consume_member_name("field or method name after '.'")?;
@@ -1111,7 +1111,7 @@ impl Parser {
                 }
                 let method = member;
                 self.consume(TokenKind::LeftParen, "'(' after method name")?;
-                // v1.30.1-alpha: Channel method calls — send, recv
+                // Channel method calls — send, recv
                 if method == "send" {
                     let value = self.expression()?;
                     self.consume(TokenKind::RightParen, "')' after send value")?;
@@ -1124,7 +1124,7 @@ impl Parser {
                     self.consume(TokenKind::RightParen, "')' after recv'")?;
                     return Ok(Expr::Recv { channel_name: name });
                 }
-                // v1.30.1-alpha Phase 3: Backpressure — try_send, try_recv, timeout_recv
+                // Backpressure — try_send, try_recv, timeout_recv
                 if method == "try_send" {
                     let value = self.expression()?;
                     self.consume(TokenKind::RightParen, "')' after try_send value")?;

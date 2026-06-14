@@ -1,9 +1,10 @@
 #![allow(dead_code)]
 
 // =========================================================================
-// Logicodex v1.30 architecture simulation: HIR and lowering contracts.
+// HIR and lowering contracts.
 //
-// This module is dormant. It must not alter the current v1.21-alpha AST,
+// Active module: the HIR types and AST->HIR lowering used by the single engine.
+// (continued)
 // parser, semantic analyzer, or LLVM codegen path until the roadmap activates
 // HIR lowering for the executable subset.
 // =========================================================================
@@ -114,7 +115,7 @@ pub enum ExprAst {
         expr: Box<ExprAst>,
         target: TypeAst,
     },
-    // ─── v1.30 Threading Expressions (A3) ───
+    // ─── Threading Expressions (A3) ───
     Spawn {
         actor_name: String,
         args: Vec<ExprAst>,
@@ -381,7 +382,7 @@ pub enum HirExprKind {
         expr: Box<HirExpr>,
         target: TypeRef,
     },
-    // ─── v1.30 Threading Expressions (A3) ───
+    // ─── Threading Expressions (A3) ───
     /// Spawn an actor instance: `spawn ActorName(args)`
     Spawn {
         actor_name: String,
@@ -533,7 +534,7 @@ pub struct LoweringContext<'a> {
 }
 
 impl<'a> LoweringContext<'a> {
-    /// Sprint 3: Convert a v1.21 AST Program to HIR ModuleAst and lower it.
+    /// Convert an AST Program to HIR ModuleAst and lower it.
     pub fn lower_program(&mut self, program: ast::Program) -> Result<HirModule, Vec<Diagnostic>> {
         use ast::Stmt;
         // Register built-in callables (print is always available)
@@ -1058,7 +1059,7 @@ impl<'a> LoweringContext<'a> {
                     span,
                 }
             }
-            // ─── v1.30 Threading (A3) — lowered to HIR ───
+            // ─── Threading (A3) — lowered to HIR ───
             ExprAst::Spawn { actor_name, args } => {
                 let lowered_args: Vec<_> = args
                     .into_iter()
@@ -1097,7 +1098,7 @@ impl<'a> LoweringContext<'a> {
                 ty: unit_ref(self.types),
                 span,
             },
-            // ─── v1.30 Phase 3: Backpressure + Scheduler (A4) ───
+            // ─── Phase 3: Backpressure + Scheduler (A4) ───
             ExprAst::ChannelTrySend {
                 channel_name,
                 value,
@@ -1240,7 +1241,7 @@ fn unknown_ref(registry: &TypeRegistry) -> TypeRef {
     }
 }
 
-// Sprint 3: v1.21 AST → HIR AST conversion helpers
+// AST -> HIR conversion helpers
 
 fn lower_type_ast(ty: ast::Type) -> TypeAst {
     match ty {
@@ -1463,7 +1464,7 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             right: Box::new(lower_expr_ast(*right)),
         },
         ast::Expr::Grouped(inner) => lower_expr_ast(*inner),
-        // ─── v1.30 Threading (A3) — lowered to ExprAst ───
+        // ─── Threading (A3) — lowered to ExprAst ───
         ast::Expr::Spawn { actor_name, args } => ExprAst::Spawn {
             actor_name,
             args: args.into_iter().map(lower_expr_ast).collect(),
@@ -1477,7 +1478,7 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             value: Box::new(lower_expr_ast(*value)),
         },
         ast::Expr::Recv { channel_name } => ExprAst::ChannelRecv { channel_name },
-        // ─── v1.30 Phase 3: Backpressure + Scheduler (A4) ───
+        // ─── Phase 3: Backpressure + Scheduler (A4) ───
         ast::Expr::TrySend {
             channel_name,
             value,

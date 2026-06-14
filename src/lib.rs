@@ -32,10 +32,10 @@ pub use std::{
     string::ToString, vec::Vec,
 };
 
-// Core v1.21 modules (always compiled)
+// Core modules
 pub mod ast;
 pub mod codegen;
-// v1.30 Option Engine modules (gated behind feature flag)
+// HIR pipeline modules (HIR is the single engine; no feature flag)
 pub mod codegen_contract;
 pub mod ffi;
 pub mod hir;

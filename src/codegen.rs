@@ -1,6 +1,6 @@
 // =========================================================================
-// Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
+// Project: Logicodex Language Engine
+// Pipeline: single HIR compilation engine (.ldx -> AST -> HIR -> LLVM)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
@@ -88,7 +88,7 @@ pub struct LlvmCompiler<'ctx> {
     variables: Vec<HashMap<String, PointerValue<'ctx>>>,
     loop_targets: Vec<LoopTarget<'ctx>>,
     print_fn: FunctionValue<'ctx>,
-    // Sprint 3: CallableRegistry integration for function call codegen
+    // CallableRegistry integration for function-call codegen
     callables: Option<CallableRegistry>,
     types: Option<TypeRegistry>,
     declared_funcs: HashMap<String, FunctionValue<'ctx>>,
@@ -115,8 +115,7 @@ pub struct LlvmCompiler<'ctx> {
     current_return_ty: Option<crate::types::TypeRef>,
 }
 
-/// Backend trait for version-gated codegen. v1.21 uses direct compilation;
-/// v1.30+ uses this trait for HIR-based codegen.
+/// Backend trait for HIR-based codegen (the single compilation engine).
 pub trait CodegenBackend {
     fn compile_hir_module(
         &mut self,
@@ -159,7 +158,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
-    /// Attach a CallableRegistry for FFI function resolution (Sprint 3).
+    /// Attach a CallableRegistry for FFI function resolution.
     pub fn with_callables(mut self, callables: CallableRegistry, types: TypeRegistry) -> Self {
         self.callables = Some(callables);
         self.types = Some(types);
@@ -325,9 +324,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
     }
 }
 
-/// Entry point for v1.30 HIR-to-object compilation.
-/// This is the gate between the v1.21 AST path and the v1.30 HIR path.
-/// v1.21 code never calls this function.
+/// Entry point for HIR-to-object compilation (.ldx -> object file).
 pub fn compile_v130(
     hir_module: &crate::hir::HirModule,
     object_path: &Path,
@@ -365,7 +362,7 @@ pub fn compile_v130(
         }
     }
 
-    // v1.30 uses HIR items instead of v1.21 AST statements
+    // Codegen consumes HIR items
     for item in &hir_module.items {
         match &item.node {
             crate::hir::HirItem::Function(function) => {
@@ -1060,7 +1057,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 // For now, emit the inner expression (casts are no-ops at LLVM level for compatible types)
                 self.emit_hir_expr(expr, func)
             }
-            // ─── v1.30 Threading Expressions (A3) — LLVM Codegen ───
+            // ─── Threading expressions — LLVM codegen ───
             HirExprKind::Spawn { actor_name, args } => {
                 // Declare runtime function: logicodex_spawn(actor_name: *const u8) -> i64
                 let spawn_fn = self.declare_runtime_func(
@@ -1191,7 +1188,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
-            // ─── v1.30 Phase 3: Backpressure + Scheduler (A4) ───
+            // ─── Backpressure + scheduler ───
             HirExprKind::ChannelTrySend {
                 channel_name,
                 value,
@@ -1531,7 +1528,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             .types
             .as_ref()
             .ok_or_else(|| anyhow!("hir_type_to_llvm: TypeRegistry not attached"))?;
-        // v1.30 codegen uses a uniform i64 integer model: every HIR expression
+        // Codegen uses a uniform i64 integer model: every HIR expression
         // produces an i64, so all integer-typed params/returns are i64 too. This
         // keeps call args, returns and arithmetic consistent. (Fixed-width int
         // semantics — true 32-bit wrapping — would require trunc/extend at each

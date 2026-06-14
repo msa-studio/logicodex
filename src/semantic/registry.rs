@@ -1,6 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Enhanced TypeRegistry Operations
-// Sprint 1: Type System Foundation
+// Enhanced TypeRegistry operations — type-system foundation.
 //
 // This module provides high-level type inspection and validation operations
 // built on top of the core TypeRegistry. It is the interface used by the

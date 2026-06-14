@@ -1,11 +1,10 @@
 #![allow(dead_code)]
 
 // =========================================================================
-// Logicodex v1.30 architecture simulation: backend codegen contract.
+// Backend codegen contract.
 //
-// This module is dormant. The active v1.21-alpha LLVM backend remains in
-// codegen.rs and must not consume these contracts until HIR, layout, and FFI
-// validation are activated by staged implementation.
+// Defines the interface between HIR lowering and the LLVM backend in
+// codegen.rs. Part of the single HIR compilation engine.
 // =========================================================================
 
 use crate::ffi::{CallableRegistry, CallableSignature};

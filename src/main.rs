@@ -206,7 +206,7 @@ fn compile(
         output_path.with_extension("o")
     };
 
-    // Sprint 3: Version-gated compilation — V130 uses HIR + CallableRegistry path
+    // Compile through the HIR pipeline (CallableRegistry-backed).
     let artifact = match pipeline {
         CompilerPipeline::V130 => compile_v130_pipeline(file, dict, &object_path, emit_ir, target)?,
     };
@@ -265,7 +265,7 @@ fn compile(
     Ok(())
 }
 
-/// Sprint 3: v1.30 HIR compilation pipeline with CallableRegistry + Raylib FFI.
+/// HIR compilation pipeline with CallableRegistry + Raylib FFI.
 fn compile_v130_pipeline(
     file: &Path,
     dict: &Path,
@@ -281,7 +281,7 @@ fn compile_v130_pipeline(
     let tokens = Lexer::new(&source, &lexicon).tokenize()?;
     let mut parser = Parser::new(tokens).with_pipeline(CompilerPipeline::V130);
     let program = parser.parse()?;
-    // v1.30: v1.21 Analyzer gate retired; HIR lowering + semantic_gate validate.
+    // HIR lowering + semantic_gate perform validation (the legacy Analyzer was retired).
 
     // Step 2: Set up TypeRegistry with Raylib struct types
     let mut types = types::TypeRegistry::new();
@@ -584,8 +584,8 @@ fn validate_capabilities(program: &ast::Program) -> Result<()> {
 }
 
 fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
-    // Full v1.30 validation: parse -> lower (AST->HIR) -> semantic_gate.
-    // Replaces the retired v1.21 Analyzer as `check`'s validation pass.
+    // Full validation: parse -> lower (AST->HIR) -> semantic_gate.
+    // This is `check`'s validation pass (the legacy Analyzer was retired).
     let source = fs::read_to_string(file)
         .with_context(|| format!("failed to read Logicodex source file {}", file.display()))?;
     let lexicon = Lexicon::from_path(dict)
@@ -750,7 +750,7 @@ fn parse_and_analyze_for_target(
     let tokens = Lexer::new(&source, &lexicon).tokenize()?;
     let mut parser = Parser::new(tokens).with_pipeline(pipeline);
     let program = parser.parse()?;
-    // v1.30: v1.21 Analyzer gate retired; HIR lowering + semantic_gate validate.
+    // HIR lowering + semantic_gate perform validation (legacy Analyzer retired).
     let _ = (target_name, secure);
     Ok(program)
 }

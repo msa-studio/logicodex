@@ -1,10 +1,9 @@
 #![allow(dead_code)]
 
 // =========================================================================
-// Logicodex v1.30 architecture simulation: struct and enum layout contracts.
+// Struct and enum layout contracts.
 //
-// This module is dormant and must not perform backend layout inference for the
-// current v1.21-alpha executable subset.
+// Active module: computes struct/enum memory layout for the HIR backend.
 // =========================================================================
 
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span};

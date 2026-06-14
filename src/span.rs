@@ -2,11 +2,9 @@
 #![allow(unused_variables)]
 
 // =========================================================================
-// Logicodex v1.30 architecture simulation: source spans and diagnostics.
+// Source spans and diagnostics.
 //
-// This module is dormant in the v1.21-alpha runtime. It exists only to test
-// whether the v1.30 architecture skeleton can compile without changing the
-// current executable compiler path.
+// Carries source locations through the pipeline for error reporting.
 // =========================================================================
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

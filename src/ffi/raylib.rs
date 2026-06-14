@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Raylib Safe Wrapper Layer
+// Raylib safe wrapper layer
 // Sprint 1: Type System Foundation — FFI Layer
 //
 // This module provides safe Rust wrappers around the raw Raylib FFI
@@ -536,7 +536,7 @@ pub fn struct_constructor_arity(name: &str) -> Option<usize> {
 /// v1.42: Register all Raylib core functions with the Logicodex CallableRegistry.
 /// This allows .ldx code to call Raylib functions through the FFI layer.
 ///
-/// Changes from v1.30:
+/// Notes:
 /// - Drawing functions now take Color struct type (not packed u32)
 /// - Texture2D functions use Texture2D struct type (not i64 handle)
 /// - Math utilities (clamp, lerp, remap) registered as safe functions

@@ -1,6 +1,6 @@
 // =========================================================================
-// Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
+// Project: Logicodex Language Engine
+// Pipeline: single HIR compilation engine (.ldx -> AST -> HIR -> LLVM)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
@@ -115,7 +115,7 @@ pub enum SemanticError {
     HandleNotOpen { name: String },
     #[error("KRITIKAL: Operasi `{operation}` ditolak untuk handle `{name}` — kebenaran tidak mencukupi / CRITICAL: Operation `{operation}` denied for handle `{name}` — insufficient permission")]
     HandlePermissionDenied { name: String, operation: String },
-    // ─── v1.30.1-alpha: Threading Foundation ───
+    // ─── Threading Foundation ───
     #[error("KRITIKAL: Actor `{name}` does not exist — mesti diisytiharkan sebelum digunakan / CRITICAL: Actor `{name}` does not exist — must be declared before use")]
     ActorNotFound { name: String },
     #[error("KRITIKAL: Channel from `{from}` to `{to}` is invalid — Kotak penerima tidak wujud / CRITICAL: Channel from `{from}` to `{to}` is invalid — receiving Kotak does not exist")]
@@ -124,10 +124,10 @@ pub enum SemanticError {
     DuplicateActor { name: String },
     #[error("KRITIKAL: `spawn` can only be used with an Actor name / CRITICAL: `spawn` can only be used with an Actor name")]
     SpawnNonActor,
-    // v1.30.1-alpha Phase 2: Zero-Copy Ownership Transfer
+    // Zero-Copy Ownership Transfer
     #[error("KRITIKAL: Variable `{name}` has already been sent through Channel — ownership telah dipindahkan / CRITICAL: Variable `{name}` has already been sent through Channel — ownership has been transferred")]
     UseAfterSend { name: String },
-    // v1.30.1-alpha Phase 3: Backpressure + Scheduler
+    // Backpressure + Scheduler
     #[error("KRITIKAL: Channel `{name}` penuh — hantar ditolak (backpressure) / CRITICAL: Channel `{name}` is full — send rejected (backpressure)")]
     ChannelFull { name: String },
     #[error("KRITIKAL: Timeout menunggu recv dari Channel `{name}` selepas {timeout_ms}ms / CRITICAL: Timeout waiting for recv from Channel `{name}` after {timeout_ms}ms")]
@@ -168,12 +168,12 @@ pub struct Analyzer {
     handle_registry: HashMap<String, (Type, bool)>,
     /// Tracks handle permissions: variable name → mode (Read/Write/ReadWrite)
     handle_permissions: HashMap<String, String>,
-    // v1.30.1-alpha: Threading Foundation — Actor & Channel topology
+    // Threading Foundation — Actor & Channel topology
     /// Registered Actor names
     actor_registry: HashSet<String>,
     /// Registered Channel: (from, to, message_type)
     channel_registry: Vec<(String, String, String)>,
-    // v1.30.1-alpha Phase 2: Zero-Copy Ownership Transfer
+    // Zero-Copy Ownership Transfer
     /// Variables moved via Channel hantar() — cannot use after send
     moved_via_channel: HashSet<String>,
     // v1.42 P6: StrictAudioContext — Audio callback safety tracking
@@ -454,7 +454,7 @@ impl Analyzer {
                 }
             }
             Stmt::Actor { name, body } => {
-                // v1.30.1-alpha: Register Kotak in topology
+                // Register Kotak in topology
                 if self.actor_registry.contains(name) {
                     return Err(SemanticError::DuplicateActor { name: name.clone() });
                 }
@@ -549,8 +549,8 @@ impl Analyzer {
                         });
                     }
                 } else {
-                    // v1.30: enum / integer matching. Validate arm bodies; the
-                    // v1.30 lowering turns this into an if/else chain over tags.
+                    // Enum / integer matching. Validate arm bodies; lowering
+                    // lowering turns this into an if/else chain over tags.
                     for arm in arms {
                         self.scoped_block(&arm.body)?;
                     }
@@ -596,8 +596,8 @@ impl Analyzer {
                 });
             }
         }
-        // User-defined named types (structs/enums) are validated by the v1.30
-        // type system, not the v1.21 analyzer, so don't flag them here.
+        // User-defined named types (structs/enums) are validated by the
+        // type system, not here.
         if !matches!(declared, Type::Named(_)) && !types_compatible(declared, actual) {
             return Err(SemanticError::DeclaredTypeMismatch {
                 name: name.to_string(),
@@ -830,7 +830,7 @@ impl Analyzer {
                     }),
                 }
             }
-            // v1.30.1-alpha: Threading expressions
+            // Threading expressions
             Expr::Spawn { actor_name, args } => {
                 if !self.actor_registry.contains(actor_name) {
                     return Err(SemanticError::ActorNotFound {
@@ -901,7 +901,7 @@ impl Analyzer {
                     name: "Unit".to_string(),
                 })
             }
-            // v1.30.1-alpha Phase 3: Backpressure + Scheduler
+            // Backpressure + Scheduler
             Expr::TrySend {
                 channel_name,
                 value,

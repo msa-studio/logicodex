@@ -1,9 +1,8 @@
 // =========================================================================
-// Logicodex v1.30 architecture simulation: registry-backed type identities.
+// Registry-backed type identities (TypeRegistry, TypeId).
 //
-// This module is intentionally dormant. It must not replace the current
-// v1.21-alpha string/enum based semantic checks until the staged v1.30 roadmap
-// explicitly activates TypeRegistry integration.
+// Active part of the HIR pipeline: the type system the semantic gate and
+// codegen resolve types through.
 // =========================================================================
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -219,7 +218,7 @@ pub struct TypeRegistry {
     primitive_cache: PrimitiveTypeIds,
     /// Cached struct layouts, indexed by StructLayoutId.0
     struct_layouts: Vec<StructLayout>,
-    /// Enum name -> ordered variant names (tag = index). v1.30 enum support.
+    /// Enum name -> ordered variant names (tag = index).
     enum_variants: std::collections::HashMap<String, Vec<String>>,
     /// Cached enum layouts, indexed by EnumLayoutId.0
     /// v1.38: Added for enum layout computation (E2)
@@ -497,7 +496,7 @@ impl TypeRegistry {
             .map(|(i, l)| (StructLayoutId(i as u32), l))
     }
 
-    /// Register an enum's ordered variants (tag = index). v1.30 enum support.
+    /// Register an enum's ordered variants (tag = index).
     pub fn register_enum_variants(&mut self, name: &str, variants: Vec<String>) {
         self.enum_variants.insert(name.to_string(), variants);
     }

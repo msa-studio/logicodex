@@ -1,6 +1,6 @@
 // =========================================================================
-// Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
+// Project: Logicodex Language Engine
+// Pipeline: single HIR compilation engine (.ldx -> AST -> HIR -> LLVM)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0

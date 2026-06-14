@@ -1,6 +1,6 @@
 // =========================================================================
-// Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.21-alpha (Specification Baseline & Practical Severity Roadmap)
+// Project: Logicodex Language Engine
+// Pipeline: single HIR compilation engine (.ldx -> AST -> HIR -> LLVM)
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
@@ -94,7 +94,7 @@ pub enum Stmt {
         value: Expr,
         arms: Vec<MatchArm>,
     },
-    /// v1.30.1-alpha: Actor declaration — concurrency unit (1 OS Thread).
+    /// Actor declaration — concurrency unit (1 OS Thread).
     /// Syntax: `actor SensorSuhu { let pintu: Pintu<...> = ...; ... }`
     Actor {
         name: String,
@@ -213,29 +213,29 @@ pub enum Expr {
         enum_name: String,
         variant: String,
     },
-    /// v1.30.1-alpha: Spawn a Kotak (create OS thread).
+    /// Spawn a Kotak (create OS thread).
     /// Syntax: `lahirkan SensorSuhu()`
     Spawn {
         actor_name: String,
         args: Vec<Expr>,
     },
-    /// v1.30.1-alpha: Send value through Channel.
+    /// Send value through Channel.
     /// Syntax: `channel_data.send(Ok(DataSuhu{ nilai: 25.5 }))`
     Send {
         channel_name: String,
         value: Box<Expr>,
     },
-    /// v1.30.1-alpha: Receive value from Channel.
+    /// Receive value from Channel.
     /// Syntax: `channel_data.recv()`
     Recv {
         channel_name: String,
     },
-    /// v1.30.1-alpha: Wait for Actor to finish.
+    /// Wait for Actor to finish.
     /// Syntax: `join SensorSuhu`
     Join {
         actor_name: String,
     },
-    // v1.30.1-alpha Phase 3: Backpressure + Scheduler
+    // Backpressure + Scheduler
     /// TrySend — non-blocking send, returns Result<bool, IoError>.
     /// Syntax: `channel.try_send(value)`
     TrySend {
@@ -318,7 +318,7 @@ pub enum Type {
     Opaque {
         name: String,
     },
-    // ─── v1.30.1-alpha: Threading Foundation — Kotak & Pintu ───
+    // ─── Threading Foundation — Kotak & Pintu ───
     /// Channel<T, U> — SPSC channel with type-level capability.
     /// Syntax: Channel<SensorSuhu, KotakEnjin, DataSuhu>
     Channel {
@@ -390,12 +390,12 @@ impl Type {
         }
     }
 
-    /// v1.30.1-alpha: Check if this is a Pintu type.
+    /// Check if this is a Pintu type.
     pub fn is_channel(&self) -> bool {
         matches!(self, Type::Channel { .. })
     }
 
-    /// v1.30.1-alpha: Get Pintu capability (from, to, message_type).
+    /// Get Pintu capability (from, to, message_type).
     pub fn channel_capability(&self) -> Option<(&str, &str, &str)> {
         match self {
             Type::Channel {

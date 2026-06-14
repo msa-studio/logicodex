@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Ketuk 4: Syscall Backend
+// Syscall backend
 //
 // Direct system call emission for Linux x86_64 and Windows.
 // No libc — bare-metal syscall instruction.

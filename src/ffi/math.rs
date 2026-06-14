@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Math Utilities
+// Math utilities
 // Stage 1 Quickfix: clamp, lerp, remap
 //
 // These are pure Rust functions (no FFI) used by Logicodex code and

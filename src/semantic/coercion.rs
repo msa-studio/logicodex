@@ -1,6 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Coercion Engine
-// Sprint 1: Type System Foundation
+// Coercion Engine — type-system foundation.
 //
 // The CoercionEngine determines if and how types can be converted between
 // each other. It enforces Logicodex's safety-first philosophy:

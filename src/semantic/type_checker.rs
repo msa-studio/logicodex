@@ -1,6 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Type Checker (CoercionEngine Integration)
-// Sprint 1.2: Parser Type Injection
+// Type Checker (CoercionEngine integration).
 //
 // Bridges the semantic analyzer (which uses ast::Type) with the
 // TypeRegistry and CoercionEngine (which use TypeId).
@@ -207,7 +206,7 @@ impl TypeChecker<'_> {
                         // Return the type name as ast::Type if possible
                         // For Sprint 2.5, we only support primitive-named structs
                         // Full struct type mapping requires ast::Type extension
-                        return None; // Will be refined in Sprint 3
+                        return None; // TODO: refine argument-type inference
                     }
                 }
                 None
@@ -240,14 +239,14 @@ impl TypeChecker<'_> {
                     args.len(),
                 ));
             }
-            // Sprint 3: validate each argument type against field type
+            // TODO: validate each argument type against field type
             // v1.38: Struct constructors return a packed value (I64 for Color RGBA)
             // This is intentional — structs are value types packed into integer registers
             return Ok(Type::I64);
         }
 
         // Try CallableRegistry for function calls
-        // Sprint 3: integrate with CallableRegistry for full function checking
+        // TODO: integrate with CallableRegistry for full function checking
         Err(format!(
             "Fungsi atau jenis struktur '{}' tidak dikenali. \
              / Function or struct type '{}' is not recognized.",

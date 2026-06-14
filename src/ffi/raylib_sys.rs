@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Raylib Raw FFI Declarations
+// Raylib raw FFI declarations
 // Sprint 1: Type System Foundation — FFI Layer
 //
 // Raw `extern "C"` bindings for the Raylib game development library.

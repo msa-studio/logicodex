@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
 // =============================================================================================================================================================================
-// Logicodex v1.30 architecture simulation: callable signatures and FFI gates.
+// Callable signatures and FFI gates.
 //
-// This module is dormant. Extern and unsafe execution remains parser-trapped in
-// the current v1.21-alpha split-implementation boundary.
+// Active module: provides the CallableRegistry / CallableSignature that codegen
+// and the Raylib FFI (src/ffi/) use to resolve and type-check foreign calls.
 // =============================================================================================================================================================================
 
 pub mod math;
