@@ -55,7 +55,7 @@ These are **runtime-profile** work per the doctrine — labelled, not pretended:
 - Runtime capability **enforcement** (compile-time validation works; runtime gate does not)
 - Capability provider-topology (`docs/architecture/capability-topology.md`)
 - WASM linking — emits a `wasm32` object, but final `.wasm` needs `wasm-ld` (not bundled)
-- Freestanding x86_64 **boots in QEMU** (multiboot1 -> long-mode -> serial -> clean exit); runtime in shared crate `logicodex-os`. All 4 freestanding gaps closed: IDT-256+32 handlers, panic->UART, SSE2, MMIO codegen complete (`ZON_PERKAKASAN` + `HW reg: ty = ALAMAT n;` -> volatile load/store to inttoptr(address)). Deferred: full crt0 (zero-BSS/.data, trigger-based), end-to-end .ldx->kernel emission
+- Freestanding x86_64 **boots in QEMU** (multiboot1 -> long-mode -> serial -> clean exit); runtime in shared crate `logicodex-os`. All 4 freestanding gaps closed: IDT-256+32 handlers, panic->UART, SSE2, MMIO codegen complete (`ZON_PERKAKASAN` + `HW reg: ty = ALAMAT n;` -> volatile load/store to inttoptr(address)). **End-to-end `.ldx` -> bootable kernel works:** a `.ldx` program compiles to a freestanding object, links with the `logicodex-os` runtime, and boots in QEMU running its own code (CI-guarded via `make boot-e2e`; tested with structs, recursion, functions, if/else, nested loops). Deferred: full crt0 (zero-BSS/.data, trigger-based)
 - Network reactor / sharded runtime (`src/net` is not compiled)
 - Raylib FFI is not wired into the HIR path
 - Float literals (`3.14`) do not yet parse (`.` is field-access); `^` (xor) has no token
@@ -87,7 +87,7 @@ Tiers: **FULL** (working, tested) · **PARTIAL** (works for some cases, gaps) ·
 | Actor model | PARTIAL (types + semantics; no runtime) |
 | Sharded runtime / network reactor | PARTIAL (`src/net` not compiled) |
 | WASM backend | PARTIAL (emits object; no linker) |
-| Freestanding x86_64 | PARTIAL (boots in QEMU; runtime in `logicodex-os`; 4 gaps closed incl. full MMIO; crt0 tests g1/g10/g14 + .ldx->kernel deferred) |
+| Freestanding x86_64 | PARTIAL (boots in QEMU; **end-to-end `.ldx`->kernel proven + CI-guarded**; runtime in `logicodex-os`; 4 gaps closed incl. full MMIO; crt0 tests g1/g10/g14 deferred) |
 | Raylib FFI | PARTIAL (not wired to HIR) |
 | CI/CD | PARTIAL (suite green; 2-week stability pending) |
 | Deterministic execution | SKELETON |
@@ -127,10 +127,18 @@ phase-gate test.
 
 ### Targets
 
-`compile --target <native|host|freestanding|wasm>` (default `native`). Only
-`native` produces a runnable executable today; `wasm` emits an object needing
-external linking; freestanding has known gaps. Targets sit under the runtime
+`compile --target <native|host|freestanding|wasm>` (default `native`).
+`native` produces a runnable executable; `freestanding` emits an object that the
+`logicodex-os` runtime links into a bootable x86_64 kernel (see `make boot-e2e`);
+`wasm` emits an object needing external linking. Targets sit under the runtime
 profiles described in the doctrine.
+
+```bash
+# Compile a .ldx program to a freestanding object, link it into the kernel,
+# and boot it in QEMU (asserts the program's own serial output):
+make boot-e2e        # examples/freestanding/showcase.ldx -> 10 20 55 17 36
+make boot-evidence   # examples/freestanding/minimal.ldx  -> clean boot
+```
 
 ---
 

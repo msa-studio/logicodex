@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [Unreleased] — 2026-06-14 — End-to-End .ldx -> Kernel + Single-Engine Cleanup
+
+### Added
+- End-to-end `.ldx` -> bootable x86_64 kernel (#4): a `.ldx` program compiles to a freestanding object, links with the `logicodex-os` runtime, and boots in QEMU running its own code. CI-guarded via `make boot-e2e` (tested: structs, recursion, fib, multi-arg functions, if/else, nested loops). Closes the end-to-end gap both external audits flagged.
+- `examples/freestanding/{minimal,showcase}.ldx` + `make boot-e2e` regression guard.
+
+### Changed
+- Single-engine cleanup: removed the `v1_30` feature flag entirely (49 cfg sites + dead legacy non-HIR arms). HIR is now the unconditional, sole engine — no flag.
+- Rewrote CI (375 -> 43 lines) for single-engine reality: check (fmt+clippy+build) / test (full suite) / freestanding (boot-evidence + boot-e2e + validator). Bumped actions to Node 24.
+
+### Removed
+- Archived 26 pre-HIR validators that structurally tested the retired v1.21-v1.45 architecture (kept under `scripts/validators/_archive_pre_hir/` as history). Live QA is now `cargo test` (229/0) + `make boot-evidence`/`boot-e2e`.
+
+### Fixed
+- `logicodex_clamp_f32` multiply-defined under release LTO (removed dead `math_shims` module).
+- fmt: edition-2024 `#[unsafe(no_mangle)]` -> `#[no_mangle]` for the pinned 1.75 toolchain.
+
+---
+
 ## [v1.46.0-alpha] — 2026-06-10 — HIR Activated: Single Engine
 
 ### Summary
