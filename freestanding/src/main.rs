@@ -4,7 +4,6 @@
 use core::arch::global_asm;
 use logicodex_os::{interrupts, uart};
 extern crate alloc;
-use alloc::vec::Vec;
 
 global_asm!(
     r#"
@@ -112,20 +111,46 @@ unsafe fn outb(port: u16, val: u8) {
         options(nomem, nostack, preserves_flags));
 }
 
+// === End-to-end .ldx runtime glue ===
+// The .ldx-compiled object exports `main() -> i64` and imports the runtime
+// helper `logicodex_print_i64` (emitted by codegen for PAPAR). We provide both:
+// the helper prints via the logicodex-os UART, and kmain calls into `main`.
+extern "C" {
+    fn main() -> i64;
+}
+
+/// Runtime helper imported by .ldx-emitted objects (PAPAR -> print i64).
+#[no_mangle]
+pub extern "C" fn logicodex_print_i64(v: i64) {
+    if v < 0 {
+        uart::uart_puts("-");
+        uart::uart_decimal((v.unsigned_abs()) as u64);
+    } else {
+        uart::uart_decimal(v as u64);
+    }
+    uart::uart_newline();
+}
+
 #[no_mangle]
 pub extern "C" fn kmain() -> ! {
+    // Runtime bring-up (UART + IDT + heap are initialised by logicodex-os deps).
     unsafe { uart::uart_init(); }
     uart::uart_puts("boot\r\n");
     unsafe { interrupts::idt_init(); }
     uart::uart_puts("idt\r\n");
-    unsafe { core::arch::asm!("int3") };
-    let mut v: Vec<u64> = Vec::new();
-    let mut i = 1u64;
-    while i <= 5 { v.push(i); i += 1; }
-    let mut sum = 0u64;
-    for x in &v { sum += *x; }
-    uart::uart_puts("heap sum=");
-    uart::uart_decimal(sum);
+
+    // Hand control to the .ldx-compiled program entry point.
+    uart::uart_puts("ldx main:\r\n");
+    let result = unsafe { main() };
+
+    // Report the program's return value, then mark a clean QEMU exit.
+    uart::uart_puts("ldx ret=");
+    if result < 0 {
+        uart::uart_puts("-");
+        uart::uart_decimal((result.unsigned_abs()) as u64);
+    } else {
+        uart::uart_decimal(result as u64);
+    }
     uart::uart_newline();
     uart::uart_puts("Logicodex\r\n");
     unsafe { outb(0xf4, 0x10); }
