@@ -16,10 +16,8 @@ test:
 	cargo test
 
 test-validators:
-	@echo "=== Tier A (core) ==="
-	@for v in scripts/validators/tier_a_core/*.py; do echo "--- $$(basename $$v) ---"; python3 "$$v"; done
-	@echo "=== Tier B (feature) ==="
-	@for v in scripts/validators/tier_b_feature/*.py; do echo "--- $$(basename $$v) ---"; python3 "$$v"; done
+	@echo "=== Live validators (pre-HIR tiers archived under scripts/validators/_archive_pre_hir/) ==="
+	@for v in scripts/validators/tier_c_stress/*.py; do echo "--- $$(basename $$v) ---"; python3 "$$v"; done
 
 test-all: test test-validators
 
@@ -57,8 +55,8 @@ validate:
 	cargo clippy
 	@echo "=== Unit tests ==="
 	cargo test
-	@echo "=== Tier A validators ==="
-	@for v in scripts/validators/tier_a_core/*.py; do echo "--- $$(basename $$v) ---"; python3 "$$v"; done
+	@echo "=== Live freestanding validator ==="
+	@for v in scripts/validators/tier_c_stress/*.py; do echo "--- $$(basename $$v) ---"; python3 "$$v"; done
 	@echo "=== All checks passed ==="
 
 # Freestanding x86_64 kernel: build -> elf32 -> QEMU boot (clean exit 33)
