@@ -63,11 +63,11 @@ validate:
 
 # Freestanding x86_64 kernel: build -> elf32 -> QEMU boot (clean exit 33)
 boot:
-	cd freestanding && ./build.sh boot
+	cd freestanding && ./build.sh boot ../examples/freestanding/minimal.ldx
 
 # CI-friendly: boot, capture serial, assert clean isa-debug-exit (33). Fails CI if not.
 boot-evidence:
-	@cd freestanding && ./build.sh boot 2>&1 | tee /tmp/logicodex-boot.log
+	@cd freestanding && ./build.sh boot ../examples/freestanding/minimal.ldx 2>&1 | tee /tmp/logicodex-boot.log
 	@echo "--- boot evidence (serial capture) ---"
 	@grep -q "QEMU_EXIT_CODE=33" /tmp/logicodex-boot.log && echo "PASS: clean boot, exit 33" || (echo "FAIL: no clean exit 33 in serial log" && exit 1)
 	@grep -q "Logicodex" /tmp/logicodex-boot.log && echo "PASS: serial printed 'Logicodex'" || (echo "FAIL: 'Logicodex' not on serial" && exit 1)

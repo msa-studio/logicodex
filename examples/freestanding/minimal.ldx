@@ -1,0 +1,3 @@
+# Minimal freestanding program: prove the kernel boots and runs .ldx code.
+# Expected serial: 7
+PAPAR 7;
