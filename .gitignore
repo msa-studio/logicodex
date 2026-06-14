@@ -6,3 +6,8 @@
 *.swp
 *~
 /main
+
+# Build/test logs and editor artifacts (never source)
+build_errors.txt
+test_errors.txt
+*:Zone.Identifier
