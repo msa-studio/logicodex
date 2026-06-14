@@ -84,18 +84,33 @@ jobs:
   freestanding:
     name: Freestanding x86_64 QEMU boot
     runs-on: ubuntu-latest
+    env:
+      LLVM_SYS_150_PREFIX: /usr/lib/llvm-15
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@1.75.0
         with:
           targets: x86_64-unknown-none
-      - name: Install QEMU + binutils
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install LLVM 15 + QEMU + binutils
+        # LLVM is needed because boot-e2e builds the compiler (cargo run) to
+        # compile showcase.ldx; QEMU + binutils boot/link the kernel.
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 binutils
+          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config qemu-system-x86 binutils
       - name: Boot evidence (multiboot -> long-mode -> serial 'Logicodex' -> clean exit 33)
         # build.sh unsets RUSTFLAGS internally so the inherited LLVM -L flag does
         # not override the freestanding target's relocation-model/linker rustflags.
         run: make boot-evidence
+      - name: End-to-end .ldx -> kernel boot (#4)
+        # Compiles examples/freestanding/showcase.ldx, links it into the kernel,
+        # boots in QEMU, asserts the program's own output (10 20 55 17 36).
+        run: make boot-e2e
       - name: Freestanding capability validator
         run: python3 scripts/validators/tier_c_stress/validate_v144_freestanding.py
