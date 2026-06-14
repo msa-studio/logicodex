@@ -1,1 +1,5 @@
 target/
+# Build artifacts from build.sh .ldx compilation
+ldx_program.o
+ldx_program.freestanding.md
+*.elf32
