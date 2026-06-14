@@ -16,7 +16,6 @@ These describe how the language/compiler works *today*. A change that affects th
 `logicodex check`.
 
 - `README.md` — front door
-- `GETTING_STARTED.md` — first-run experience
 - `SPECIFICATION.md` — language spec
 - `docs/guide/src/ch01`-`ch06` — core syntax tutorial (variables, types, control
   flow, functions)
@@ -27,8 +26,10 @@ These describe how the language/compiler works *today*. A change that affects th
 ### 2. Reference (kept current best-effort)
 Useful, updated when touched, but not release-blocking.
 
-- `MANUAL.md`, `docs/HANDBOOK.md`, `GRAMMAR_ANALYSIS.md`, `SYNTAX_ANALYSIS.md`,
-  `GrammarandDictionary.md`, `ENVIRONMENT_SETUP.md`, `CONTRIBUTING.md`
+- `docs/HANDBOOK.md`, `CONTRIBUTING.md`
+  (Earlier reference docs — `MANUAL.md`, `GETTING_STARTED.md`, `GRAMMAR_ANALYSIS.md`,
+  `SYNTAX_ANALYSIS.md`, `GrammarandDictionary.md`, `ENVIRONMENT_SETUP.md` — were
+  archived to `docs/archive/` as they predated the single-engine architecture.)
 - `docs/guide/src/ch07`+ that describe **planned/profile** features must carry a
   status banner (see below).
 
@@ -46,8 +47,7 @@ planned until the profile ships.
 ### 4. Historical (frozen, archived)
 Snapshots of past versions. Never edited for currency; they are a record.
 
-- `docs/archive/*`, `spec/v1.11-alpha/*`, `spec/v1.21-alpha/*`,
-  `v121_execution_design.md`, version-stamped design notes.
+- `docs/archive/*`, `spec/v1.11-alpha/*`, `spec/v1.21-alpha/*`, version-stamped design notes.
 - When a doc becomes obsolete, move it here with a one-line note at top stating it
   is archived and what supersedes it.
 
@@ -77,11 +77,11 @@ A change may not be marked release-ready unless:
 
 Repair order for the existing drift, highest impact first:
 
-1. `README.md`, `GETTING_STARTED.md` (front door, stale versions + old syntax)
+1. `README.md` (front door) — done; `GETTING_STARTED.md` archived (dual-engine, to be rewritten)
 2. `SPECIFICATION.md`, `docs/guide/src/ch01`-`ch06` (core syntax)
 3. Reference tier (sweep stale version/metric claims)
 4. Banner the planned/profile guide chapters (`ch07`+)
-5. Archive anything obsolete not already in `docs/archive/`
+5. Archive anything obsolete not already in `docs/archive/` — done (dual-engine docs + one-shot scripts archived)
 
 This backlog is worked incrementally; each repaired doc must satisfy the phase gate
 above before it is considered done.

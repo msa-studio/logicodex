@@ -154,7 +154,7 @@ make boot-evidence   # examples/freestanding/minimal.ldx  -> clean boot
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |
 | [`examples/`](examples/) | One verified program per feature |
 
-> Other documents (`MANUAL.md`, `SPECIFICATION.md`, the `docs/guide` book, the
+> Other documents (`SPECIFICATION.md`, the `docs/guide` book, the
 > `docs/white-paper` book, grammar/syntax analyses) are mid-repair and may still
 > reflect older syntax. They are being brought current under the documentation
 > phase gate; treat `examples/` and this README as the syntax source of truth
