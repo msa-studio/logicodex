@@ -35,6 +35,10 @@ if [ -n "$LDX" ]; then
        --target freestanding --object-only -o "$OBJ" )
   echo ">>> .ldx object: $OBJ"
   EXTRA_LINK="-C link-arg=$OBJ"
+  # cargo does not track the externally-supplied .ldx object as an input, so
+  # force a re-link by touching the entry source (otherwise a changed .ldx
+  # silently reuses the previously-linked kernel).
+  touch src/main.rs
 fi
 
 echo ">>> building kernel (+ linking .ldx object if present)"
