@@ -28,6 +28,8 @@ done
 
 EXTRA_LINK=""
 if [ -n "$LDX" ]; then
+  # Resolve to an absolute path so the subshell's `cd ..` does not break it.
+  LDX="$(cd "$(dirname "$LDX")" && pwd)/$(basename "$LDX")"
   echo ">>> compiling $LDX -> freestanding object"
   OBJ="$(pwd)/ldx_program.o"
   # The compiler lives in the parent workspace; build/run it from there.

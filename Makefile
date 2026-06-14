@@ -1,7 +1,7 @@
 # Logicodex Makefile
 # Simple task automation for common development operations
 
-.PHONY: all build test test-all fmt lint bench clean install boot boot-evidence
+.PHONY: all build test test-all fmt lint bench clean install boot boot-evidence boot-e2e
 
 LLVM_DIR ?= /usr/lib/llvm-15
 RUSTFLAGS ?= -L$(LLVM_DIR)/lib
@@ -71,3 +71,17 @@ boot-evidence:
 	@echo "--- boot evidence (serial capture) ---"
 	@grep -q "QEMU_EXIT_CODE=33" /tmp/logicodex-boot.log && echo "PASS: clean boot, exit 33" || (echo "FAIL: no clean exit 33 in serial log" && exit 1)
 	@grep -q "Logicodex" /tmp/logicodex-boot.log && echo "PASS: serial printed 'Logicodex'" || (echo "FAIL: 'Logicodex' not on serial" && exit 1)
+
+# End-to-end #4: compile a .ldx program, link it into the freestanding kernel,
+# boot in QEMU, and assert the program's own output appears on serial. Guards
+# the .ldx -> bootable-kernel pipeline against regressions. CI-friendly.
+boot-e2e:
+	@cd freestanding && ./build.sh boot ../examples/freestanding/showcase.ldx 2>&1 | tee /tmp/logicodex-e2e.log
+	@echo "--- e2e verification (showcase.ldx expected serial: 10 20 55 17 36) ---"
+	@tr -d '\r' < /tmp/logicodex-e2e.log > /tmp/logicodex-e2e.clean
+	@for v in 10 20 55 17 36; do \
+		grep -qx "$$v" /tmp/logicodex-e2e.clean || { echo "FAIL: expected .ldx output '$$v' missing"; exit 1; }; \
+	done
+	@grep -q "QEMU_EXIT_CODE=33" /tmp/logicodex-e2e.clean || { echo "FAIL: no clean exit 33"; exit 1; }
+	@grep -q "Logicodex" /tmp/logicodex-e2e.clean || { echo "FAIL: 'Logicodex' marker missing"; exit 1; }
+	@echo "PASS: showcase.ldx compiled -> linked -> booted with correct output (10 20 55 17 36)"

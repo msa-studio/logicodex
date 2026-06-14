@@ -1,0 +1,50 @@
+# End-to-end #4 showcase: compiled from .ldx, linked into the freestanding
+# runtime, and booted as a bare-metal x86_64 kernel. Each PAPAR prints via the
+# logicodex-os UART. Expected serial output (in order): 10 20 55 17 36
+#
+# Exercises: structs (BENTUK + field access), two-branch recursion (fib),
+# multi-arg functions, if/else (JIKA/MELAINKAN), nested while loops with scoped
+# variables, and arithmetic — all running with no OS underneath.
+
+BENTUK Titik MULA
+    x: I32;
+    y: I32;
+TAMAT
+
+# Two-branch recursion — exercises the call stack hard (fib(10) = 177 calls).
+FUNGSI fib(n: I32) -> I32 MULA
+    JIKA n <= 1 MULA
+        PULANG n;
+    TAMAT
+    PULANG fib(n - 1) + fib(n - 2);
+TAMAT
+
+FUNGSI maks(a: I32, b: I32) -> I32 MULA
+    JIKA a > b MULA
+        PULANG a;
+    TAMAT
+    MELAINKAN MULA
+        PULANG b;
+    TAMAT
+TAMAT
+
+BINA p: Titik = Titik(10, 20);
+PAPAR p.x;
+PAPAR p.y;
+
+BINA f10: I32 = fib(10);
+PAPAR f10;
+
+PAPAR maks(17, 8);
+
+BINA total: I32 = 0;
+BINA a: I32 = 1;
+SELAGI a <= 3 MULA
+    BINA b: I32 = 1;
+    SELAGI b <= 3 MULA
+        total = total + (a * b);
+        b = b + 1;
+    TAMAT
+    a = a + 1;
+TAMAT
+PAPAR total;
