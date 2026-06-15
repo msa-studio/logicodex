@@ -72,6 +72,55 @@ struct Cli {
     command: Option<Commands>,
 }
 
+/// Runtime profile selects which runtime ABI surface a program may use.
+///
+/// Honest status (Phase D):
+///   bare    -> no runtime builtins beyond print (minimal/native identity)
+///   std     -> print + sleep + yield (real syscall backends)  [DEFAULT]
+///   safe    -> std + capability checks                        [runtime-pending]
+///   actor   -> std + spawn/join/channel                       [runtime-pending: Phase B]
+///   service -> std + local reactor/health/metrics             [runtime-pending]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Profile {
+    Bare,
+    Std,
+    Safe,
+    Actor,
+    Service,
+}
+
+impl Profile {
+    fn parse(s: &str) -> Result<Self> {
+        match s {
+            "bare" => Ok(Profile::Bare),
+            "std" => Ok(Profile::Std),
+            "safe" => Ok(Profile::Safe),
+            "actor" => Ok(Profile::Actor),
+            "service" => Ok(Profile::Service),
+            other => Err(anyhow::anyhow!(
+                "unknown profile `{other}` (expected: bare, std, safe, actor, service)"
+            )),
+        }
+    }
+
+    /// Profiles whose runtime is not yet implemented return Some(reason).
+    /// bare/std are fully real today; the rest are reserved with honest status.
+    fn pending_reason(self) -> Option<&'static str> {
+        match self {
+            Profile::Bare | Profile::Std => None,
+            Profile::Safe => Some(
+                "the `safe` profile (capability enforcement) is not implemented yet;                  capability types exist but are not enforced at runtime",
+            ),
+            Profile::Actor => Some(
+                "the `actor` profile (spawn/join/channel runtime) is reserved for                  Phase B (pthread-based); codegen is ready but no runtime backend exists",
+            ),
+            Profile::Service => Some(
+                "the `service` profile (local reactor/health/metrics) is not implemented yet",
+            ),
+        }
+    }
+}
+
 #[derive(Debug, Subcommand)]
 enum Commands {
     #[command(about = "Print the official Logicodex terminal logo")]
@@ -101,6 +150,13 @@ enum Commands {
             help = "Select compiler pipeline: v1.30 (default) or v1.21 (legacy)"
         )]
         pipeline: String,
+        #[arg(
+            long,
+            default_value = "std",
+            value_parser = ["bare", "std", "safe", "actor", "service"],
+            help = "Runtime profile: bare, std (default), safe, actor, service"
+        )]
+        profile: String,
     },
     Check {
         #[arg(value_name = "FILE")]
@@ -149,10 +205,12 @@ fn main() -> Result<()> {
             secure,
             target,
             pipeline,
+            profile,
         }) => {
             let pipeline = pipeline
                 .parse::<CompilerPipeline>()
                 .map_err(anyhow::Error::msg)?;
+            let profile = Profile::parse(&profile)?;
             compile(
                 &file,
                 output,
@@ -162,6 +220,7 @@ fn main() -> Result<()> {
                 secure,
                 &target,
                 pipeline,
+                profile,
             )
         }
         Some(Commands::Check {
@@ -196,8 +255,17 @@ fn compile(
     secure: bool,
     target_name: &str,
     pipeline: CompilerPipeline,
+    profile: Profile,
 ) -> Result<()> {
     ensure_ldx_source(file)?;
+    // Profiles whose runtime is not implemented yet fail early with an honest,
+    // actionable message (consistent with the actor/channel compile guard).
+    // bare/std proceed normally.
+    if let Some(reason) = profile.pending_reason() {
+        return Err(anyhow::anyhow!(
+            "{reason}. Use `--profile std` (print + sleep + yield) or `--profile bare`.              See docs/runtime/PROFILES.md for current profile readiness."
+        ));
+    }
     let target = CompilationTarget::parse(target_name)?;
     let output_path = output.unwrap_or_else(|| default_output(file, object_only));
     let object_path = if object_only {
