@@ -92,6 +92,33 @@ fn runtime_sleep_and_yield() {
     assert_eq!(lines, vec!["1", "2"], "PAPARs around YIELD/SLEEP both run");
 }
 
+// ----- actor runtime is reserved (Phase B): check passes, compile bails ------
+#[test]
+fn actor_spawn_check_passes_but_compile_is_pending() {
+    let src = "ACTOR pekerja MULA\n    PAPAR 1;\nTAMAT\nSPAWN pekerja();\n";
+    // check: the program is syntactically + semantically valid.
+    let (code, _out) = check("actor_pending", src);
+    assert_eq!(code, 0, "actor program type-checks (check passes)");
+    // compile: must fail with an honest runtime-pending message, not a raw
+    // linker "undefined reference".
+    use std::process::Command;
+    let path = fixture("actor_pending_compile", src);
+    let out = Command::new(bin())
+        .arg("compile")
+        .arg(&path)
+        .output()
+        .expect("spawn compile");
+    assert!(
+        !out.status.success(),
+        "compile must fail (no actor runtime yet)"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("runtime not available") && stderr.contains("spawn"),
+        "expected honest actor-pending message, got:\n{stderr}"
+    );
+}
+
 // ----- capability vocabulary check: `check` exit semantics -------------------
 
 #[test]

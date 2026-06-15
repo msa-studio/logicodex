@@ -265,6 +265,75 @@ fn compile(
     Ok(())
 }
 
+/// Scan a lowered HIR module for actor/channel operations whose runtime is not
+/// yet implemented (Phase B, pthread-based). Returns the first such operation's
+/// human label, or None if the program uses no runtime-pending threading ops.
+///
+/// `yield` and `sleep` are intentionally NOT flagged: they have real syscall
+/// backends in os::runtime_assembly() and are part of the std profile today.
+fn first_pending_actor_op(module: &hir::HirModule) -> Option<&'static str> {
+    fn scan_expr(e: &hir::HirExpr) -> Option<&'static str> {
+        use hir::HirExprKind::*;
+        match &e.kind {
+            Spawn { args, .. } => {
+                for a in args {
+                    if let Some(op) = scan_expr(a) {
+                        return Some(op);
+                    }
+                }
+                Some("spawn")
+            }
+            Join { .. } => Some("join"),
+            ChannelSend { .. } => Some("channel send"),
+            ChannelRecv { .. } => Some("channel recv"),
+            ChannelTrySend { .. } => Some("channel try_send"),
+            ChannelTryRecv { .. } => Some("channel try_recv"),
+            ChannelTimeoutRecv { .. } => Some("channel timeout_recv"),
+            Binary { left, right, .. } => scan_expr(left).or_else(|| scan_expr(right)),
+            Unary { expr, .. } | Field { base: expr, .. } | Cast { expr, .. } => scan_expr(expr),
+            Call { args, .. } => args.iter().find_map(scan_expr),
+            Sleep { duration_ms } => scan_expr(duration_ms),
+            _ => None,
+        }
+    }
+    fn scan_block(b: &hir::HirBlock) -> Option<&'static str> {
+        for s in &b.statements {
+            if let Some(op) = scan_stmt(&s.node) {
+                return Some(op);
+            }
+        }
+        None
+    }
+    fn scan_stmt(s: &hir::HirStmt) -> Option<&'static str> {
+        use hir::HirStmt::*;
+        match s {
+            Let { value: Some(v), .. } => scan_expr(v),
+            Let { value: None, .. } => None,
+            Assign { target, value } => scan_expr(target).or_else(|| scan_expr(value)),
+            If {
+                condition,
+                then_branch,
+                else_branch,
+            } => scan_expr(condition)
+                .or_else(|| scan_block(then_branch))
+                .or_else(|| else_branch.as_ref().and_then(scan_block)),
+            While { condition, body } => scan_expr(condition).or_else(|| scan_block(body)),
+            Loop { body } | UnsafeBlock(body) | HardwareZone(body) => scan_block(body),
+            Expr(e) => scan_expr(e),
+            Return(Some(e)) => scan_expr(e),
+            Return(None) | Break { .. } | Continue { .. } | HardwareDecl { .. } => None,
+        }
+    }
+    for item in &module.items {
+        if let hir::HirItem::Function(f) = &item.node {
+            if let Some(op) = scan_block(&f.body) {
+                return Some(op);
+            }
+        }
+    }
+    None
+}
+
 /// HIR compilation pipeline with CallableRegistry + Raylib FFI.
 fn compile_v130_pipeline(
     file: &Path,
@@ -299,6 +368,18 @@ fn compile_v130_pipeline(
             .lower_program(program)
             .map_err(|diags| anyhow::anyhow!("v1.21 HIR lowering failed: {:?}", diags))?
     };
+
+    // Actor/channel runtime is reserved for Phase B (pthread-based). The HIR is
+    // lowered and codegen can emit calls to logicodex_spawn/join/channel_*, but
+    // those symbols have no runtime definition yet, so linking would fail with a
+    // bare "undefined reference". Detect this here and stop with an honest,
+    // actionable message instead. `check` does NOT run this — the program is
+    // syntactically and semantically valid; only its runtime is missing.
+    if let Some(op) = first_pending_actor_op(&module_ast) {
+        return Err(anyhow::anyhow!(
+            "actor/channel runtime not available yet: this program uses `{op}`,              which is parsed and code-generated but has no runtime backend in              this build (reserved for Phase B, pthread-based). It type-checks              (`check` passes), but cannot be linked into a runnable executable.              See docs/runtime/PROFILES.md (actor profile: runtime-pending)."
+        ));
+    }
 
     // Step 4: Set up CallableRegistry with Raylib functions
     let mut callables = ffi::CallableRegistry::default();
