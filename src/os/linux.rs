@@ -54,5 +54,49 @@ logicodex_print_i64:
     syscall
     leave
     ret
+
+    # ---------------------------------------------------------------------
+    # logicodex_yield() -> i64
+    # Cooperative yield via the sched_yield(2) syscall (x86_64 nr = 24).
+    # Takes no arguments; always returns 0.
+    # ---------------------------------------------------------------------
+    .global logicodex_yield
+    .type logicodex_yield, @function
+logicodex_yield:
+    mov $24, %rax          # sched_yield
+    syscall
+    xor %rax, %rax         # return 0
+    ret
+
+    # ---------------------------------------------------------------------
+    # logicodex_sleep(ms: i64) -> i64
+    # Sleep for `ms` milliseconds via nanosleep(2) (x86_64 nr = 35).
+    # Builds a `struct timespec { i64 tv_sec; i64 tv_nsec; }` on the stack:
+    #   tv_sec  = ms / 1000
+    #   tv_nsec = (ms % 1000) * 1_000_000
+    # Always returns 0 (interrupted sleeps are not resumed in this phase).
+    # ---------------------------------------------------------------------
+    .global logicodex_sleep
+    .type logicodex_sleep, @function
+logicodex_sleep:
+    push %rbp
+    mov %rsp, %rbp
+    sub $16, %rsp          # room for timespec (16 bytes)
+    mov %rdi, %rax         # rax = ms
+    cqo                    # sign-extend rax into rdx:rax
+    mov $1000, %rcx
+    idiv %rcx             # rax = ms/1000 (sec), rdx = ms%1000 (rem ms)
+    mov %rax, -16(%rbp)    # tv_sec
+    mov %rdx, %rax         # rax = remainder ms
+    mov $1000000, %rcx
+    imul %rcx, %rax        # rax = rem_ms * 1_000_000 (nsec)
+    mov %rax, -8(%rbp)     # tv_nsec
+    lea -16(%rbp), %rdi    # rdi = &timespec
+    xor %rsi, %rsi         # rsi = NULL (no remainder out)
+    mov $35, %rax          # nanosleep
+    syscall
+    xor %rax, %rax         # return 0
+    leave
+    ret
 "#
 }

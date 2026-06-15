@@ -537,8 +537,12 @@ impl<'a> LoweringContext<'a> {
     /// Convert an AST Program to HIR ModuleAst and lower it.
     pub fn lower_program(&mut self, program: ast::Program) -> Result<HirModule, Vec<Diagnostic>> {
         use ast::Stmt;
-        // Register built-in callables (print is always available)
+        // Register built-in callables. `print` is always available; the runtime
+        // ABI builtins below are backed by the std/runtime profile assembly
+        // (logicodex_sleep -> nanosleep, logicodex_yield -> sched_yield).
         self.symbols.define_callable("print".to_string());
+        self.symbols.define_callable("logicodex_sleep".to_string());
+        self.symbols.define_callable("logicodex_yield".to_string());
         let mut functions: Vec<Spanned<ItemAst>> = Vec::new();
         let mut top_level_stmts: Vec<Spanned<StmtAst>> = Vec::new();
 
@@ -1487,7 +1491,10 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             value: Box::new(lower_expr_ast(*value)),
         },
         ast::Expr::TryRecv { channel_name } => ExprAst::ChannelTryRecv { channel_name },
-        ast::Expr::Yield => ExprAst::Variable("yield".to_string()), // marker for HIR lowering
+        ast::Expr::Yield => ExprAst::Call {
+            callee: Box::new(ExprAst::Variable("logicodex_yield".to_string())),
+            args: vec![],
+        },
         ast::Expr::Sleep { duration_ms } => {
             let dur = lower_expr_ast(*duration_ms);
             ExprAst::Call {

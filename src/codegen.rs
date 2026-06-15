@@ -1349,6 +1349,41 @@ impl<'ctx> LlvmCompiler<'ctx> {
             return Ok(last);
         }
 
+        // Runtime ABI builtins (std/runtime profile), provided by the linked
+        // runtime assembly: logicodex_sleep(ms:i64)->i64 (nanosleep) and
+        // logicodex_yield()->i64 (sched_yield). Declared on demand, called direct.
+        if name.as_deref() == Some("logicodex_sleep") {
+            let sleep_fn = self.declare_runtime_func(
+                "logicodex_sleep",
+                self.i64_type.fn_type(&[self.i64_type.into()], false),
+            );
+            let arg_val = if let Some(a) = args.first() {
+                self.emit_hir_expr(a, func)?
+            } else {
+                self.i64_type.const_int(0, false)
+            };
+            let call_site = self
+                .builder
+                .build_call(sleep_fn, &[arg_val.into()], "sleep_call")
+                .context("failed to build logicodex_sleep call")?;
+            return match call_site.try_as_basic_value().left() {
+                Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+                _ => Ok(self.i64_type.const_int(0, false)),
+            };
+        }
+        if name.as_deref() == Some("logicodex_yield") {
+            let yield_fn =
+                self.declare_runtime_func("logicodex_yield", self.i64_type.fn_type(&[], false));
+            let call_site = self
+                .builder
+                .build_call(yield_fn, &[], "yield_call")
+                .context("failed to build logicodex_yield call")?;
+            return match call_site.try_as_basic_value().left() {
+                Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+                _ => Ok(self.i64_type.const_int(0, false)),
+            };
+        }
+
         // Struct constructor (detected by name via the type registry).
         if let Some(ref n) = name {
             let is_struct = self
