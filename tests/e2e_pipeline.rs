@@ -80,6 +80,18 @@ fn fixed_width_i8_wraps() {
     assert_eq!(out.trim(), "44", "300 wrapped to I8");
 }
 
+// ----- runtime ABI builtins (Phase D: sleep + yield) -------------------------
+#[test]
+fn runtime_sleep_and_yield() {
+    // YIELD() -> sched_yield, SLEEP(ms) -> nanosleep. Both are real syscalls
+    // backed by os::runtime_assembly(); they must not break the program. We
+    // assert on stdout (the two PAPARs straddling the calls), not timing.
+    let src = "PAPAR 1;\nYIELD();\nSLEEP(50);\nPAPAR 2;\n";
+    let (_code, out) = compile_and_run("sleep_yield", src);
+    let lines: Vec<&str> = out.trim().lines().map(|l| l.trim()).collect();
+    assert_eq!(lines, vec!["1", "2"], "PAPARs around YIELD/SLEEP both run");
+}
+
 // ----- capability vocabulary check: `check` exit semantics -------------------
 
 #[test]
