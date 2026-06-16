@@ -119,6 +119,37 @@ fn actor_spawn_check_passes_but_compile_is_pending() {
     );
 }
 
+// ----- actor runtime is real under --profile actor (Phase B): spawn + join ---
+#[test]
+fn actor_spawn_join_runs_in_a_real_thread() {
+    // With --profile actor the compiler links the audited pthread runtime
+    // (runtime_actor.c). SPAWN runs the actor body in a real OS thread; JOIN
+    // (by handle, ABI-1) makes main wait for it, so output is deterministic:
+    // the actor prints 99, then main prints 1.
+    use std::process::Command;
+    let src =
+        "ACTOR pekerja MULA\n    PAPAR 99;\nTAMAT\nSPAWN pekerja();\nJOIN pekerja;\nPAPAR 1;\n";
+    let path = fixture("actor_spawn_join", src);
+    let compile = Command::new(bin())
+        .arg("compile")
+        .arg("--profile")
+        .arg("actor")
+        .arg(&path)
+        .output()
+        .expect("spawn compile --profile actor");
+    assert!(
+        compile.status.success(),
+        "compile --profile actor failed:\n{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let exe = path.with_extension("");
+    let run = Command::new(&exe).output().expect("run actor exe");
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "99\n1",
+        "actor spawn+join is deterministic: actor 99 then main 1"
+    );
+}
 // ----- capability vocabulary check: `check` exit semantics -------------------
 
 #[test]
