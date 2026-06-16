@@ -647,6 +647,33 @@ impl<'a> LoweringContext<'a> {
                         span: Span::unknown(),
                     });
                 }
+                // Actor declaration: lower the body into a callable function named
+                // `__actor_<name>`. The actor's body becomes an ordinary HIR
+                // function (no params, unit return) so it exists as real,
+                // type-checked, code-generated code. Spawning/threading is a
+                // separate concern handled by the runtime; the *semantics* of
+                // the actor (ownership, capability, lifetime) remain
+                // Logicodex-owned and are layered on top of this lowering.
+                Stmt::Actor { name, body } => {
+                    functions.push(Spanned {
+                        node: ItemAst::Function(FunctionAst {
+                            name: format!("__actor_{name}"),
+                            params: Vec::new(),
+                            return_type: Some(TypeAst::Unit),
+                            body: BlockAst {
+                                statements: body
+                                    .into_iter()
+                                    .map(|s| Spanned {
+                                        node: lower_stmt_ast(s),
+                                        span: Span::unknown(),
+                                    })
+                                    .collect(),
+                            },
+                            is_unsafe: false,
+                        }),
+                        span: Span::unknown(),
+                    });
+                }
                 other => {
                     top_level_stmts.push(Spanned {
                         node: lower_stmt_ast(other),
