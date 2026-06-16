@@ -325,7 +325,15 @@ fn compile(
     let runtime_asm = output_path.with_extension("runtime.s");
     fs::write(&runtime_asm, os::runtime_assembly())
         .with_context(|| format!("failed to write runtime assembly {}", runtime_asm.display()))?;
-    link_executable(&artifact.object_path, &runtime_asm, &output_path)?;
+    // No external libraries required yet (bare/std). pthread (actor profile) and
+    // user-requested C libs will populate this spec in later steps.
+    let link_spec = LinkSpec::default();
+    link_executable(
+        &artifact.object_path,
+        &runtime_asm,
+        &output_path,
+        &link_spec,
+    )?;
     println!("Native executable written to {}", output_path.display());
     if secure {
         write_security_attestation_plan(&output_path)?;
@@ -952,13 +960,60 @@ fn module_name(file: &Path) -> String {
         .replace('-', "_")
 }
 
-fn link_executable(object_path: &Path, runtime_asm: &Path, output_path: &Path) -> Result<()> {
+/// Libraries to link into the final executable, kept in two deliberately
+/// separate channels so the architecture stays honest about *who* requires a
+/// library (see docs/runtime/LINKING.md):
+///
+///   * `runtime_libs` — libraries the runtime/profile itself requires. These are
+///     Logicodex-decided, not user-requested: today only OS primitives such as
+///     `pthread` (needed by the actor profile). A future Logicodex *core
+///     library* would also be auto-added here. Auto-linking these never means
+///     "Logicodex depends on a third-party C lib" — they are platform/core
+///     building blocks, like the sleep/yield syscalls.
+///
+///   * `user_libs` — external C libraries the *user* explicitly opted into
+///     (e.g. `sqlite3`, `ssl`, `raylib`). Never automatic, never mandatory.
+///
+/// `lib_paths` are extra `-L` search directories (applies to both channels).
+#[derive(Debug, Default, Clone)]
+struct LinkSpec {
+    runtime_libs: Vec<String>,
+    user_libs: Vec<String>,
+    lib_paths: Vec<PathBuf>,
+}
+
+impl LinkSpec {
+    /// True when no external libraries are requested at all — the common case
+    /// today (bare/std programs link only object + runtime assembly).
+    fn is_empty(&self) -> bool {
+        self.runtime_libs.is_empty() && self.user_libs.is_empty()
+    }
+}
+
+fn link_executable(
+    object_path: &Path,
+    runtime_asm: &Path,
+    output_path: &Path,
+    spec: &LinkSpec,
+) -> Result<()> {
     let linker = std::env::var("LOGICODEX_LINKER").unwrap_or_else(|_| "cc".to_string());
-    let status = Command::new(&linker)
-        .arg(object_path)
+    let mut cmd = Command::new(&linker);
+    cmd.arg(object_path)
         .arg(runtime_asm)
         .arg("-o")
-        .arg(output_path)
+        .arg(output_path);
+
+    // -L search paths first, then -l libraries. Both channels are linked the
+    // same way at the cc level; the distinction is about provenance/intent, and
+    // is preserved in the struct and surfaced in diagnostics/docs.
+    for dir in &spec.lib_paths {
+        cmd.arg("-L").arg(dir);
+    }
+    for lib in spec.runtime_libs.iter().chain(spec.user_libs.iter()) {
+        cmd.arg(format!("-l{lib}"));
+    }
+
+    let status = cmd
         .status()
         .with_context(|| format!("failed to invoke linker `{linker}`"))?;
     if status.success() {
