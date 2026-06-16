@@ -1059,33 +1059,41 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
             // ─── Threading expressions — LLVM codegen ───
             HirExprKind::Spawn { actor_name, args } => {
-                // Declare runtime function: logicodex_spawn(actor_name: *const u8) -> i64
+                // ABI-1: logicodex_spawn takes a *function pointer* (not a name),
+                // so the runtime can pthread_create it directly with no name
+                // lookup/table — minimal C, smallest attack surface (zero-trust).
+                // Signature: logicodex_spawn(i8* entry) -> i64.
+                //   return >= 0 : success (provenance: C-runtime / OS)
+                //   return <  0 : failure, origin encoded for the future
+                //                 error-code system (C-runtime vs OS vs semantic).
+                let i8ptr = self.context.i8_type().ptr_type(AddressSpace::default());
                 let spawn_fn = self.declare_runtime_func(
                     "logicodex_spawn",
-                    self.i64_type.fn_type(
-                        &[self
-                            .context
-                            .i8_type()
-                            .ptr_type(AddressSpace::default())
-                            .into()],
-                        false,
-                    ),
+                    self.i64_type.fn_type(&[i8ptr.into()], false),
                 );
-                // Evaluate args (passed as pointers or values)
-                let mut llvm_args: Vec<BasicValueEnum<'ctx>> = Vec::new();
+                // Resolve the actor's lowered function `__actor_<name>` and take
+                // its address. The body was lowered to a real HIR function
+                // upstream, so it exists as an LLVM function here.
+                let actor_sym = format!("__actor_{actor_name}");
+                let actor_fn = self.module.get_function(&actor_sym).ok_or_else(|| {
+                    anyhow!(
+                        "actor entry `{actor_sym}` not found in module (actor body                          was not lowered to a function)"
+                    )
+                })?;
+                // Args are reserved for a future actor-with-parameters design;
+                // evaluate them for side effects but they are not passed yet.
                 for arg in args {
-                    let val = self.emit_hir_expr(arg, func)?;
-                    llvm_args.push(val.into());
+                    let _ = self.emit_hir_expr(arg, func)?;
                 }
-                // Pass actor name as a global string
-                let name_ptr = self
+                let entry_ptr = actor_fn.as_global_value().as_pointer_value();
+                // Bitcast the function pointer to i8* to match the C ABI signature.
+                let entry_i8 = self
                     .builder
-                    .build_global_string_ptr(actor_name, "spawn_actor_name")
-                    .context("spawn actor name")?
-                    .as_pointer_value();
+                    .build_bitcast(entry_ptr, i8ptr, "actor_entry_i8")
+                    .context("bitcast actor entry to i8*")?;
                 let call_site = self
                     .builder
-                    .build_call(spawn_fn, &[name_ptr.into()], "spawn_call")
+                    .build_call(spawn_fn, &[entry_i8.into()], "spawn_call")
                     .context("spawn call")?;
                 match call_site.try_as_basic_value().left() {
                     Some(val) => match val {
