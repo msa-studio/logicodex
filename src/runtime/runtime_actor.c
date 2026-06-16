@@ -1,0 +1,134 @@
+/* =========================================================================
+ * Logicodex Actor Runtime — C backend (pthread)
+ * -------------------------------------------------------------------------
+ * SECURITY / TRUST MODEL (read before editing):
+ *   This file is a FIXED, AUDITED artifact. It is NOT generated from user
+ *   input and user .ldx programs can never inject C here. The attack surface
+ *   is exactly this reviewed code, nothing more.
+ *
+ *   This runtime is a C-specific BACKEND for one OS primitive: threading.
+ *   It does NOT define Logicodex semantics. Actor ownership / capability /
+ *   lifetime rules live in Logicodex (L1/L2); this file only does the
+ *   mechanical pthread work. The backend is swappable (e.g. a future native
+ *   Logicodex threading layer) without changing any semantics.
+ *
+ *   MINIMAL BOUNDARY — this runtime may ONLY:
+ *     - create/join OS threads (pthread)
+ *     - (later) channel buffers via mutex + condvar
+ *   It must NEVER do file I/O, networking, process exec, or anything else.
+ *
+ * ERROR PROVENANCE (for the future Logicodex error-code system):
+ *   Return values encode WHERE a failure originated so callers / the future
+ *   error-code mapper can classify it. Negative = failure.
+ *     >= 0                : success
+ *     LX_ERR_C_RUNTIME    : failure inside this C runtime (e.g. bad args)
+ *     LX_ERR_OS           : failure from the OS/pthread layer (errno-backed)
+ *   (Logicodex-semantic and link/build origins are signalled elsewhere, not
+ *   here — this file is the C-runtime/OS boundary only.)
+ *
+ * OBSERVABILITY:
+ *   If the environment variable LOGICODEX_RUNTIME_TRACE is set (any value),
+ *   spawn/join operations print a short trace line to stderr. Off by default.
+ * ========================================================================= */
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* Error provenance codes (negative). Kept small and explicit; the full
+ * error-code system will map these to richer codes later. Each names the
+ * LAYER the failure came from so the future mapper can classify it. */
+#define LX_ERR_C_RUNTIME      (-101) /* origin: this C runtime (generic)     */
+#define LX_ERR_OS             (-102) /* origin: OS/pthread (pthread_* failed) */
+#define LX_ERR_INVALID_ENTRY  (-103) /* origin: C runtime — spawn(NULL)      */
+#define LX_ERR_INVALID_HANDLE (-104) /* origin: C runtime — join(<=0)        */
+
+/* Opaque actor handle. ABI-1 PLATFORM ASSUMPTION (Linux x86_64): a pthread_t
+ * fits in an int64_t and is reinterpreted as this handle. The static assert
+ * makes a violating platform fail to compile rather than silently truncate.
+ * A future portable design may replace this with an opaque numeric actor-id +
+ * a runtime id->pthread_t table (deferred: adds global state/locking). */
+typedef int64_t lx_actor_handle;
+
+_Static_assert(sizeof(pthread_t) <= sizeof(int64_t),
+               "pthread_t does not fit in int64_t (ABI-1 Linux x86_64 "
+               "assumption violated; an opaque handle table would be required)");
+
+/* An actor entry is a plain niladic function: `void __actor_<name>(void)`.
+ * Logicodex lowers each actor body to exactly this shape, so the runtime
+ * needs no knowledge of names, signatures, or program structure. */
+typedef void (*lx_actor_entry)(void);
+
+/* Trace helper — no-op unless LOGICODEX_RUNTIME_TRACE is set. Checked once. */
+static int lx_trace_enabled(void) {
+    static int cached = -1;
+    if (cached == -1) {
+        cached = getenv("LOGICODEX_RUNTIME_TRACE") != NULL ? 1 : 0;
+    }
+    return cached;
+}
+
+/* pthread's start_routine signature is `void *(*)(void *)`. We adapt the
+ * Logicodex niladic entry through a tiny trampoline so the C runtime stays
+ * the only place that knows about pthread's calling convention. */
+static void *lx_actor_trampoline(void *arg) {
+    lx_actor_entry entry = (lx_actor_entry)arg;
+    if (entry != NULL) {
+        entry();
+    }
+    return NULL;
+}
+
+/* logicodex_spawn(entry) -> i64
+ *   entry : pointer to a `void (*)(void)` actor function (ABI-1).
+ *   return: >= 0  an opaque actor handle (the pthread_t reinterpreted),
+ *           < 0   a provenance-coded error (LX_ERR_*).
+ *
+ * NOTE: returning the thread handle as i64 keeps join simple and avoids a
+ * global table (zero-trust: no shared mutable registry to corrupt). */
+lx_actor_handle logicodex_spawn(void *entry) {
+    if (entry == NULL) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] spawn: NULL entry -> INVALID_ENTRY\n");
+        return LX_ERR_INVALID_ENTRY; /* provenance: C runtime */
+    }
+    pthread_t tid;
+    int rc = pthread_create(&tid, NULL, lx_actor_trampoline, entry);
+    if (rc != 0) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] spawn: pthread_create rc=%d -> OS error\n", rc);
+        return LX_ERR_OS; /* provenance: OS/pthread */
+    }
+    if (lx_trace_enabled())
+        fprintf(stderr, "[lx-rt] spawn: started actor, handle=%lu\n",
+                (unsigned long)tid);
+    /* Reinterpret the opaque pthread_t as the handle (see _Static_assert). */
+    return (lx_actor_handle)tid;
+}
+
+/* logicodex_join(handle) -> i64
+ *   handle: a value previously returned by logicodex_spawn (>= 0).
+ *   return: 0 on success, or a provenance-coded error (LX_ERR_*). */
+int64_t logicodex_join(lx_actor_handle handle) {
+    /* join(0) and join(negative) are invalid: 0 is never a valid returned
+     * handle in practice and negatives are error codes. No UB — fail cleanly. */
+    if (handle <= 0) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] join: invalid handle %ld -> INVALID_HANDLE\n",
+                    (long)handle);
+        return LX_ERR_INVALID_HANDLE; /* provenance: C runtime */
+    }
+    pthread_t tid = (pthread_t)(uintptr_t)handle;
+    int rc = pthread_join(tid, NULL);
+    if (rc != 0) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] join: pthread_join rc=%d -> OS error\n", rc);
+        return LX_ERR_OS; /* provenance: OS/pthread */
+    }
+    if (lx_trace_enabled())
+        fprintf(stderr, "[lx-rt] join: actor handle=%lu joined\n",
+                (unsigned long)tid);
+    return 0;
+}
