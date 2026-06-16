@@ -113,6 +113,12 @@ pub struct LlvmCompiler<'ctx> {
     // Declared return type of the function being emitted, for fixed-width
     // wrapping of returned scalar values.
     current_return_ty: Option<crate::types::TypeRef>,
+    // Actor handle slots (ABI-1 join-by-handle): actor name -> alloca holding
+    // the i64 handle returned by logicodex_spawn. Codegen OWNS this mapping;
+    // the C runtime never sees a name. JOIN loads the stored handle. A JOIN
+    // with no prior SPAWN finds no slot and lowers to logicodex_join(0), which
+    // the runtime rejects as INVALID_HANDLE (no UB, honest failure).
+    actor_handles: HashMap<String, PointerValue<'ctx>>,
 }
 
 /// Backend trait for HIR-based codegen (the single compilation engine).
@@ -155,6 +161,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             hw_decl_addrs: HashMap::new(),
             current_sret: None,
             current_return_ty: None,
+            actor_handles: HashMap::new(),
         }
     }
 
@@ -1095,41 +1102,57 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .builder
                     .build_call(spawn_fn, &[entry_i8.into()], "spawn_call")
                     .context("spawn call")?;
-                match call_site.try_as_basic_value().left() {
-                    Some(val) => match val {
-                        BasicValueEnum::IntValue(iv) => Ok(iv),
-                        _ => Ok(self.i64_type.const_int(0, false)),
-                    },
-                    None => Ok(self.i64_type.const_int(0, false)),
-                }
+                let handle = match call_site.try_as_basic_value().left() {
+                    Some(BasicValueEnum::IntValue(iv)) => iv,
+                    _ => self.i64_type.const_int(0, false),
+                };
+                // ABI-1 join-by-handle: store the spawn handle in a
+                // compiler-managed per-actor slot so a later JOIN can load it.
+                // The mapping actor-name -> handle lives here in codegen; the C
+                // runtime never sees a name. Reuse one slot per actor name.
+                let slot = match self.actor_handles.get(actor_name) {
+                    Some(ptr) => *ptr,
+                    None => {
+                        let ptr = self
+                            .builder
+                            .build_alloca(self.i64_type, &format!("__handle_{actor_name}"))
+                            .context("alloc actor handle slot")?;
+                        self.actor_handles.insert(actor_name.clone(), ptr);
+                        ptr
+                    }
+                };
+                self.builder
+                    .build_store(slot, handle)
+                    .context("store actor handle")?;
+                Ok(handle)
             }
             HirExprKind::Join { actor_name } => {
+                // ABI-1: logicodex_join(i64 handle) -> i64 status. Load the
+                // handle stored by the matching SPAWN from the compiler-managed
+                // per-actor slot. The C runtime is given a plain handle, never a
+                // name (zero-trust: no name lookup/table in C).
                 let join_fn = self.declare_runtime_func(
                     "logicodex_join",
-                    self.i64_type.fn_type(
-                        &[self
-                            .context
-                            .i8_type()
-                            .ptr_type(AddressSpace::default())
-                            .into()],
-                        false,
-                    ),
+                    self.i64_type.fn_type(&[self.i64_type.into()], false),
                 );
-                let name_ptr = self
-                    .builder
-                    .build_global_string_ptr(actor_name, "join_actor_name")
-                    .context("join actor name")?
-                    .as_pointer_value();
+                // If no SPAWN preceded this JOIN, there is no slot. Pass handle 0
+                // so the runtime returns INVALID_HANDLE — an honest failure with
+                // provenance, never UB.
+                let handle = match self.actor_handles.get(actor_name) {
+                    Some(slot) => self
+                        .builder
+                        .build_load(self.i64_type, *slot, "actor_handle")
+                        .context("load actor handle")?
+                        .into_int_value(),
+                    None => self.i64_type.const_int(0, false),
+                };
                 let call_site = self
                     .builder
-                    .build_call(join_fn, &[name_ptr.into()], "join_call")
+                    .build_call(join_fn, &[handle.into()], "join_call")
                     .context("join call")?;
                 match call_site.try_as_basic_value().left() {
-                    Some(val) => match val {
-                        BasicValueEnum::IntValue(iv) => Ok(iv),
-                        _ => Ok(self.i64_type.const_int(0, false)),
-                    },
-                    None => Ok(self.i64_type.const_int(0, false)),
+                    Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+                    _ => Ok(self.i64_type.const_int(0, false)),
                 }
             }
             HirExprKind::ChannelSend {
