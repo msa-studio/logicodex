@@ -107,12 +107,11 @@ impl Profile {
     /// bare/std are fully real today; the rest are reserved with honest status.
     fn pending_reason(self) -> Option<&'static str> {
         match self {
-            Profile::Bare | Profile::Std => None,
+            // bare/std: real today. actor: real now too — the pthread runtime
+            // (runtime_actor.c) provides spawn/join. safe/service remain pending.
+            Profile::Bare | Profile::Std | Profile::Actor => None,
             Profile::Safe => Some(
                 "the `safe` profile (capability enforcement) is not implemented yet;                  capability types exist but are not enforced at runtime",
-            ),
-            Profile::Actor => Some(
-                "the `actor` profile (spawn/join/channel runtime) is reserved for                  Phase B (pthread-based); codegen is ready but no runtime backend exists",
             ),
             Profile::Service => Some(
                 "the `service` profile (local reactor/health/metrics) is not implemented yet",
@@ -276,7 +275,9 @@ fn compile(
 
     // Compile through the HIR pipeline (CallableRegistry-backed).
     let artifact = match pipeline {
-        CompilerPipeline::V130 => compile_v130_pipeline(file, dict, &object_path, emit_ir, target)?,
+        CompilerPipeline::V130 => {
+            compile_v130_pipeline(file, dict, &object_path, emit_ir, target, profile)?
+        }
     };
     if let Some(ir_path) = artifact.ir_path.as_ref() {
         println!("LLVM IR written to {}", ir_path.display());
@@ -325,9 +326,23 @@ fn compile(
     let runtime_asm = output_path.with_extension("runtime.s");
     fs::write(&runtime_asm, os::runtime_assembly())
         .with_context(|| format!("failed to write runtime assembly {}", runtime_asm.display()))?;
-    // No external libraries required yet (bare/std). pthread (actor profile) and
-    // user-requested C libs will populate this spec in later steps.
-    let link_spec = LinkSpec::default();
+    // Build the link spec from the runtime profile. bare/std need nothing extra.
+    // actor needs the audited pthread runtime (runtime_actor.c) + -lpthread,
+    // both Logicodex-decided (runtime_libs channel), never user-requested.
+    let mut link_spec = LinkSpec::default();
+    let mut _actor_rt_tmp: Option<PathBuf> = None;
+    if profile == Profile::Actor {
+        // runtime_actor.c is a fixed, audited artifact embedded in the compiler
+        // binary (include_str!), written to a temp file next to the output so cc
+        // can compile+link it. The user cannot substitute or inject this C.
+        let rt_src = output_path.with_extension("runtime_actor.c");
+        fs::write(&rt_src, include_str!("runtime/runtime_actor.c")).with_context(|| {
+            format!("failed to write actor runtime source {}", rt_src.display())
+        })?;
+        link_spec.extra_sources.push(rt_src.clone());
+        link_spec.runtime_libs.push("pthread".to_string());
+        _actor_rt_tmp = Some(rt_src);
+    }
     link_executable(
         &artifact.object_path,
         &runtime_asm,
@@ -417,6 +432,7 @@ fn compile_v130_pipeline(
     object_path: &Path,
     emit_ir: bool,
     target: CompilationTarget,
+    profile: Profile,
 ) -> Result<codegen::CodegenArtifact> {
     // Step 1: Parse source to AST
     let source = fs::read_to_string(file)
@@ -451,10 +467,12 @@ fn compile_v130_pipeline(
     // bare "undefined reference". Detect this here and stop with an honest,
     // actionable message instead. `check` does NOT run this — the program is
     // syntactically and semantically valid; only its runtime is missing.
-    if let Some(op) = first_pending_actor_op(&module_ast) {
-        return Err(anyhow::anyhow!(
-            "actor/channel runtime not available yet: this program uses `{op}`,              which is parsed and code-generated but has no runtime backend in              this build (reserved for Phase B, pthread-based). It type-checks              (`check` passes), but cannot be linked into a runnable executable.              See docs/runtime/PROFILES.md (actor profile: runtime-pending)."
-        ));
+    if profile != Profile::Actor {
+        if let Some(op) = first_pending_actor_op(&module_ast) {
+            return Err(anyhow::anyhow!(
+            "actor/channel runtime not available yet: this program uses `{op}`,              which is parsed and code-generated but has no runtime backend in              this build (reserved for Phase B, pthread-based). It type-checks              (`check` passes), but cannot be linked into a runnable executable.                  See docs/runtime/PROFILES.md (actor profile: runtime-pending)."
+            ));
+        }
     }
 
     // Step 4: Set up CallableRegistry with Raylib functions
@@ -980,6 +998,10 @@ struct LinkSpec {
     runtime_libs: Vec<String>,
     user_libs: Vec<String>,
     lib_paths: Vec<PathBuf>,
+    /// Extra source/object files cc should compile+link alongside the program
+    /// object and runtime assembly — e.g. the audited runtime_actor.c for the
+    /// actor profile. These are Logicodex-owned artifacts, never user input.
+    extra_sources: Vec<PathBuf>,
 }
 
 impl LinkSpec {
@@ -1003,6 +1025,10 @@ fn link_executable(
         .arg("-o")
         .arg(output_path);
 
+    // Extra Logicodex-owned sources (e.g. runtime_actor.c) compiled+linked here.
+    for src in &spec.extra_sources {
+        cmd.arg(src);
+    }
     // -L search paths first, then -l libraries. Both channels are linked the
     // same way at the cc level; the distinction is about provenance/intent, and
     // is preserved in the struct and surfaced in diagnostics/docs.
@@ -1013,6 +1039,12 @@ fn link_executable(
         cmd.arg(format!("-l{lib}"));
     }
 
+    if std::env::var("LOGICODEX_VERBOSE_LINK").is_ok() {
+        eprintln!(
+            "[lx-link] {linker} {:?}",
+            cmd.get_args().collect::<Vec<_>>()
+        );
+    }
     let status = cmd
         .status()
         .with_context(|| format!("failed to invoke linker `{linker}`"))?;
