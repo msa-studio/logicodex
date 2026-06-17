@@ -744,10 +744,17 @@ impl Parser {
                 .lexeme
                 .clone();
             self.consume(TokenKind::Comma, "',' after receiver")?;
-            let message_type = self
-                .consume(TokenKind::Identifier, "message type")?
-                .lexeme
-                .clone();
+            // Message type may be a primitive keyword (I64, etc.) or a named
+            // type (struct/enum identifier). We capture its lexeme either way.
+            // B.1 runtime only supports I64 messages; other message types parse
+            // and type-check but have no channel runtime backend yet.
+            let message_type = if self.check(TokenKind::Identifier) {
+                self.advance().lexeme.clone()
+            } else {
+                // Accept a primitive type keyword as the message type.
+                let tok = self.advance();
+                tok.lexeme.clone()
+            };
             self.consume(TokenKind::Greater, "'>' after message type")?;
             return Ok(Type::Channel {
                 from,
@@ -967,6 +974,19 @@ impl Parser {
         Ok(expr)
     }
 
+    /// Lookahead for `Channel :: baru` at the current position (does not
+    /// consume). `::` is two `:` tokens. Used to disambiguate a channel-create
+    /// expression from the `Channel<...>` type position.
+    fn peek_channel_baru(&self) -> bool {
+        let t = |i: usize| self.tokens.get(self.current + i).map(|x| &x.kind);
+        t(0) == Some(&TokenKind::Channel)
+            && t(1) == Some(&TokenKind::Colon)
+            && t(2) == Some(&TokenKind::Colon)
+            && self.tokens.get(self.current + 3).map_or(false, |x| {
+                x.kind == TokenKind::Identifier && x.lexeme == "baru"
+            })
+    }
+
     fn primary(&mut self) -> Result<Expr, ParseError> {
         if self.matches(TokenKind::Integer) {
             let token = self.previous();
@@ -988,6 +1008,26 @@ impl Parser {
         }
         if self.matches(TokenKind::StringLiteral) {
             return Ok(Expr::StringLiteral(self.previous().lexeme.clone()));
+        }
+        // Channel::baru(capacity) — create a channel, returns a handle.
+        // `Channel` is a keyword (also used as a type); here in expression
+        // position it must be followed by `::baru(<capacity>)`.
+        if self.check(TokenKind::Channel) {
+            // Lookahead: Channel :: baru ( ... )  — only treat as creation when
+            // the `::baru` path follows, so the type position is unaffected.
+            let is_create = self.peek_channel_baru();
+            if is_create {
+                self.advance(); // Channel
+                self.advance(); // first ':'
+                self.advance(); // second ':'
+                self.advance(); // baru (identifier)
+                self.consume(TokenKind::LeftParen, "'(' after Channel::baru")?;
+                let capacity = self.expression()?;
+                self.consume(TokenKind::RightParen, "')' after channel capacity")?;
+                return Ok(Expr::ChannelCreate {
+                    capacity: Box::new(capacity),
+                });
+            }
         }
         // Spawn — lahirkan KotakName()
         if self.matches(TokenKind::Spawn) {

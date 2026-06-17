@@ -215,6 +215,13 @@ pub enum Expr {
     },
     /// Spawn a Kotak (create OS thread).
     /// Syntax: `lahirkan SensorSuhu()`
+    /// Create a channel: `Channel::baru(capacity)`. Capacity is an expression
+    /// (typically an integer literal). Lowered to logicodex_channel_create at
+    /// codegen; the handle is stored in the bound variable's slot (ABI-1,
+    /// by-handle — codegen owns the name->handle mapping, runtime stays nameless).
+    ChannelCreate {
+        capacity: Box<Expr>,
+    },
     Spawn {
         actor_name: String,
         args: Vec<Expr>,

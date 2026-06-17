@@ -123,6 +123,9 @@ pub enum ExprAst {
     Join {
         actor_name: String,
     },
+    ChannelCreate {
+        capacity: Box<ExprAst>,
+    },
     ChannelSend {
         channel_name: String,
         value: Box<ExprAst>,
@@ -392,14 +395,20 @@ pub enum HirExprKind {
     Join {
         actor_name: String,
     },
-    /// Send through channel (blocking, Release semantics): `channel.send(value)`
+    /// Create a channel: `Channel::baru(capacity)` -> handle (ABI-1 by-handle).
+    ChannelCreate {
+        capacity: Box<HirExpr>,
+    },
+    /// Send through channel (blocking): `channel.send(value)`. ABI-1 by-handle:
+    /// `channel` is an expression evaluating to the i64 channel handle.
     ChannelSend {
-        channel_name: String,
+        channel: Box<HirExpr>,
         value: Box<HirExpr>,
     },
-    /// Receive from channel (blocking, Acquire semantics): `channel.recv()`
+    /// Receive from channel (blocking): `channel.recv()`. `channel` evaluates to
+    /// the i64 channel handle.
     ChannelRecv {
-        channel_name: String,
+        channel: Box<HirExpr>,
     },
     /// Non-blocking send (backpressure): `channel.try_send(value)` → bool
     ChannelTrySend {
@@ -924,6 +933,31 @@ impl<'a> LoweringContext<'a> {
         HirBlock { statements }
     }
 
+    /// Resolve a channel variable name to an expression that evaluates to its
+    /// i64 handle. The channel was bound by `BINA ch = Channel::baru(N)`, so it
+    /// is an ordinary local holding the handle. ABI-1 by-handle: the HIR carries
+    /// the handle value, never a name. If the name is unknown (shouldn't happen
+    /// after type-check), we emit a 0 handle so the runtime reports
+    /// INVALID_HANDLE rather than producing UB.
+    ///
+    /// TODO(type-check): verify the resolved local has type Channel<_, _, I64>
+    /// (or handle-compatible). The semantic pass does not yet enforce this.
+    fn lower_channel_ref(&mut self, name: &str, span: Span) -> HirExpr {
+        if let Some((local, ty)) = self.symbols.lookup_local(name) {
+            HirExpr {
+                kind: HirExprKind::Local(local),
+                ty,
+                span,
+            }
+        } else {
+            HirExpr {
+                kind: HirExprKind::Literal(LiteralAst::Integer(0)),
+                ty: i64_ref(self.types),
+                span,
+            }
+        }
+    }
+
     fn lower_expr(&mut self, expr: ExprAst, span: Span) -> HirExpr {
         match expr {
             ExprAst::Literal(literal) => HirExpr {
@@ -1110,14 +1144,28 @@ impl<'a> LoweringContext<'a> {
                 ty: unit_ref(self.types),
                 span,
             },
+            ExprAst::ChannelCreate { capacity } => {
+                let lowered = self.lower_expr(*capacity, span);
+                HirExpr {
+                    kind: HirExprKind::ChannelCreate {
+                        capacity: Box::new(lowered),
+                    },
+                    // Channel::baru returns an i64 handle.
+                    ty: i64_ref(self.types),
+                    span,
+                }
+            }
             ExprAst::ChannelSend {
                 channel_name,
                 value,
             } => {
+                // Resolve the channel variable to its handle (a Local), so the
+                // HIR carries a value/handle, not a name. ABI-1 by-handle.
+                let channel = self.lower_channel_ref(&channel_name, span);
                 let lowered = self.lower_expr(*value, span);
                 HirExpr {
                     kind: HirExprKind::ChannelSend {
-                        channel_name,
+                        channel: Box::new(channel),
                         value: Box::new(lowered),
                     },
                     ty: unit_ref(self.types),
@@ -1125,7 +1173,9 @@ impl<'a> LoweringContext<'a> {
                 }
             }
             ExprAst::ChannelRecv { channel_name } => HirExpr {
-                kind: HirExprKind::ChannelRecv { channel_name },
+                kind: HirExprKind::ChannelRecv {
+                    channel: Box::new(self.lower_channel_ref(&channel_name, span)),
+                },
                 ty: unit_ref(self.types),
                 span,
             },
@@ -1509,6 +1559,9 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             value: Box::new(lower_expr_ast(*value)),
         },
         ast::Expr::Recv { channel_name } => ExprAst::ChannelRecv { channel_name },
+        ast::Expr::ChannelCreate { capacity } => ExprAst::ChannelCreate {
+            capacity: Box::new(lower_expr_ast(*capacity)),
+        },
         // ─── Phase 3: Backpressure + Scheduler (A4) ───
         ast::Expr::TrySend {
             channel_name,

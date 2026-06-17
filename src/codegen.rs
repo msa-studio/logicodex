@@ -1155,69 +1155,73 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     _ => Ok(self.i64_type.const_int(0, false)),
                 }
             }
-            HirExprKind::ChannelSend {
-                channel_name,
-                value,
-            } => {
+            HirExprKind::ChannelCreate { capacity } => {
+                // ABI-1: logicodex_channel_create(i64 capacity) -> i64 handle.
+                // The handle is an opaque value (a malloc'd channel struct
+                // pointer, cast to i64 by the runtime). It flows into an ordinary
+                // variable via BINA; send/recv later load it as a plain handle.
+                let create_fn = self.declare_runtime_func(
+                    "logicodex_channel_create",
+                    self.i64_type.fn_type(&[self.i64_type.into()], false),
+                );
+                let cap = self.emit_hir_expr(capacity, func)?;
+                let call_site = self
+                    .builder
+                    .build_call(create_fn, &[cap.into()], "channel_create_call")
+                    .context("channel create call")?;
+                match call_site.try_as_basic_value().left() {
+                    Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+                    _ => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
+            HirExprKind::ChannelSend { channel, value } => {
+                // ABI-1 by-handle: logicodex_channel_send(i64 handle, i64 value)
+                // -> i64 status. Evaluate the channel expr to its handle; the
+                // runtime never sees a name.
                 let send_fn = self.declare_runtime_func(
                     "logicodex_channel_send",
+                    self.i64_type
+                        .fn_type(&[self.i64_type.into(), self.i64_type.into()], false),
+                );
+                let handle = self.emit_hir_expr(channel, func)?;
+                let val = self.emit_hir_expr(value, func)?;
+                let call_site = self
+                    .builder
+                    .build_call(send_fn, &[handle.into(), val.into()], "send_call")
+                    .context("send call")?;
+                match call_site.try_as_basic_value().left() {
+                    Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+                    _ => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
+            HirExprKind::ChannelRecv { channel } => {
+                // ABI-1 by-handle: logicodex_channel_recv(i64 handle, i64* out)
+                // -> i64 status. The received value is written to a stack slot
+                // and loaded back; we return the value (B.1 keeps it simple).
+                let recv_fn = self.declare_runtime_func(
+                    "logicodex_channel_recv",
                     self.i64_type.fn_type(
                         &[
-                            self.context
-                                .i8_type()
-                                .ptr_type(AddressSpace::default())
-                                .into(),
                             self.i64_type.into(),
+                            self.i64_type.ptr_type(AddressSpace::default()).into(),
                         ],
                         false,
                     ),
                 );
-                let val = self.emit_hir_expr(value, func)?;
-                let name_ptr = self
+                let handle = self.emit_hir_expr(channel, func)?;
+                let out_slot = self
                     .builder
-                    .build_global_string_ptr(channel_name, "send_channel_name")
-                    .context("send channel name")?
-                    .as_pointer_value();
-                let call_site = self
-                    .builder
-                    .build_call(send_fn, &[name_ptr.into(), val.into()], "send_call")
-                    .context("send call")?;
-                match call_site.try_as_basic_value().left() {
-                    Some(val) => match val {
-                        BasicValueEnum::IntValue(iv) => Ok(iv),
-                        _ => Ok(self.i64_type.const_int(0, false)),
-                    },
-                    None => Ok(self.i64_type.const_int(0, false)),
-                }
-            }
-            HirExprKind::ChannelRecv { channel_name } => {
-                let recv_fn = self.declare_runtime_func(
-                    "logicodex_channel_recv",
-                    self.i64_type.fn_type(
-                        &[self
-                            .context
-                            .i8_type()
-                            .ptr_type(AddressSpace::default())
-                            .into()],
-                        false,
-                    ),
-                );
-                let name_ptr = self
-                    .builder
-                    .build_global_string_ptr(channel_name, "recv_channel_name")
-                    .context("recv channel name")?
-                    .as_pointer_value();
-                let call_site = self
-                    .builder
-                    .build_call(recv_fn, &[name_ptr.into()], "recv_call")
+                    .build_alloca(self.i64_type, "recv_out")
+                    .context("alloc recv out")?;
+                self.builder
+                    .build_call(recv_fn, &[handle.into(), out_slot.into()], "recv_call")
                     .context("recv call")?;
-                match call_site.try_as_basic_value().left() {
-                    Some(val) => match val {
-                        BasicValueEnum::IntValue(iv) => Ok(iv),
-                        _ => Ok(self.i64_type.const_int(0, false)),
-                    },
-                    None => Ok(self.i64_type.const_int(0, false)),
-                }
+                let out = self
+                    .builder
+                    .build_load(self.i64_type, out_slot, "recv_value")
+                    .context("load recv value")?
+                    .into_int_value();
+                Ok(out)
             }
             // ─── Backpressure + scheduler ───
             HirExprKind::ChannelTrySend {
