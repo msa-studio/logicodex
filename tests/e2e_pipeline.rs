@@ -150,6 +150,49 @@ fn actor_spawn_join_runs_in_a_real_thread() {
         "actor spawn+join is deterministic: actor 99 then main 1"
     );
 }
+// ----- channel B.1: same-scope SPSC works; cross-actor is a clear error ------
+#[test]
+fn channel_same_scope_send_recv_works() {
+    // Channel::baru(N) creates a handle; ch.send/ch.recv are by-handle. Within
+    // a single scope (here: main creates, sends, and receives) the SPSC channel
+    // round-trips a value. Requires --profile actor (links the pthread runtime).
+    use std::process::Command;
+    let src = "BINA ch: Channel<Penghantar, Penerima, I64> = Channel::baru(4);\nch.send(123);\nBINA x: I64 = ch.recv();\nPAPAR x;\n";
+    let path = fixture("channel_same_scope", src);
+    let compile = Command::new(bin())
+        .arg("compile")
+        .arg("--profile")
+        .arg("actor")
+        .arg(&path)
+        .output()
+        .expect("spawn compile --profile actor");
+    assert!(
+        compile.status.success(),
+        "compile --profile actor failed:\n{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let exe = path.with_extension("");
+    let run = Command::new(&exe).output().expect("run channel exe");
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "123",
+        "same-scope channel round-trips the value"
+    );
+}
+#[test]
+fn channel_cross_actor_fails_with_clear_diagnostic() {
+    // A channel declared in main but used inside an actor body needs capture
+    // (Channel B.1b), which is not implemented. The compiler must reject this
+    // at check time with a clear message — never silently lower to handle 0
+    // and deadlock at runtime.
+    let src = "BINA ch: Channel<Penghantar, Penerima, I64> = Channel::baru(2);\nACTOR pengeluar MULA\n    ch.send(10);\nTAMAT\nSPAWN pengeluar();\n";
+    let (code, out) = check("channel_cross_actor", src);
+    assert_ne!(code, 0, "cross-actor channel use must fail check");
+    assert!(
+        out.contains("Cross-actor channel capture is not implemented"),
+        "expected a clear cross-actor diagnostic, got:\n{out}"
+    );
+}
 // ----- capability vocabulary check: `check` exit semantics -------------------
 
 #[test]

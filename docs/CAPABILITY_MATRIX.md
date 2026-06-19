@@ -17,8 +17,8 @@ Legend: ✅ done · 🟡 partial · ⛔ none.
 | `yield`            | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **Real** |
 | `spawn`            | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **Real** (`--profile actor`) |
 | `join`             | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **Real** (`--profile actor`) |
-| `channel_send`     | ✅ | ✅ | ✅ | ✅ | ⛔ | 🟡 | Runtime-pending (Phase B) |
-| `channel_recv`     | ✅ | ✅ | ✅ | ✅ | ⛔ | 🟡 | Runtime-pending (Phase B) |
+| `channel_send`     | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **Real (same-scope)** (`--profile actor`) |
+| `channel_recv`     | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **Real (same-scope)** (`--profile actor`) |
 | `service_health`   | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | Not started |
 | `service_metrics`  | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | Not started |
 | `capability_check` | 🟡 | 🟡 | ⛔ | ⛔ | ⛔ | 🟡 | Types only, no enforcement |
@@ -39,8 +39,17 @@ proves the real runtime under `--profile actor` (deterministic 99 then 1), while
   JOIN waits via `pthread_join` using a handle codegen stores at spawn (ABI-1).
   Backed by the audited `src/runtime/runtime_actor.c` (linked with `-lpthread`).
   Without `--profile actor`, programs using them still fail honestly (guard).
-- **channel_*** — the front of the pipeline is ready (parsed, lowered, code-
-  generated to the fixed channel ABI), but the runtime backend is not built yet.
+- **channel_create / channel_send / channel_recv** — real **within a single
+  scope** under `--profile actor`. `Channel::baru(N)` allocates an SPSC bounded
+  buffer (pthread mutex + condvar in runtime_actor.c) and returns an i64 handle;
+  `ch.send`/`ch.recv` are by-handle and block. Scope: SPSC, bounded, blocking
+  only. NOT built: cross-actor channels (a channel declared in one scope and
+  used inside an actor body — needs **actor capture**, Channel B.1b; the
+  compiler rejects this at check time with a clear message rather than
+  deadlocking), and no `free`/`close`/`drop`/`timeout`/`select`/MPSC/broadcast.
+  Message type is `I64` only for now.
+- **channel_try_send / channel_try_recv / timeout_recv** — not built. Still
+  Reserved; the blocking send/recv came first (B.1).
   The compiler refuses to build such programs (honest error). Planned over
   `pthread` mutex+condvar in runtime_actor.c (not Rust std).
 

@@ -44,6 +44,7 @@
 #define LX_ERR_OS             (-102) /* origin: OS/pthread (pthread_* failed) */
 #define LX_ERR_INVALID_ENTRY  (-103) /* origin: C runtime — spawn(NULL)      */
 #define LX_ERR_INVALID_HANDLE (-104) /* origin: C runtime — join(<=0)        */
+#define LX_ERR_INVALID_ARG    (-105) /* origin: C runtime — bad arg (capacity/out) */
 
 /* Opaque actor handle. ABI-1 PLATFORM ASSUMPTION (Linux x86_64): a pthread_t
  * fits in an int64_t and is reinterpreted as this handle. The static assert
@@ -55,6 +56,11 @@ typedef int64_t lx_actor_handle;
 _Static_assert(sizeof(pthread_t) <= sizeof(int64_t),
                "pthread_t does not fit in int64_t (ABI-1 Linux x86_64 "
                "assumption violated; an opaque handle table would be required)");
+
+/* Channel handle = a malloc'd channel struct pointer reinterpreted as i64.
+ * This static assert guarantees the pointer fits the handle width. */
+_Static_assert(sizeof(void *) <= sizeof(int64_t),
+               "pointer does not fit in i64 channel handle");
 
 /* An actor entry is a plain niladic function: `void __actor_<name>(void)`.
  * Logicodex lowers each actor body to exactly this shape, so the runtime
@@ -130,5 +136,141 @@ int64_t logicodex_join(lx_actor_handle handle) {
     if (lx_trace_enabled())
         fprintf(stderr, "[lx-rt] join: actor handle=%lu joined\n",
                 (unsigned long)tid);
+    return 0;
+}
+
+/* =========================================================================
+ * Channel B.1 — SPSC bounded blocking channel (i64 messages)
+ * -------------------------------------------------------------------------
+ * SCOPE (B.1, deliberately minimal — channel is where runtimes rot):
+ *   - single producer, single consumer
+ *   - bounded ring buffer of i64
+ *   - BLOCKING send (waits while full), BLOCKING recv (waits while empty)
+ *   NOT in B.1: timeout, close/drop/shutdown, select, MPSC, broadcast.
+ *
+ * MEMORY: create() malloc's the channel; B.1 has NO free/close (documented
+ * leak — the OS reclaims at process exit). A half-baked free risks more races
+ * than a small leak at exit, so it is deferred until a real close/drop design.
+ *
+ * HANDLE: the channel pointer is reinterpreted as an i64 handle (see the
+ * _Static_assert above). The runtime never sees a channel name — codegen owns
+ * the name->handle mapping (a channel handle lives in an ordinary variable).
+ *
+ * BOUNDARY: this code may only malloc + use pthread mutex/condvar + an i64
+ * buffer. No file/network/exec.
+ * ========================================================================= */
+
+typedef struct {
+    int64_t *buf;          /* ring buffer of capacity slots                 */
+    int64_t capacity;      /* number of slots                               */
+    int64_t count;         /* current number of queued items                */
+    int64_t head;          /* next index to read                            */
+    int64_t tail;          /* next index to write                           */
+    pthread_mutex_t mutex; /* guards all fields above                       */
+    pthread_cond_t not_full;  /* signalled when an item is removed          */
+    pthread_cond_t not_empty; /* signalled when an item is added            */
+} lx_channel;
+
+/* logicodex_channel_create(capacity) -> i64 handle
+ *   capacity : number of i64 slots (> 0).
+ *   return   : >= 0 opaque handle (channel pointer as i64),
+ *              < 0  provenance-coded error (LX_ERR_*). */
+int64_t logicodex_channel_create(int64_t capacity) {
+    if (capacity <= 0) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] channel_create: capacity %ld <= 0 -> INVALID_ARG\n",
+                    (long)capacity);
+        return LX_ERR_INVALID_ARG; /* provenance: C runtime */
+    }
+    /* Guard against absurd capacities that would overflow the allocation. */
+    if ((uint64_t)capacity > (SIZE_MAX / sizeof(int64_t))) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] channel_create: capacity too large -> INVALID_ARG\n");
+        return LX_ERR_INVALID_ARG; /* provenance: C runtime */
+    }
+    lx_channel *ch = (lx_channel *)malloc(sizeof(lx_channel));
+    if (ch == NULL) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] channel_create: malloc failed -> C_RUNTIME\n");
+        return LX_ERR_C_RUNTIME; /* provenance: C runtime */
+    }
+    ch->buf = (int64_t *)malloc((size_t)capacity * sizeof(int64_t));
+    if (ch->buf == NULL) {
+        free(ch);
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] channel_create: buffer malloc failed -> C_RUNTIME\n");
+        return LX_ERR_C_RUNTIME; /* provenance: C runtime */
+    }
+    ch->capacity = capacity;
+    ch->count = 0;
+    ch->head = 0;
+    ch->tail = 0;
+    if (pthread_mutex_init(&ch->mutex, NULL) != 0
+        || pthread_cond_init(&ch->not_full, NULL) != 0
+        || pthread_cond_init(&ch->not_empty, NULL) != 0) {
+        free(ch->buf);
+        free(ch);
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] channel_create: pthread init failed -> OS\n");
+        return LX_ERR_OS; /* provenance: OS/pthread */
+    }
+    if (lx_trace_enabled())
+        fprintf(stderr, "[lx-rt] channel_create: capacity=%ld handle=%p\n",
+                (long)capacity, (void *)ch);
+    return (int64_t)(intptr_t)ch;
+}
+
+/* logicodex_channel_send(handle, value) -> i64 status
+ *   Blocks while the channel is full. Returns 0 on success, or LX_ERR_*. */
+int64_t logicodex_channel_send(int64_t handle, int64_t value) {
+    if (handle <= 0) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] channel_send: invalid handle -> INVALID_HANDLE\n");
+        return LX_ERR_INVALID_HANDLE; /* provenance: C runtime */
+    }
+    lx_channel *ch = (lx_channel *)(intptr_t)handle;
+    pthread_mutex_lock(&ch->mutex);
+    while (ch->count == ch->capacity) {
+        pthread_cond_wait(&ch->not_full, &ch->mutex); /* blocking send */
+    }
+    ch->buf[ch->tail] = value;
+    ch->tail = (ch->tail + 1) % ch->capacity;
+    ch->count += 1;
+    pthread_cond_signal(&ch->not_empty);
+    pthread_mutex_unlock(&ch->mutex);
+    if (lx_trace_enabled())
+        fprintf(stderr, "[lx-rt] channel_send: value=%ld handle=%p\n",
+                (long)value, (void *)ch);
+    return 0;
+}
+
+/* logicodex_channel_recv(handle, out) -> i64 status
+ *   Blocks while the channel is empty. Writes the received value to *out.
+ *   Returns 0 on success, or LX_ERR_*. */
+int64_t logicodex_channel_recv(int64_t handle, int64_t *out) {
+    if (handle <= 0) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] channel_recv: invalid handle -> INVALID_HANDLE\n");
+        return LX_ERR_INVALID_HANDLE; /* provenance: C runtime */
+    }
+    if (out == NULL) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] channel_recv: NULL out -> INVALID_ARG\n");
+        return LX_ERR_INVALID_ARG; /* provenance: C runtime */
+    }
+    lx_channel *ch = (lx_channel *)(intptr_t)handle;
+    pthread_mutex_lock(&ch->mutex);
+    while (ch->count == 0) {
+        pthread_cond_wait(&ch->not_empty, &ch->mutex); /* blocking recv */
+    }
+    int64_t value = ch->buf[ch->head];
+    ch->head = (ch->head + 1) % ch->capacity;
+    ch->count -= 1;
+    pthread_cond_signal(&ch->not_full);
+    pthread_mutex_unlock(&ch->mutex);
+    *out = value;
+    if (lx_trace_enabled())
+        fprintf(stderr, "[lx-rt] channel_recv: value=%ld handle=%p\n",
+                (long)value, (void *)ch);
     return 0;
 }

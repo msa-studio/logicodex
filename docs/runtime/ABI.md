@@ -16,8 +16,9 @@ single integer width) and `*const i8` (C strings, used for actor/channel names).
 | `logicodex_yield`               | `() -> i64`                        | **Real**          | `sched_yield(2)` syscall |
 | `logicodex_spawn`               | `(*const i8 entry) -> i64`         | **Real**          | `pthread_create` (runtime_actor.c) |
 | `logicodex_join`                | `(i64 handle) -> i64`              | **Real**          | `pthread_join` (runtime_actor.c) |
-| `logicodex_channel_send`        | `(*const i8 name, i64 val) -> i64` | Reserved          | — (Phase B) |
-| `logicodex_channel_recv`        | `(*const i8 name) -> i64`          | Reserved          | — (Phase B) |
+| `logicodex_channel_create`      | `(i64 capacity) -> i64`            | **Real (same-scope)** | `malloc` + mutex/condvar (runtime_actor.c) |
+| `logicodex_channel_send`        | `(i64 handle, i64 val) -> i64`     | **Real (same-scope)** | blocking, pthread cond (runtime_actor.c) |
+| `logicodex_channel_recv`        | `(i64 handle, i64* out) -> i64`    | **Real (same-scope)** | blocking, pthread cond (runtime_actor.c) |
 | `logicodex_channel_try_send`    | `(*const i8 name, i64 val) -> i64` | Reserved          | — (Phase B) |
 | `logicodex_channel_try_recv`    | `(*const i8 name) -> i64`          | Reserved          | — (Phase B) |
 | `logicodex_timeout_recv`        | `(*const i8 name, i64 ms) -> i64`  | Reserved          | — (Phase B) |
@@ -62,13 +63,29 @@ success, or a provenance-tagged negative code (`LX_ERR_INVALID_HANDLE` for handl
 never UB. Codegen owns the actor-name -> handle slot mapping, so the runtime
 never sees a name. Lowered from `JOIN <name>`.
 
-## Reserved symbols (detail)
+## Channel symbols (detail)
 
-`channel_*`/`timeout_recv` back the channel constructs (channel send/recv).
-Codegen already declares and calls them with the signatures above, so the ABI is
-fixed. Their runtime is deferred to a later step, which will implement them in C
-over `pthread` (mutex+condvar channels in runtime_actor.c) — deliberately **not**
-`std::thread`/`mpsc`, to keep the Rust std runtime out of generated executables.
+### `logicodex_channel_create / _send / _recv` (Channel B.1)
+
+Real **within a single scope** under `--profile actor`. `Channel::baru(N)`
+allocates an SPSC bounded ring buffer (an i64 buffer + pthread mutex + two
+condvars) and returns the channel pointer reinterpreted as an i64 handle. The
+sends block while full, recvs block while empty. Bad input fails honestly with a
+provenance code (`LX_ERR_INVALID_ARG`, `LX_ERR_INVALID_HANDLE`, `LX_ERR_C_RUNTIME`,
+`LX_ERR_OS`), never UB. Codegen owns the channel-name -> handle mapping (the
+handle lives in an ordinary variable); the runtime never sees a name. Backed by
+runtime_actor.c.
+
+**Scope of B.1:** SPSC, bounded, blocking, `I64` messages. NOT built yet: a
+channel created in one scope and used inside an actor body (**cross-actor**,
+needs actor capture = Channel B.1b) — the compiler rejects that at check time
+with a clear message rather than deadlocking. Also not built:
+`free`/`close`/`drop`, `timeout`, `select`, MPSC, broadcast.
+
+The reserved `channel_try_send`/`channel_try_recv`/`timeout_recv` (by-name forms
+above) still have no runtime; blocking send/recv (B.1) came first, and the
+non-blocking/timeout variants will be revisited (and likely moved to the
+by-handle ABI) when backpressure is designed.
 
 Until then, the compiler refuses to build programs that use them, so a reserved
 symbol never produces an "undefined reference" at link time.

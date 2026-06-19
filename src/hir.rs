@@ -950,6 +950,30 @@ impl<'a> LoweringContext<'a> {
                 span,
             }
         } else {
+            // The channel name is not in scope here. The common cause is a
+            // cross-actor channel: a channel declared in main (or another
+            // scope) used inside an actor body, which is lowered to a separate
+            // function with its own scope. Capturing an outer channel handle
+            // into an actor is NOT implemented yet (that is Channel B.1b —
+            // actor capture). Rather than silently lowering to handle 0 (which
+            // would deadlock at runtime), we fail honestly at compile time.
+            self.push_lowering_error(
+                span,
+                format!(
+                    "Ralat: penangkapan saluran rentas-pelakon belum disokong. \
+                     Saluran '{name}' tidak wujud dalam skop ini (mungkin \
+                     diisytihar di luar pelakon). Guna saluran skop-sama sahaja, \
+                     atau tunggu B.1b (actor capture)."
+                ),
+                format!(
+                    "Cross-actor channel capture is not implemented yet. Channel \
+                     '{name}' is not in scope here (likely declared outside the \
+                     actor). Use a same-scope channel only, or wait for B.1b \
+                     (actor capture)."
+                ),
+            );
+            // Emit handle 0 so the rest of lowering proceeds; the diagnostic
+            // above makes the build fail, so this never reaches runtime.
             HirExpr {
                 kind: HirExprKind::Literal(LiteralAst::Integer(0)),
                 ty: i64_ref(self.types),
