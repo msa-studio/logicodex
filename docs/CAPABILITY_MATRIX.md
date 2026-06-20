@@ -21,7 +21,7 @@ Legend: ✅ done · 🟡 partial · ⛔ none.
 | `channel_recv`     | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **Real (same-scope)** (`--profile actor`) |
 | `service_health`   | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | Not started |
 | `service_metrics`  | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | Not started |
-| `capability_check` | 🟡 | 🟡 | ⛔ | ⛔ | ⛔ | 🟡 | Types only, no enforcement |
+| `capability_check` | 🟡 | 🟡 | ⛔ | ⛔ | ⛔ | 🟡 | FFI extern: Real (default-deny); broader caps: types only |
 
 \* `spawn`/`join` are guarded two ways: `actor_spawn_join_runs_in_a_real_thread`
 proves the real runtime under `--profile actor` (deterministic 99 then 1), while
@@ -59,9 +59,55 @@ proves the real runtime under `--profile actor` (deterministic 99 then 1), while
 - **service_health / service_metrics** — not started. A future `service` profile
   may adapt Lxdge's working epoll reactor (`LXDGE_EXTRACTION.md`), local/single-node.
 
-- **capability_check** — capability *types* and a vocabulary gate exist (the
-  `check` path validates malformed capability declarations), but there is no
-  runtime enforcement. The `safe` profile is therefore runtime-pending.
+- **capability_check** — two layers exist. (1) **FFI capability gate: Real** —
+  extern "C" symbols are default-deny and must be in `ffi.allow` (see the FFI
+  Capability Policy section below); enforced at check time. (2) The broader
+  capability *types* / vocabulary gate (the `check` path validates malformed
+  capability declarations) still has no general runtime enforcement, so the
+  `safe` profile remains runtime-pending for non-FFI capabilities.
+
+## FFI Capability Policy (zero-trust, default deny)
+
+The FFI capability gate is **Real**: every `extern "C"` symbol a program calls
+must be explicitly permitted, or the call is rejected at check time with a clear
+bilingual diagnostic. This is the security door that exists BEFORE `lod` opens
+the external C ecosystem.
+
+**Classification (locked):**
+- **Builtin / auto-allow** — the compiler-emitted runtime ABI (`logicodex_*`:
+  spawn, spawn_ctx, join, channel_*, print_i64, yield, sleep). These are
+  Logicodex's own shims over OS primitives, backed by the audited
+  `runtime_actor.c`, never third-party C.
+- **External C** — everything else (Raylib, sqlite, openssl, curl, zlib, ...).
+  Denied by default; each symbol must be opted in via `ffi.allow`.
+
+**Check order:** (1) runtime builtin -> allow; (2) symbol in `ffi.allow` ->
+allow; (3) library-level opt-in (`ffi.allow_lib`) reserved for later; (4) else
+deny.
+
+**Diagnostic (denied call):**
+```
+Error: extern call 'sqlite3_open' denied by FFI capability policy.
+       Declare it in ffi.allow before use.
+```
+
+**Policy source — now vs later.** The policy is currently held **in memory**
+(`CapabilityPolicy::with_runtime_builtins()`), seeded with only the runtime
+builtins. Symbols are added manually via `allow_symbol` (tests / embedding code).
+`lod` will later populate `allowed_symbols` from `logicodex.toml [ffi.allow]`;
+the deny-by-default contract lives in the compiler so it holds regardless of how
+the policy is sourced.
+
+**Raylib is external C** — it is NOT a builtin and requires explicit allow. A
+demo that uses Raylib opts in with a preset:
+```toml
+[ffi]
+allow = ["InitWindow", "CloseWindow", "WindowShouldClose",
+         "BeginDrawing", "EndDrawing", "ClearBackground", "DrawText"]
+```
+
+**Not yet built:** library-level `ffi.allow_lib` enforcement (symbol-level is
+authoritative for now); loading the policy from `logicodex.toml` (that is `lod`).
 
 ## How to read "Status"
 
