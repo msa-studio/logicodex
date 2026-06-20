@@ -43,8 +43,11 @@ proves the real runtime under `--profile actor` (deterministic 99 then 1), while
   scope** under `--profile actor`. `Channel::baru(N)` allocates an SPSC bounded
   buffer (pthread mutex + condvar in runtime_actor.c) and returns an i64 handle;
   `ch.send`/`ch.recv` are by-handle and block. Scope: SPSC, bounded, blocking
-  only. NOT built: cross-actor channels (a channel declared in one scope and
-  used inside an actor body — needs **actor capture**, Channel B.1b; the
+  only. **Cross-actor (Channel B.1b): Real**, via explicit capture — an actor
+  declares a channel parameter and `SPAWN actor(ch)` passes the handle; codegen
+  builds a ctx of i64 handle(s) + a wrapper and dispatches via
+  `logicodex_spawn_ctx`. A channel used inside an actor body WITHOUT being a
+  declared parameter is still rejected at check time (the
   compiler rejects this at check time with a clear message rather than
   deadlocking), and no `free`/`close`/`drop`/`timeout`/`select`/MPSC/broadcast.
   Message type is `I64` only for now.

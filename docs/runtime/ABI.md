@@ -15,6 +15,7 @@ single integer width) and `*const i8` (C strings, used for actor/channel names).
 | `logicodex_sleep`               | `(i64 ms) -> i64`                  | **Real**          | `nanosleep(2)` syscall |
 | `logicodex_yield`               | `() -> i64`                        | **Real**          | `sched_yield(2)` syscall |
 | `logicodex_spawn`               | `(*const i8 entry) -> i64`         | **Real**          | `pthread_create` (runtime_actor.c) |
+| `logicodex_spawn_ctx`           | `(*const i8 entry, *const i8 ctx) -> i64` | **Real**   | captured actor; trampoline runs `entry(ctx)` (runtime_actor.c) |
 | `logicodex_join`                | `(i64 handle) -> i64`              | **Real**          | `pthread_join` (runtime_actor.c) |
 | `logicodex_channel_create`      | `(i64 capacity) -> i64`            | **Real (same-scope)** | `malloc` + mutex/condvar (runtime_actor.c) |
 | `logicodex_channel_send`        | `(i64 handle, i64 val) -> i64`     | **Real (same-scope)** | blocking, pthread cond (runtime_actor.c) |
@@ -76,11 +77,19 @@ provenance code (`LX_ERR_INVALID_ARG`, `LX_ERR_INVALID_HANDLE`, `LX_ERR_C_RUNTIM
 handle lives in an ordinary variable); the runtime never sees a name. Backed by
 runtime_actor.c.
 
-**Scope of B.1:** SPSC, bounded, blocking, `I64` messages. NOT built yet: a
-channel created in one scope and used inside an actor body (**cross-actor**,
-needs actor capture = Channel B.1b) — the compiler rejects that at check time
-with a clear message rather than deadlocking. Also not built:
-`free`/`close`/`drop`, `timeout`, `select`, MPSC, broadcast.
+**Scope of B.1:** SPSC, bounded, blocking, `I64` messages.
+
+**Cross-actor (Channel B.1b) — Real, via explicit capture.** An actor declares a
+channel parameter and SPAWN passes the handle:
+`ACTOR pengeluar(ch: Channel<...>) MULA ch.send(123); TAMAT` with
+`SPAWN pengeluar(ch)`. Codegen builds a ctx buffer of the captured i64 handle(s),
+emits a wrapper `__actor_<name>__ctx(i8* ctx)` that loads them and calls the real
+actor, and dispatches via `logicodex_spawn_ctx`. The capture is the i64 handle
+ONLY (no general closure, object capture, or borrow model). A channel used inside
+an actor body WITHOUT being a declared parameter is still rejected at check time
+(clear diagnostic, never a silent deadlock).
+
+Still NOT built: `free`/`close`/`drop`, `timeout`, `select`, MPSC, broadcast.
 
 The reserved `channel_try_send`/`channel_try_recv`/`timeout_recv` (by-name forms
 above) still have no runtime; blocking send/recv (B.1) came first, and the

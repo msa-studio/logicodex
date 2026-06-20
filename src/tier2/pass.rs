@@ -125,7 +125,7 @@ pub fn pass1_predeclare(program: &Program) -> Result<MetadataGraph, SemanticErro
                     }
                 }
             }
-            Stmt::Actor { name, body } => {
+            Stmt::Actor { name, body, .. } => {
                 let id = graph.alloc_id();
                 // Collect channels used by this actor
                 let channels = collect_channels_used(body);
@@ -210,7 +210,7 @@ pub fn pass2_streaming(
                     // Placeholder: discard_function_body(name);
                 }
             }
-            Stmt::Actor { name, body } => {
+            Stmt::Actor { name, body, .. } => {
                 // Infer actor capabilities
                 let caps = infer_capabilities(body, graph);
                 let channels = collect_channels_used(body);
@@ -312,7 +312,7 @@ fn build_topology_from_program(
                     topology.register_contract(symbol_id, contract);
                 }
             }
-            Stmt::Actor { name, body } => {
+            Stmt::Actor { name, body, .. } => {
                 if let Some(symbol_id) = graph.resolve_callee(name) {
                     let contract = infer_gate_contract(name, body);
                     topology.register_contract(symbol_id, contract);

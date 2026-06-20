@@ -453,7 +453,7 @@ impl Analyzer {
                     Ok(())
                 }
             }
-            Stmt::Actor { name, body } => {
+            Stmt::Actor { name, body, .. } => {
                 // Register Kotak in topology
                 if self.actor_registry.contains(name) {
                     return Err(SemanticError::DuplicateActor { name: name.clone() });

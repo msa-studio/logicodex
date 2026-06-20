@@ -663,11 +663,21 @@ impl<'a> LoweringContext<'a> {
                 // separate concern handled by the runtime; the *semantics* of
                 // the actor (ownership, capability, lifetime) remain
                 // Logicodex-owned and are layered on top of this lowering.
-                Stmt::Actor { name, body } => {
+                Stmt::Actor { name, params, body } => {
                     functions.push(Spanned {
                         node: ItemAst::Function(FunctionAst {
                             name: format!("__actor_{name}"),
-                            params: Vec::new(),
+                            // B.1b: captured parameters become real function
+                            // params, so `ch` is in the actor body's scope and
+                            // resolves to a local (the cross-actor guard no
+                            // longer fires; send/recv find the handle).
+                            params: params
+                                .into_iter()
+                                .map(|p| ParamAst {
+                                    name: p.name,
+                                    ty: lower_type_ast(p.ty),
+                                })
+                                .collect(),
                             return_type: Some(TypeAst::Unit),
                             body: BlockAst {
                                 statements: body
@@ -1363,6 +1373,11 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
         ast::Type::Pointer(inner) => TypeAst::Pointer(Box::new(lower_type_ast(*inner))),
         ast::Type::String => TypeAst::Named("String".to_string()),
         ast::Type::Named(n) => TypeAst::Named(n),
+        // A Channel<From, To, Msg> handle is an i64 (ABI-1 by-handle). As an
+        // actor capture parameter type it lowers to i64 so the param matches the
+        // handle value flowing through ctx. The From/To/Msg type-level metadata
+        // is not represented at this layer yet (B.1b captures the handle only).
+        ast::Type::Channel { .. } => TypeAst::Named("i64".to_string()),
         _ => TypeAst::Unit,
     }
 }

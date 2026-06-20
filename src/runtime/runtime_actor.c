@@ -67,6 +67,18 @@ _Static_assert(sizeof(void *) <= sizeof(int64_t),
  * needs no knowledge of names, signatures, or program structure. */
 typedef void (*lx_actor_entry)(void);
 
+/* A captured actor entry takes one opaque context pointer: `void __actor_<name>
+ * (void* ctx)`. The ctx holds the captured i64 channel handle(s); codegen owns
+ * its layout. The runtime only forwards the pointer — it never inspects it. */
+typedef void (*lx_actor_entry_ctx)(void *ctx);
+
+/* Bundle passed to the ctx trampoline: which function to run and the context to
+ * hand it. Heap-allocated by spawn_ctx, freed by the trampoline once consumed. */
+typedef struct {
+    lx_actor_entry_ctx entry;
+    void *ctx;
+} lx_spawn_ctx_arg;
+
 /* Trace helper — no-op unless LOGICODEX_RUNTIME_TRACE is set. Checked once. */
 static int lx_trace_enabled(void) {
     static int cached = -1;
@@ -83,6 +95,20 @@ static void *lx_actor_trampoline(void *arg) {
     lx_actor_entry entry = (lx_actor_entry)arg;
     if (entry != NULL) {
         entry();
+    }
+    return NULL;
+}
+
+/* Trampoline for captured actors: unpacks {entry, ctx}, frees the bundle, then
+ * runs entry(ctx). The ctx itself is owned by the spawning code (codegen), not
+ * freed here. */
+static void *lx_actor_trampoline_ctx(void *arg) {
+    lx_spawn_ctx_arg *bundle = (lx_spawn_ctx_arg *)arg;
+    lx_actor_entry_ctx entry = bundle->entry;
+    void *ctx = bundle->ctx;
+    free(bundle);
+    if (entry != NULL) {
+        entry(ctx);
     }
     return NULL;
 }
@@ -111,6 +137,41 @@ lx_actor_handle logicodex_spawn(void *entry) {
         fprintf(stderr, "[lx-rt] spawn: started actor, handle=%lu\n",
                 (unsigned long)tid);
     /* Reinterpret the opaque pthread_t as the handle (see _Static_assert). */
+    return (lx_actor_handle)tid;
+}
+
+/* logicodex_spawn_ctx(entry, ctx) -> i64
+ *   entry : pointer to a `void (*)(void* ctx)` actor function (B.1b capture).
+ *   ctx   : opaque context pointer (codegen-owned; holds captured i64 handles).
+ *   return: same as logicodex_spawn (>= 0 handle, < 0 LX_ERR_*).
+ *
+ * Used for actors WITH captured parameters. Niladic actors keep using
+ * logicodex_spawn. The runtime forwards ctx unchanged; it never reads it. */
+lx_actor_handle logicodex_spawn_ctx(void *entry, void *ctx) {
+    if (entry == NULL) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] spawn_ctx: NULL entry -> INVALID_ENTRY\n");
+        return LX_ERR_INVALID_ENTRY; /* provenance: C runtime */
+    }
+    lx_spawn_ctx_arg *bundle = (lx_spawn_ctx_arg *)malloc(sizeof(lx_spawn_ctx_arg));
+    if (bundle == NULL) {
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] spawn_ctx: malloc failed -> C_RUNTIME\n");
+        return LX_ERR_C_RUNTIME; /* provenance: C runtime */
+    }
+    bundle->entry = (lx_actor_entry_ctx)entry;
+    bundle->ctx = ctx;
+    pthread_t tid;
+    int rc = pthread_create(&tid, NULL, lx_actor_trampoline_ctx, bundle);
+    if (rc != 0) {
+        free(bundle);
+        if (lx_trace_enabled())
+            fprintf(stderr, "[lx-rt] spawn_ctx: pthread_create rc=%d -> OS error\n", rc);
+        return LX_ERR_OS; /* provenance: OS/pthread */
+    }
+    if (lx_trace_enabled())
+        fprintf(stderr, "[lx-rt] spawn_ctx: started actor, handle=%lu ctx=%p\n",
+                (unsigned long)tid, ctx);
     return (lx_actor_handle)tid;
 }
 

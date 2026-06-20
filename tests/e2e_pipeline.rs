@@ -193,6 +193,34 @@ fn channel_cross_actor_fails_with_clear_diagnostic() {
         "expected a clear cross-actor diagnostic, got:\n{out}"
     );
 }
+#[test]
+fn channel_actor_capture_cross_thread_works() {
+    // B.1b: an actor declares an explicit channel parameter and SPAWN passes the
+    // channel handle. The actor sends through the captured handle; main receives
+    // across the thread boundary. Capacity 2 < 3 sends also exercises blocking.
+    use std::process::Command;
+    let src = "ACTOR pengeluar(ch: Channel<Penghantar, Penerima, I64>) MULA\n    ch.send(10);\n    ch.send(20);\n    ch.send(30);\nTAMAT\nBINA ch: Channel<Penghantar, Penerima, I64> = Channel::baru(2);\nSPAWN pengeluar(ch);\nBINA satu: I64 = ch.recv();\nPAPAR satu;\nBINA dua: I64 = ch.recv();\nPAPAR dua;\nBINA tiga: I64 = ch.recv();\nPAPAR tiga;\nJOIN pengeluar;\n";
+    let path = fixture("channel_actor_capture", src);
+    let compile = Command::new(bin())
+        .arg("compile")
+        .arg("--profile")
+        .arg("actor")
+        .arg(&path)
+        .output()
+        .expect("spawn compile --profile actor");
+    assert!(
+        compile.status.success(),
+        "capture compile --profile actor failed:\n{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let exe = path.with_extension("");
+    let run = Command::new(&exe).output().expect("run capture exe");
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "10\n20\n30",
+        "actor sends via captured channel handle; main receives across threads"
+    );
+}
 // ----- capability vocabulary check: `check` exit semantics -------------------
 
 #[test]

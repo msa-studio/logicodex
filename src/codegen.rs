@@ -1087,21 +1087,137 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         "actor entry `{actor_sym}` not found in module (actor body                          was not lowered to a function)"
                     )
                 })?;
-                // Args are reserved for a future actor-with-parameters design;
-                // evaluate them for side effects but they are not passed yet.
-                for arg in args {
-                    let _ = self.emit_hir_expr(arg, func)?;
-                }
-                let entry_ptr = actor_fn.as_global_value().as_pointer_value();
-                // Bitcast the function pointer to i8* to match the C ABI signature.
-                let entry_i8 = self
-                    .builder
-                    .build_bitcast(entry_ptr, i8ptr, "actor_entry_i8")
-                    .context("bitcast actor entry to i8*")?;
-                let call_site = self
-                    .builder
-                    .build_call(spawn_fn, &[entry_i8.into()], "spawn_call")
-                    .context("spawn call")?;
+                // B.1b capture: an actor with arguments captures channel
+                // handle(s). We build a ctx buffer holding the i64 handles, a
+                // small ctx-unpacking wrapper `__actor_<name>__ctx(i8* ctx)`
+                // that loads them and calls the real actor, and dispatch via
+                // logicodex_spawn_ctx(wrapper, ctx). An actor with no arguments
+                // keeps the old niladic logicodex_spawn(entry) path.
+                let call_site = if args.is_empty() {
+                    let entry_ptr = actor_fn.as_global_value().as_pointer_value();
+                    let entry_i8 = self
+                        .builder
+                        .build_bitcast(entry_ptr, i8ptr, "actor_entry_i8")
+                        .context("bitcast actor entry to i8*")?;
+                    self.builder
+                        .build_call(spawn_fn, &[entry_i8.into()], "spawn_call")
+                        .context("spawn call")?
+                } else {
+                    // Evaluate each captured handle argument (i64) in the
+                    // CURRENT block (main's scope), before we move the builder.
+                    let mut handle_vals: Vec<IntValue<'ctx>> = Vec::with_capacity(args.len());
+                    for arg in args {
+                        // emit_hir_expr returns the i64 channel handle directly.
+                        let hv = self.emit_hir_expr(arg, func)?;
+                        handle_vals.push(hv);
+                    }
+                    let n = handle_vals.len() as u32;
+                    // ctx type: an array of i64 handles. Allocate it in main's
+                    // frame and fill it with the evaluated handles.
+                    let arr_ty = self.i64_type.array_type(n);
+                    let ctx_alloca = self
+                        .builder
+                        .build_alloca(arr_ty, &format!("__ctx_{actor_name}"))
+                        .context("alloc actor ctx")?;
+                    let i64_zero = self.i64_type.const_int(0, false);
+                    for (i, hv) in handle_vals.iter().enumerate() {
+                        let idx = self.i64_type.const_int(i as u64, false);
+                        let slot = unsafe {
+                            self.builder
+                                .build_in_bounds_gep(
+                                    arr_ty,
+                                    ctx_alloca,
+                                    &[i64_zero, idx],
+                                    "ctx_slot",
+                                )
+                                .context("ctx gep")?
+                        };
+                        self.builder
+                            .build_store(slot, *hv)
+                            .context("store captured handle into ctx")?;
+                    }
+                    // Build (once per actor) the ctx-unpacking wrapper.
+                    let wrapper_sym = format!("__actor_{actor_name}__ctx");
+                    let wrapper_fn = match self.module.get_function(&wrapper_sym) {
+                        Some(f) => f,
+                        None => {
+                            let saved_block = self.builder.get_insert_block();
+                            let wrapper_ty =
+                                self.context.void_type().fn_type(&[i8ptr.into()], false);
+                            let wf = self.module.add_function(&wrapper_sym, wrapper_ty, None);
+                            let wentry = self.context.append_basic_block(wf, "entry");
+                            self.builder.position_at_end(wentry);
+                            // ctx i8* -> array pointer
+                            let ctx_param = wf.get_nth_param(0).unwrap().into_pointer_value();
+                            let arr_ptr = self
+                                .builder
+                                .build_bitcast(
+                                    ctx_param,
+                                    arr_ty.ptr_type(AddressSpace::default()),
+                                    "ctx_as_arr",
+                                )
+                                .context("bitcast ctx to array ptr")?
+                                .into_pointer_value();
+                            // Load each handle and pass to the real actor fn.
+                            let mut call_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+                                Vec::with_capacity(n as usize);
+                            let wzero = self.i64_type.const_int(0, false);
+                            for i in 0..n {
+                                let widx = self.i64_type.const_int(i as u64, false);
+                                let slot = unsafe {
+                                    self.builder
+                                        .build_in_bounds_gep(
+                                            arr_ty,
+                                            arr_ptr,
+                                            &[wzero, widx],
+                                            "wctx_slot",
+                                        )
+                                        .context("wrapper ctx gep")?
+                                };
+                                let hv = self
+                                    .builder
+                                    .build_load(self.i64_type, slot, "wctx_handle")
+                                    .context("load captured handle")?;
+                                call_args.push(hv.into());
+                            }
+                            self.builder
+                                .build_call(actor_fn, &call_args, "actor_call")
+                                .context("call real actor from wrapper")?;
+                            self.builder
+                                .build_return(None)
+                                .context("wrapper ret void")?;
+                            // Restore builder to main's block.
+                            if let Some(b) = saved_block {
+                                self.builder.position_at_end(b);
+                            }
+                            wf
+                        }
+                    };
+                    // spawn_ctx(wrapper, ctx)
+                    let spawn_ctx_fn = self.declare_runtime_func(
+                        "logicodex_spawn_ctx",
+                        self.i64_type.fn_type(&[i8ptr.into(), i8ptr.into()], false),
+                    );
+                    let wrapper_i8 = self
+                        .builder
+                        .build_bitcast(
+                            wrapper_fn.as_global_value().as_pointer_value(),
+                            i8ptr,
+                            "wrapper_i8",
+                        )
+                        .context("bitcast wrapper to i8*")?;
+                    let ctx_i8 = self
+                        .builder
+                        .build_bitcast(ctx_alloca, i8ptr, "ctx_i8")
+                        .context("bitcast ctx to i8*")?;
+                    self.builder
+                        .build_call(
+                            spawn_ctx_fn,
+                            &[wrapper_i8.into(), ctx_i8.into()],
+                            "spawn_ctx_call",
+                        )
+                        .context("spawn_ctx call")?
+                };
                 let handle = match call_site.try_as_basic_value().left() {
                     Some(BasicValueEnum::IntValue(iv)) => iv,
                     _ => self.i64_type.const_int(0, false),

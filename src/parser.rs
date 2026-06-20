@@ -325,8 +325,32 @@ impl Parser {
             .consume(TokenKind::Identifier, "Actor name after 'actor'")?
             .lexeme
             .clone();
+        // Optional explicit capture parameters (B.1b): `ACTOR name(ch: T) MULA`.
+        // No parentheses = niladic actor (old spawn ABI). Reuses the function
+        // parameter grammar: `(name: type, ...)`.
+        let mut params = Vec::new();
+        if self.matches(TokenKind::LeftParen) {
+            if !self.check(TokenKind::RightParen) {
+                loop {
+                    let param_name = self
+                        .consume(TokenKind::Identifier, "parameter name")?
+                        .lexeme
+                        .clone();
+                    self.consume(TokenKind::Colon, ": after parameter name")?;
+                    let ty = self.parse_type()?;
+                    params.push(Param {
+                        name: param_name,
+                        ty,
+                    });
+                    if !self.matches(TokenKind::Comma) {
+                        break;
+                    }
+                }
+            }
+            self.consume(TokenKind::RightParen, ") after actor parameter list")?;
+        }
         let body = self.block()?;
-        Ok(Stmt::Actor { name, body })
+        Ok(Stmt::Actor { name, params, body })
     }
 
     // v1.33.0-alpha: Service manifest — deterministic network reactor

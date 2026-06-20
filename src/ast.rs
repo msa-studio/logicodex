@@ -98,6 +98,9 @@ pub enum Stmt {
     /// Syntax: `actor SensorSuhu { let pintu: Pintu<...> = ...; ... }`
     Actor {
         name: String,
+        /// Captured parameters (B.1b): explicit handles the actor receives, e.g.
+        /// a channel. Empty for a niladic actor (uses the old spawn ABI).
+        params: Vec<Param>,
         body: Vec<Stmt>,
     },
     /// Variable assignment: target = value (target can be any Expr)
