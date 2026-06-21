@@ -108,6 +108,37 @@ pub fn resolve_module_path(base_dir: &Path, module: &str) -> PathBuf {
     path
 }
 
+/// The reserved internal prefix for mangled Logicodex module symbols. User
+/// source is forbidden from defining a symbol starting with this prefix, which
+/// makes a collision between a user name and a mangled name impossible by
+/// construction (the namespace is reserved, not merely hoped to be free).
+pub const RESERVED_PREFIX: &str = "__ldx_";
+
+/// Mangle a Logicodex function/struct/enum name into its module-qualified
+/// internal symbol. The root module (empty name) does not mangle -- its symbols
+/// keep their source names so existing single-file programs are unchanged.
+///
+///   mangle_symbol("", "main")       -> "main"
+///   mangle_symbol("math", "add")    -> "__ldx_mod_math__add"
+///   mangle_symbol("models.user", "new") -> "__ldx_mod_models_user__new"
+///
+/// A dot in the module path becomes an underscore so the result is a single
+/// valid identifier. This is for Logicodex symbols only: extern "C" symbols are
+/// NEVER mangled (they must keep their exact ABI name or linking breaks).
+pub fn mangle_symbol(module: &str, name: &str) -> String {
+    if module.is_empty() {
+        return name.to_string();
+    }
+    let module_part = module.replace('.', "_");
+    format!("{RESERVED_PREFIX}mod_{module_part}__{name}")
+}
+
+/// Whether a user-written symbol name is forbidden because it intrudes on the
+/// reserved mangling namespace.
+pub fn is_reserved_symbol(name: &str) -> bool {
+    name.starts_with(RESERVED_PREFIX)
+}
+
 /// Extract the dotted module names imported by a program, in source order.
 fn imports_of(program: &Program) -> Vec<String> {
     program
@@ -248,6 +279,32 @@ mod tests {
     fn resolve_dotted_is_directory() {
         let p = resolve_module_path(Path::new("/proj"), "models.user");
         assert_eq!(p, PathBuf::from("/proj/models/user.ldx"));
+    }
+
+    #[test]
+    fn root_module_does_not_mangle() {
+        assert_eq!(mangle_symbol("", "main"), "main");
+    }
+
+    #[test]
+    fn named_module_mangles_with_reserved_prefix() {
+        assert_eq!(mangle_symbol("math", "add"), "__ldx_mod_math__add");
+    }
+
+    #[test]
+    fn dotted_module_underscores_the_path() {
+        assert_eq!(
+            mangle_symbol("models.user", "new"),
+            "__ldx_mod_models_user__new"
+        );
+    }
+
+    #[test]
+    fn reserved_prefix_is_detected() {
+        assert!(is_reserved_symbol("__ldx_mod_math__add"));
+        assert!(is_reserved_symbol("__ldx_anything"));
+        assert!(!is_reserved_symbol("add"));
+        assert!(!is_reserved_symbol("my_func"));
     }
 
     /// Build a parse stub backed by an in-memory name->Program map. The stub
