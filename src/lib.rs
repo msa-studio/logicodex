@@ -42,6 +42,7 @@ pub mod hir;
 pub mod layout;
 pub mod lexer;
 pub mod lod;
+pub mod module_loader;
 pub mod os;
 pub mod parser;
 pub mod semantic;
