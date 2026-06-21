@@ -293,6 +293,16 @@ pub struct HirEnumDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct HirExternFunction {
     pub callable: CallableId,
+    /// The extern's own name and signature, captured at lowering time. Codegen
+    /// declares the LLVM function directly from these, NOT by looking the
+    /// CallableId up in the FFI CallableRegistry (whose id-space is independent
+    /// of the SymbolTable and would alias an unrelated registered fn like a
+    /// Raylib symbol). User externs live in the SymbolTable, so their truth
+    /// travels with the HIR node.
+    pub name: String,
+    pub params: Vec<crate::types::TypeId>,
+    pub return_type: crate::types::TypeId,
+    pub is_variadic: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -872,8 +882,23 @@ impl<'a> LoweringContext<'a> {
             ItemAst::ExternBlock(block) => {
                 let mut extern_items = Vec::new();
                 for function in block.functions {
-                    let callable = self.symbols.define_callable(function.name);
-                    extern_items.push(HirItem::ExternFunction(HirExternFunction { callable }));
+                    // Capture the extern's real signature BEFORE moving fields.
+                    let name = function.name.clone();
+                    let params: Vec<crate::types::TypeId> = function
+                        .params
+                        .into_iter()
+                        .map(|p| self.lower_type(p.ty).id)
+                        .collect();
+                    let return_type = self.lower_type(function.return_type).id;
+                    let is_variadic = function.is_variadic;
+                    let callable = self.symbols.define_callable(name.clone());
+                    extern_items.push(HirItem::ExternFunction(HirExternFunction {
+                        callable,
+                        name,
+                        params,
+                        return_type,
+                        is_variadic,
+                    }));
                 }
                 // Return first item; remaining items are stored in a side vector
                 // This preserves all extern function declarations in the HIR

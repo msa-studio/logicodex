@@ -12,6 +12,7 @@ mod ffi;
 mod hir;
 mod layout;
 mod lexer;
+mod lod;
 mod os;
 mod parser;
 #[allow(dead_code)]
@@ -343,6 +344,14 @@ fn compile(
         link_spec.runtime_libs.push("pthread".to_string());
         _actor_rt_tmp = Some(rt_src);
     }
+    // lod Stage 0: pull external C libraries to link from logicodex.toml
+    // ([dependencies.c.*].link). These go in the user_libs channel (explicit,
+    // user-requested) -- never auto-linked. No manifest -> nothing added.
+    if let Some((manifest, _)) =
+        lod::Manifest::discover(file).map_err(|e| anyhow::anyhow!("{e}"))?
+    {
+        link_spec.user_libs.extend(manifest.user_libs());
+    }
     link_executable(
         &artifact.object_path,
         &runtime_asm,
@@ -507,7 +516,19 @@ fn compile_v130_pipeline(
     // Build id->name map for codegen call routing before `symbols` is moved.
     let callable_names = symbols.callables_map();
 
-    // Step 5: Semantic check
+    // Step 5: Semantic check.
+    // lod Stage 0: if a logicodex.toml sits next to the source, its [ffi].allow
+    // and [dependencies.c.*].allow symbols are added to the capability policy so
+    // declared externs can pass the FfiGatekeeper. No manifest -> default-deny
+    // stays fully in force (the common case).
+    let mut policy = ffi::CapabilityPolicy::with_runtime_builtins();
+    if let Some((manifest, _)) =
+        lod::Manifest::discover(file).map_err(|e| anyhow::anyhow!("{e}"))?
+    {
+        for sym in manifest.allowed_symbols() {
+            policy.allow_symbol(sym);
+        }
+    }
     let mut semantic = semantic_gate::SemanticContext {
         types,
         symbols,
@@ -515,7 +536,7 @@ fn compile_v130_pipeline(
         diagnostics: Vec::new(),
         loop_depth: 0,
         safety_context: ffi::SafetyContext::Safe,
-        policy: ffi::CapabilityPolicy::with_runtime_builtins(),
+        policy,
         extern_symbols: std::collections::HashSet::new(),
     };
     semantic
@@ -792,6 +813,16 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
     let mut callables = ffi::CallableRegistry::default();
     ffi::raylib::register_raylib_functions(&mut types, &mut callables, &raylib_type_ids);
 
+    // lod Stage 0: `check` honours the same logicodex.toml allow-list as compile,
+    // so a denied/allowed extern reports identically in both paths.
+    let mut policy = ffi::CapabilityPolicy::with_runtime_builtins();
+    if let Some((manifest, _)) =
+        lod::Manifest::discover(file).map_err(|e| anyhow::anyhow!("{e}"))?
+    {
+        for sym in manifest.allowed_symbols() {
+            policy.allow_symbol(sym);
+        }
+    }
     let mut semantic = semantic_gate::SemanticContext {
         types,
         symbols,
@@ -799,7 +830,7 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
         diagnostics: Vec::new(),
         loop_depth: 0,
         safety_context: ffi::SafetyContext::Safe,
-        policy: ffi::CapabilityPolicy::with_runtime_builtins(),
+        policy,
         extern_symbols: std::collections::HashSet::new(),
     };
     semantic

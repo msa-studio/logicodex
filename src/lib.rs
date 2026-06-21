@@ -41,6 +41,7 @@ pub mod ffi;
 pub mod hir;
 pub mod layout;
 pub mod lexer;
+pub mod lod;
 pub mod os;
 pub mod parser;
 pub mod semantic;

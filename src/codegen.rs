@@ -595,20 +595,18 @@ impl<'ctx> LlvmCompiler<'ctx> {
         &mut self,
         extern_fn: &crate::hir::HirExternFunction,
     ) -> Result<()> {
-        let signature = {
-            let callables = self
-                .callables
-                .as_ref()
-                .ok_or_else(|| anyhow!("extern function codegen: CallableRegistry not attached"))?;
-            callables
-                .get(extern_fn.callable)
-                .ok_or_else(|| {
-                    anyhow!(
-                        "extern function CallableId({}) not found in registry",
-                        extern_fn.callable.0
-                    )
-                })?
-                .clone()
+        // Build the signature from the HIR extern node itself. Do NOT look the
+        // CallableId up in the FFI CallableRegistry: user externs live in the
+        // SymbolTable, and that id-space is independent of the registry's, so a
+        // lookup would alias an unrelated registered fn (e.g. a Raylib symbol).
+        let signature = CallableSignature {
+            name: extern_fn.name.clone(),
+            params: extern_fn.params.clone(),
+            return_type: extern_fn.return_type,
+            abi: crate::ffi::CallingConvention::C,
+            safety: crate::ffi::CallableSafety::UnsafeRequired,
+            is_extern: true,
+            is_variadic: extern_fn.is_variadic,
         };
         let func = self.declare_extern_func(&signature)?;
         self.hir_callable_funcs.insert(extern_fn.callable.0, func);
