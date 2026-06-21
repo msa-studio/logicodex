@@ -1740,49 +1740,19 @@ impl<'ctx> LlvmCompiler<'ctx> {
     /// Pre-declare all callable functions from the CallableRegistry.
     /// Must be called before codegen if CallableRegistry is attached.
     fn predeclare_callables(&mut self) -> Result<()> {
-        if self.callables_predeclared {
-            return Ok(()); // already done
-        }
-        let callables = match self.callables.as_ref() {
-            Some(c) => c,
-            None => return Ok(()), // no registry attached — nothing to do
-        };
-        // Iterate through all registered callables and declare them
-        for (_idx, sig) in callables.signatures.iter().enumerate() {
-            let name = &sig.name;
-            if self.declared_funcs.contains_key(name) {
-                continue; // already declared
-            }
-            // Determine whether the return type is void (Unit)
-            let is_void = if let Some(types) = self.types.as_ref() {
-                matches!(
-                    types.resolve(sig.return_type),
-                    crate::types::TypeKind::Primitive(crate::types::PrimitiveType::Unit)
-                )
-            } else {
-                false
-            };
-            // Build parameter types
-            let mut param_types: Vec<BasicTypeEnum<'ctx>> = Vec::new();
-            for _ in &sig.params {
-                param_types.push(self.i64_type.into());
-            }
-            // Build function type
-            let fn_type = if is_void {
-                self.context.void_type().fn_type(
-                    &param_types
-                        .iter()
-                        .map(|t| (*t).into())
-                        .collect::<Vec<inkwell::types::BasicMetadataTypeEnum>>(),
-                    sig.is_variadic,
-                )
-            } else {
-                let ret_type: BasicTypeEnum<'ctx> = self.i64_type.into();
-                self.basic_type_fn_type(ret_type, &param_types, sig.is_variadic)
-            };
-            let func = self.module.add_function(name, fn_type, None);
-            self.declared_funcs.insert(name.clone(), func);
-        }
+        // Previously this eagerly declared EVERY signature in the FFI
+        // CallableRegistry (all ~55 Raylib functions) into the LLVM module,
+        // whether or not the program used them -- producing ~55 dead `declare`
+        // lines in the IR for a program that calls none of them, and (before the
+        // extern-routing fix) leaking undefined references like SetTargetFPS into
+        // the object file.
+        //
+        // It is no longer needed: emit_hir_call resolves a callee by name and
+        // declares it on demand via declare_extern_func the first time it is
+        // actually called. So a Raylib function is declared exactly when used,
+        // and a program that uses none declares none. This is left as an explicit
+        // no-op (rather than deleted) to keep the call site dan the recorded
+        // design intent visible.
         self.callables_predeclared = true;
         Ok(())
     }
