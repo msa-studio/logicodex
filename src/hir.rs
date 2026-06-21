@@ -1663,6 +1663,23 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
         ast::Expr::EnumVariant { enum_name, variant } => {
             ExprAst::EnumVariant { enum_name, variant }
         }
+        // Unary operators. The parser carries the operator as a string ("-" for
+        // negation, "!" for logical not); map it to the typed UnaryOpAst here.
+        // Previously this fell through to the `_` arm below and was silently
+        // lowered to Unit, so `-5` compiled to 0 -- a correctness bug.
+        ast::Expr::Unary { op, operand } => {
+            let mapped = match op.as_str() {
+                "-" => UnaryOpAst::Negate,
+                "!" => UnaryOpAst::LogicalNot,
+                // Unknown unary operator: preserve old behaviour (Unit) rather
+                // than guess. Parser only ever emits "-" or "!" today.
+                _ => return ExprAst::Literal(LiteralAst::Unit),
+            };
+            ExprAst::Unary {
+                op: mapped,
+                expr: Box::new(lower_expr_ast(*operand)),
+            }
+        }
         _ => ExprAst::Literal(LiteralAst::Unit),
     }
 }
@@ -1696,6 +1713,35 @@ mod tests {
         Spanned {
             node,
             span: Span::unknown(),
+        }
+    }
+
+    #[test]
+    fn unary_negate_lowers_to_negate_not_unit() {
+        // Regression: `-5` used to fall through to the `_` arm in lower_expr_ast
+        // and become Unit (compiling to 0). It must lower to Unary(Negate, 5).
+        let expr = ast::Expr::Unary {
+            op: "-".to_string(),
+            operand: Box::new(ast::Expr::Integer(5)),
+        };
+        match lower_expr_ast(expr) {
+            ExprAst::Unary { op, expr } => {
+                assert_eq!(op, UnaryOpAst::Negate);
+                assert_eq!(*expr, ExprAst::Literal(LiteralAst::Integer(5)));
+            }
+            other => panic!("expected Unary(Negate), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn unary_logical_not_lowers_to_logical_not() {
+        let expr = ast::Expr::Unary {
+            op: "!".to_string(),
+            operand: Box::new(ast::Expr::Boolean(true)),
+        };
+        match lower_expr_ast(expr) {
+            ExprAst::Unary { op, .. } => assert_eq!(op, UnaryOpAst::LogicalNot),
+            other => panic!("expected Unary(LogicalNot), got {other:?}"),
         }
     }
 
