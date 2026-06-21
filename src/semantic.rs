@@ -269,6 +269,7 @@ impl Analyzer {
                 params,
                 return_type,
                 body,
+                ..
             } => {
                 if self.functions.contains_key(name) {
                     return Err(SemanticError::DuplicateFunction(name.clone()));

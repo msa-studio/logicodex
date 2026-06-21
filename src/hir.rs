@@ -572,6 +572,7 @@ impl<'a> LoweringContext<'a> {
                     params,
                     return_type,
                     body,
+                    ..
                 } => {
                     functions.push(Spanned {
                         node: ItemAst::Function(FunctionAst {

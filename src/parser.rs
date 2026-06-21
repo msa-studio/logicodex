@@ -103,6 +103,21 @@ impl Parser {
     }
 
     fn declaration_or_statement(&mut self) -> Result<Stmt, ParseError> {
+        // `public` marks the following item as exported. Stage 0 supports
+        // `public function` (public struct/enum come next). The flag travels
+        // into the item itself; visibility is decided at the module boundary.
+        if self.matches(TokenKind::Public) {
+            if self.matches(TokenKind::Fn) {
+                return self.function_definition(true);
+            }
+            let tok = self.peek();
+            return Err(ParseError::Expected {
+                expected: "`function` after `public`".to_string(),
+                found: tok.lexeme.clone(),
+                line: tok.line,
+                column: tok.column,
+            });
+        }
         if self.matches(TokenKind::Use) {
             return self.use_declaration();
         }
@@ -113,7 +128,7 @@ impl Parser {
             return self.hardware_zone_block();
         }
         if self.matches(TokenKind::Fn) {
-            return self.function_definition();
+            return self.function_definition(false);
         }
         if self.check(TokenKind::Struct) {
             return self.struct_declaration();
@@ -270,7 +285,7 @@ impl Parser {
         Ok(Stmt::HardwareDecl { name, ty, address })
     }
 
-    fn function_definition(&mut self) -> Result<Stmt, ParseError> {
+    fn function_definition(&mut self, is_public: bool) -> Result<Stmt, ParseError> {
         let name = self
             .consume(TokenKind::Identifier, "function name")?
             .lexeme
@@ -306,6 +321,7 @@ impl Parser {
             params,
             return_type,
             body,
+            is_public,
         })
     }
 
@@ -1219,9 +1235,9 @@ impl Parser {
                     }
                 }
                 self.consume(TokenKind::RightParen, "')' after method args")?;
-                return Ok(Expr::MethodCall {
-                    object: name,
-                    method,
+                return Ok(Expr::QualifiedCall {
+                    module: name,
+                    function: method,
                     args,
                 });
             }

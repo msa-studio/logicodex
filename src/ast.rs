@@ -36,6 +36,9 @@ pub enum Stmt {
         params: Vec<Param>,
         return_type: Option<Type>,
         body: Vec<Stmt>,
+        /// `true` if declared `public` (exported across module boundaries).
+        /// Private by default: an item with no `public` is module-local.
+        is_public: bool,
     },
     Let {
         name: String,
@@ -179,6 +182,16 @@ pub enum Expr {
     /// and struct constructors (e.g., `Color(255, 0, 0, 255)`).
     Call {
         callee: Box<Expr>, // usually Expr::Variable(name)
+        args: Vec<Expr>,
+    },
+    /// Module-qualified call: `module.function(args)`.
+    /// A dedicated node, not a field access followed by a call: the call carries
+    /// which module it targets, so resolution never has to infer it from
+    /// structure. This is the truth-travels-with-the-node principle the module
+    /// system depends on to avoid name-resolution aliasing.
+    QualifiedCall {
+        module: String,
+        function: String,
         args: Vec<Expr>,
     },
     Binary {

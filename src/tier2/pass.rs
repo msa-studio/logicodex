@@ -105,6 +105,7 @@ pub fn pass1_predeclare(program: &Program) -> Result<MetadataGraph, SemanticErro
                 params,
                 return_type,
                 body,
+                ..
             } => {
                 let id = graph.alloc_id();
                 let param_types: Vec<Type> = params.iter().map(|p| p.ty.clone()).collect();
