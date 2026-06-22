@@ -37,6 +37,10 @@ pub struct FunctionAst {
     pub return_type: Option<TypeAst>,
     pub body: BlockAst,
     pub is_unsafe: bool,
+    /// `true` if declared `public` (exported across module boundaries). Only
+    /// consulted for module functions: a qualified call `module.fn` is allowed
+    /// only when the target is public. Root/same-module calls ignore this.
+    pub is_public: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -461,6 +465,9 @@ pub struct SymbolTable {
     locals: Vec<HashMap<String, LocalBinding>>,
     callables: HashMap<String, CallableId>,
     callable_returns: HashMap<CallableId, TypeId>,
+    /// Mangled names of callables declared `public`. A qualified cross-module
+    /// call is permitted only if its resolved (mangled) target is in this set.
+    public_callables: std::collections::HashSet<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -524,6 +531,16 @@ impl SymbolTable {
 
     pub fn lookup_callable(&self, name: &str) -> Option<CallableId> {
         self.callables.get(name).copied()
+    }
+
+    /// Record that the (mangled) callable name is exported `public`.
+    pub fn mark_public(&mut self, name: impl Into<String>) {
+        self.public_callables.insert(name.into());
+    }
+
+    /// Whether the (mangled) callable name was declared `public`.
+    pub fn is_public_callable(&self, name: &str) -> bool {
+        self.public_callables.contains(name)
     }
 
     /// Reverse lookup: find the name a CallableId was defined under.
@@ -614,7 +631,7 @@ impl<'a> LoweringContext<'a> {
                     params,
                     return_type,
                     body,
-                    ..
+                    is_public,
                 } => {
                     functions.push(Spanned {
                         node: ItemAst::Function(FunctionAst {
@@ -637,6 +654,7 @@ impl<'a> LoweringContext<'a> {
                                     .collect(),
                             },
                             is_unsafe: false,
+                            is_public,
                         }),
                         span: Span::unknown(),
                     });
@@ -742,6 +760,7 @@ impl<'a> LoweringContext<'a> {
                                     .collect(),
                             },
                             is_unsafe: false,
+                            is_public: false,
                         }),
                         span: Span::unknown(),
                     });
@@ -766,6 +785,7 @@ impl<'a> LoweringContext<'a> {
                         statements: top_level_stmts,
                     },
                     is_unsafe: false,
+                    is_public: false,
                 }),
                 span: Span::unknown(),
             });
@@ -802,7 +822,7 @@ impl<'a> LoweringContext<'a> {
                     params,
                     return_type,
                     body,
-                    ..
+                    is_public,
                 } => {
                     functions.push(Spanned {
                         node: ItemAst::Function(FunctionAst {
@@ -825,6 +845,7 @@ impl<'a> LoweringContext<'a> {
                                     .collect(),
                             },
                             is_unsafe: false,
+                            is_public,
                         }),
                         span: Span::unknown(),
                     });
@@ -898,6 +919,11 @@ impl<'a> LoweringContext<'a> {
                     // modules mangle to the raw name, so this is a no-op there).
                     let defined = self.module_fn_name(&function.name);
                     self.symbols.define_symbol(defined.clone());
+                    // Record exported visibility so a qualified cross-module
+                    // call can be denied when the target is not `public`.
+                    if function.is_public {
+                        self.symbols.mark_public(defined.clone());
+                    }
                     self.symbols.define_callable(defined);
                 }
                 ItemAst::Struct(decl) => {
@@ -1317,6 +1343,22 @@ impl<'a> LoweringContext<'a> {
                     );
                     CallableId(u32::MAX)
                 });
+                // Visibility: a qualified cross-module call may target only a
+                // `public` function. The symbol resolved (mangling makes every
+                // module function findable), but privacy is enforced here: a
+                // non-public target is denied with a clear bilingual error
+                // rather than silently allowed.
+                if callee_id != CallableId(u32::MAX) && !self.symbols.is_public_callable(&mangled) {
+                    self.push_lowering_error(
+                        span,
+                        format!(
+                            "Ralat: Fungsi `{module}.{function}` adalah persendirian (tidak diisytiharkan `public`); ia tidak boleh dipanggil dari luar modul `{module}`"
+                        ),
+                        format!(
+                            "Error: Function `{module}.{function}` is private (not declared `public`); it cannot be called from outside module `{module}`"
+                        ),
+                    );
+                }
                 HirExpr {
                     kind: HirExprKind::Call {
                         callee: callee_id,
@@ -1986,6 +2028,7 @@ mod tests {
                     ],
                 },
                 is_unsafe: false,
+                is_public: false,
             }))],
         };
 
@@ -2022,6 +2065,7 @@ mod tests {
                     )))],
                 },
                 is_unsafe: false,
+                is_public: false,
             }))],
         };
 

@@ -964,6 +964,7 @@ fn run_v130_subsystem_self_check() -> Result<()> {
                     }],
                 },
                 is_unsafe: false,
+                is_public: false,
             }),
             span: span::Span::unknown(),
         }],
