@@ -13,6 +13,7 @@ mod hir;
 mod layout;
 mod lexer;
 mod lod;
+mod module_loader;
 mod os;
 mod parser;
 #[allow(dead_code)]

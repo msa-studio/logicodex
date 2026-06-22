@@ -736,6 +736,25 @@ impl<'a> LoweringContext<'a> {
         for item in &module.items {
             match &item.node {
                 ItemAst::Function(function) => {
+                    // Reserved-namespace guard: user source may not define a
+                    // symbol in the mangling namespace, which is what keeps a
+                    // user name and a mangled module name from ever colliding.
+                    if crate::module_loader::is_reserved_symbol(&function.name) {
+                        self.diagnostics.push(Diagnostic {
+                            code: DiagnosticCode::ParserUnsupportedFeature,
+                            severity: Severity::Error,
+                            message_ms: format!(
+                                "nama `{}` guna awalan terpelihara `__ldx_` yang dikhaskan untuk simbol modul dalaman",
+                                function.name
+                            ),
+                            message_en: format!(
+                                "name `{}` uses the reserved prefix `__ldx_`, which is reserved for internal module symbols",
+                                function.name
+                            ),
+                            primary_span: item.span,
+                            notes: Vec::new(),
+                        });
+                    }
                     self.symbols.define_symbol(function.name.clone());
                     self.symbols.define_callable(function.name.clone());
                 }
