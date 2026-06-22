@@ -103,6 +103,17 @@ pub enum ExprAst {
         callee: Box<ExprAst>,
         args: Vec<ExprAst>,
     },
+    /// A module-qualified call, e.g. `math.add(2, 3)`. Kept distinct from Call
+    /// rather than pre-resolved into a Variable callee, so the target module
+    /// is explicit data on the node (truth travels with the node) instead of
+    /// being re-derived from a bare name through the same-module/contextual
+    /// resolution that plain Call uses. Resolved in lower_expr, which has
+    /// access to the symbol table.
+    QualifiedCall {
+        module: String,
+        function: String,
+        args: Vec<ExprAst>,
+    },
     Field {
         base: Box<ExprAst>,
         field: String,
@@ -1198,6 +1209,46 @@ impl<'a> LoweringContext<'a> {
                     span,
                 }
             }
+            ExprAst::QualifiedCall {
+                module,
+                function,
+                args,
+            } => {
+                let lowered_args: Vec<_> = args
+                    .into_iter()
+                    .map(|arg| self.lower_expr(arg, span))
+                    .collect();
+                // The module is explicit data on the node, not inferred from a
+                // bare name, so resolution mangles directly and looks the
+                // mangled name up -- it does not go through
+                // resolve_unqualified_callable, which is for the contextual
+                // same-module case plain Call uses.
+                let mangled = crate::module_loader::mangle_symbol(&module, &function);
+                let callee_id = self.symbols.lookup_callable(&mangled).unwrap_or_else(|| {
+                    self.push_lowering_error(
+                        span,
+                        format!(
+                            "Ralat: Fungsi `{module}.{function}` tidak ditemui (mungkin tidak diisytiharkan `public`, atau modul tidak diimport)"
+                        ),
+                        format!(
+                            "Error: Function `{module}.{function}` was not found (it may not be declared `public`, or the module is not imported)"
+                        ),
+                    );
+                    CallableId(u32::MAX)
+                });
+                HirExpr {
+                    kind: HirExprKind::Call {
+                        callee: callee_id,
+                        args: lowered_args,
+                    },
+                    ty: self
+                        .symbols
+                        .callable_return(callee_id)
+                        .map(|id| TypeRef { id })
+                        .unwrap_or_else(|| unknown_ref(self.types)),
+                    span,
+                }
+            }
             ExprAst::EnumVariant { enum_name, variant } => {
                 let tag = self
                     .types
@@ -1672,6 +1723,15 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
         ast::Expr::AddressOfLiteral(v) => ExprAst::Literal(LiteralAst::Integer(v)),
         ast::Expr::Call { callee, args } => ExprAst::Call {
             callee: Box::new(lower_expr_ast(*callee)),
+            args: args.into_iter().map(lower_expr_ast).collect(),
+        },
+        ast::Expr::QualifiedCall {
+            module,
+            function,
+            args,
+        } => ExprAst::QualifiedCall {
+            module,
+            function,
             args: args.into_iter().map(lower_expr_ast).collect(),
         },
         ast::Expr::Binary { left, op, right } => ExprAst::Binary {
