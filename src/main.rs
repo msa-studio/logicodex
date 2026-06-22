@@ -436,6 +436,67 @@ fn first_pending_actor_op(module: &hir::HirModule) -> Option<&'static str> {
 }
 
 /// HIR compilation pipeline with CallableRegistry + Raylib FFI.
+/// Lower a (possibly multi-module) program to a single merged HirModule on one
+/// shared LoweringContext. If the root program has no `import` statements this
+/// is exactly `lower_program(root)` -- the single-file path is unchanged, byte
+/// for byte. When imports are present, the module loader resolves the graph
+/// (filesystem-relative, dot = directory, cycles rejected), each imported
+/// module is lowered in topological order (dependencies before dependents, so a
+/// module's mangled symbols exist before a later module's qualified call
+/// resolves them) under its own module name, the root is lowered last with its
+/// `main`-wrap, and all items are concatenated into one HirModule fed to the
+/// rest of the pipeline. One shared SymbolTable means cross-module qualified
+/// calls resolve against the same id-space -- no duplicate CallableIds.
+fn lower_with_modules(
+    lowering: &mut hir::LoweringContext,
+    file: &Path,
+    dict: &Path,
+    root_program: ast::Program,
+) -> Result<hir::HirModule> {
+    // Fast path: no imports -> behave exactly like before (single file).
+    if module_loader::imports_of(&root_program).is_empty() {
+        return lowering
+            .lower_program(root_program)
+            .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags));
+    }
+
+    // Multi-module path. Parsing is injected into the loader as a closure so the
+    // loader stays a pure graph/ordering unit; here it runs the real v1.30
+    // lexer+parser against the shared dictionary.
+    let dict_owned = dict.to_path_buf();
+    let parse = move |source: &str, _path: &Path| -> std::result::Result<ast::Program, String> {
+        let lexicon = Lexicon::from_path(&dict_owned)
+            .map_err(|e| format!("failed to load dictionary {}: {e}", dict_owned.display()))?;
+        let tokens = Lexer::new(source, &lexicon)
+            .tokenize()
+            .map_err(|e| format!("{e}"))?;
+        let mut parser = Parser::new(tokens).with_pipeline(CompilerPipeline::V130);
+        parser.parse().map_err(|e| format!("{e}"))
+    };
+
+    let graph = module_loader::load_graph(file, &parse)
+        .map_err(|e| anyhow::anyhow!("module loading failed: {e}"))?;
+
+    // The loader emits dependencies first and the root ("") last, which is the
+    // exact lowering order we want.
+    let mut merged: Vec<span::Spanned<hir::HirItem>> = Vec::new();
+    for module in graph.modules {
+        let lowered = if module.name.is_empty() {
+            // Root: keep the main-wrap so top-level statements run.
+            lowering
+                .lower_program(module.program)
+                .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags))?
+        } else {
+            // Imported module: function-only, mangled, no main-wrap.
+            lowering
+                .lower_module_program(&module.name, module.program)
+                .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags))?
+        };
+        merged.extend(lowered.items);
+    }
+    Ok(hir::HirModule { items: merged })
+}
+
 fn compile_v130_pipeline(
     file: &Path,
     dict: &Path,
@@ -467,9 +528,7 @@ fn compile_v130_pipeline(
             diagnostics: Vec::new(),
             current_module: String::new(),
         };
-        lowering
-            .lower_program(program)
-            .map_err(|diags| anyhow::anyhow!("v1.21 HIR lowering failed: {:?}", diags))?
+        lower_with_modules(&mut lowering, file, dict, program)?
     };
 
     // Actor/channel runtime is reserved for Phase B (pthread-based). The HIR is
@@ -808,9 +867,7 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
             diagnostics: Vec::new(),
             current_module: String::new(),
         };
-        lowering
-            .lower_program(program)
-            .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags))?
+        lower_with_modules(&mut lowering, file, dict, program)?
     };
 
     let mut callables = ffi::CallableRegistry::default();

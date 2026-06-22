@@ -774,6 +774,87 @@ impl<'a> LoweringContext<'a> {
         self.lower_module(ModuleAst { items: functions })
     }
 
+    /// Lower an IMPORTED module's AST (a non-root module loaded by the module
+    /// loader) under its module name. Unlike lower_program, this does NOT wrap
+    /// loose statements into a `main` -- an imported module is a library of
+    /// function definitions, not an entry point, and only the root program may
+    /// own `main`.
+    ///
+    /// Stage 0 is FUNCTION-ONLY across module boundaries: an imported module may
+    /// contain `function` definitions and `import` statements (the latter are a
+    /// no-op here -- the loader already resolved the graph). Any other top-level
+    /// construct (struct, enum, extern block, actor, or a loose executable
+    /// statement) is rejected with a clear bilingual diagnostic, because
+    /// cross-module structs/enums/externs are deliberately deferred past Stage 0
+    /// and a loose statement in a library module has no `main` to live in.
+    pub fn lower_module_program(
+        &mut self,
+        module_name: &str,
+        program: ast::Program,
+    ) -> Result<HirModule, Vec<Diagnostic>> {
+        use ast::Stmt;
+        let mut functions: Vec<Spanned<ItemAst>> = Vec::new();
+        let mut errors: Vec<Diagnostic> = Vec::new();
+        for stmt in program.statements {
+            match stmt {
+                Stmt::Function {
+                    name,
+                    params,
+                    return_type,
+                    body,
+                    ..
+                } => {
+                    functions.push(Spanned {
+                        node: ItemAst::Function(FunctionAst {
+                            name,
+                            params: params
+                                .into_iter()
+                                .map(|p| ParamAst {
+                                    name: p.name,
+                                    ty: lower_type_ast(p.ty),
+                                })
+                                .collect(),
+                            return_type: return_type.map(lower_type_ast),
+                            body: BlockAst {
+                                statements: body
+                                    .into_iter()
+                                    .map(|s| Spanned {
+                                        node: lower_stmt_ast(s),
+                                        span: Span::unknown(),
+                                    })
+                                    .collect(),
+                            },
+                            is_unsafe: false,
+                        }),
+                        span: Span::unknown(),
+                    });
+                }
+                // The loader already walked the import graph; a nested import in
+                // a library module is just a no-op at lowering time.
+                Stmt::Use { .. } => {}
+                // Everything else is not part of Stage 0's cross-module surface.
+                _ => {
+                    errors.push(Diagnostic {
+                        code: DiagnosticCode::ParserUnsupportedFeature,
+                        severity: Severity::Error,
+                        message_ms: format!(
+                            "modul `{module_name}` mengandungi pembinaan yang tidak disokong dalam Stage 0 (modul setakat ini menyokong takrifan `function` sahaja; struct/enum/extern/aktor merentas modul belum dibina)"
+                        ),
+                        message_en: format!(
+                            "module `{module_name}` contains a construct not supported in Stage 0 (modules currently support only `function` definitions; cross-module struct/enum/extern/actor is not built yet)"
+                        ),
+                        primary_span: Span::unknown(),
+                        notes: Vec::new(),
+                    });
+                }
+            }
+        }
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        self.lower_module_as(module_name, ModuleAst { items: functions })
+    }
+
     /// Lower a module's AST under a given module name. The name sets the
     /// mangling context: "" leaves symbols raw (root / single-file), a dotted
     /// name like "math" mangles this module's Logicodex functions into the

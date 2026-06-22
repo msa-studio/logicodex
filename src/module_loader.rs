@@ -140,7 +140,7 @@ pub fn is_reserved_symbol(name: &str) -> bool {
 }
 
 /// Extract the dotted module names imported by a program, in source order.
-fn imports_of(program: &Program) -> Vec<String> {
+pub fn imports_of(program: &Program) -> Vec<String> {
     program
         .statements
         .iter()
