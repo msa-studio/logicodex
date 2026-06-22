@@ -465,6 +465,7 @@ fn compile_v130_pipeline(
             symbols: &mut symbols,
             types: &mut types,
             diagnostics: Vec::new(),
+            current_module: String::new(),
         };
         lowering
             .lower_program(program)
@@ -805,6 +806,7 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
             symbols: &mut symbols,
             types: &mut types,
             diagnostics: Vec::new(),
+            current_module: String::new(),
         };
         lowering
             .lower_program(program)
@@ -914,6 +916,7 @@ fn run_v130_subsystem_self_check() -> Result<()> {
         symbols: &mut symbols,
         types: &mut types,
         diagnostics: Vec::new(),
+        current_module: String::new(),
     };
     let hir_module = lowering
         .lower_module(module_ast)

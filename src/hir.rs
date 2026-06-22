@@ -550,6 +550,37 @@ pub struct LoweringContext<'a> {
     pub symbols: &'a mut SymbolTable,
     pub types: &'a mut TypeRegistry,
     pub diagnostics: Vec<Diagnostic>,
+    /// The module currently being lowered. Empty for the root module (whose
+    /// symbols stay raw for backward compatibility); a dotted name like "math"
+    /// for an imported module (whose Logicodex function names are mangled into
+    /// the reserved __ldx_mod_* namespace). Set by lower_module_as before each
+    /// module is lowered.
+    pub current_module: String,
+}
+
+impl<'a> LoweringContext<'a> {
+    /// Mangle a Logicodex function name for the current module. Root ("")
+    /// returns the name raw; a named module returns the reserved mangled form.
+    /// Used at definition sites and for same-module unqualified call resolution
+    /// so the two always agree.
+    fn module_fn_name(&self, name: &str) -> String {
+        crate::module_loader::mangle_symbol(&self.current_module, name)
+    }
+
+    /// Resolve an unqualified call target by name. Inside a non-root module, a
+    /// bare name first resolves to the same-module mangled symbol (so a public
+    /// function can call a private same-module helper); failing that, it falls
+    /// back to a raw lookup (builtins like print, runtime ABI). Returns None if
+    /// neither exists -- the caller emits a clear error, never a silent Unit.
+    fn resolve_unqualified_callable(&self, name: &str) -> Option<CallableId> {
+        if !self.current_module.is_empty() {
+            let mangled = self.module_fn_name(name);
+            if let Some(id) = self.symbols.lookup_callable(&mangled) {
+                return Some(id);
+            }
+        }
+        self.symbols.lookup_callable(name)
+    }
 }
 
 impl<'a> LoweringContext<'a> {
@@ -732,6 +763,22 @@ impl<'a> LoweringContext<'a> {
         self.lower_module(ModuleAst { items: functions })
     }
 
+    /// Lower a module's AST under a given module name. The name sets the
+    /// mangling context: "" leaves symbols raw (root / single-file), a dotted
+    /// name like "math" mangles this module's Logicodex functions into the
+    /// reserved namespace. Restores the previous module name afterwards so a
+    /// shared LoweringContext can lower several modules in sequence.
+    pub fn lower_module_as(
+        &mut self,
+        module_name: &str,
+        module: ModuleAst,
+    ) -> Result<HirModule, Vec<Diagnostic>> {
+        let previous = std::mem::replace(&mut self.current_module, module_name.to_string());
+        let result = self.lower_module(module);
+        self.current_module = previous;
+        result
+    }
+
     pub fn lower_module(&mut self, module: ModuleAst) -> Result<HirModule, Vec<Diagnostic>> {
         for item in &module.items {
             match &item.node {
@@ -755,8 +802,11 @@ impl<'a> LoweringContext<'a> {
                             notes: Vec::new(),
                         });
                     }
-                    self.symbols.define_symbol(function.name.clone());
-                    self.symbols.define_callable(function.name.clone());
+                    // Define the function under its module-mangled name (root
+                    // modules mangle to the raw name, so this is a no-op there).
+                    let defined = self.module_fn_name(&function.name);
+                    self.symbols.define_symbol(defined.clone());
+                    self.symbols.define_callable(defined);
                 }
                 ItemAst::Struct(decl) => {
                     self.symbols.define_symbol(decl.name.clone());
@@ -804,7 +854,8 @@ impl<'a> LoweringContext<'a> {
         for item in &module.items {
             match &item.node {
                 ItemAst::Function(function) => {
-                    if let Some(cid) = self.symbols.lookup_callable(&function.name) {
+                    let defined = self.module_fn_name(&function.name);
+                    if let Some(cid) = self.symbols.lookup_callable(&defined) {
                         let ret = match function.return_type.clone() {
                             Some(t) => self.lower_type(t).id,
                             None => self.types.primitive(PrimitiveType::Unit),
@@ -862,7 +913,7 @@ impl<'a> LoweringContext<'a> {
                 let body = self.lower_block(function.body);
                 self.symbols.exit_scope();
                 HirItem::Function(HirFunction {
-                    name: function.name.clone(),
+                    name: self.module_fn_name(&function.name),
                     symbol,
                     params,
                     return_type: function
@@ -1115,7 +1166,7 @@ impl<'a> LoweringContext<'a> {
                     .collect();
                 let callee_id = match *callee {
                     ExprAst::Variable(name) => {
-                        self.symbols.lookup_callable(&name).unwrap_or_else(|| {
+                        self.resolve_unqualified_callable(&name).unwrap_or_else(|| {
                             self.push_lowering_error(
                                 span,
                                 format!("Ralat: Fungsi '{name}' tidak ditemui"),
@@ -1773,6 +1824,7 @@ mod tests {
             symbols: &mut symbols,
             types: &mut types,
             diagnostics: Vec::new(),
+            current_module: String::new(),
         };
         let module = ModuleAst {
             items: vec![spanned(ItemAst::Function(FunctionAst {
@@ -1816,6 +1868,7 @@ mod tests {
             symbols: &mut symbols,
             types: &mut types,
             diagnostics: Vec::new(),
+            current_module: String::new(),
         };
         let module = ModuleAst {
             items: vec![spanned(ItemAst::Function(FunctionAst {
@@ -1850,6 +1903,7 @@ mod tests {
             symbols: &mut symbols,
             types: &mut types,
             diagnostics: Vec::new(),
+            current_module: String::new(),
         };
         let module = ModuleAst {
             items: vec![spanned(ItemAst::ExternBlock(ExternBlockAst {
