@@ -255,10 +255,19 @@ impl Parser {
     }
 
     fn use_declaration(&mut self) -> Result<Stmt, ParseError> {
-        let module = self
+        let mut module = self
             .consume(TokenKind::Identifier, "module name after use")?
             .lexeme
             .clone();
+        // Dotted module paths: `import core.math;` -> module = "core.math".
+        while self.matches(TokenKind::Dot) {
+            let seg = self
+                .consume(TokenKind::Identifier, "module path segment after '.'")?
+                .lexeme
+                .clone();
+            module.push('.');
+            module.push_str(&seg);
+        }
         self.consume(TokenKind::Semicolon, "; after use declaration")?;
         Ok(Stmt::Use { module })
     }
@@ -1176,55 +1185,90 @@ impl Parser {
                     index: Box::new(index),
                 });
             }
-            // Ketuk 3: Check if followed by '.' → method call on opaque type
-            // h.read(1024), h.close(), h.seek(0)
-            // pintu.hantar(val), pintu.terima()
+            // Ketuk 3: Check if followed by '.' → qualified call, channel
+            // method, or field access. Accumulate the full dotted chain first,
+            // then decide based on what follows:
+            //   a.b.c(args)   -> QualifiedCall{ module: "a.b", function: "c" }
+            //   a.method(args)-> (len 2) channel method or single-seg qualified call
+            //   a.b.c         -> nested FieldAccess chain (no '(' -> struct fields)
+            // h.read(1024), pintu.hantar(val) stay in the len-2 case.
             if self.check(TokenKind::Dot) {
-                self.advance(); // consume '.'
-                let member = self.consume_member_name("field or method name after '.'")?;
-                // Bare field access `obj.field` (not followed by '(').
+                let mut segments: Vec<String> = vec![name.clone()];
+                while self.matches(TokenKind::Dot) {
+                    let seg = self.consume_member_name("field or method name after '.'")?;
+                    segments.push(seg);
+                    if !self.check(TokenKind::Dot) {
+                        break;
+                    }
+                }
+                // No call follows -> field-access chain (preserves `obj.field`).
                 if !self.check(TokenKind::LeftParen) {
-                    return Ok(Expr::FieldAccess {
-                        base: Box::new(Expr::Variable(name.clone())),
-                        field: member,
+                    let mut expr = Expr::Variable(segments[0].clone());
+                    for field in segments.iter().skip(1) {
+                        expr = Expr::FieldAccess {
+                            base: Box::new(expr),
+                            field: field.clone(),
+                        };
+                    }
+                    return Ok(expr);
+                }
+                // A call follows: last segment is the function name; any
+                // preceding segments form the (possibly dotted) module path.
+                let function = segments.last().unwrap().clone();
+                if segments.len() == 2 {
+                    // Single-segment base: unchanged channel-method / qualified-call.
+                    let method = function;
+                    self.consume(TokenKind::LeftParen, "'(' after method name")?;
+                    if method == "send" {
+                        let value = self.expression()?;
+                        self.consume(TokenKind::RightParen, "')' after send value")?;
+                        return Ok(Expr::Send {
+                            channel_name: name,
+                            value: Box::new(value),
+                        });
+                    }
+                    if method == "recv" {
+                        self.consume(TokenKind::RightParen, "')' after recv'")?;
+                        return Ok(Expr::Recv { channel_name: name });
+                    }
+                    if method == "try_send" {
+                        let value = self.expression()?;
+                        self.consume(TokenKind::RightParen, "')' after try_send value")?;
+                        return Ok(Expr::TrySend {
+                            channel_name: name,
+                            value: Box::new(value),
+                        });
+                    }
+                    if method == "try_recv" {
+                        self.consume(TokenKind::RightParen, "')' after try_recv'")?;
+                        return Ok(Expr::TryRecv { channel_name: name });
+                    }
+                    if method == "timeout_recv" {
+                        let timeout_ms = self.expression()?;
+                        self.consume(TokenKind::RightParen, "')' after timeout_recv'")?;
+                        return Ok(Expr::TimeoutRecv {
+                            channel_name: name,
+                            timeout_ms: Box::new(timeout_ms),
+                        });
+                    }
+                    let mut args = Vec::new();
+                    if !self.check(TokenKind::RightParen) {
+                        loop {
+                            args.push(self.expression()?);
+                            if !self.matches(TokenKind::Comma) {
+                                break;
+                            }
+                        }
+                    }
+                    self.consume(TokenKind::RightParen, "')' after method args")?;
+                    return Ok(Expr::QualifiedCall {
+                        module: name,
+                        function: method,
+                        args,
                     });
                 }
-                let method = member;
-                self.consume(TokenKind::LeftParen, "'(' after method name")?;
-                // Channel method calls — send, recv
-                if method == "send" {
-                    let value = self.expression()?;
-                    self.consume(TokenKind::RightParen, "')' after send value")?;
-                    return Ok(Expr::Send {
-                        channel_name: name,
-                        value: Box::new(value),
-                    });
-                }
-                if method == "recv" {
-                    self.consume(TokenKind::RightParen, "')' after recv'")?;
-                    return Ok(Expr::Recv { channel_name: name });
-                }
-                // Backpressure — try_send, try_recv, timeout_recv
-                if method == "try_send" {
-                    let value = self.expression()?;
-                    self.consume(TokenKind::RightParen, "')' after try_send value")?;
-                    return Ok(Expr::TrySend {
-                        channel_name: name,
-                        value: Box::new(value),
-                    });
-                }
-                if method == "try_recv" {
-                    self.consume(TokenKind::RightParen, "')' after try_recv'")?;
-                    return Ok(Expr::TryRecv { channel_name: name });
-                }
-                if method == "timeout_recv" {
-                    let timeout_ms = self.expression()?;
-                    self.consume(TokenKind::RightParen, "')' after timeout_recv'")?;
-                    return Ok(Expr::TimeoutRecv {
-                        channel_name: name,
-                        timeout_ms: Box::new(timeout_ms),
-                    });
-                }
+                // Multi-segment dotted module path, e.g. `core.math.abs_i64(...)`.
+                self.consume(TokenKind::LeftParen, "'(' after qualified call")?;
                 let mut args = Vec::new();
                 if !self.check(TokenKind::RightParen) {
                     loop {
@@ -1234,10 +1278,11 @@ impl Parser {
                         }
                     }
                 }
-                self.consume(TokenKind::RightParen, "')' after method args")?;
+                self.consume(TokenKind::RightParen, "')' after qualified-call args")?;
+                let module = segments[..segments.len() - 1].join(".");
                 return Ok(Expr::QualifiedCall {
-                    module: name,
-                    function: method,
+                    module,
+                    function,
                     args,
                 });
             }
