@@ -1,0 +1,20 @@
+// core.assert -- pure assertion predicates (Stdlib Stage 0).
+//
+// No OS, no extern C, no malloc: bare-compatible (profile `bare`+). A hard
+// aborting assert needs `std` (profile-gated, exit/panic); Stage 0 ships
+// predicates returning 1 (true) / 0 (false), which PAPAR directly. The
+// aborting variant belongs in `std.assert` later. English canonical names.
+
+public function eq_i64(a: I64, b: I64) -> I64 begin
+    if a == b begin
+        return 1;
+    end
+    return 0;
+end
+
+public function is_true(x: I64) -> I64 begin
+    if x == 0 begin
+        return 0;
+    end
+    return 1;
+end
