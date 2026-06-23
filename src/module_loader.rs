@@ -90,22 +90,71 @@ impl std::fmt::Display for LoadError {
 
 impl std::error::Error for LoadError {}
 
-/// Resolve a dotted module name to a file path, relative to `base_dir`.
+/// The standard-library roots, in resolution order (Option C):
+///   1. `$LOGICODEX_STD`     -- explicit override
+///   2. `<compiler-dir>/lib` -- installed distribution, next to the binary
+///   3. `./lib`              -- dev/test fallback (repo-root `lib/`)
+/// Only the reserved `core` and `std` namespaces resolve against these.
+fn std_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    if let Ok(env_root) = std::env::var("LOGICODEX_STD") {
+        if !env_root.is_empty() {
+            roots.push(PathBuf::from(env_root));
+        }
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            roots.push(dir.join("lib"));
+        }
+    }
+    roots.push(PathBuf::from("lib"));
+    roots
+}
+
+/// Build the relative file path ("a/b/c.ldx") for a dotted module name.
+fn module_rel_path(parts: &[&str]) -> PathBuf {
+    let mut rel = PathBuf::new();
+    for (i, part) in parts.iter().enumerate() {
+        if i + 1 == parts.len() {
+            rel.push(format!("{part}.ldx"));
+        } else {
+            rel.push(part);
+        }
+    }
+    rel
+}
+
+/// Resolve a dotted module name to a file path.
+///
+/// The reserved `core` and `std` namespaces resolve against the std root
+/// (see `std_roots`); every other module stays filesystem-relative to
+/// `base_dir` (the importing file's directory), unchanged from Stage 0.
 /// A dot becomes a directory separator; the final component gets `.ldx`.
 ///
 ///   resolve_module_path("/proj", "math")        -> /proj/math.ldx
 ///   resolve_module_path("/proj", "models.user") -> /proj/models/user.ldx
+///   resolve_module_path(_,       "core.math")   -> <std-root>/core/math.ldx
 pub fn resolve_module_path(base_dir: &Path, module: &str) -> PathBuf {
-    let mut path = base_dir.to_path_buf();
     let parts: Vec<&str> = module.split('.').collect();
-    for (i, part) in parts.iter().enumerate() {
-        if i + 1 == parts.len() {
-            path.push(format!("{part}.ldx"));
-        } else {
-            path.push(part);
+    let rel = module_rel_path(&parts);
+    let first = parts.first().copied().unwrap_or("");
+    if first == "core" || first == "std" {
+        let roots = std_roots();
+        for root in &roots {
+            let cand = root.join(&rel);
+            if cand.exists() {
+                return cand;
+            }
         }
+        // None exist: return the primary candidate so a "not found" error names
+        // a sensible std-root path that was searched.
+        return roots
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| PathBuf::from("lib"))
+            .join(&rel);
     }
-    path
+    base_dir.join(&rel)
 }
 
 /// The reserved internal prefix for mangled Logicodex module symbols. User
