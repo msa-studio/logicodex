@@ -1,0 +1,73 @@
+// core.math -- pure integer/logic helpers (Stdlib Stage 0).
+//
+// No OS, no extern C, no malloc: bare-compatible (profile `bare`+). English
+// canonical names. The language has no `%` (modulo) operator yet, so is_even /
+// is_odd use the bitwise `& 1` form. All functions return I64 (1/0 for the
+// boolean-style predicates) so results PAPAR directly.
+
+public function abs_i64(n: I64) -> I64 begin
+    if n < 0 begin
+        return -n;
+    end
+    return n;
+end
+
+public function min_i64(a: I64, b: I64) -> I64 begin
+    if a < b begin
+        return a;
+    end
+    return b;
+end
+
+public function max_i64(a: I64, b: I64) -> I64 begin
+    if a > b begin
+        return a;
+    end
+    return b;
+end
+
+public function clamp_i64(x: I64, lo: I64, hi: I64) -> I64 begin
+    if x < lo begin
+        return lo;
+    end
+    if x > hi begin
+        return hi;
+    end
+    return x;
+end
+
+public function sign_i64(n: I64) -> I64 begin
+    if n > 0 begin
+        return 1;
+    end
+    if n < 0 begin
+        return -1;
+    end
+    return 0;
+end
+
+public function pow_i64(base: I64, exp: I64) -> I64 begin
+    let acc: I64 = 1;
+    let i: I64 = 0;
+    while i < exp begin
+        acc = acc * base;
+        i = i + 1;
+    end
+    return acc;
+end
+
+public function is_even(n: I64) -> I64 begin
+    let r: I64 = n & 1;
+    if r == 0 begin
+        return 1;
+    end
+    return 0;
+end
+
+public function is_odd(n: I64) -> I64 begin
+    let r: I64 = n & 1;
+    if r == 0 begin
+        return 0;
+    end
+    return 1;
+end
