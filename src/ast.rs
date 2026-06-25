@@ -303,6 +303,7 @@ pub enum BinaryOp {
     Or,
     BitAnd,
     BitOr,
+    BitXor,
     ShiftLeft,
     ShiftRight,
 }
@@ -464,6 +465,7 @@ impl fmt::Display for BinaryOp {
             BinaryOp::Or => "||",
             BinaryOp::BitAnd => "&",
             BinaryOp::BitOr => "|",
+            BinaryOp::BitXor => "^",
             BinaryOp::ShiftLeft => "<<",
             BinaryOp::ShiftRight => ">>",
         };

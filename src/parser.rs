@@ -856,12 +856,27 @@ impl Parser {
     }
 
     fn bit_or(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.bit_and()?;
+        let mut expr = self.bit_xor()?;
         while self.matches(TokenKind::BitOr) {
-            let right = self.bit_and()?;
+            let right = self.bit_xor()?;
             expr = Expr::Binary {
                 left: Box::new(expr),
                 op: BinaryOp::BitOr,
+                right: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
+
+    // Bitwise XOR binds tighter than `|` and looser than `&` (C-like):
+    //   & > ^ > |
+    fn bit_xor(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.bit_and()?;
+        while self.matches(TokenKind::BitXor) {
+            let right = self.bit_and()?;
+            expr = Expr::Binary {
+                left: Box::new(expr),
+                op: BinaryOp::BitXor,
                 right: Box::new(right),
             };
         }

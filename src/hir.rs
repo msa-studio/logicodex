@@ -1954,6 +1954,7 @@ fn lower_binary_op(op: ast::BinaryOp) -> BinaryOpAst {
         ast::BinaryOp::Or => BinaryOpAst::LogicalOr,
         ast::BinaryOp::BitAnd => BinaryOpAst::BitAnd,
         ast::BinaryOp::BitOr => BinaryOpAst::BitOr,
+        ast::BinaryOp::BitXor => BinaryOpAst::BitXor,
         ast::BinaryOp::ShiftLeft => BinaryOpAst::ShiftLeft,
         ast::BinaryOp::ShiftRight => BinaryOpAst::ShiftRight,
     }

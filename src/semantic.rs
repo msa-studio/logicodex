@@ -1039,6 +1039,7 @@ impl Analyzer {
                     | BinaryOp::Divide
                     | BinaryOp::BitAnd
                     | BinaryOp::BitOr
+                    | BinaryOp::BitXor
                     | BinaryOp::ShiftLeft
                     | BinaryOp::ShiftRight => {
                         if is_numeric(&left_ty) && is_numeric(&right_ty) {
