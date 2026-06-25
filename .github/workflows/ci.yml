@@ -32,6 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Verify stdlib contracts
+        run: python3 tools/verify_stdlib_contracts.py
       - name: Install LLVM 15
         run: |
           sudo apt-get update
