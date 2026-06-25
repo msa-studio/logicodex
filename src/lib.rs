@@ -37,6 +37,7 @@ pub mod ast;
 pub mod codegen;
 // HIR pipeline modules (HIR is the single engine; no feature flag)
 pub mod codegen_contract;
+pub mod contract_metadata;
 pub mod ffi;
 pub mod hir;
 pub mod layout;

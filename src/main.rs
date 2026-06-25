@@ -8,6 +8,7 @@
 mod ast;
 mod codegen;
 mod codegen_contract;
+mod contract_metadata;
 mod ffi;
 mod hir;
 mod layout;

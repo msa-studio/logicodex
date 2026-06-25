@@ -34,6 +34,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use crate::ast::{Program, Stmt};
+use crate::contract_metadata::{self, ContractMetadataHint};
 
 /// A single parsed module: its canonical module name (the dotted import path, or
 /// `""` for the root), the file it came from, and its parsed AST.
@@ -90,12 +91,15 @@ impl std::fmt::Display for LoadError {
 
 impl std::error::Error for LoadError {}
 
-/// The standard-library roots, in resolution order (Option C):
+/// The official library roots, in resolution order (Option C):
 ///   1. `$LOGICODEX_STD`     -- explicit override
 ///   2. `<compiler-dir>/lib` -- installed distribution, next to the binary
 ///   3. `./lib`              -- dev/test fallback (repo-root `lib/`)
-/// Only the reserved `core` and `std` namespaces resolve against these.
-fn std_roots() -> Vec<PathBuf> {
+///
+/// The historical environment variable name stays `LOGICODEX_STD` for
+/// compatibility, but the concept is now a library root because it covers
+/// `core.*`, `std.*`, and reserved `framework.*` namespaces.
+pub fn library_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
     if let Ok(env_root) = std::env::var("LOGICODEX_STD") {
         if !env_root.is_empty() {
@@ -126,20 +130,21 @@ fn module_rel_path(parts: &[&str]) -> PathBuf {
 
 /// Resolve a dotted module name to a file path.
 ///
-/// The reserved `core` and `std` namespaces resolve against the std root
-/// (see `std_roots`); every other module stays filesystem-relative to
+/// The reserved `core`, `std`, and `framework` namespaces resolve against
+/// the library root (see `library_roots`); every other module stays filesystem-relative to
 /// `base_dir` (the importing file's directory), unchanged from Stage 0.
 /// A dot becomes a directory separator; the final component gets `.ldx`.
 ///
 ///   resolve_module_path("/proj", "math")        -> /proj/math.ldx
 ///   resolve_module_path("/proj", "models.user") -> /proj/models/user.ldx
-///   resolve_module_path(_,       "core.math")   -> <std-root>/core/math.ldx
+///   resolve_module_path(_,       "core.math")   -> <library-root>/core/math.ldx
+///   resolve_module_path(_,       "framework.http") -> <library-root>/framework/http.ldx
 pub fn resolve_module_path(base_dir: &Path, module: &str) -> PathBuf {
     let parts: Vec<&str> = module.split('.').collect();
     let rel = module_rel_path(&parts);
     let first = parts.first().copied().unwrap_or("");
-    if first == "core" || first == "std" {
-        let roots = std_roots();
+    if contract_metadata::LibraryLayer::from_prefix(first).is_some() {
+        let roots = library_roots();
         for root in &roots {
             let cand = root.join(&rel);
             if cand.exists() {
@@ -155,6 +160,16 @@ pub fn resolve_module_path(base_dir: &Path, module: &str) -> PathBuf {
             .join(&rel);
     }
     base_dir.join(&rel)
+}
+
+/// Return the engine-visible contract metadata hint for an official library
+/// module after it has been resolved to a source path.
+///
+/// This is a Community Edition extension hook only: it exposes sidecar metadata
+/// paths for future validation without changing HIR, codegen, or normal module
+/// semantics.
+pub fn contract_metadata_hint(module: &str, source_path: &Path) -> Option<ContractMetadataHint> {
+    contract_metadata::library_contract_hint(module, source_path)
 }
 
 /// The reserved internal prefix for mangled Logicodex module symbols. User
@@ -328,6 +343,17 @@ mod tests {
     fn resolve_dotted_is_directory() {
         let p = resolve_module_path(Path::new("/proj"), "models.user");
         assert_eq!(p, PathBuf::from("/proj/models/user.ldx"));
+    }
+
+    #[test]
+    fn framework_namespace_is_official_library_module() {
+        let hint = contract_metadata_hint("framework.http", Path::new("lib/framework/http.ldx"))
+            .expect("framework.* is a reserved official library namespace");
+        assert_eq!(hint.layer, contract_metadata::LibraryLayer::Framework);
+        assert_eq!(
+            hint.contract_path,
+            PathBuf::from("lib/framework/http.std.toml")
+        );
     }
 
     #[test]
