@@ -5,19 +5,27 @@ Verify Logicodex stdlib Stage 0 contract sidecars.
 This is a dev/CI validation tool only.
 It does not participate in normal compile, HIR, codegen, semantic analysis,
 runtime profile selection, or capability enforcement.
+
+When --run-cases is enabled, this tool generates temporary Logicodex programs
+from [[cases]], compiles them with the Logicodex compiler, runs the produced
+binary, and compares bounded stdout against expect_i64.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import subprocess
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+STDLIB_ROOT = REPO_ROOT / "lib"
 
 EXPECTED_TOP_LEVEL = {
     "contract",
@@ -49,7 +57,6 @@ EXPECTED_CASE_KEYS = {"name", "expr", "expect_i64"}
 
 OFFICIAL_LAYERS = {"core", "std", "framework"}
 
-CORE_FORBIDDEN_IMPORTS = {"std", "framework"}
 CORE_FORBIDDEN_FEATURES = {"extern", "malloc", "free", "file", "network", "syscall"}
 
 
@@ -101,12 +108,134 @@ def contains_forbidden_feature(source: str, feature: str) -> bool:
 
 
 def contract_to_source_path(contract_path: Path, module_name: str) -> Path:
-    layer = module_name.split(".", 1)[0]
     module_leaf = module_name.split(".")[-1]
     return contract_path.with_name(f"{module_leaf}.ldx")
 
 
-def validate_contract(path: Path) -> None:
+def logicodex_command(binary: Path | None) -> list[str]:
+    if binary is not None:
+        return [str(binary)]
+
+    debug_bin = REPO_ROOT / "target" / "debug" / "logicodex"
+    release_bin = REPO_ROOT / "target" / "release" / "logicodex"
+
+    if debug_bin.exists():
+        return [str(debug_bin)]
+    if release_bin.exists():
+        return [str(release_bin)]
+
+    return ["cargo", "run", "--quiet", "--"]
+
+
+def modules_referenced_by_expr(module_name: str, expr: str) -> list[str]:
+    modules = {module_name}
+    for match in re.findall(r"\b(?:core|std|framework)\.[A-Za-z_][A-Za-z0-9_]*(?=\.)", expr):
+        modules.add(match)
+    return sorted(modules)
+
+
+def generated_case_program(module_name: str, expr: str) -> str:
+    imports = "\n".join(f"import {name};" for name in modules_referenced_by_expr(module_name, expr))
+    return f"{imports}\nPAPAR {expr};\n"
+
+
+def run_contract_case(
+    *,
+    contract_path: Path,
+    module_name: str,
+    case: dict[str, Any],
+    limits: dict[str, Any],
+    command: list[str],
+) -> None:
+    compile_timeout = max(float(limits["compile_timeout_ms"]) / 1000.0, 0.1)
+    run_timeout = max(float(limits["run_timeout_ms"]) / 1000.0, 0.1)
+    stdout_limit = int(limits["stdout_limit_bytes"])
+
+    case_name = case["name"]
+    expr = case["expr"]
+    expected = str(case["expect_i64"])
+
+    env = os.environ.copy()
+    env["LOGICODEX_STD"] = str(STDLIB_ROOT)
+
+    with tempfile.TemporaryDirectory(prefix="ldx_std_contract_") as tmp:
+        tmpdir = Path(tmp)
+        main_path = tmpdir / "main.ldx"
+        main_path.write_text(generated_case_program(module_name, expr), encoding="utf-8")
+
+        compile_cmd = command + ["compile", "--emit-ir", str(main_path)]
+        try:
+            compile_out = subprocess.run(
+                compile_cmd,
+                cwd=REPO_ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=compile_timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise ContractError(f"{case_name!r}: compile timeout after {compile_timeout:.2f}s") from exc
+
+        if compile_out.returncode != 0:
+            raise ContractError(
+                f"{case_name!r}: compile failed\n"
+                f"command: {' '.join(compile_cmd)}\n"
+                f"stdout:\n{compile_out.stdout}\n"
+                f"stderr:\n{compile_out.stderr}"
+            )
+
+        exe_path = main_path.with_suffix("")
+        try:
+            run_out = subprocess.run(
+                [str(exe_path)],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=run_timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise ContractError(f"{case_name!r}: run timeout after {run_timeout:.2f}s") from exc
+
+        # Follow the existing stdlib e2e tests: stdout is the behavioural oracle.
+        # Some current compiled Logicodex programs may return a non-zero process
+        # status even when PAPAR emits the correct value, so do not make exit
+        # status the authority for Stage 0 contract cases.
+        stdout = run_out.stdout
+        if len(stdout) > stdout_limit:
+            raise ContractError(
+                f"{case_name!r}: stdout size {len(stdout)} exceeds limit {stdout_limit}"
+            )
+
+        decoded = stdout.decode("utf-8", errors="replace")
+        got = decoded.split()
+
+        if got != [expected]:
+            raise ContractError(
+                f"{case_name!r}: stdout oracle mismatch for {expr}\n"
+                f"expected tokens: {[expected]}\n"
+                f"actual tokens:   {got}\n"
+                f"program:\n{main_path.read_text(encoding='utf-8')}"
+            )
+
+    print(f"  OK case: {case_name} -> {expected}")
+
+
+def run_contract_cases(path: Path, data: dict[str, Any], command: list[str]) -> None:
+    module_name = data["module"]["name"]
+    limits = data["limits"]
+    cases = data["cases"]
+
+    print(f"  running cases with: {' '.join(command)}")
+    for case in cases:
+        run_contract_case(
+            contract_path=path,
+            module_name=module_name,
+            case=case,
+            limits=limits,
+            command=command,
+        )
+
+
+def validate_contract(path: Path, *, run_cases: bool, command: list[str]) -> None:
     data = load_toml(path)
 
     assert_exact_keys("top-level", set(data.keys()), EXPECTED_TOP_LEVEL)
@@ -125,7 +254,6 @@ def validate_contract(path: Path) -> None:
 
     contract = data["contract"]
     module = data["module"]
-    validation = data["validation"]
     limits = data["limits"]
     exports = data["exports"]
     constraints = data["constraints"]
@@ -210,6 +338,9 @@ def validate_contract(path: Path) -> None:
     print(f"  exports: {', '.join(sorted(declared_exports))}")
     print(f"  cases: {len(cases)}")
 
+    if run_cases:
+        run_contract_cases(path, data, command)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify Logicodex stdlib .std.toml contracts")
@@ -218,22 +349,35 @@ def main() -> int:
         nargs="*",
         help="Contract files to verify. Defaults to lib/**/*.std.toml",
     )
+    parser.add_argument(
+        "--run-cases",
+        action="store_true",
+        help="Compile and run each [[cases]] expression through Logicodex and compare bounded stdout",
+    )
+    parser.add_argument(
+        "--bin",
+        type=Path,
+        default=None,
+        help="Path to a prebuilt logicodex binary. Defaults to target/debug, target/release, then cargo run.",
+    )
     args = parser.parse_args()
 
     if args.contracts:
         paths = [Path(p) for p in args.contracts]
     else:
-        paths = sorted((REPO_ROOT / "lib").glob("**/*.std.toml"))
+        paths = sorted(STDLIB_ROOT.glob("**/*.std.toml"))
 
     if not paths:
         print("No stdlib contract files found", file=sys.stderr)
         return 1
 
+    command = logicodex_command(args.bin)
+
     failed = False
     for path in paths:
         path = path.resolve()
         try:
-            validate_contract(path)
+            validate_contract(path, run_cases=args.run_cases, command=command)
         except ContractError as exc:
             failed = True
             print(f"FAIL {path.relative_to(REPO_ROOT)}: {exc}", file=sys.stderr)
