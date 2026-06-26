@@ -97,3 +97,16 @@ fn assert_eq_of_core_math_abs() {
     assert_eq!(out.split_whitespace().next(), Some("1"),
         "eq_i64(abs_i64(-5), 5) is true");
 }
+
+#[test]
+fn assert_not_eq_and_is_false_predicates() {
+    let out = run_main(
+        "import core.assert;\n\
+         PAPAR core.assert.not_eq_i64(3, 7);\n\
+         PAPAR core.assert.not_eq_i64(5, 5);\n\
+         PAPAR core.assert.is_false(0);\n\
+         PAPAR core.assert.is_false(9);\n",
+    );
+    let got: Vec<&str> = out.split_whitespace().collect();
+    assert_eq!(got, vec!["1", "0", "1", "0"]);
+}

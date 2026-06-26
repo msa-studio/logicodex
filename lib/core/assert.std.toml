@@ -25,7 +25,9 @@ max_cases = 50
 [exports]
 functions = [
   "eq_i64",
+  "is_false",
   "is_true",
+  "not_eq_i64",
 ]
 
 [constraints]
@@ -55,3 +57,24 @@ expect_i64 = 1
 name = "is_true zero"
 expr = "core.assert.is_true(0)"
 expect_i64 = 0
+
+[[cases]]
+name = "not_eq true"
+expr = "core.assert.not_eq_i64(3, 7)"
+expect_i64 = 1
+
+[[cases]]
+name = "not_eq false"
+expr = "core.assert.not_eq_i64(5, 5)"
+expect_i64 = 0
+
+[[cases]]
+name = "is_false true"
+expr = "core.assert.is_false(0)"
+expect_i64 = 1
+
+[[cases]]
+name = "is_false false"
+expr = "core.assert.is_false(9)"
+expect_i64 = 0
+

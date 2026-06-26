@@ -18,3 +18,17 @@ public function is_true(x: I64) -> I64 begin
     end
     return 1;
 end
+
+public function not_eq_i64(a: I64, b: I64) -> I64 begin
+    if a != b begin
+        return 1;
+    end
+    return 0;
+end
+
+public function is_false(x: I64) -> I64 begin
+    if x == 0 begin
+        return 1;
+    end
+    return 0;
+end
