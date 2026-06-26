@@ -128,3 +128,28 @@ fn core_math_factorial_gcd_lcm_helpers() {
         "core.math factorial/gcd/lcm outputs"
     );
 }
+
+// Arithmetic and predicate convenience helpers.
+#[test]
+fn core_math_arithmetic_predicate_helpers() {
+    let out = run_main(
+        "import core.math;\n\
+         PAPAR core.math.square_i64(7);\n\
+         PAPAR core.math.square_i64(-4);\n\
+         PAPAR core.math.cube_i64(3);\n\
+         PAPAR core.math.cube_i64(-3);\n\
+         PAPAR core.math.is_positive(5);\n\
+         PAPAR core.math.is_positive(0);\n\
+         PAPAR core.math.is_negative(-5);\n\
+         PAPAR core.math.is_negative(0);\n\
+         PAPAR core.math.between_i64(5, 1, 10);\n\
+         PAPAR core.math.between_i64(0, 1, 10);\n\
+         PAPAR core.math.between_i64(11, 1, 10);\n",
+    );
+    let got: Vec<&str> = out.split_whitespace().collect();
+    assert_eq!(
+        got,
+        vec!["49", "16", "27", "-27", "1", "0", "1", "0", "1", "0", "0"],
+        "core.math arithmetic/predicate helper outputs"
+    );
+}

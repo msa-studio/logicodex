@@ -25,16 +25,21 @@ max_cases = 50
 [exports]
 functions = [
   "abs_i64",
+  "between_i64",
   "clamp_i64",
+  "cube_i64",
   "factorial_i64",
   "gcd_i64",
   "is_even",
+  "is_negative",
   "is_odd",
+  "is_positive",
   "lcm_i64",
   "max_i64",
   "min_i64",
   "pow_i64",
   "sign_i64",
+  "square_i64",
 ]
 
 [constraints]
@@ -148,5 +153,60 @@ expect_i64 = 24
 [[cases]]
 name = "lcm zero"
 expr = "core.math.lcm_i64(0, 8)"
+expect_i64 = 0
+
+[[cases]]
+name = "square positive"
+expr = "core.math.square_i64(7)"
+expect_i64 = 49
+
+[[cases]]
+name = "square negative"
+expr = "core.math.square_i64(-4)"
+expect_i64 = 16
+
+[[cases]]
+name = "cube positive"
+expr = "core.math.cube_i64(3)"
+expect_i64 = 27
+
+[[cases]]
+name = "cube negative"
+expr = "core.math.cube_i64(-3)"
+expect_i64 = -27
+
+[[cases]]
+name = "is_positive true"
+expr = "core.math.is_positive(5)"
+expect_i64 = 1
+
+[[cases]]
+name = "is_positive false zero"
+expr = "core.math.is_positive(0)"
+expect_i64 = 0
+
+[[cases]]
+name = "is_negative true"
+expr = "core.math.is_negative(-5)"
+expect_i64 = 1
+
+[[cases]]
+name = "is_negative false zero"
+expr = "core.math.is_negative(0)"
+expect_i64 = 0
+
+[[cases]]
+name = "between true"
+expr = "core.math.between_i64(5, 1, 10)"
+expect_i64 = 1
+
+[[cases]]
+name = "between below"
+expr = "core.math.between_i64(0, 1, 10)"
+expect_i64 = 0
+
+[[cases]]
+name = "between above"
+expr = "core.math.between_i64(11, 1, 10)"
 expect_i64 = 0
 
