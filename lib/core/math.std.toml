@@ -27,8 +27,10 @@ functions = [
   "abs_i64",
   "clamp_i64",
   "factorial_i64",
+  "gcd_i64",
   "is_even",
   "is_odd",
+  "lcm_i64",
   "max_i64",
   "min_i64",
   "pow_i64",
@@ -117,3 +119,34 @@ expect_i64 = 120
 name = "factorial negative"
 expr = "core.math.factorial_i64(-3)"
 expect_i64 = 0
+
+[[cases]]
+name = "gcd normal"
+expr = "core.math.gcd_i64(54, 24)"
+expect_i64 = 6
+
+[[cases]]
+name = "gcd negative"
+expr = "core.math.gcd_i64(-48, 18)"
+expect_i64 = 6
+
+[[cases]]
+name = "gcd zero"
+expr = "core.math.gcd_i64(0, 9)"
+expect_i64 = 9
+
+[[cases]]
+name = "lcm normal"
+expr = "core.math.lcm_i64(6, 8)"
+expect_i64 = 24
+
+[[cases]]
+name = "lcm negative"
+expr = "core.math.lcm_i64(-6, 8)"
+expect_i64 = 24
+
+[[cases]]
+name = "lcm zero"
+expr = "core.math.lcm_i64(0, 8)"
+expect_i64 = 0
+

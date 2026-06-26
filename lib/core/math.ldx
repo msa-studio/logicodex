@@ -84,3 +84,47 @@ public function factorial_i64(n: I64) -> I64 begin
     end
     return acc;
 end
+
+public function gcd_i64(a: I64, b: I64) -> I64 begin
+    let x: I64 = a;
+    let y: I64 = b;
+    let r: I64 = 0;
+
+    if x < 0 begin
+        x = 0 - x;
+    end
+    if y < 0 begin
+        y = 0 - y;
+    end
+
+    while y > 0 begin
+        r = x % y;
+        x = y;
+        y = r;
+    end
+
+    return x;
+end
+
+public function lcm_i64(a: I64, b: I64) -> I64 begin
+    if a == 0 begin
+        return 0;
+    end
+    if b == 0 begin
+        return 0;
+    end
+
+    let x: I64 = a;
+    let y: I64 = b;
+
+    if x < 0 begin
+        x = 0 - x;
+    end
+    if y < 0 begin
+        y = 0 - y;
+    end
+
+    let g: I64 = gcd_i64(x, y);
+    let scaled: I64 = x / g;
+    return scaled * y;
+end
