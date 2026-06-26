@@ -1,0 +1,3 @@
+function private_func() -> I64 begin
+    return 42;
+end

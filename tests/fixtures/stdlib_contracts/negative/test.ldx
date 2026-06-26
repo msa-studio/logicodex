@@ -1,0 +1,3 @@
+public function dummy() -> I64 begin
+    return 0;
+end
