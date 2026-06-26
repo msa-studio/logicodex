@@ -1,8 +1,8 @@
 // core.math -- pure integer/logic helpers (Stdlib Stage 0).
 //
 // No OS, no extern C, no malloc: bare-compatible (profile `bare`+). English
-// canonical names. The language has no `%` (modulo) operator yet, so is_even /
-// is_odd use the bitwise `& 1` form. All functions return I64 (1/0 for the
+// canonical names. The `%` (modulo) operator is available, but is_even /
+// is_odd currently keep the bitwise `& 1` form. All functions return I64 (1/0 for the
 // boolean-style predicates) so results PAPAR directly.
 
 public function abs_i64(n: I64) -> I64 begin
@@ -70,4 +70,17 @@ public function is_odd(n: I64) -> I64 begin
         return 0;
     end
     return 1;
+end
+
+public function factorial_i64(n: I64) -> I64 begin
+    if n < 0 begin
+        return 0;
+    end
+    let acc: I64 = 1;
+    let i: I64 = 1;
+    while i <= n begin
+        acc = acc * i;
+        i = i + 1;
+    end
+    return acc;
 end

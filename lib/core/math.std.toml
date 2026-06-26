@@ -25,13 +25,14 @@ max_cases = 50
 [exports]
 functions = [
   "abs_i64",
-  "min_i64",
-  "max_i64",
   "clamp_i64",
-  "sign_i64",
-  "pow_i64",
+  "factorial_i64",
   "is_even",
   "is_odd",
+  "max_i64",
+  "min_i64",
+  "pow_i64",
+  "sign_i64",
 ]
 
 [constraints]
@@ -101,3 +102,18 @@ expect_i64 = 1
 name = "is_odd true"
 expr = "core.math.is_odd(7)"
 expect_i64 = 1
+
+[[cases]]
+name = "factorial zero"
+expr = "core.math.factorial_i64(0)"
+expect_i64 = 1
+
+[[cases]]
+name = "factorial small"
+expr = "core.math.factorial_i64(5)"
+expect_i64 = 120
+
+[[cases]]
+name = "factorial negative"
+expr = "core.math.factorial_i64(-3)"
+expect_i64 = 0
