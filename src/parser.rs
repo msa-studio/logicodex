@@ -995,11 +995,13 @@ impl Parser {
 
     fn factor(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.unary()?;
-        while self.matches(TokenKind::Star) || self.matches(TokenKind::Slash) {
+        while self.matches(TokenKind::Star) || self.matches(TokenKind::Slash) || self.matches(TokenKind::Modulo) {
             let op = if self.previous().kind == TokenKind::Star {
                 BinaryOp::Multiply
-            } else {
+            } else if self.previous().kind == TokenKind::Slash {
                 BinaryOp::Divide
+            } else {
+                BinaryOp::Modulo
             };
             let right = self.unary()?;
             expr = Expr::Binary {

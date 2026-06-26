@@ -1027,7 +1027,7 @@ impl Analyzer {
             }
             Expr::Grouped(inner) => self.expression(inner),
             Expr::Binary { left, op, right } => {
-                if *op == BinaryOp::Divide && matches!(right.as_ref(), Expr::Integer(0)) {
+                if (*op == BinaryOp::Divide || *op == BinaryOp::Modulo) && matches!(right.as_ref(), Expr::Integer(0)) {
                     return Err(SemanticError::DivisionByZero);
                 }
                 let left_ty = self.expression(left)?;
@@ -1037,6 +1037,7 @@ impl Analyzer {
                     | BinaryOp::Subtract
                     | BinaryOp::Multiply
                     | BinaryOp::Divide
+                    | BinaryOp::Modulo
                     | BinaryOp::BitAnd
                     | BinaryOp::BitOr
                     | BinaryOp::BitXor

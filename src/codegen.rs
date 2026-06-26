@@ -968,6 +968,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         .builder
                         .build_int_signed_div(l, r, "divtmp")
                         .context("div"),
+                    BinaryOpAst::Mod => self
+                        .builder
+                        .build_int_signed_rem(l, r, "modtmp")
+                        .context("mod"),
                     BinaryOpAst::Eq => self.compare_to_i64(IntPredicate::EQ, l, r, "eqtmp"),
                     BinaryOpAst::NotEq => self.compare_to_i64(IntPredicate::NE, l, r, "netmp"),
                     BinaryOpAst::Lt => self.compare_to_i64(IntPredicate::SLT, l, r, "lttmp"),
