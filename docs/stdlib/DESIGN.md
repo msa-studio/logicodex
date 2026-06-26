@@ -10,6 +10,13 @@ first real dogfood of both the module system and the language itself: every
 stdlib module compiles, links, and runs through the same pipeline a user's code
 does, and every module ships acceptance tests that compile + run + assert.
 
+**Contract Validation:** Every official module must be accompanied by a `.std.toml`
+contract sidecar. These contracts are strictly validated by a Python harness
+(`tools/verify_stdlib_contracts.py`) during dev/CI. The Python harness is a dev/CI harness only.
+It generates temporary Logicodex programs, compiles and runs them with the Logicodex compiler,
+and compares bounded PAPAR stdout. The behavioral oracle is the compiled Logicodex program's stdout,
+not Python calculation. Normal compilation does not validate these contracts.
+
 ---
 
 ## 1. `core` vs `std` split (locked)

@@ -8,6 +8,13 @@ Stage 0 delivers the first two **pure-Logicodex** `core.*` modules, written in
 `.ldx` and compiled through the same pipeline as user code. This is the first
 full dogfood of the module system and the language together.
 
+**Contract Validation:** Every official module must be accompanied by a `.std.toml`
+contract sidecar. These contracts are strictly validated by a Python harness
+(`tools/verify_stdlib_contracts.py`) during dev/CI. The Python harness is a dev/CI harness only.
+It generates temporary Logicodex programs, compiles and runs them with the Logicodex compiler,
+and compares bounded PAPAR stdout. The behavioral oracle is the compiled Logicodex program's stdout,
+not Python calculation. Normal compilation does not validate these contracts.
+
 ---
 
 ## What shipped

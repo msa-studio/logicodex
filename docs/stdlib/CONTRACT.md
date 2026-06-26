@@ -39,9 +39,10 @@ Every official library module must declare:
 The contract is not runtime metadata. It is used by documentation, tests, CI,
 future tooling, and future diagnostics.
 
-Normal user compilation should not validate .std.toml by default. A normal
-compile resolves and compiles .ldx modules. Contract validation is a dev/CI or
-explicit verification activity.
+**Important:** The contract validator (`tools/verify_stdlib_contracts.py`) is a dev/CI
+validation tool only. Normal user compilation does not validate `.std.toml` by default.
+A normal compile resolves and compiles `.ldx` modules. Contract validation is a dev/CI
+or explicit verification activity.
 
 ---
 
@@ -204,29 +205,26 @@ Minimum schema:
     expect_i64 = 5
 
 The schema is intentionally small for Stage 0. It may grow later, but unknown
-fields should not be silently ignored in strict validation mode.---
+fields should not be silently ignored in strict validation mode.
+
+---
 
 ## 6. Validation Modes
 
-The contract harness should support these validation modes:
+The contract harness (`tools/verify_stdlib_contracts.py`) supports two validation modes:
 
-    quick:
-      metadata + static validation
+    1. Plain Validation (Default):
+       Validates metadata schema, layer rules, export completeness, and static constraints.
+       Command: python3 tools/verify_stdlib_contracts.py
 
-    standard:
-      metadata + static + compile + run
+    2. Run Cases Validation:
+       Performs plain validation PLUS compiles and runs each `[[cases]]` expression
+       through Logicodex, comparing the bounded stdout against `expect_i64`.
+       Command: python3 tools/verify_stdlib_contracts.py --run-cases
 
-    full:
-      standard + negative cases
-
-    stress:
-      reserved for future stress/property cases
-
-Stage 0 default:
-
-    standard
-
-stress is reserved and must not run by default.
+In CI, both modes are exercised: the quick plain validation runs during the `check` job,
+while the full `--run-cases` validation runs during the `test` job against the compiled
+release binary.
 
 ---
 
@@ -239,27 +237,21 @@ Reason: Stage 0 core.assert.eq_i64 and core.assert.is_true return 1 or 0; they
 do not abort. If a generated program calls core.assert.eq_i64(...) and then
 returns 0, the executable can pass even when the assertion returned 0.
 
-Therefore the Stage 0 generic oracle is stdout comparison:
+Therefore the Stage 0 generic oracle is bounded stdout comparison:
 
-    generate one temporary program per module
-    PAPAR each case expression
+    generate one temporary program per case
+    PAPAR the case expression
     run executable
-    compare stdout line-by-line with expected values
+    compare stdout tokens with expected_i64
 
-Example generated program:
+Example generated program for `expr = "core.math.abs_i64(-5)"`:
 
     import core.math;
-
-    function main() -> I64 begin
-        PAPAR core.math.abs_i64(-5);
-        PAPAR core.math.pow_i64(2, 10);
-        return 0;
-    end
+    PAPAR core.math.abs_i64(-5);
 
 Expected stdout:
 
     5
-    1024
 
 core.assert may still be tested as a normal module through PAPAR
 core.assert.eq_i64(...), but it must not be the harness oracle.
@@ -277,20 +269,15 @@ Default limits:
     stdout_limit_bytes = 65536
     max_cases = 50
 
-The harness must eventually provide:
+The harness provides:
 
-    compile timeout per module
-    run timeout per module
-    child process kill on timeout
+    compile timeout per case
+    run timeout per case
+    child process kill on timeout (via subprocess.run timeout)
     stdout/stderr size limits
     clear diagnostics on timeout
 
-If no timeout crate is available, use standard Rust primitives:
-
-    Command::spawn
-    child.try_wait()
-    Instant timeout loop
-    child.kill() on timeout---
+---
 
 ## 9. Export Validation
 
@@ -302,6 +289,10 @@ Every function listed in:
 must exist as a public function in the matching .ldx source.
 
 Private functions do not count.
+
+The verifier enforces a bidirectional check:
+1. All declared exports must be public in the source.
+2. All public functions in the source must be declared as exports.
 
 Failure example:
 
@@ -376,7 +367,9 @@ Deferred, not rejected:
     dynamic runtime plugins
     package registry
     remote fetch
-    lockfile---
+    lockfile
+
+---
 
 ## 13. Diagnostic Direction
 
@@ -430,16 +423,54 @@ Required:
 
 ---
 
-## 15. Definition of Done for Stage 0 Contract Harness
+## 15. Authoring Flow for Future Modules
+
+To add a new official stdlib module:
+
+1. **Implement in Logicodex:** Create the `.ldx` file (e.g., `lib/core/math.ldx`).
+2. **Add Contract Sidecar:** Create the matching `.std.toml` file (e.g., `lib/core/math.std.toml`).
+3. **Declare Exports:** Ensure `[exports]` perfectly matches the `public function` list in the `.ldx` file.
+4. **Add Contract Cases:** Add `[[cases]]` covering the behavioral oracle of the module.
+5. **Verify Locally:**
+   ```bash
+   # Run metadata and static checks
+   python3 tools/verify_stdlib_contracts.py
+   
+   # Build the compiler
+   cargo build
+   
+   # Run behavioral cases using the compiled binary
+   python3 tools/verify_stdlib_contracts.py --run-cases --bin target/debug/logicodex
+   ```
+6. **Add e2e Tests:** If needed, add specific Rust e2e tests in `tests/` for edge cases not covered by the contract harness.
+
+---
+
+## 16. Contract Validator Command Line
+
+The contract validator is located at `tools/verify_stdlib_contracts.py`.
+
+Usage:
+
+    python3 tools/verify_stdlib_contracts.py [contracts...] [--run-cases] [--bin BIN]
+
+Arguments:
+- `contracts`: Optional list of contract files to verify. Defaults to `lib/**/*.std.toml`.
+- `--run-cases`: Compile and run each `[[cases]]` expression through Logicodex and compare bounded stdout.
+- `--bin`: Path to a prebuilt logicodex binary. Defaults to `target/debug/logicodex`, `target/release/logicodex`, then `cargo run`.
+
+---
+
+## 17. Definition of Done for Stage 0 Contract Harness
 
 Stage 0 contract harness is complete when:
 
     docs/stdlib/CONTRACT.md exists
     lib/core/math.std.toml exists
     lib/core/assert.std.toml exists
-    src/stdlib_contract.rs or equivalent utility exists
-    tests/stdlib_contract.rs exists
-    contract discovery covers core/std/framework
+    tools/verify_stdlib_contracts.py exists
+    CI runs metadata validation
+    CI runs --run-cases against a built Logicodex binary
     stdout oracle is used
     compile/run is bounded
     exports are validated
