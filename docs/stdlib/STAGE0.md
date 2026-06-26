@@ -72,6 +72,10 @@ A hard aborting assert needs `std` (profile-gated exit/panic) and is deferred to
 import core.math; resolves via LOGICODEX_STD
 abs_i64(-5)=5  min_i64(2,7)=2  max_i64(2,7)=7  clamp_i64(12,0,10)=10
 sign_i64(-3)=-1  is_even(4)=1  is_odd(7)=1  pow_i64(2,10)=1024
+
+Current expanded `core.math` also includes factorial/gcd/lcm helpers and small
+arithmetic/predicate helpers. Contract sidecar coverage is authoritative:
+`lib/core/math.std.toml` currently lists 16 exports and 32 oracle cases.
 abs_i64(5)=5  abs_i64(0)=0  clamp in-range passthrough
 single-file legacy examples still pass; no extern C; no logicodex.toml needed
 ```
@@ -100,7 +104,15 @@ throughout — zero regressions.
 
 ```
 std.*  (io, fs, time, mem, str, mathf/libm, c)   needs extern-in-modules + profile
-core.math second wave (gcd_i64, lcm_i64, factorial_i64)
+core.math expansion already landed:
+- factorial_i64(n)
+- gcd_i64(a, b)
+- lcm_i64(a, b)
+- square_i64(n)
+- cube_i64(n)
+- is_positive(n)
+- is_negative(n)
+- between_i64(n, low, high)
 core.bits, core.rand                              now unblocked by BitXor
 Option / Result public types
 extern-in-modules (Module System Stage 1)

@@ -176,6 +176,12 @@ examples still pass.
 6. core.math.sign_i64(-3)        -> -1
 7. core.math.is_even(4)          -> true     (1)
 8. core.math.pow_i64(2, 10)      -> 1024
+9. core.math.factorial_i64(5)    -> 120
+10. core.math.gcd_i64(54, 24)    -> 6
+11. core.math.lcm_i64(6, 8)      -> 24
+12. core.math.square_i64(7)      -> 49
+13. core.math.cube_i64(-3)       -> -27
+14. core.math.between_i64(5,1,10)-> 1
 9. single-file legacy examples still pass
 10. no extern C used; works without logicodex.toml
 ```
