@@ -105,3 +105,26 @@ fn core_math_clamp_in_range() {
     let out = run_main("import core.math;\nPAPAR core.math.clamp_i64(5, 0, 10);\n");
     assert_eq!(out.split_whitespace().next(), Some("5"));
 }
+
+// Later Stage 0 helpers: factorial, gcd, and lcm.
+#[test]
+fn core_math_factorial_gcd_lcm_helpers() {
+    let out = run_main(
+        "import core.math;\n\
+         PAPAR core.math.factorial_i64(0);\n\
+         PAPAR core.math.factorial_i64(5);\n\
+         PAPAR core.math.factorial_i64(-3);\n\
+         PAPAR core.math.gcd_i64(54, 24);\n\
+         PAPAR core.math.gcd_i64(-48, 18);\n\
+         PAPAR core.math.gcd_i64(0, 9);\n\
+         PAPAR core.math.lcm_i64(6, 8);\n\
+         PAPAR core.math.lcm_i64(-6, 8);\n\
+         PAPAR core.math.lcm_i64(0, 8);\n",
+    );
+    let got: Vec<&str> = out.split_whitespace().collect();
+    assert_eq!(
+        got,
+        vec!["1", "120", "0", "6", "6", "9", "24", "24", "0"],
+        "core.math factorial/gcd/lcm outputs"
+    );
+}
