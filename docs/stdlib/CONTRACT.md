@@ -207,6 +207,30 @@ Minimum schema:
 The schema is intentionally small for Stage 0. It may grow later, but unknown
 fields should not be silently ignored in strict validation mode.
 
+### 5.1 Versioning and Integrity Policy
+
+Stage 0 currently uses `contract.version = 0`. This means:
+
+    version 0 = Stage 0 contract schema
+    no compatibility promise beyond the current Stage 0 validator
+    no source hash binding yet
+
+Before the stdlib moves from Stage 0 toward a stable public contract surface,
+contract metadata should grow in a controlled way rather than through ad hoc
+fields. The expected next evolution is:
+
+    schema_version       version of the contract metadata schema
+    api_version          version of the module's public API contract
+    compatibility        compatibility class, for example experimental/stable/deprecated
+    source_hash          deterministic hash of the paired `.ldx` source file
+    contract_hash        deterministic hash of the normalized `.std.toml` contract
+
+The validator should eventually use these fields to detect accidental drift
+between source and contract, distinguish schema changes from API changes, and
+support compatibility checks. Stage 0 does not enforce these fields yet; this
+section records the intended policy so future validators and CI can implement it
+without changing the meaning of existing `version = 0` contracts.
+
 ---
 
 ## 6. Validation Modes
