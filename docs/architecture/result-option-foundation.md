@@ -118,6 +118,29 @@ compiler step: `Ok(x)` and `Err(x)` may lower to the `i64` payload while full
 tagged layout and match destructuring remain pending. This must not be presented
 as complete `Result<T, E>` semantics.
 
+### Debuggability and smart-compiler constraints
+
+Result and Option foundation work must preserve semantic truth for the future
+Logicodex Diagnostic Intelligence Pipeline (LDX-DIP). Compiler changes must not
+only make tests pass; they must keep enough structure for causal diagnostics,
+AI-queryable debugging, and future safe self-treatment.
+
+The following constraints apply to this branch:
+
+- `Ok`, `Err`, `Some`, and `None` must not become anonymous values once match
+  destructuring is introduced.
+- Unsupported match patterns must not be silently ignored during lowering.
+- Match lowering must preserve which branch was selected and which payload was
+  bound, even if the first implementation uses a temporary scalar encoding.
+- Transitional encodings must be documented as ABI/compiler-foundation steps,
+  not as final language semantics.
+- Any future optimization may erase representation details only after diagnostics
+  and semantic metadata have had a chance to observe the original meaning.
+
+This keeps Community compiler work aligned with the long-term smart compiler and
+Enterprise Assurance direction without implementing Enterprise-only enforcement
+inside the public compiler.
+
 ## Definition of Done
 
 This branch is complete when the following are green:
