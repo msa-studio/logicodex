@@ -1,0 +1,78 @@
+// core.range -- pure integer interval helpers (Stdlib Stage 0).
+//
+// No OS, no extern C, no malloc: bare-compatible (profile `bare`+). Stage 0
+// represents predicate results as I64: 1 for true, 0 for false. Ranges are
+// valid when start <= stop. Invalid ranges return false for predicates and 0 for
+// span.
+
+public function is_valid_i64(start: I64, stop: I64) -> I64 begin
+    if start <= stop begin
+        return 1;
+    end
+    return 0;
+end
+
+public function span_i64(start: I64, stop: I64) -> I64 begin
+    if start > stop begin
+        return 0;
+    end
+    return stop - start;
+end
+
+public function contains_closed_i64(start: I64, stop: I64, value: I64) -> I64 begin
+    if start > stop begin
+        return 0;
+    end
+    if value < start begin
+        return 0;
+    end
+    if value > stop begin
+        return 0;
+    end
+    return 1;
+end
+
+public function contains_open_i64(start: I64, stop: I64, value: I64) -> I64 begin
+    if start >= stop begin
+        return 0;
+    end
+    if value <= start begin
+        return 0;
+    end
+    if value >= stop begin
+        return 0;
+    end
+    return 1;
+end
+
+public function overlaps_closed_i64(a_start: I64, a_end: I64, b_start: I64, b_end: I64) -> I64 begin
+    if a_start > a_end begin
+        return 0;
+    end
+    if b_start > b_end begin
+        return 0;
+    end
+    if a_end < b_start begin
+        return 0;
+    end
+    if b_end < a_start begin
+        return 0;
+    end
+    return 1;
+end
+
+public function touches_i64(a_start: I64, a_end: I64, b_start: I64, b_end: I64) -> I64 begin
+    if a_start > a_end begin
+        return 0;
+    end
+    if b_start > b_end begin
+        return 0;
+    end
+    if a_end == b_start begin
+        return 1;
+    end
+    if b_end == a_start begin
+        return 1;
+    end
+    return 0;
+end

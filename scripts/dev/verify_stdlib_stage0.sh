@@ -32,6 +32,6 @@ fi
 python3 tools/verify_stdlib_contracts.py --run-cases --bin "$BIN"
 
 echo "---------->>> FOCUSED STDLIB TESTS"
-cargo test --test stdlib_core_math --test stdlib_core_assert --test stdlib_core_bits --test stdlib_core_compare --test stdlib_core_bool -- --nocapture
+cargo test --test stdlib_core_math --test stdlib_core_assert --test stdlib_core_bits --test stdlib_core_compare --test stdlib_core_bool --test stdlib_core_range -- --nocapture
 
 echo "---------->>> VERIFY STDLIB STAGE0 END: OK"
