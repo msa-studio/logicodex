@@ -149,6 +149,7 @@ make boot-evidence   # examples/freestanding/minimal.ldx  -> clean boot
 | [`docs/DOCUMENTATION_POLICY.md`](docs/DOCUMENTATION_POLICY.md) | Doc tiers + the documentation phase gate |
 | [`docs/architecture/runtime-doctrine.md`](docs/architecture/runtime-doctrine.md) | Zero-runtime core + optional profiles |
 | [`docs/architecture/hir-decision.md`](docs/architecture/hir-decision.md) | Why HIR is the sole execution path |
+| [`docs/architecture/cpb-self-hosting-runway.md`](docs/architecture/cpb-self-hosting-runway.md) | CPB runway toward self-hosting |
 | [`docs/architecture/capability-topology.md`](docs/architecture/capability-topology.md) | What capability checking does / defers |
 | [`ROADMAP_v2.md`](ROADMAP_v2.md) | Phases, maturity matrix |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |

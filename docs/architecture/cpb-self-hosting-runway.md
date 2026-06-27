@@ -1,0 +1,186 @@
+# CPB Self-Hosting Runway
+
+Status: Active planning document
+Scope: Logicodex Community foundation
+Depends on: Stdlib Stage 0 contract discipline
+
+## Purpose
+
+This document defines the shortest safe runway from the current Community
+compiler foundation toward self-hosting.
+
+Self-hosting must not begin as a large rewrite. It must be reached through
+small, contract-backed compiler capability increments.
+
+## Current Baseline
+
+The current stable baseline is:
+
+- HIR is the sole execution path.
+- Module/import system exists.
+- Stage 0 pure core stdlib contracts are verified.
+- Contract metadata and hash evidence exist.
+- Legacy core modules are inventoried but not trusted.
+- `verify_stdlib_stage0.sh` is the current stdlib gate.
+
+## CPB Meaning
+
+CPB means Community Production Baseline.
+
+For Logicodex, CPB does not mean enterprise assurance. CPB means the Community
+compiler has enough stable, tested, contract-backed foundation to support real
+programs and eventually compile a compiler subset.
+
+## Self-Hosting Risk
+
+Self-hosting requires more than arithmetic helpers.
+
+Minimum missing foundation:
+
+- prelude baseline
+- text/string primitives
+- array/slice/list primitives
+- option/result/error model
+- file/input reading
+- path handling
+- stable diagnostics
+- module/package resolution
+- compiler-facing test harness
+- compiler subset definition
+
+## Runway Phases
+
+### CPB-0: Contract Discipline
+
+Status: Done.
+
+Proof:
+
+- Stage 0 modules have matching `.ldx` and `.std.toml`.
+- Contracts declare exports.
+- Run-cases execute.
+- Hash evidence is emitted.
+- Legacy modules are not accidentally trusted.
+
+### CPB-1: Bootstrap Surface
+
+Goal: define the minimum language and stdlib surface needed by compiler-like
+programs.
+
+Deliverables:
+
+- `docs/architecture/compiler-subset.md`
+- prelude policy
+- text/string module plan
+- result/option/error module plan
+- file/io boundary plan
+
+No implementation may claim CPB-1 unless the subset is documented and gated.
+
+### CPB-2: Bootstrap Stdlib Slice
+
+Goal: implement only the stdlib modules required for compiler-like programs.
+
+Priority order:
+
+1. `core.prelude`
+2. `core.text` or `core.string`
+3. `core.option`
+4. `core.result`
+5. `core.array` or `core.slice`
+6. `std.path`
+7. `std.file`
+8. `std.io`
+
+Each module must follow the Stage 0 contract pattern before it is trusted.
+
+### CPB-3: Compiler API Freeze Boundary
+
+Goal: freeze the public Rust-side compiler APIs that a future Logicodex compiler
+implementation will need to call or mirror.
+
+Minimum boundary:
+
+- lexer input model
+- parser entry point
+- AST model
+- HIR model
+- diagnostic model
+- module loader model
+- codegen handoff model
+
+This is an API boundary, not a self-hosting rewrite.
+
+### CPB-4: Compiler Subset Programs
+
+Goal: write small compiler-shaped programs in Logicodex.
+
+Examples:
+
+- token classifier
+- diagnostic formatter
+- module path normalizer
+- simple AST visitor
+- contract metadata reader
+- stdlib contract case runner prototype
+
+These programs prove that Logicodex can express compiler work.
+
+### CPB-5: First Self-Hosting Loop
+
+Goal: compile a tiny Logicodex compiler component written in Logicodex using the
+Rust compiler host.
+
+First target should be a small component, not the full compiler.
+
+Recommended first component:
+
+- diagnostic formatter
+- token classifier
+- module path resolver
+
+## Non-Goals
+
+The runway does not include:
+
+- enterprise assurance engine
+- LDX-AUD implementation
+- AI contract governance implementation
+- secret-proof authority gates
+- full package manager
+- full self-hosted compiler rewrite
+- replacing Rust compiler host immediately
+
+## Legacy Rule
+
+Legacy modules must not be repaired ad hoc just to accelerate self-hosting.
+
+If a legacy module is needed by the runway, rebuild or migrate it under the
+contract pattern:
+
+- source file
+- sidecar contract
+- public exports
+- run-cases
+- focused tests
+- verify script coverage
+- trust-state update
+
+## Entry Gate for CPB Work
+
+Before any CPB implementation patch:
+
+- branch must be clean or intentionally scoped
+- `verify_stdlib_stage0.sh` must pass
+- touched module must have a contract plan
+- legacy trust state must not be upgraded without proof
+
+## Exit Gate for CPB Foundation
+
+CPB foundation is ready for self-hosting experiments only when:
+
+- compiler subset is documented
+- bootstrap stdlib slice is contract-verified
+- diagnostics are stable enough for compiler programs
+- module/import behavior is regression-tested
+- at least three compiler-shaped programs compile and run
