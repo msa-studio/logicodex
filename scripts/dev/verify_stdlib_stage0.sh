@@ -20,6 +20,9 @@ fi
 echo "---------->>> CONTRACT METADATA"
 python3 tools/verify_stdlib_contracts.py
 
+echo "---------->>> CONTRACT HASH EVIDENCE"
+python3 tools/verify_stdlib_contracts.py --emit-hashes
+
 echo "---------->>> CONTRACT ORACLE CASES"
 BIN="target/debug/logicodex"
 if [ ! -x "$BIN" ]; then
