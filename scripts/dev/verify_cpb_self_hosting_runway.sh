@@ -11,6 +11,7 @@ git diff --check
 
 echo "---------->>> REQUIRED DOCS"
 test -f docs/architecture/cpb-self-hosting-runway.md
+test -f docs/architecture/compiler-subset.md
 test -f docs/stdlib_stage0.md
 test -f docs/stdlib_contract_versioning.md
 test -f docs/architecture/stdlib-migration-status.md
@@ -22,12 +23,25 @@ grep -q "CPB-1: Bootstrap Surface" docs/architecture/cpb-self-hosting-runway.md
 grep -q "CPB-2: Bootstrap Stdlib Slice" docs/architecture/cpb-self-hosting-runway.md
 grep -q "CPB-5: First Self-Hosting Loop" docs/architecture/cpb-self-hosting-runway.md
 grep -q "compiler subset" docs/architecture/cpb-self-hosting-runway.md
+grep -q "Required Language Surface" docs/architecture/compiler-subset.md
+grep -q "Required Stdlib Surface" docs/architecture/compiler-subset.md
+grep -q "Phase 1 Library Blocker Priority" docs/architecture/compiler-subset.md
+grep -q "P1-B1: Text/String" docs/architecture/compiler-subset.md
+grep -q "P1-B2: Option/Result/Error" docs/architecture/compiler-subset.md
+grep -q "P1-B5: File/IO" docs/architecture/compiler-subset.md
+grep -q "Package Manager Hold Rule" docs/architecture/compiler-subset.md
+grep -q "Real Development Tools Gate" docs/architecture/compiler-subset.md
+grep -q "First Proof Programs" docs/architecture/compiler-subset.md
+grep -q "token classifier" docs/architecture/compiler-subset.md
+grep -q "module path normalizer" docs/architecture/compiler-subset.md
+grep -q "diagnostic formatter" docs/architecture/compiler-subset.md
 grep -q "bootstrap stdlib slice" docs/architecture/cpb-self-hosting-runway.md
 grep -q "Legacy modules must not be repaired ad hoc" docs/architecture/cpb-self-hosting-runway.md
 echo "OK: required CPB terms present"
 
 echo "---------->>> README POINTER"
 grep -q "cpb-self-hosting-runway.md" README.md
+grep -q "compiler-subset.md" README.md
 echo "OK: README points to CPB runway"
 
 echo "---------->>> STAGE0 REGRESSION"

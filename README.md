@@ -150,6 +150,7 @@ make boot-evidence   # examples/freestanding/minimal.ldx  -> clean boot
 | [`docs/architecture/runtime-doctrine.md`](docs/architecture/runtime-doctrine.md) | Zero-runtime core + optional profiles |
 | [`docs/architecture/hir-decision.md`](docs/architecture/hir-decision.md) | Why HIR is the sole execution path |
 | [`docs/architecture/cpb-self-hosting-runway.md`](docs/architecture/cpb-self-hosting-runway.md) | CPB runway toward self-hosting |
+| [`docs/architecture/compiler-subset.md`](docs/architecture/compiler-subset.md) | Minimum compiler subset for self-hosting runway |
 | [`docs/architecture/capability-topology.md`](docs/architecture/capability-topology.md) | What capability checking does / defers |
 | [`ROADMAP_v2.md`](ROADMAP_v2.md) | Phases, maturity matrix |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |
