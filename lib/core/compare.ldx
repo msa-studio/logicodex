@@ -1,0 +1,43 @@
+// core.compare -- pure integer comparison helpers (Stdlib Stage 0).
+//
+// No OS, no extern C, no malloc: bare-compatible (profile `bare`+). English
+// canonical names. Equality predicates stay in `core.assert`; this module owns
+// ordering helpers and a small -1/0/1 compare primitive.
+
+public function compare_i64(a: I64, b: I64) -> I64 begin
+    if a < b begin
+        return -1;
+    end
+    if a > b begin
+        return 1;
+    end
+    return 0;
+end
+
+public function lt_i64(a: I64, b: I64) -> I64 begin
+    if a < b begin
+        return 1;
+    end
+    return 0;
+end
+
+public function lte_i64(a: I64, b: I64) -> I64 begin
+    if a <= b begin
+        return 1;
+    end
+    return 0;
+end
+
+public function gt_i64(a: I64, b: I64) -> I64 begin
+    if a > b begin
+        return 1;
+    end
+    return 0;
+end
+
+public function gte_i64(a: I64, b: I64) -> I64 begin
+    if a >= b begin
+        return 1;
+    end
+    return 0;
+end

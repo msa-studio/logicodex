@@ -1,0 +1,95 @@
+[contract]
+version = 0
+
+[module]
+name = "core.compare"
+layer = "core"
+stage = 0
+profile = "core"
+pure = true
+extern = false
+
+[validation]
+metadata = true
+static = true
+compile = true
+run = true
+stress = false
+
+[limits]
+compile_timeout_ms = 10000
+run_timeout_ms = 2000
+stdout_limit_bytes = 65536
+max_cases = 50
+
+[exports]
+functions = [
+  "compare_i64",
+  "gt_i64",
+  "gte_i64",
+  "lt_i64",
+  "lte_i64",
+]
+
+[constraints]
+allowed_imports = ["core.*"]
+forbidden_imports = ["std.*", "framework.*"]
+forbidden_features = ["extern", "malloc", "free", "file", "network", "syscall"]
+
+[capabilities]
+requires = []
+
+[[cases]]
+name = "compare less"
+expr = "core.compare.compare_i64(3, 7)"
+expect_i64 = -1
+
+[[cases]]
+name = "compare equal"
+expr = "core.compare.compare_i64(5, 5)"
+expect_i64 = 0
+
+[[cases]]
+name = "compare greater"
+expr = "core.compare.compare_i64(9, 2)"
+expect_i64 = 1
+
+[[cases]]
+name = "lt true"
+expr = "core.compare.lt_i64(3, 7)"
+expect_i64 = 1
+
+[[cases]]
+name = "lt false equal"
+expr = "core.compare.lt_i64(5, 5)"
+expect_i64 = 0
+
+[[cases]]
+name = "lte true equal"
+expr = "core.compare.lte_i64(5, 5)"
+expect_i64 = 1
+
+[[cases]]
+name = "lte false"
+expr = "core.compare.lte_i64(8, 5)"
+expect_i64 = 0
+
+[[cases]]
+name = "gt true"
+expr = "core.compare.gt_i64(9, 2)"
+expect_i64 = 1
+
+[[cases]]
+name = "gt false equal"
+expr = "core.compare.gt_i64(5, 5)"
+expect_i64 = 0
+
+[[cases]]
+name = "gte true equal"
+expr = "core.compare.gte_i64(5, 5)"
+expect_i64 = 1
+
+[[cases]]
+name = "gte false"
+expr = "core.compare.gte_i64(2, 9)"
+expect_i64 = 0
