@@ -172,21 +172,29 @@ fn result_i64_i64_match_unwrap_or() {
 }
 
 #[test]
-#[ignore = "foundation target: Option<I64> return type and Some constructor"]
 fn option_i64_return_some_payload() {
     let got = compile_and_run(
         "option_return_some",
-        "public function maybe() -> Option<I64> begin\n\
+        "public function unwrap_or_i64(x: Option<I64>, fallback: I64) -> I64 begin\n\
+             match x begin\n\
+                 Some(v) => begin\n\
+                     return v;\n\
+                 end,\n\
+                 None => begin\n\
+                     return fallback;\n\
+                 end\n\
+             end\n\
+         end\n\
+         public function maybe() -> Option<I64> begin\n\
              return Some(42);\n\
          end\n\
-         PAPAR maybe();\n",
+         PAPAR unwrap_or_i64(maybe(), 9);\n",
     );
 
     assert_eq!(got, vec!["42"]);
 }
 
 #[test]
-#[ignore = "foundation target: Option<I64> return type and None constructor"]
 fn option_i64_return_none_tag() {
     let got = compile_and_run(
         "option_return_none",
@@ -200,16 +208,15 @@ fn option_i64_return_none_tag() {
 }
 
 #[test]
-#[ignore = "foundation target: match destructuring for Some(v) and None"]
 fn option_i64_match_unwrap_or() {
     let got = compile_and_run(
         "option_match_unwrap_or",
         "public function unwrap_or_i64(x: Option<I64>, fallback: I64) -> I64 begin\n\
              match x begin\n\
-                 Some(v) begin\n\
+                 Some(v) => begin\n\
                      return v;\n\
-                 end\n\
-                 None begin\n\
+                 end,\n\
+                 None => begin\n\
                      return fallback;\n\
                  end\n\
              end\n\

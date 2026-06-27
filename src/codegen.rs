@@ -1042,6 +1042,20 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .context("result err payload shift")?;
                 Ok(encoded)
             }
+            HirExprKind::OptionSome { value } => {
+                let payload = self.emit_hir_expr(value, func)?;
+                let one = self.i64_type.const_int(1, false);
+                let shifted = self
+                    .builder
+                    .build_left_shift(payload, one, "option_some_payload")
+                    .context("option some payload shift")?;
+                let encoded = self
+                    .builder
+                    .build_or(shifted, one, "option_some_tagged")
+                    .context("option some tag")?;
+                Ok(encoded)
+            }
+            HirExprKind::OptionNone => Ok(self.i64_type.const_int(0, false)),
             HirExprKind::Field { base, field_index } => {
                 let base_val = self.emit_hir_expr(base, func)?;
                 let layout = match self.types.as_ref() {

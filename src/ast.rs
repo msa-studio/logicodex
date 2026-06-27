@@ -142,6 +142,10 @@ pub enum MatchPattern {
     Ok { binding: String },
     /// Matches Err variant: Err(name)
     Err { binding: String },
+    /// Matches Some variant: Some(name)
+    Some { binding: String },
+    /// Matches None variant: None
+    None,
     /// Wildcard: _
     Wildcard,
     /// Literal pattern: 5, "hello"
@@ -212,6 +216,12 @@ pub enum Expr {
     Err {
         value: Box<Expr>,
     },
+    /// Foundation Option construction — Some(value)
+    Some {
+        value: Box<Expr>,
+    },
+    /// Foundation Option construction — None
+    None,
     /// Ketuk 3: File Handle ABI — Method call on opaque type.
     /// Syntax: h.read(1024), h.close(), h.seek(0, Start)
     MethodCall {

@@ -135,6 +135,12 @@ pub enum ExprAst {
     ResultErr {
         value: Box<ExprAst>,
     },
+    /// Semantic Option Some constructor.
+    OptionSome {
+        value: Box<ExprAst>,
+    },
+    /// Semantic Option None constructor.
+    OptionNone,
     Cast {
         expr: Box<ExprAst>,
         target: TypeAst,
@@ -438,6 +444,12 @@ pub enum HirExprKind {
     ResultErr {
         value: Box<HirExpr>,
     },
+    /// Semantic Option Some constructor. ABI lowering is currently scalar i64.
+    OptionSome {
+        value: Box<HirExpr>,
+    },
+    /// Semantic Option None constructor. ABI lowering is currently scalar i64.
+    OptionNone,
     // ─── Threading Expressions (A3) ───
     /// Spawn an actor instance: `spawn ActorName(args)`
     Spawn {
@@ -1433,6 +1445,21 @@ impl<'a> LoweringContext<'a> {
                     span,
                 }
             }
+            ExprAst::OptionSome { value } => {
+                let value = self.lower_expr(*value, span);
+                HirExpr {
+                    kind: HirExprKind::OptionSome {
+                        value: Box::new(value),
+                    },
+                    ty: i64_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::OptionNone => HirExpr {
+                kind: HirExprKind::OptionNone,
+                ty: i64_ref(self.types),
+                span,
+            },
             ExprAst::Field { base, field } => {
                 let base = self.lower_expr(*base, span);
                 let struct_layout_id = match self.types.resolve(base.ty.id) {
@@ -1777,6 +1804,21 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
         }
     }
 
+    fn option_abi_value(value: ExprAst) -> ExprAst {
+        ExprAst::Cast {
+            expr: Box::new(value),
+            target: TypeAst::Named("i64".to_string()),
+        }
+    }
+
+    fn option_tag(value: ExprAst) -> ExprAst {
+        bin(option_abi_value(value), BinaryOpAst::BitAnd, int_lit(1))
+    }
+
+    fn option_payload(value: ExprAst) -> ExprAst {
+        bin(option_abi_value(value), BinaryOpAst::ShiftRight, int_lit(1))
+    }
+
     fn mk_bound_block(binding: String, payload: ExprAst, body: Vec<ast::Stmt>) -> BlockAst {
         let mut statements = Vec::with_capacity(body.len() + 1);
         statements.push(Spanned {
@@ -1812,6 +1854,15 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
                 let condition = eq(result_tag(value_ast.clone()), int_lit(0));
                 let body = mk_bound_block(binding, result_payload(value_ast.clone()), arm.body);
                 conditional.push((condition, body));
+            }
+            ast::MatchPattern::Some { binding } => {
+                let condition = eq(option_tag(value_ast.clone()), int_lit(1));
+                let body = mk_bound_block(binding, option_payload(value_ast.clone()), arm.body);
+                conditional.push((condition, body));
+            }
+            ast::MatchPattern::None => {
+                let condition = eq(option_tag(value_ast.clone()), int_lit(0));
+                conditional.push((condition, mk_body_block(arm.body)));
             }
             ast::MatchPattern::Identifier(name) => {
                 let pat = ExprAst::EnumVariant {
@@ -2058,6 +2109,10 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
         ast::Expr::Err { value } => ExprAst::ResultErr {
             value: Box::new(lower_expr_ast(*value)),
         },
+        ast::Expr::Some { value } => ExprAst::OptionSome {
+            value: Box::new(lower_expr_ast(*value)),
+        },
+        ast::Expr::None => ExprAst::OptionNone,
         ast::Expr::EnumVariant { enum_name, variant } => {
             ExprAst::EnumVariant { enum_name, variant }
         }

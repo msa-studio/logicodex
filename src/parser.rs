@@ -582,6 +582,18 @@ impl Parser {
                 .clone();
             self.consume(TokenKind::RightParen, "')' after Err binding")?;
             MatchPattern::Err { binding }
+        } else if self.check(TokenKind::Identifier) && self.peek().lexeme == "Some" {
+            self.advance();
+            self.consume(TokenKind::LeftParen, "'(' after 'Some'")?;
+            let binding = self
+                .consume(TokenKind::Identifier, "binding name in Some pattern")?
+                .lexeme
+                .clone();
+            self.consume(TokenKind::RightParen, "')' after Some binding")?;
+            MatchPattern::Some { binding }
+        } else if self.check(TokenKind::Identifier) && self.peek().lexeme == "None" {
+            self.advance();
+            MatchPattern::None
         } else if self.matches(TokenKind::Underscore) {
             MatchPattern::Wildcard
         } else if self.matches(TokenKind::Integer) {
@@ -601,7 +613,7 @@ impl Parser {
             MatchPattern::Identifier(self.previous().lexeme.clone())
         } else {
             return Err(ParseError::Expected {
-                expected: "Ok(x), Err(e), _, literal, or identifier pattern".to_string(),
+                expected: "Ok(x), Err(e), Some(x), None, _, literal, or identifier pattern".to_string(),
                 found: self.peek().lexeme.clone(),
                 line: self.peek().line,
                 column: self.peek().column,
@@ -1164,6 +1176,19 @@ impl Parser {
             return Ok(Expr::Err {
                 value: Box::new(value),
             });
+        }
+        if self.check(TokenKind::Identifier) && self.peek().lexeme == "Some" {
+            self.advance();
+            self.consume(TokenKind::LeftParen, "'(' after 'Some'")?;
+            let value = self.expression()?;
+            self.consume(TokenKind::RightParen, "')' after Some value")?;
+            return Ok(Expr::Some {
+                value: Box::new(value),
+            });
+        }
+        if self.check(TokenKind::Identifier) && self.peek().lexeme == "None" {
+            self.advance();
+            return Ok(Expr::None);
         }
         if self.matches(TokenKind::Identifier) {
             let name = self.previous().lexeme.clone();
