@@ -96,6 +96,18 @@ The first pass does not need to support:
 
 Those can be added after the I64 payload foundation is proven.
 
+## Test Strategy
+
+The branch starts with ignored executable compiler tests in:
+
+- `tests/compiler_result_option_foundation.rs`
+
+These tests define the intended behaviour and must be unignored one by one as
+the compiler foundation becomes real.
+
+Ignored tests are not a way to hide failure. They are a visible backlog of
+contract targets for this branch.
+
 ## Definition of Done
 
 This branch is complete when the following are green:
