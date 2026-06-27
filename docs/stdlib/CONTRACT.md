@@ -231,24 +231,37 @@ support compatibility checks. Stage 0 does not enforce these fields yet; this
 section records the intended policy so future validators and CI can implement it
 without changing the meaning of existing `version = 0` contracts.
 
+Current Stage 0 tooling can emit advisory SHA-256 evidence for each contract
+sidecar and its paired `.ldx` source file:
+
+    python3 tools/verify_stdlib_contracts.py --emit-hashes
+
+This output is for review and drift investigation only. It is not yet a schema
+field, compatibility promise, or security guarantee.
+
 ---
 
 ## 6. Validation Modes
 
-The contract harness (`tools/verify_stdlib_contracts.py`) supports two validation modes:
+The contract harness (`tools/verify_stdlib_contracts.py`) supports three validation modes:
 
     1. Plain Validation (Default):
        Validates metadata schema, layer rules, export completeness, and static constraints.
        Command: python3 tools/verify_stdlib_contracts.py
 
-    2. Run Cases Validation:
+    2. Hash Evidence:
+       Performs plain validation and prints advisory SHA-256 hashes for each
+       `.std.toml` sidecar and paired `.ldx` source file.
+       Command: python3 tools/verify_stdlib_contracts.py --emit-hashes
+
+    3. Run Cases Validation:
        Performs plain validation PLUS compiles and runs each `[[cases]]` expression
        through Logicodex, comparing the bounded stdout against `expect_i64`.
        Command: python3 tools/verify_stdlib_contracts.py --run-cases
 
-In CI, both modes are exercised: the quick plain validation runs during the `check` job,
-while the full `--run-cases` validation runs during the `test` job against the compiled
-release binary.
+In CI, plain validation runs during the `check` job, while full `--run-cases`
+validation runs during the `test` job against the compiled release binary. Hash
+evidence is available for local review and drift investigation.
 
 ---
 
@@ -474,10 +487,11 @@ The contract validator is located at `tools/verify_stdlib_contracts.py`.
 
 Usage:
 
-    python3 tools/verify_stdlib_contracts.py [contracts...] [--run-cases] [--bin BIN]
+    python3 tools/verify_stdlib_contracts.py [contracts...] [--emit-hashes] [--run-cases] [--bin BIN]
 
 Arguments:
 - `contracts`: Optional list of contract files to verify. Defaults to `lib/**/*.std.toml`.
+- `--emit-hashes`: Print advisory SHA-256 evidence for each contract and paired source file.
 - `--run-cases`: Compile and run each `[[cases]]` expression through Logicodex and compare bounded stdout.
 - `--bin`: Path to a prebuilt logicodex binary. Defaults to `target/debug/logicodex`, `target/release/logicodex`, then `cargo run`.
 
