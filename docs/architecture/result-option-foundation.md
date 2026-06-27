@@ -113,6 +113,11 @@ and stdout behaviour. Process exit-code normalization is tracked separately
 because generated executables can currently emit correct output while returning
 a nonzero process status.
 
+Result<I64, I64> return payload foundation is allowed as an intermediate
+compiler step: `Ok(x)` and `Err(x)` may lower to the `i64` payload while full
+tagged layout and match destructuring remain pending. This must not be presented
+as complete `Result<T, E>` semantics.
+
 ## Definition of Done
 
 This branch is complete when the following are green:

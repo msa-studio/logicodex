@@ -1644,6 +1644,15 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
         ast::Type::Pointer(inner) => TypeAst::Pointer(Box::new(lower_type_ast(*inner))),
         ast::Type::String => TypeAst::Named("String".to_string()),
         ast::Type::Named(n) => TypeAst::Named(n),
+        // Foundation pass: Result<I64, I64> is represented as its i64 payload.
+        //
+        // This is intentionally not the final tagged Result<T, E> layout. It
+        // only proves that Result-returning functions no longer collapse to
+        // Unit/void while the full tag + match foundation is built.
+        ast::Type::Result { ok, err } => match (*ok, *err) {
+            (ast::Type::I64, ast::Type::I64) => TypeAst::Named("i64".to_string()),
+            _ => TypeAst::Unit,
+        },
         // A Channel<From, To, Msg> handle is an i64 (ABI-1 by-handle). As an
         // actor capture parameter type it lowers to i64 so the param matches the
         // handle value flowing through ctx. The From/To/Msg type-level metadata
@@ -1915,6 +1924,12 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             base: Box::new(lower_expr_ast(*base)),
             field,
         },
+        // Foundation pass: Ok(x) / Err(x) lower to their payload expression.
+        //
+        // This proves Result<I64, I64> return payload flow before the full tagged
+        // Result layout and match destructuring are implemented.
+        ast::Expr::Ok { value } => lower_expr_ast(*value),
+        ast::Expr::Err { value } => lower_expr_ast(*value),
         ast::Expr::EnumVariant { enum_name, variant } => {
             ExprAst::EnumVariant { enum_name, variant }
         }

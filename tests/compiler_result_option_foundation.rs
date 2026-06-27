@@ -105,7 +105,6 @@ fn enum_variants_have_deterministic_i64_tags() {
 }
 
 #[test]
-#[ignore = "foundation target: Result<I64, I64> return type and Ok constructor"]
 fn result_i64_i64_return_ok_payload() {
     let got = compile_and_run(
         "result_return_ok",
@@ -119,7 +118,6 @@ fn result_i64_i64_return_ok_payload() {
 }
 
 #[test]
-#[ignore = "foundation target: Result<I64, I64> return type and Err constructor"]
 fn result_i64_i64_return_err_payload() {
     let got = compile_and_run(
         "result_return_err",
