@@ -14,6 +14,7 @@ binary, and compares bounded stdout against expect_i64.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import subprocess
@@ -110,6 +111,21 @@ def contains_forbidden_feature(source: str, feature: str) -> bool:
 def contract_to_source_path(contract_path: Path, module_name: str) -> Path:
     module_leaf = module_name.split(".")[-1]
     return contract_path.with_name(f"{module_leaf}.ldx")
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def emit_contract_hashes(contract_path: Path, data: dict[str, Any]) -> None:
+    module_name = data["module"]["name"]
+    source_path = contract_to_source_path(contract_path, module_name)
+
+    print(f"HASH {contract_path.relative_to(REPO_ROOT)}")
+    print(f"  module: {module_name}")
+    print(f"  contract_sha256: {sha256_file(contract_path)}")
+    print(f"  source: {source_path.relative_to(REPO_ROOT)}")
+    print(f"  source_sha256: {sha256_file(source_path)}")
 
 
 def logicodex_command(binary: Path | None) -> list[str]:
@@ -235,7 +251,7 @@ def run_contract_cases(path: Path, data: dict[str, Any], command: list[str]) -> 
         )
 
 
-def validate_contract(path: Path, *, run_cases: bool, command: list[str]) -> None:
+def validate_contract(path: Path, *, run_cases: bool, emit_hashes: bool, command: list[str]) -> None:
     data = load_toml(path)
 
     assert_exact_keys("top-level", set(data.keys()), EXPECTED_TOP_LEVEL)
@@ -338,6 +354,9 @@ def validate_contract(path: Path, *, run_cases: bool, command: list[str]) -> Non
     print(f"  exports: {', '.join(sorted(declared_exports))}")
     print(f"  cases: {len(cases)}")
 
+    if emit_hashes:
+        emit_contract_hashes(path, data)
+
     if run_cases:
         run_contract_cases(path, data, command)
 
@@ -360,6 +379,11 @@ def main() -> int:
         default=None,
         help="Path to a prebuilt logicodex binary. Defaults to target/debug, target/release, then cargo run.",
     )
+    parser.add_argument(
+        "--emit-hashes",
+        action="store_true",
+        help="Print SHA-256 hashes for each contract sidecar and paired .ldx source file",
+    )
     args = parser.parse_args()
 
     if args.contracts:
@@ -377,7 +401,7 @@ def main() -> int:
     for path in paths:
         path = path.resolve()
         try:
-            validate_contract(path, run_cases=args.run_cases, command=command)
+            validate_contract(path, run_cases=args.run_cases, emit_hashes=args.emit_hashes, command=command)
         except ContractError as exc:
             failed = True
             print(f"FAIL {path.relative_to(REPO_ROOT)}: {exc}", file=sys.stderr)
