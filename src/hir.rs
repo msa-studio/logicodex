@@ -187,6 +187,10 @@ pub enum TypeAst {
         ok: Box<TypeAst>,
         err: Box<TypeAst>,
     },
+    /// Semantic Option identity. Codegen may still lower this to i64 ABI.
+    Option {
+        some: Box<TypeAst>,
+    },
     Unit,
 }
 
@@ -1575,6 +1579,10 @@ impl<'a> LoweringContext<'a> {
                     err: err.id,
                 })
             }
+            TypeAst::Option { some } => {
+                let some = self.lower_type(*some);
+                self.types.intern(TypeKind::Option { some: some.id })
+            }
             TypeAst::Unit => self.types.primitive(PrimitiveType::Unit),
         };
         TypeRef { id }
@@ -1700,6 +1708,9 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
         ast::Type::Result { ok, err } => TypeAst::Result {
             ok: Box::new(lower_type_ast(*ok)),
             err: Box::new(lower_type_ast(*err)),
+        },
+        ast::Type::Option { some } => TypeAst::Option {
+            some: Box::new(lower_type_ast(*some)),
         },
         // A Channel<From, To, Msg> handle is an i64 (ABI-1 by-handle). As an
         // actor capture parameter type it lowers to i64 so the param matches the

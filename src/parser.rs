@@ -774,6 +774,17 @@ impl Parser {
                 err: Box::new(err),
             });
         }
+        // Option type syntax: Option<T>. Option is currently accepted as a
+        // canonical identifier so lexer vocabulary can remain backward-safe.
+        if self.check(TokenKind::Identifier) && self.peek().lexeme == "Option" {
+            self.advance();
+            self.consume(TokenKind::Less, "'<' after 'Option'")?;
+            let some = self.parse_type()?;
+            self.consume(TokenKind::Greater, "'>' after Option type")?;
+            return Ok(Type::Option {
+                some: Box::new(some),
+            });
+        }
         // Ketuk 3: File Handle ABI — Opaque types
         if self.matches(TokenKind::FileHandle) {
             return Ok(Type::Opaque {

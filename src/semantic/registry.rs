@@ -162,6 +162,9 @@ impl<'a> TypeInspector<'a> {
             TypeKind::Result { ok, err } => {
                 format!("Result<{}, {}>", self.type_name(*ok), self.type_name(*err))
             }
+            TypeKind::Option { some } => {
+                format!("Option<{}>", self.type_name(*some))
+            }
             TypeKind::Array { element, len } => {
                 format!("[{}; {}]", self.type_name(*element), len)
             }
@@ -190,6 +193,10 @@ impl<'a> TypeInspector<'a> {
             }
             TypeKind::Result { .. } => Err(
                 "Result types in FFI require an explicit ABI contract before crossing FFI"
+                    .to_string(),
+            ),
+            TypeKind::Option { .. } => Err(
+                "Option types in FFI require an explicit ABI contract before crossing FFI"
                     .to_string(),
             ),
             TypeKind::Never => Err("Never type cannot be used in FFI".to_string()),
