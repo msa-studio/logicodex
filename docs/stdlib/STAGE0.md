@@ -34,9 +34,9 @@ is_even(n)             (n & 1) == 0  -> 1 / 0
 is_odd(n)              (n & 1) != 0  -> 1 / 0
 ```
 
-There is no `%` (modulo) operator in the language, so `is_even` / `is_odd` use
-the bitwise `& 1` form. The boolean-style predicates return `I64` 1/0 so they
-`PAPAR` directly.
+The `%` modulo operator is now available. `is_even` and `is_odd` currently still use
+the bitwise `& 1` form because it is simple, deterministic, and bare-compatible.
+The boolean-style predicates return `I64` 1/0 so they `PAPAR` directly.
 
 ### `core.assert` (`lib/core/assert.ldx`)
 
@@ -44,7 +44,9 @@ Pure assertion predicates, `-> I64` (1 = true, 0 = false), no abort.
 
 ```
 eq_i64(a, b)            1 when a == b
+not_eq_i64(a, b)        1 when a != b
 is_true(x)             1 when x is non-zero
+is_false(x)            1 when x is zero
 ```
 
 A hard aborting assert needs `std` (profile-gated exit/panic) and is deferred to
@@ -83,7 +85,9 @@ single-file legacy examples still pass; no extern C; no logicodex.toml needed
 `core.assert` (tests/stdlib_core_assert.rs):
 ```
 eq_i64(5,5)=1  eq_i64(5,6)=0
+not_eq_i64(3,7)=1  not_eq_i64(5,5)=0
 is_true(1)=1  is_true(0)=0  is_true(-3)=1
+is_false(0)=1  is_false(9)=0
 cross-module dogfood: eq_i64(abs_i64(-5), 5)=1
 ```
 

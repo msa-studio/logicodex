@@ -100,11 +100,8 @@ may come later as documentation/aliases, never as the internal canonical name.
 
 ### `core.math`
 
-Pure integer/logic helpers built from existing primitives. There is **no `%`
-(modulo)** operator in the language, so `is_even` / `is_odd` use the bitwise
-`& 1` form. There is also no `^` (BitXor) yet — irrelevant for these functions.
+Pure integer/logic helpers built from existing primitives. The `%` modulo operator is now available. `core.math.is_even` and `core.math.is_odd` currently still use bitwise `& 1` because it is simple, deterministic, and bare-compatible. BitXor `^` is available as an operator. `core.bits` remains a future module.
 
-First wave (build + prove these before the rest):
 ```
 abs_i64(n)             |n|
 min_i64(a, b)
@@ -114,13 +111,14 @@ sign_i64(n)            -1 / 0 / 1
 pow_i64(base, exp)     integer power (exp >= 0)
 is_even(n)            (n & 1) == 0
 is_odd(n)             (n & 1) != 0
-```
-
-Second wave (after the first wave passes — more edge cases):
-```
+factorial_i64(n)
 gcd_i64(a, b)
 lcm_i64(a, b)
-factorial_i64(n)
+square_i64(n)
+cube_i64(n)
+is_positive(n)
+is_negative(n)
+between_i64(x, lo, hi)
 ```
 
 ### `core.assert`

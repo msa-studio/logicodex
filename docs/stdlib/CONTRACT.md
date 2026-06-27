@@ -335,9 +335,7 @@ Only these modules are official active stdlib modules in Stage 0:
     core.math
     core.assert
 
-Everything else under lib/core, lib/std, or lib/framework must be treated as
-draft, archived proposal, reserved, or non-stdlib infrastructure until it has a
-contract.
+Other files under `lib/core/`, such as `result.ldx`, `file.ldx`, `io_error.ldx`, `memori.ldx`, `ring_buffer.ldx`, `scheduler.ldx`, `sync.ldx`, `thread.ldx`, `gate.ldx`, `capability.ldx`, and `shard_manifest.ldx`, are design/future/reference modules unless they have an active `.std.toml` sidecar and green oracle cases. They must not be presented as stable active stdlib APIs yet.
 
 ---
 
