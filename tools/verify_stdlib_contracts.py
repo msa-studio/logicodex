@@ -60,6 +60,18 @@ OFFICIAL_LAYERS = {"core", "std", "framework"}
 
 CORE_FORBIDDEN_FEATURES = {"extern", "malloc", "free", "file", "network", "syscall"}
 
+# ContractVerified Stage 0 modules. Older lib/core/*.ldx files that are not
+# listed here remain LegacyUnverified and are intentionally not treated as
+# Stage 0 contract failures.
+STAGE0_CORE_MODULES = {
+    "assert",
+    "bits",
+    "bool",
+    "compare",
+    "math",
+    "range",
+}
+
 
 class ContractError(Exception):
     pass
@@ -251,6 +263,30 @@ def run_contract_cases(path: Path, data: dict[str, Any], command: list[str]) -> 
         )
 
 
+def stage0_core_sources() -> list[Path]:
+    return sorted((STDLIB_ROOT / "core").glob("*.ldx"))
+
+
+def stage0_core_contracts() -> list[Path]:
+    return sorted((STDLIB_ROOT / "core").glob("*.std.toml"))
+
+
+def validate_stage0_pairing() -> None:
+    source_names = {path.stem for path in stage0_core_sources()}
+    contract_names = {path.name.removesuffix(".std.toml") for path in stage0_core_contracts()}
+
+    missing_stage0_source = sorted(STAGE0_CORE_MODULES - source_names)
+    missing_stage0_contract = sorted(STAGE0_CORE_MODULES - contract_names)
+    missing_source_for_contract = sorted(contract_names - source_names)
+
+    if missing_stage0_source:
+        raise ContractError(f"Stage 0 module missing source file: {missing_stage0_source}")
+    if missing_stage0_contract:
+        raise ContractError(f"Stage 0 module missing contract sidecar: {missing_stage0_contract}")
+    if missing_source_for_contract:
+        raise ContractError(f"contract sidecar missing source file: {missing_source_for_contract}")
+
+
 def validate_contract(path: Path, *, run_cases: bool, emit_hashes: bool, command: list[str]) -> None:
     data = load_toml(path)
 
@@ -263,6 +299,8 @@ def validate_contract(path: Path, *, run_cases: bool, emit_hashes: bool, command
     cases = data.get("cases")
     if not isinstance(cases, list):
         raise ContractError("[[cases]] must exist as a list")
+    if not cases:
+        raise ContractError("[[cases]] must contain at least one run-case")
     for index, case in enumerate(cases):
         if not isinstance(case, dict):
             raise ContractError(f"case #{index}: must be a table")
@@ -389,6 +427,11 @@ def main() -> int:
     if args.contracts:
         paths = [Path(p) for p in args.contracts]
     else:
+        try:
+            validate_stage0_pairing()
+        except ContractError as exc:
+            print(f"FAIL Stage 0 pairing: {exc}", file=sys.stderr)
+            return 1
         paths = sorted(STDLIB_ROOT.glob("**/*.std.toml"))
 
     if not paths:
