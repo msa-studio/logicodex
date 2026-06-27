@@ -137,10 +137,10 @@ fn result_i64_i64_match_unwrap_or() {
         "result_match_unwrap_or",
         "public function unwrap_or_i64(x: Result<I64, I64>, fallback: I64) -> I64 begin\n\
              match x begin\n\
-                 Ok(v) begin\n\
+                 Ok(v) => begin\n\
                      return v;\n\
-                 end\n\
-                 Err(e) begin\n\
+                 end,\n\
+                 Err(e) => begin\n\
                      return fallback;\n\
                  end\n\
              end\n\
