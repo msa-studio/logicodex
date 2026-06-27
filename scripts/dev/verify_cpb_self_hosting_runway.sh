@@ -12,6 +12,7 @@ git diff --check
 echo "---------->>> REQUIRED DOCS"
 test -f docs/architecture/cpb-self-hosting-runway.md
 test -f docs/architecture/compiler-subset.md
+test -f docs/architecture/stdlib-core-design-doctrine.md
 test -f docs/stdlib_stage0.md
 test -f docs/stdlib_contract_versioning.md
 test -f docs/architecture/stdlib-migration-status.md
@@ -31,6 +32,12 @@ grep -q "P1-B2: Option/Result/Error" docs/architecture/compiler-subset.md
 grep -q "P1-B5: File/IO" docs/architecture/compiler-subset.md
 grep -q "Package Manager Hold Rule" docs/architecture/compiler-subset.md
 grep -q "Real Development Tools Gate" docs/architecture/compiler-subset.md
+grep -q "Canonical Modern API Rule" docs/architecture/stdlib-core-design-doctrine.md
+grep -q "Legacy Compatibility Rule" docs/architecture/stdlib-core-design-doctrine.md
+grep -q "Backward Compatibility Rule" docs/architecture/stdlib-core-design-doctrine.md
+grep -q "Self-Hosting Priority Rule" docs/architecture/stdlib-core-design-doctrine.md
+grep -q "Package Manager Hold Rule" docs/architecture/stdlib-core-design-doctrine.md
+grep -q "Development Tools Hold Rule" docs/architecture/stdlib-core-design-doctrine.md
 grep -q "First Proof Programs" docs/architecture/compiler-subset.md
 grep -q "token classifier" docs/architecture/compiler-subset.md
 grep -q "module path normalizer" docs/architecture/compiler-subset.md
@@ -42,6 +49,7 @@ echo "OK: required CPB terms present"
 echo "---------->>> README POINTER"
 grep -q "cpb-self-hosting-runway.md" README.md
 grep -q "compiler-subset.md" README.md
+grep -q "stdlib-core-design-doctrine.md" README.md
 echo "OK: README points to CPB runway"
 
 echo "---------->>> STAGE0 REGRESSION"
