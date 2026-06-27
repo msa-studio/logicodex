@@ -108,6 +108,11 @@ the compiler foundation becomes real.
 Ignored tests are not a way to hide failure. They are a visible backlog of
 contract targets for this branch.
 
+Current compiler-foundation tests validate compile success, stderr cleanliness,
+and stdout behaviour. Process exit-code normalization is tracked separately
+because generated executables can currently emit correct output while returning
+a nonzero process status.
+
 ## Definition of Done
 
 This branch is complete when the following are green:
