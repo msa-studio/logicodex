@@ -159,6 +159,9 @@ impl<'a> TypeInspector<'a> {
             }
             TypeKind::Struct(_) => "struct".to_string(),
             TypeKind::Enum(_) => "enum".to_string(),
+            TypeKind::Result { ok, err } => {
+                format!("Result<{}, {}>", self.type_name(*ok), self.type_name(*err))
+            }
             TypeKind::Array { element, len } => {
                 format!("[{}; {}]", self.type_name(*element), len)
             }
@@ -185,6 +188,10 @@ impl<'a> TypeInspector<'a> {
             TypeKind::Enum(_) => {
                 Err("Enum types in FFI require explicit representation (Sprint 3)".to_string())
             }
+            TypeKind::Result { .. } => Err(
+                "Result types in FFI require an explicit ABI contract before crossing FFI"
+                    .to_string(),
+            ),
             TypeKind::Never => Err("Never type cannot be used in FFI".to_string()),
             TypeKind::Unknown => Err("Unknown type cannot be used in FFI".to_string()),
         }

@@ -172,6 +172,12 @@ pub enum TypeAst {
     Named(String),
     Pointer(Box<TypeAst>),
     Array { element: Box<TypeAst>, len: usize },
+    /// Semantic Result identity. Codegen may still lower this to i64 ABI, but
+    /// HIR keeps the meaning for match lowering and diagnostics.
+    Result {
+        ok: Box<TypeAst>,
+        err: Box<TypeAst>,
+    },
     Unit,
 }
 
@@ -1524,6 +1530,14 @@ impl<'a> LoweringContext<'a> {
                     len,
                 })
             }
+            TypeAst::Result { ok, err } => {
+                let ok = self.lower_type(*ok);
+                let err = self.lower_type(*err);
+                self.types.intern(TypeKind::Result {
+                    ok: ok.id,
+                    err: err.id,
+                })
+            }
             TypeAst::Unit => self.types.primitive(PrimitiveType::Unit),
         };
         TypeRef { id }
@@ -1644,14 +1658,11 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
         ast::Type::Pointer(inner) => TypeAst::Pointer(Box::new(lower_type_ast(*inner))),
         ast::Type::String => TypeAst::Named("String".to_string()),
         ast::Type::Named(n) => TypeAst::Named(n),
-        // Foundation pass: Result<I64, I64> is represented as its i64 payload.
-        //
-        // This is intentionally not the final tagged Result<T, E> layout. It
-        // only proves that Result-returning functions no longer collapse to
-        // Unit/void while the full tag + match foundation is built.
-        ast::Type::Result { ok, err } => match (*ok, *err) {
-            (ast::Type::I64, ast::Type::I64) => TypeAst::Named("i64".to_string()),
-            _ => TypeAst::Unit,
+        // Preserve semantic Result identity for diagnostics and future
+        // match destructuring. Codegen currently maps this to scalar i64 ABI.
+        ast::Type::Result { ok, err } => TypeAst::Result {
+            ok: Box::new(lower_type_ast(*ok)),
+            err: Box::new(lower_type_ast(*err)),
         },
         // A Channel<From, To, Msg> handle is an i64 (ABI-1 by-handle). As an
         // actor capture parameter type it lowers to i64 so the param matches the

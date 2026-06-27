@@ -56,6 +56,13 @@ pub enum TypeKind {
     },
     Struct(StructLayoutId),
     Enum(EnumLayoutId),
+    /// Semantic Result identity. Initial ABI lowering is scalar i64 for
+    /// Result<I64, I64>, but the type identity is preserved for diagnostics,
+    /// match lowering, and future LDX-DIP debugging metadata.
+    Result {
+        ok: TypeId,
+        err: TypeId,
+    },
     Array {
         element: TypeId,
         len: usize,
@@ -410,6 +417,7 @@ impl TypeRegistry {
                 // Sprint 2.5: Enum layout not yet implemented
                 panic!("TypeRegistry::get_size for Enum not yet implemented (Sprint 2.5)")
             }
+            TypeKind::Result { .. } => 8, // transitional scalar ABI for Result<I64, I64>
             TypeKind::Array { element, len } => self.get_size(*element) * len,
             TypeKind::Function(_) => 8, // function pointer size
             TypeKind::Never => 0,
@@ -452,6 +460,7 @@ impl TypeRegistry {
                 // Sprint 2.5: Enum layout not yet implemented
                 panic!("TypeRegistry::get_align for Enum not yet implemented (Sprint 2.5)")
             }
+            TypeKind::Result { .. } => 8, // transitional scalar ABI alignment
             TypeKind::Array { element, .. } => self.get_align(*element),
             TypeKind::Function(_) => 8,
             TypeKind::Never => 1,

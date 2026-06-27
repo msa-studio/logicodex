@@ -137,6 +137,10 @@ impl<'a> LayoutEngine<'a> {
                 self.target.pointer_size_bytes,
                 self.target.pointer_alignment_bytes,
             )),
+            Some(TypeKind::Result { .. }) => Ok((
+                self.target.pointer_size_bytes,
+                self.target.pointer_alignment_bytes,
+            )),
             Some(TypeKind::Array { element, len }) => {
                 let (element_size, element_align) = self.size_and_align(*element, span)?;
                 Ok((element_size.saturating_mul(*len), element_align))
