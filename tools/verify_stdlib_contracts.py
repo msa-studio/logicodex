@@ -314,7 +314,7 @@ def validate_contract(path: Path, *, run_cases: bool, emit_hashes: bool, command
     capabilities = data["capabilities"]
 
     if contract["version"] != 0:
-        raise ContractError("contract.version must be 0 for Stage 0")
+        raise ContractError("contract.version must be 0 for current stdlib contract schema")
 
     module_name = module["name"]
     layer = module["layer"]
@@ -325,8 +325,16 @@ def validate_contract(path: Path, *, run_cases: bool, emit_hashes: bool, command
     if not isinstance(module_name, str) or not module_name.startswith(f"{layer}."):
         raise ContractError("module.name must start with '<layer>.'")
 
-    if module["stage"] != 0:
-        raise ContractError("module.stage must be 0 for Stage 0")
+    stage = module["stage"]
+    if not isinstance(stage, int) or stage < 0:
+        raise ContractError("module.stage must be a non-negative integer")
+
+    # Stage 0 completed modules are a compatibility baseline. New contract-backed
+    # modules may use later stages, but these baseline modules must not drift.
+    if layer == "core":
+        short_name = module_name.removeprefix("core.")
+        if short_name in STAGE0_CORE_MODULES and stage != 0:
+            raise ContractError(f"{module_name} is a Stage 0 baseline module and must keep module.stage = 0")
 
     if not isinstance(exports["functions"], list) or not all(isinstance(x, str) for x in exports["functions"]):
         raise ContractError("exports.functions must be a list of strings")
@@ -373,7 +381,7 @@ def validate_contract(path: Path, *, run_cases: bool, emit_hashes: bool, command
         if set(forbidden_imports) < {"std.*", "framework.*"}:
             raise ContractError("core.* modules must forbid std.* and framework.*")
         if capabilities["requires"] != []:
-            raise ContractError("core.* Stage 0 modules must require no capabilities")
+            raise ContractError("core.* contract-verified modules must require no capabilities")
 
     for feature in constraints["forbidden_features"]:
         if feature in CORE_FORBIDDEN_FEATURES and contains_forbidden_feature(source, feature):
