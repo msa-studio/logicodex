@@ -1020,6 +1020,28 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 self.wrap_to_width(result, expr.ty)
             }
             HirExprKind::Call { callee, args } => self.emit_hir_call(*callee, args, func, expr.ty),
+            HirExprKind::ResultOk { value } => {
+                let payload = self.emit_hir_expr(value, func)?;
+                let one = self.i64_type.const_int(1, false);
+                let shifted = self
+                    .builder
+                    .build_left_shift(payload, one, "result_ok_payload")
+                    .context("result ok payload shift")?;
+                let encoded = self
+                    .builder
+                    .build_or(shifted, one, "result_ok_tagged")
+                    .context("result ok tag")?;
+                Ok(encoded)
+            }
+            HirExprKind::ResultErr { value } => {
+                let payload = self.emit_hir_expr(value, func)?;
+                let one = self.i64_type.const_int(1, false);
+                let encoded = self
+                    .builder
+                    .build_left_shift(payload, one, "result_err_tagged")
+                    .context("result err payload shift")?;
+                Ok(encoded)
+            }
             HirExprKind::Field { base, field_index } => {
                 let base_val = self.emit_hir_expr(base, func)?;
                 let layout = match self.types.as_ref() {

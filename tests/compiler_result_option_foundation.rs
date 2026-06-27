@@ -108,10 +108,20 @@ fn enum_variants_have_deterministic_i64_tags() {
 fn result_i64_i64_return_ok_payload() {
     let got = compile_and_run(
         "result_return_ok",
-        "public function good() -> Result<I64, I64> begin\n\
+        "public function unwrap_or_i64(x: Result<I64, I64>, fallback: I64) -> I64 begin\n\
+             match x begin\n\
+                 Ok(v) => begin\n\
+                     return v;\n\
+                 end,\n\
+                 Err(e) => begin\n\
+                     return fallback;\n\
+                 end\n\
+             end\n\
+         end\n\
+         public function good() -> Result<I64, I64> begin\n\
              return Ok(42);\n\
          end\n\
-         PAPAR good();\n",
+         PAPAR unwrap_or_i64(good(), 9);\n",
     );
 
     assert_eq!(got, vec!["42"]);
@@ -121,17 +131,26 @@ fn result_i64_i64_return_ok_payload() {
 fn result_i64_i64_return_err_payload() {
     let got = compile_and_run(
         "result_return_err",
-        "public function bad() -> Result<I64, I64> begin\n\
+        "public function unwrap_err_or_i64(x: Result<I64, I64>, fallback: I64) -> I64 begin\n\
+             match x begin\n\
+                 Ok(v) => begin\n\
+                     return fallback;\n\
+                 end,\n\
+                 Err(e) => begin\n\
+                     return e;\n\
+                 end\n\
+             end\n\
+         end\n\
+         public function bad() -> Result<I64, I64> begin\n\
              return Err(7);\n\
          end\n\
-         PAPAR bad();\n",
+         PAPAR unwrap_err_or_i64(bad(), 9);\n",
     );
 
     assert_eq!(got, vec!["7"]);
 }
 
 #[test]
-#[ignore = "foundation target: match destructuring for Ok(v) and Err(e)"]
 fn result_i64_i64_match_unwrap_or() {
     let got = compile_and_run(
         "result_match_unwrap_or",
