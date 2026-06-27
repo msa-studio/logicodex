@@ -18,6 +18,7 @@ InvalidContract
 ```
 
 ## ContractVerified
+- `core.text` — CPB Phase 1 empty/non-empty text predicates, stage 1 contract-backed.
 
 `ContractVerified` means the module follows the Stage 0 contract-backed pattern:
 
