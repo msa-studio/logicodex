@@ -260,11 +260,22 @@ impl Parser {
             .lexeme
             .clone();
         // Dotted module paths: `import core.math;` -> module = "core.math".
+        //
+        // `result` is a reserved type keyword, but it is also the canonical
+        // stdlib module leaf in `core.result`. Accept it only as a dotted module
+        // segment so keyword semantics elsewhere remain unchanged.
         while self.matches(TokenKind::Dot) {
-            let seg = self
-                .consume(TokenKind::Identifier, "module path segment after '.'")?
-                .lexeme
-                .clone();
+            let seg = if self.check(TokenKind::Identifier) || self.check(TokenKind::Result) {
+                self.advance().lexeme.clone()
+            } else {
+                let tok = self.peek();
+                return Err(ParseError::Expected {
+                    expected: "module path segment after '.'".to_string(),
+                    found: tok.lexeme.clone(),
+                    line: tok.line,
+                    column: tok.column,
+                });
+            };
             module.push('.');
             module.push_str(&seg);
         }

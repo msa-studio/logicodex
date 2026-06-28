@@ -1,62 +1,55 @@
-// =========================================================================
-// Logicodex v1.30 — Ketuk 2: Result<T, E> Abstraction
+// core.result -- typed Result<I64, I64> helpers (CPB Phase 1 / Stdlib Stage 1).
 //
-// Semua operasi IO mesti return Result<T, IoError>.
-// Developer mesti handle error — tak boleh ignore.
+// This module replaces the older aspirational generic Result<T, E> sketch with
+// a small contract-backed API proven by the current compiler foundation:
+// - Result<I64, I64>
+// - Ok(v) / Err(e) constructors
+// - match Ok(v) / Err(e) destructuring
 //
-// Syntax:
-//   function read_file(path: []u8) -> Result<[]u8, IoError>
-//
-//   match read_file("/data.txt") {
-//     Ok(data) => process(data),
-//     Err(e)   => print(e.message)
-//   }
-// =========================================================================
+// Generic Result<T, E>, map/and_then, expect/panic, String errors, IO errors,
+// and higher-order function payloads are intentionally deferred until the
+// compiler proves those semantics end to end.
 
-// ─── unwrap_or ───
-// Ambil nilai Ok, atau return default jika Err.
-function unwrap_or<T, E>(r: Result<T, E>, default: T) -> T {
-    match r {
-        Ok(v) => v,
-        Err(_) => default
-    }
-}
+public function unwrap_or_i64(x: Result<I64, I64>, fallback: I64) -> I64 begin
+    match x begin
+        Ok(v) => begin
+            return v;
+        end,
+        Err(e) => begin
+            return fallback;
+        end
+    end
+end
 
-// ─── expect ───
-// Ambil nilai Ok, atau panic dengan mesej jika Err.
-function expect<T, E>(r: Result<T, E>, message: []u8) -> T {
-    match r {
-        Ok(v) => v,
-        Err(e) => {
-            print(message)
-            panic("Result::expect failed")
-        }
-    }
-}
+public function unwrap_err_or_i64(x: Result<I64, I64>, fallback: I64) -> I64 begin
+    match x begin
+        Ok(v) => begin
+            return fallback;
+        end,
+        Err(e) => begin
+            return e;
+        end
+    end
+end
 
-// ─── is_ok ───
-// Check jika Result adalah Ok.
-function is_ok<T, E>(r: Result<T, E>) -> bool {
-    match r {
-        Ok(_) => true,
-        Err(_) => false
-    }
-}
+public function is_ok_i64(x: Result<I64, I64>) -> I64 begin
+    match x begin
+        Ok(v) => begin
+            return 1;
+        end,
+        Err(e) => begin
+            return 0;
+        end
+    end
+end
 
-// ─── is_err ───
-// Check jika Result adalah Err.
-function is_err<T, E>(r: Result<T, E>) -> bool {
-    match r {
-        Ok(_) => false,
-        Err(_) => true
-    }
-}
-
-// ─── map ───
-// Transform Ok value dengan fungsi.
-function map<T, U, E>(r: Result<T, E>, f: fn(T) -> U) -> Result<U, E> {
-    match r {
-        Ok(v) => Ok(f(v)),
-        Err(e) => Err(e)
-    }
-}
+public function is_err_i64(x: Result<I64, I64>) -> I64 begin
+    match x begin
+        Ok(v) => begin
+            return 0;
+        end,
+        Err(e) => begin
+            return 1;
+        end
+    end
+end

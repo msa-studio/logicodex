@@ -94,6 +94,12 @@ Priority order:
 
 Each module must follow the Stage 0 contract pattern before it is trusted.
 
+Progress: `core.prelude`, `core.text`, `core.option`, and `core.result` now
+ship a Stage 1 contract-backed slice following this pattern. `core.prelude`
+is explicit-import only, `core.option` = `Option<I64>`, and `core.result` =
+`Result<I64, I64>`. The remaining modules and the generic / wider-payload
+surface are still pending.
+
 ### CPB-3: Compiler API Freeze Boundary
 
 Goal: freeze the public Rust-side compiler APIs that a future Logicodex compiler
@@ -184,3 +190,21 @@ CPB foundation is ready for self-hosting experiments only when:
 - diagnostics are stable enough for compiler programs
 - module/import behavior is regression-tested
 - at least three compiler-shaped programs compile and run
+
+### Collections and IO Blocker Status
+
+Block 161 established that CPB Phase 1 Collections and High-level IO are not ready for implementation as normal stdlib modules yet.
+
+Collections are `DeferredBlockedByCompiler`:
+
+- array literal / fixed-array syntax is not supported by the current parser path
+- Buffer declaration has no proven initialization path
+- slice parameter syntax compiles, but slice construction and round-trip behaviour are not proven
+
+High-level IO is `DeferredBlockedByRuntimeCapability`:
+
+- `PAPAR` is statement-only and not callable
+- legacy `core.file` and `core.io_error` do not import cleanly
+- `Result<T, IoError>` is not part of the current proven Result foundation
+
+CPB Phase 1 must not fake these APIs. The next valid work is to either design generic compiler/runtime capability support or keep these blockers documented until such support exists.
