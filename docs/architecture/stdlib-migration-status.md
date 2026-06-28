@@ -19,6 +19,8 @@ InvalidContract
 
 ## ContractVerified
 - `core.text` — CPB Phase 1 empty/non-empty text predicates, stage 1 contract-backed.
+- `core.option` — CPB Phase 1 `Option<I64>` predicates/unwrap (`is_some_i64`, `is_none_i64`, `unwrap_or_i64`), stage 1 contract-backed.
+- `core.result` — CPB Phase 1 `Result<I64, I64>` predicates/unwrap (`is_ok_i64`, `is_err_i64`, `unwrap_or_i64`, `unwrap_err_or_i64`), stage 1 contract-backed. Replaces the older generic `Result<T, E>` sketch.
 
 `ContractVerified` means the module follows the Stage 0 contract-backed pattern:
 
@@ -212,7 +214,6 @@ not functioning for stdlib trust purposes:
 - `core.file`
 - `core.io_error`
 - `core.memori`
-- `core.result`
 - `core.ring_buffer`
 - `core.scheduler`
 - `core.shard_manifest`
@@ -226,6 +227,10 @@ Policy:
 - Rebuild or migrate them later according to roadmap priority and subsystem
   owner.
 
+> Note: `core.result` was previously listed here as LegacyNotFunctioning. It has
+> since been rebuilt as a Stage 1 ContractVerified module (`Result<I64, I64>`)
+> and is no longer legacy.
+
 ### Static Function Surface Notes
 
 Static inventory found no legacy public functions outside the ContractVerified
@@ -236,7 +241,6 @@ Observed static states:
 - `LegacyNoFunctions`
   - `core.capability`
   - `core.gate`
-  - `core.result`
   - `core.ring_buffer`
   - `core.shard_manifest`
   - `core.thread`

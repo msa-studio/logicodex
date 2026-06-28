@@ -22,6 +22,48 @@ future versioning is corrected.
 
 ---
 
+## [Unreleased]
+
+Branch: `feature/stdlib-result-option-contracts` (base `feature/stdlib-core`).
+Not yet merged.
+
+### Added
+- **Stage 1 contract-backed `core.option`** for the `Option<I64>` slice
+  (`is_some_i64`, `is_none_i64`, `unwrap_or_i64`), paired with
+  `lib/core/option.std.toml` and proven by `tests/stdlib_core_result_option.rs`.
+- **Stage 1 contract-backed `core.result`** for the `Result<I64, I64>` slice
+  (`is_ok_i64`, `is_err_i64`, `unwrap_or_i64`, `unwrap_err_or_i64`), paired with
+  `lib/core/result.std.toml`.
+- Compiler-foundation coverage proven by `tests/compiler_result_option_foundation.rs`:
+  enum-to-`i64` variant tags, typed `Ok`/`Err`/`Some`/`None` construction,
+  `Result<I64, I64>` / `Option<I64>` returns, and `match` destructuring.
+
+### Changed
+- `lib/core/result.ldx` was narrowed from the older aspirational generic
+  `Result<T, E>` sketch (which advertised `expect`, `map`, etc. in the PR #25
+  entry below) down to the compiler-proven Stage 1 `Result<I64, I64>` API. The
+  generic surface is intentionally **not** shipped yet.
+- Parser now accepts `result` as a dotted stdlib module leaf (`core.result`)
+  even though `Result` remains a type keyword; `option`/`Some`/`None` stay plain
+  identifiers.
+- Documentation aligned to the proven state: `result-option-foundation.md`
+  (foundation marked proven, transitional scalar encoding documented),
+  `stdlib-migration-status.md` (`core.result` moved out of the legacy lists;
+  `core.option` + `core.result` added as ContractVerified Stage 1),
+  `compiler-subset.md` P1-B2, and `SPECIFICATION.md` (Option/Result generic
+  qualifier + a diagnostics-status note).
+
+### Notes
+- The Stage 1 slice uses a transitional scalar `i64` encoding
+  (`Ok`/`Some(v) = (v << 1) | 1`, `Err(e) = e << 1`, `None = 0`), not the final
+  tagged-union layout. Payloads are effectively 63-bit and `match` lowers to an
+  if-chain (no exhaustiveness checking yet).
+- Deferred: generic `Option<T>` / `Result<T, E>`, `map` / `and_then` /
+  `expect` / panic helpers, String / IO error payloads, nested Result/Option,
+  heap-backed payloads, and the LDX-DIP diagnostic-intelligence layer.
+
+---
+
 ## [0.46.0-alpha] - 2026-06-14 - End-to-End .ldx -> Kernel + Single-Engine Cleanup + Honest Versioning
 
 ### Changed

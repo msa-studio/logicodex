@@ -117,8 +117,17 @@ They are needed for:
 - package metadata validation
 - contract verification result flow
 
-Legacy `core.result` is not a CPB proof surface. It must be rebuilt or migrated
-under contract when this blocker is implemented.
+Status: the monomorphic `Option<I64>` / `Result<I64, I64>` slice is now
+implemented at the compiler level (enum tags, typed constructors, match
+destructuring) and shipped as Stage 1 contract-backed `core.option` /
+`core.result`. The legacy generic `core.result` sketch has been replaced by this
+proven slice, so it is no longer an unproven surface.
+
+Still deferred for this blocker: generic `Option<T>` / `Result<T, E>`,
+combinators (`map`, `and_then`, `expect`), non-I64 error payloads
+(String/IO), nested Result/Option, and exhaustiveness diagnostics. These remain
+out of the CPB proof surface until proven by compiler support, contracts, and
+tests.
 
 ### P1-B3: Array/Slice/List
 

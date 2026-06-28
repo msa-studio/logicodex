@@ -167,6 +167,12 @@ char            ::= any Unicode character except "\""
 
 Composite types: `struct`, `enum`, `array[`, `]`, `Channel<T>`, `Option<T>`, `Result<T,E>`.
 
+> Status note: `Option<T>` and `Result<T,E>` are accepted in the surface grammar,
+> but only the monomorphic `Option<I64>` and `Result<I64,I64>` forms are currently
+> compiler-proven and contract-backed (Stage 1 `core.option` / `core.result`).
+> Generic `T` / `E` payloads, combinators, and non-I64 error payloads parse but are
+> not yet lowered. See `docs/architecture/result-option-foundation.md`.
+
 Pointer types: `&T` (safe reference), `*T` / `PTR<T>` (raw pointer, freestanding only).
 
 ### 2.3 Semantic Checks
@@ -183,6 +189,18 @@ The semantic analyzer enforces:
 | **Capability gate** | Cannot call dangerous operations without declaring the gate | E006 |
 | **Audio violation** | Audio callbacks cannot do I/O, recursion, or allocation | E007 |
 | **WASM hardware gate** | Hardware gates forbidden in WASM target | E008 |
+
+> Diagnostics status. The codes `E001`–`E008` above name the intended semantic
+> checks. What is implemented today is a structured `Diagnostic` type
+> (`src/span.rs`) with bilingual `message_ms` / `message_en`, a `Severity`
+> (Error / Warning / Info), an optional primary span, and notes. The backing
+> `DiagnosticCode` enum currently covers `TypeMismatch`, `DivisionByZero`,
+> `DuplicateDefinition`, `LayoutError`, `ParserUnsupportedFeature`,
+> `FfiBoundaryViolation`, and `UnsafeBoundaryViolation`; these are not yet wired
+> to literal `E0xx` strings. Plain `ParseError` / `CompileError` paths also still
+> exist. The richer "diagnostic intelligence" layer (LDX-DIP: AI-queryable,
+> contract-fact-driven, self-treatment suggestions) is a roadmap goal, not an
+> implemented subsystem.
 
 ---
 
