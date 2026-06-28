@@ -142,6 +142,10 @@ pub enum MatchPattern {
     Ok { binding: String },
     /// Matches Err variant: Err(name)
     Err { binding: String },
+    /// Matches Some variant: Some(name)
+    Some { binding: String },
+    /// Matches None variant: None
+    None,
     /// Wildcard: _
     Wildcard,
     /// Literal pattern: 5, "hello"
@@ -212,6 +216,12 @@ pub enum Expr {
     Err {
         value: Box<Expr>,
     },
+    /// Foundation Option construction — Some(value)
+    Some {
+        value: Box<Expr>,
+    },
+    /// Foundation Option construction — None
+    None,
     /// Ketuk 3: File Handle ABI — Method call on opaque type.
     /// Syntax: h.read(1024), h.close(), h.seek(0, Start)
     MethodCall {
@@ -338,6 +348,11 @@ pub enum Type {
         ok: Box<Type>,
         err: Box<Type>,
     },
+    /// Foundation Option type — Some(T) or None.
+    /// Syntax: Option<T>
+    Option {
+        some: Box<Type>,
+    },
     /// Ketuk 3: File Handle ABI — Opaque type (internal structure hidden).
     /// Syntax: FileHandle, FileMode
     Opaque {
@@ -384,6 +399,11 @@ impl Type {
     /// Ketuk 2: Check if this is a Result type.
     pub fn is_result(&self) -> bool {
         matches!(self, Type::Result { .. })
+    }
+
+    /// Check if this is an Option type.
+    pub fn is_option(&self) -> bool {
+        matches!(self, Type::Option { .. })
     }
 
     /// Ketuk 2: Get the Ok type from a Result.
@@ -493,6 +513,7 @@ impl fmt::Display for Type {
             Type::Slice { element } => write!(f, "[]{element}"),
             Type::Buffer { element } => write!(f, "Buffer<{element}>"),
             Type::Result { ok, err } => write!(f, "Result<{ok}, {err}>"),
+            Type::Option { some } => write!(f, "Option<{some}>"),
             Type::Opaque { name } => write!(f, "{name}"),
             Type::Named(name) => write!(f, "{name}"),
             Type::Channel {

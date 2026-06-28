@@ -126,6 +126,21 @@ pub enum ExprAst {
         enum_name: String,
         variant: String,
     },
+    /// Semantic Result constructor. Codegen currently uses scalar ABI, but the
+    /// constructor identity is preserved for diagnostics and match lowering.
+    ResultOk {
+        value: Box<ExprAst>,
+    },
+    /// Semantic Result error constructor.
+    ResultErr {
+        value: Box<ExprAst>,
+    },
+    /// Semantic Option Some constructor.
+    OptionSome {
+        value: Box<ExprAst>,
+    },
+    /// Semantic Option None constructor.
+    OptionNone,
     Cast {
         expr: Box<ExprAst>,
         target: TypeAst,
@@ -172,6 +187,16 @@ pub enum TypeAst {
     Named(String),
     Pointer(Box<TypeAst>),
     Array { element: Box<TypeAst>, len: usize },
+    /// Semantic Result identity. Codegen may still lower this to i64 ABI, but
+    /// HIR keeps the meaning for match lowering and diagnostics.
+    Result {
+        ok: Box<TypeAst>,
+        err: Box<TypeAst>,
+    },
+    /// Semantic Option identity. Codegen may still lower this to i64 ABI.
+    Option {
+        some: Box<TypeAst>,
+    },
     Unit,
 }
 
@@ -411,6 +436,20 @@ pub enum HirExprKind {
         expr: Box<HirExpr>,
         target: TypeRef,
     },
+    /// Semantic Result Ok constructor. ABI lowering is currently scalar i64.
+    ResultOk {
+        value: Box<HirExpr>,
+    },
+    /// Semantic Result Err constructor. ABI lowering is currently scalar i64.
+    ResultErr {
+        value: Box<HirExpr>,
+    },
+    /// Semantic Option Some constructor. ABI lowering is currently scalar i64.
+    OptionSome {
+        value: Box<HirExpr>,
+    },
+    /// Semantic Option None constructor. ABI lowering is currently scalar i64.
+    OptionNone,
     // ─── Threading Expressions (A3) ───
     /// Spawn an actor instance: `spawn ActorName(args)`
     Spawn {
@@ -1386,6 +1425,41 @@ impl<'a> LoweringContext<'a> {
                     span,
                 }
             }
+            ExprAst::ResultOk { value } => {
+                let value = self.lower_expr(*value, span);
+                HirExpr {
+                    kind: HirExprKind::ResultOk {
+                        value: Box::new(value),
+                    },
+                    ty: i64_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::ResultErr { value } => {
+                let value = self.lower_expr(*value, span);
+                HirExpr {
+                    kind: HirExprKind::ResultErr {
+                        value: Box::new(value),
+                    },
+                    ty: i64_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::OptionSome { value } => {
+                let value = self.lower_expr(*value, span);
+                HirExpr {
+                    kind: HirExprKind::OptionSome {
+                        value: Box::new(value),
+                    },
+                    ty: i64_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::OptionNone => HirExpr {
+                kind: HirExprKind::OptionNone,
+                ty: i64_ref(self.types),
+                span,
+            },
             ExprAst::Field { base, field } => {
                 let base = self.lower_expr(*base, span);
                 let struct_layout_id = match self.types.resolve(base.ty.id) {
@@ -1524,6 +1598,18 @@ impl<'a> LoweringContext<'a> {
                     len,
                 })
             }
+            TypeAst::Result { ok, err } => {
+                let ok = self.lower_type(*ok);
+                let err = self.lower_type(*err);
+                self.types.intern(TypeKind::Result {
+                    ok: ok.id,
+                    err: err.id,
+                })
+            }
+            TypeAst::Option { some } => {
+                let some = self.lower_type(*some);
+                self.types.intern(TypeKind::Option { some: some.id })
+            }
             TypeAst::Unit => self.types.primitive(PrimitiveType::Unit),
         };
         TypeRef { id }
@@ -1644,6 +1730,15 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
         ast::Type::Pointer(inner) => TypeAst::Pointer(Box::new(lower_type_ast(*inner))),
         ast::Type::String => TypeAst::Named("String".to_string()),
         ast::Type::Named(n) => TypeAst::Named(n),
+        // Preserve semantic Result identity for diagnostics and future
+        // match destructuring. Codegen currently maps this to scalar i64 ABI.
+        ast::Type::Result { ok, err } => TypeAst::Result {
+            ok: Box::new(lower_type_ast(*ok)),
+            err: Box::new(lower_type_ast(*err)),
+        },
+        ast::Type::Option { some } => TypeAst::Option {
+            some: Box::new(lower_type_ast(*some)),
+        },
         // A Channel<From, To, Msg> handle is an i64 (ABI-1 by-handle). As an
         // actor capture parameter type it lowers to i64 so the param matches the
         // handle value flowing through ctx. The From/To/Msg type-level metadata
@@ -1653,51 +1748,143 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
     }
 }
 
-/// Lower a `MATCH value { pat => body, ... }` into a nested if/else chain over
-/// the (i64) value. Enum variants and integer literals become equality tests;
-/// `_` becomes the final else. Ok/Err/Tuple patterns are not yet supported.
+/// Lower a `MATCH value { pat => body, ... }` into a nested if/else chain.
+///
+/// Integer/enum patterns become equality tests. Result patterns are lowered
+/// through the transitional scalar ABI:
+///
+/// - `Ok(v)`  = `(payload << 1) | 1`
+/// - `Err(e)` = `(payload << 1)`
+///
+/// Match destructuring uses `(value & 1)` as the branch tag and `(value >> 1)`
+/// as the payload binding. This is not the final ADT layout; it is a compiler
+/// foundation step that preserves Ok/Err meaning instead of silently dropping
+/// arms.
 fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
+    fn int_lit(value: i64) -> ExprAst {
+        ExprAst::Literal(LiteralAst::Integer(value))
+    }
+
+    fn bin(left: ExprAst, op: BinaryOpAst, right: ExprAst) -> ExprAst {
+        ExprAst::Binary {
+            left: Box::new(left),
+            op,
+            right: Box::new(right),
+        }
+    }
+
+    fn eq(left: ExprAst, right: ExprAst) -> ExprAst {
+        bin(left, BinaryOpAst::Eq, right)
+    }
+
+    fn result_abi_value(value: ExprAst) -> ExprAst {
+        ExprAst::Cast {
+            expr: Box::new(value),
+            target: TypeAst::Named("i64".to_string()),
+        }
+    }
+
+    fn result_tag(value: ExprAst) -> ExprAst {
+        bin(result_abi_value(value), BinaryOpAst::BitAnd, int_lit(1))
+    }
+
+    fn result_payload(value: ExprAst) -> ExprAst {
+        bin(result_abi_value(value), BinaryOpAst::ShiftRight, int_lit(1))
+    }
+
+    fn mk_body_block(body: Vec<ast::Stmt>) -> BlockAst {
+        BlockAst {
+            statements: body
+                .into_iter()
+                .map(|s| Spanned {
+                    node: lower_stmt_ast(s),
+                    span: Span::unknown(),
+                })
+                .collect(),
+        }
+    }
+
+    fn option_abi_value(value: ExprAst) -> ExprAst {
+        ExprAst::Cast {
+            expr: Box::new(value),
+            target: TypeAst::Named("i64".to_string()),
+        }
+    }
+
+    fn option_tag(value: ExprAst) -> ExprAst {
+        bin(option_abi_value(value), BinaryOpAst::BitAnd, int_lit(1))
+    }
+
+    fn option_payload(value: ExprAst) -> ExprAst {
+        bin(option_abi_value(value), BinaryOpAst::ShiftRight, int_lit(1))
+    }
+
+    fn mk_bound_block(binding: String, payload: ExprAst, body: Vec<ast::Stmt>) -> BlockAst {
+        let mut statements = Vec::with_capacity(body.len() + 1);
+        statements.push(Spanned {
+            node: StmtAst::Let {
+                name: binding,
+                ty: Some(TypeAst::Named("i64".to_string())),
+                value: Some(payload),
+            },
+            span: Span::unknown(),
+        });
+        statements.extend(body.into_iter().map(|s| Spanned {
+            node: lower_stmt_ast(s),
+            span: Span::unknown(),
+        }));
+        BlockAst { statements }
+    }
+
     let value_ast = lower_expr_ast(value);
-    let mk_block = |body: Vec<ast::Stmt>| BlockAst {
-        statements: body
-            .into_iter()
-            .map(|s| Spanned {
-                node: lower_stmt_ast(s),
-                span: Span::unknown(),
-            })
-            .collect(),
-    };
     let mut else_branch: Option<BlockAst> = None;
     let mut conditional: Vec<(ExprAst, BlockAst)> = Vec::new();
+
     for arm in arms {
         match arm.pattern {
             ast::MatchPattern::Wildcard => {
-                else_branch = Some(mk_block(arm.body));
+                else_branch = Some(mk_body_block(arm.body));
+            }
+            ast::MatchPattern::Ok { binding } => {
+                let condition = eq(result_tag(value_ast.clone()), int_lit(1));
+                let body = mk_bound_block(binding, result_payload(value_ast.clone()), arm.body);
+                conditional.push((condition, body));
+            }
+            ast::MatchPattern::Err { binding } => {
+                let condition = eq(result_tag(value_ast.clone()), int_lit(0));
+                let body = mk_bound_block(binding, result_payload(value_ast.clone()), arm.body);
+                conditional.push((condition, body));
+            }
+            ast::MatchPattern::Some { binding } => {
+                let condition = eq(option_tag(value_ast.clone()), int_lit(1));
+                let body = mk_bound_block(binding, option_payload(value_ast.clone()), arm.body);
+                conditional.push((condition, body));
+            }
+            ast::MatchPattern::None => {
+                let condition = eq(option_tag(value_ast.clone()), int_lit(0));
+                conditional.push((condition, mk_body_block(arm.body)));
             }
             ast::MatchPattern::Identifier(name) => {
-                conditional.push((
-                    ExprAst::EnumVariant {
-                        enum_name: String::new(),
-                        variant: name,
-                    },
-                    mk_block(arm.body),
-                ));
+                let pat = ExprAst::EnumVariant {
+                    enum_name: String::new(),
+                    variant: name,
+                };
+                conditional.push((eq(value_ast.clone(), pat), mk_body_block(arm.body)));
             }
             ast::MatchPattern::Literal(expr) => {
-                conditional.push((lower_expr_ast(expr), mk_block(arm.body)));
+                conditional.push((
+                    eq(value_ast.clone(), lower_expr_ast(expr)),
+                    mk_body_block(arm.body),
+                ));
             }
-            _ => {}
+            ast::MatchPattern::Tuple(_) => {}
         }
     }
+
     let mut acc: Option<BlockAst> = else_branch;
-    for (pat, body) in conditional.into_iter().rev() {
-        let cond = ExprAst::Binary {
-            left: Box::new(value_ast.clone()),
-            op: BinaryOpAst::Eq,
-            right: Box::new(pat),
-        };
+    for (condition, body) in conditional.into_iter().rev() {
         let if_stmt = StmtAst::If {
-            condition: cond,
+            condition,
             then_branch: body,
             else_branch: acc.take(),
         };
@@ -1708,12 +1895,13 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
             }],
         });
     }
+
     match acc {
         Some(mut block) => {
             if block.statements.len() == 1 {
                 block.statements.pop().unwrap().node
             } else {
-                StmtAst::UnsafeBlock(block)
+                StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit))
             }
         }
         None => StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit)),
@@ -1915,6 +2103,16 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             base: Box::new(lower_expr_ast(*base)),
             field,
         },
+        ast::Expr::Ok { value } => ExprAst::ResultOk {
+            value: Box::new(lower_expr_ast(*value)),
+        },
+        ast::Expr::Err { value } => ExprAst::ResultErr {
+            value: Box::new(lower_expr_ast(*value)),
+        },
+        ast::Expr::Some { value } => ExprAst::OptionSome {
+            value: Box::new(lower_expr_ast(*value)),
+        },
+        ast::Expr::None => ExprAst::OptionNone,
         ast::Expr::EnumVariant { enum_name, variant } => {
             ExprAst::EnumVariant { enum_name, variant }
         }
