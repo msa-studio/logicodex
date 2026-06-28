@@ -316,9 +316,21 @@ jobs:
         run: |
           echo "=== PR Size Calculation ==="
 
+          # PR size gate protects release/main integration.
+          # Internal integration branches such as feature/* -> feature/stdlib-core
+          # may exceed the review-size threshold while foundation work is staged.
+          BASE_REF='${{ github.base_ref }}'
+          SIZE_LIMIT='${{ env.SIZE_LIMIT }}'
+          if [ -n "$BASE_REF" ] && [ "$BASE_REF" != "main" ] && [ "$BASE_REF" != "master" ]; then
+            echo "result=SKIP" >> "$GITHUB_OUTPUT"
+            echo "total_lines=0" >> "$GITHUB_OUTPUT"
+            echo "size_limit=${SIZE_LIMIT}" >> "$GITHUB_OUTPUT"
+            echo "⏭️  Size gate SKIP: target branch '$BASE_REF' is not main/master"
+            exit 0
+          fi
+
           BASE_SHA='${{ github.event.pull_request.base.sha }}'
           HEAD_SHA='${{ github.event.pull_request.head.sha }}'
-          SIZE_LIMIT='${{ env.SIZE_LIMIT }}'
 
           if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
             echo "result=SKIP" >> "$GITHUB_OUTPUT"
