@@ -19,7 +19,7 @@ InvalidContract
 
 ## ContractVerified
 - `core.prelude` — CPB Phase 1 explicit-import scalar bootstrap helpers (`id_i64`, `zero_i64`, `one_i64`, `truthy_i64`, `fallback_i64`), stage 1 contract-backed. This is not a magic auto-prelude and does not depend on re-export/delegation.
-- `core.text` — CPB Phase 1 empty/non-empty text predicates, stage 1 contract-backed.
+- `core.text` — CPB Phase 1 empty/non-empty text predicates and emptiness-selection helpers (`is_empty_text_i64`, `not_empty_text_i64`, `same_emptiness_i64`, `select_by_empty_i64`), stage 1 contract-backed. This is not arbitrary String equality.
 - `core.option` — CPB Phase 1 `Option<I64>` predicates/unwrap (`is_some_i64`, `is_none_i64`, `unwrap_or_i64`), stage 1 contract-backed.
 - `core.result` — CPB Phase 1 `Result<I64, I64>` predicates/unwrap (`is_ok_i64`, `is_err_i64`, `unwrap_or_i64`, `unwrap_err_or_i64`), stage 1 contract-backed. Replaces the older generic `Result<T, E>` sketch.
 

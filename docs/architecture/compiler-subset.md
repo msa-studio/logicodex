@@ -364,3 +364,5 @@ CPB-1 compiler subset is ready when:
 - required subset terms are gated
 - first three proof programs are defined
 - no legacy unverified module is required for the proof plan
+
+Text status update: `core.text` now includes contract-backed emptiness helpers `same_emptiness_i64` and `select_by_empty_i64`. These compare/select by empty vs non-empty status only; arbitrary non-empty `String == String` remains deferred.

@@ -26,6 +26,8 @@ max_cases = 50
 functions = [
   "is_empty_text_i64",
   "not_empty_text_i64",
+  "same_emptiness_i64",
+  "select_by_empty_i64",
 ]
 
 [constraints]
@@ -55,3 +57,33 @@ expect_i64 = 1
 name = "not empty false"
 expr = "core.text.not_empty_text_i64(\"\")"
 expect_i64 = 0
+
+[[cases]]
+name = "same emptiness both empty"
+expr = "core.text.same_emptiness_i64(\"\", \"\")"
+expect_i64 = 1
+
+[[cases]]
+name = "same emptiness left empty"
+expr = "core.text.same_emptiness_i64(\"\", \"abc\")"
+expect_i64 = 0
+
+[[cases]]
+name = "same emptiness right empty"
+expr = "core.text.same_emptiness_i64(\"abc\", \"\")"
+expect_i64 = 0
+
+[[cases]]
+name = "same emptiness both nonempty"
+expr = "core.text.same_emptiness_i64(\"abc\", \"xyz\")"
+expect_i64 = 1
+
+[[cases]]
+name = "select empty"
+expr = "core.text.select_by_empty_i64(\"\", 7, 9)"
+expect_i64 = 7
+
+[[cases]]
+name = "select nonempty"
+expr = "core.text.select_by_empty_i64(\"abc\", 7, 9)"
+expect_i64 = 9
