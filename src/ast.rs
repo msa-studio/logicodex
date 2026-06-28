@@ -208,6 +208,10 @@ pub enum Expr {
         base: Box<Expr>,
         index: Box<Expr>,
     },
+    /// Collections Foundation Stage 0: fixed array literal — [a, b, c]
+    ArrayLiteral {
+        elements: Vec<Expr>,
+    },
     /// Ketuk 2: Result construction — Ok(value)
     Ok {
         value: Box<Expr>,
@@ -339,6 +343,10 @@ pub enum Type {
     Slice {
         element: Box<Type>,
     },
+    Array {
+        element: Box<Type>,
+        len: usize,
+    },
     Buffer {
         element: Box<Type>,
     },
@@ -385,13 +393,13 @@ impl Type {
 
     /// Ketuk 1: Check if this is a contiguous memory type (slice or buffer).
     pub fn is_contiguous(&self) -> bool {
-        matches!(self, Type::Slice { .. } | Type::Buffer { .. })
+        matches!(self, Type::Slice { .. } | Type::Array { .. } | Type::Buffer { .. })
     }
 
     /// Ketuk 1: Get the element type if this is a slice or buffer.
     pub fn element_type(&self) -> Option<&Type> {
         match self {
-            Type::Slice { element } | Type::Buffer { element } => Some(element),
+            Type::Slice { element } | Type::Array { element, .. } | Type::Buffer { element } => Some(element),
             _ => None,
         }
     }
@@ -511,6 +519,7 @@ impl fmt::Display for Type {
             Type::Pointer(inner) => write!(f, "PTR<{inner}>"),
             Type::String => write!(f, "String"),
             Type::Slice { element } => write!(f, "[]{element}"),
+            Type::Array { element, len } => write!(f, "[{element}; {len}]"),
             Type::Buffer { element } => write!(f, "Buffer<{element}>"),
             Type::Result { ok, err } => write!(f, "Result<{ok}, {err}>"),
             Type::Option { some } => write!(f, "Option<{some}>"),

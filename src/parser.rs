@@ -761,12 +761,35 @@ impl Parser {
             self.consume(TokenKind::Greater, "> after pointer type")?;
             return Ok(Type::Pointer(Box::new(inner)));
         }
-        // Ketuk 1: Core Memory Model — Slice syntax: []T
+        // Core Memory Model:
+        // - []T      = slice type
+        // - [T; N]   = fixed array type
         if self.matches(TokenKind::LeftBracket) {
-            self.consume(TokenKind::RightBracket, "']' after '[' in slice type")?;
+            if self.matches(TokenKind::RightBracket) {
+                let element = self.parse_type()?;
+                return Ok(Type::Slice {
+                    element: Box::new(element),
+                });
+            }
+
             let element = self.parse_type()?;
-            return Ok(Type::Slice {
+            self.consume(TokenKind::Semicolon, "';' after fixed array element type")?;
+            let len_text = self
+                .consume(TokenKind::Integer, "fixed array length")?
+                .lexeme
+                .clone();
+            let len = len_text
+                .parse::<usize>()
+                .map_err(|_| ParseError::Expected {
+                    expected: "fixed array length".to_string(),
+                    found: len_text.clone(),
+                    line: self.previous().line,
+                    column: self.previous().column,
+                })?;
+            self.consume(TokenKind::RightBracket, "']' after fixed array type")?;
+            return Ok(Type::Array {
                 element: Box::new(element),
+                len,
             });
         }
         // Ketuk 1: Core Memory Model — Buffer syntax: Buffer<T> or Buffer<T, N>
@@ -1201,6 +1224,30 @@ impl Parser {
             self.advance();
             return Ok(Expr::None);
         }
+        // Collections Foundation Stage 0: fixed array literal expression.
+        // Type context remains handled by parse_type(): []T and [T; N].
+        // Expression context handles: [a, b, c]
+        if self.matches(TokenKind::LeftBracket) {
+            let mut elements = Vec::new();
+
+            if !self.check(TokenKind::RightBracket) {
+                loop {
+                    elements.push(self.expression()?);
+                    if !self.matches(TokenKind::Comma) {
+                        break;
+                    }
+
+                    // Optional trailing comma: [1, 2, 3,]
+                    if self.check(TokenKind::RightBracket) {
+                        break;
+                    }
+                }
+            }
+
+            self.consume(TokenKind::RightBracket, "']' after array literal")?;
+            return Ok(Expr::ArrayLiteral { elements });
+        }
+
         if self.matches(TokenKind::Identifier) {
             let name = self.previous().lexeme.clone();
             // Enum variant path: `Enum::Variant` (two `:` tokens; no `::` token).

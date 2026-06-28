@@ -122,6 +122,15 @@ pub enum ExprAst {
         base: Box<ExprAst>,
         field: String,
     },
+    /// Collections Foundation Stage 0: index expression, e.g. xs[0].
+    Index {
+        base: Box<ExprAst>,
+        index: Box<ExprAst>,
+    },
+    /// Collections Foundation Stage 0: fixed array literal, e.g. [1, 2, 3].
+    ArrayLiteral {
+        elements: Vec<ExprAst>,
+    },
     EnumVariant {
         enum_name: String,
         variant: String,
@@ -431,6 +440,15 @@ pub enum HirExprKind {
     Field {
         base: Box<HirExpr>,
         field_index: usize,
+    },
+    /// Collections Foundation Stage 0: index expression over a local fixed array.
+    Index {
+        base: Box<HirExpr>,
+        index: Box<HirExpr>,
+    },
+    /// Collections Foundation Stage 0: fixed array literal.
+    ArrayLiteral {
+        elements: Vec<HirExpr>,
     },
     Cast {
         expr: Box<HirExpr>,
@@ -1412,6 +1430,42 @@ impl<'a> LoweringContext<'a> {
                     span,
                 }
             }
+            ExprAst::Index { base, index } => {
+                let base = self.lower_expr(*base, span);
+                let index = self.lower_expr(*index, span);
+                let element_ty = match self.types.resolve(base.ty.id) {
+                    TypeKind::Array { element, .. } => TypeRef { id: *element },
+                    _ => i64_ref(self.types),
+                };
+                HirExpr {
+                    kind: HirExprKind::Index {
+                        base: Box::new(base),
+                        index: Box::new(index),
+                    },
+                    ty: element_ty,
+                    span,
+                }
+            }
+            ExprAst::ArrayLiteral { elements } => {
+                let lowered: Vec<HirExpr> = elements
+                    .into_iter()
+                    .map(|element| self.lower_expr(element, span))
+                    .collect();
+                let len = lowered.len();
+                let element_id = lowered
+                    .first()
+                    .map(|element| element.ty.id)
+                    .unwrap_or_else(|| self.types.primitive(PrimitiveType::I64));
+                let array_id = self.types.intern(TypeKind::Array {
+                    element: element_id,
+                    len,
+                });
+                HirExpr {
+                    kind: HirExprKind::ArrayLiteral { elements: lowered },
+                    ty: TypeRef { id: array_id },
+                    span,
+                }
+            }
             ExprAst::EnumVariant { enum_name, variant } => {
                 let tag = self
                     .types
@@ -1732,6 +1786,10 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
         ast::Type::Named(n) => TypeAst::Named(n),
         // Preserve semantic Result identity for diagnostics and future
         // match destructuring. Codegen currently maps this to scalar i64 ABI.
+        ast::Type::Array { element, len } => TypeAst::Array {
+            element: Box::new(lower_type_ast(*element)),
+            len,
+        },
         ast::Type::Result { ok, err } => TypeAst::Result {
             ok: Box::new(lower_type_ast(*ok)),
             err: Box::new(lower_type_ast(*err)),
@@ -2050,6 +2108,13 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             left: Box::new(lower_expr_ast(*left)),
             op: lower_binary_op(op),
             right: Box::new(lower_expr_ast(*right)),
+        },
+        ast::Expr::Index { base, index } => ExprAst::Index {
+            base: Box::new(lower_expr_ast(*base)),
+            index: Box::new(lower_expr_ast(*index)),
+        },
+        ast::Expr::ArrayLiteral { elements } => ExprAst::ArrayLiteral {
+            elements: elements.into_iter().map(lower_expr_ast).collect(),
         },
         ast::Expr::Grouped(inner) => lower_expr_ast(*inner),
         // ─── Threading (A3) — lowered to ExprAst ───

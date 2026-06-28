@@ -705,14 +705,24 @@ impl<'ctx> LlvmCompiler<'ctx> {
         use crate::hir::HirStmt;
         match stmt {
             HirStmt::Let { local, ty, value } => {
-                let alloca = self.create_entry_alloca(func, &format!("local_{}", local.0));
+                let alloca_ty = self.hir_type_to_llvm(*ty)?;
+                let alloca = self
+                    .builder
+                    .build_alloca(alloca_ty, &format!("local_{}", local.0))
+                    .context("failed to allocate local")?;
+
                 if let Some(val_expr) = value {
-                    let val = self.emit_hir_expr(val_expr, func)?;
-                    let val = self.wrap_to_width(val, *ty)?;
-                    self.builder
-                        .build_store(alloca, val)
-                        .context("failed to store let value")?;
+                    if let crate::hir::HirExprKind::ArrayLiteral { elements } = &val_expr.kind {
+                        self.emit_hir_array_literal_init(*ty, alloca, elements, func)?;
+                    } else {
+                        let val = self.emit_hir_expr(val_expr, func)?;
+                        let val = self.wrap_to_width(val, *ty)?;
+                        self.builder
+                            .build_store(alloca, val)
+                            .context("failed to store let value")?;
+                    }
                 }
+
                 self.hir_local_allocs.insert(local.0, alloca);
                 self.hir_local_types.insert(local.0, *ty);
                 Ok(())
@@ -733,6 +743,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
                                 .build_store(ptr, val)
                                 .context("failed to store assign value")?;
                         }
+                    }
+                    crate::hir::HirExprKind::Index { base, index } => {
+                        self.emit_hir_index_store(base, index, val, func)?;
                     }
                     crate::hir::HirExprKind::Field { base, field_index } => {
                         // p.field = val: int->ptr the struct i64, gep field, store.
@@ -1510,6 +1523,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
+            HirExprKind::Index { base, index } => self.emit_hir_index_load(base, index, func),
+            HirExprKind::ArrayLiteral { .. } => Ok(self.i64_type.const_int(0, false)),
         }
     }
 
@@ -1745,6 +1760,137 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
+    fn local_array_info(
+        &self,
+        base: &crate::hir::HirExpr,
+    ) -> Result<(
+        inkwell::types::ArrayType<'ctx>,
+        BasicTypeEnum<'ctx>,
+        crate::types::TypeRef,
+        PointerValue<'ctx>,
+    )> {
+        match &base.kind {
+            crate::hir::HirExprKind::Local(local_id) => {
+                let ty = *self
+                    .hir_local_types
+                    .get(&local_id.0)
+                    .ok_or_else(|| anyhow!("array index base local has no type"))?;
+                let ptr = self.local_ptr(local_id.0)?;
+                let types = self
+                    .types
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("array index: TypeRegistry not attached"))?;
+
+                match types.resolve(ty.id) {
+                    TypeKind::Array { element, len } => {
+                        let element_ref = crate::types::TypeRef { id: *element };
+                        let element_ty = self.hir_type_to_llvm(element_ref)?;
+                        let array_ty = element_ty.array_type(*len as u32);
+                        Ok((array_ty, element_ty, element_ref, ptr))
+                    }
+                    other => Err(anyhow!("index base is not a fixed array: {:?}", other)),
+                }
+            }
+            _ => Err(anyhow!(
+                "index base must be a local fixed array in Collections Foundation Stage 0"
+            )),
+        }
+    }
+
+    fn emit_hir_array_literal_init(
+        &mut self,
+        ty: crate::types::TypeRef,
+        alloca: PointerValue<'ctx>,
+        elements: &[crate::hir::HirExpr],
+        func: FunctionValue<'ctx>,
+    ) -> Result<()> {
+        let types = self
+            .types
+            .as_ref()
+            .ok_or_else(|| anyhow!("array literal init: TypeRegistry not attached"))?;
+
+        let (element_ref, len) = match types.resolve(ty.id) {
+            TypeKind::Array { element, len } => (crate::types::TypeRef { id: *element }, *len),
+            other => {
+                return Err(anyhow!(
+                    "array literal initializer used for non-array type: {:?}",
+                    other
+                ))
+            }
+        };
+
+        if elements.len() != len {
+            return Err(anyhow!(
+                "array literal length mismatch: declared {}, got {}",
+                len,
+                elements.len()
+            ));
+        }
+
+        let element_ty = self.hir_type_to_llvm(element_ref)?;
+        let array_ty = element_ty.array_type(len as u32);
+        let zero = self.i64_type.const_int(0, false);
+
+        for (i, element) in elements.iter().enumerate() {
+            let idx = self.i64_type.const_int(i as u64, false);
+            let slot = unsafe {
+                self.builder
+                    .build_in_bounds_gep(array_ty, alloca, &[zero, idx], "array_init_slot")
+                    .context("array literal element gep")?
+            };
+            let value = self.emit_hir_expr(element, func)?;
+            let value = self.wrap_to_width(value, element_ref)?;
+            self.builder
+                .build_store(slot, value)
+                .context("array literal element store")?;
+        }
+
+        Ok(())
+    }
+
+    fn emit_hir_index_load(
+        &mut self,
+        base: &crate::hir::HirExpr,
+        index: &crate::hir::HirExpr,
+        func: FunctionValue<'ctx>,
+    ) -> Result<IntValue<'ctx>> {
+        let (array_ty, element_ty, _element_ref, ptr) = self.local_array_info(base)?;
+        let zero = self.i64_type.const_int(0, false);
+        let idx = self.emit_hir_expr(index, func)?;
+        let slot = unsafe {
+            self.builder
+                .build_in_bounds_gep(array_ty, ptr, &[zero, idx], "array_index_slot")
+                .context("array index gep")?
+        };
+        let loaded = self
+            .builder
+            .build_load(element_ty, slot, "array_index_load")
+            .context("array index load")?;
+        Ok(loaded.into_int_value())
+    }
+
+    fn emit_hir_index_store(
+        &mut self,
+        base: &crate::hir::HirExpr,
+        index: &crate::hir::HirExpr,
+        value: IntValue<'ctx>,
+        func: FunctionValue<'ctx>,
+    ) -> Result<()> {
+        let (array_ty, _element_ty, element_ref, ptr) = self.local_array_info(base)?;
+        let zero = self.i64_type.const_int(0, false);
+        let idx = self.emit_hir_expr(index, func)?;
+        let slot = unsafe {
+            self.builder
+                .build_in_bounds_gep(array_ty, ptr, &[zero, idx], "array_assign_slot")
+                .context("array assign gep")?
+        };
+        let value = self.wrap_to_width(value, element_ref)?;
+        self.builder
+            .build_store(slot, value)
+            .context("array assign store")?;
+        Ok(())
+    }
+
     // ─── HIR Type Helpers ───
 
     fn hir_type_to_llvm(&self, type_ref: crate::types::TypeRef) -> Result<BasicTypeEnum<'ctx>> {
@@ -1761,6 +1907,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
             TypeKind::Primitive(PrimitiveType::Bool) => Ok(self.bool_type.into()),
             TypeKind::Primitive(PrimitiveType::F32) => Ok(self.context.f32_type().into()),
             TypeKind::Primitive(PrimitiveType::F64) => Ok(self.context.f64_type().into()),
+            TypeKind::Array { element, len } => {
+                let element_ty = self.hir_type_to_llvm(crate::types::TypeRef { id: *element })?;
+                Ok(element_ty.array_type(*len as u32).into())
+            }
             TypeKind::Primitive(PrimitiveType::Unit) => Ok(self.context.i8_type().into()),
             // All integer widths (I8..U64) collapse to i64 in this model.
             _ => Ok(self.i64_type.into()),
