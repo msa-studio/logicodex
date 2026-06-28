@@ -366,3 +366,23 @@ CPB-1 compiler subset is ready when:
 - no legacy unverified module is required for the proof plan
 
 Text status update: `core.text` now includes contract-backed emptiness helpers `same_emptiness_i64` and `select_by_empty_i64`. These compare/select by empty vs non-empty status only; arbitrary non-empty `String == String` remains deferred.
+
+### CPB Phase 1 Collections / IO Probe Result
+
+Block 161 confirmed that collections and high-level IO remain blockers, not implemented stdlib APIs.
+
+Collections:
+
+- `[I64; 3]` fixed-array syntax / array literal construction is not compiler-proven.
+- `Buffer<I64, 3>` type syntax exists, but declaration without initializer fails under current `let` rules.
+- `[]I64` slice parameter syntax compiles, but slice construction / call / round-trip is not proven.
+
+Therefore `core.collections`, `core.array`, `core.buffer`, Vec/List, and heap collections remain deferred until generic construction and round-trip semantics are implemented and contract-proven.
+
+High-level IO:
+
+- `PAPAR` is a statement, not a callable stdlib function.
+- `core.file` and `core.io_error` are legacy/non-functioning under normal import.
+- `Result<T, IoError>` is not implemented; current proven Result scope remains `Result<I64, I64>`.
+
+Therefore high-level IO remains deferred until callable IO, runtime capability/profile enforcement, and the IO error model are designed generically.

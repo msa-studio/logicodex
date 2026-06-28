@@ -275,3 +275,80 @@ Minimum migration requirement:
 - verify script coverage
 - trust-state update
 - green verification before commit/push
+
+## CPB Phase 1 Blockers: Collections and High-level IO
+
+Last probe: Block 161 capability probe on `feature/stdlib-result-option-contracts`.
+
+### Collections status
+
+Status: `DeferredBlockedByCompiler`.
+
+Evidence:
+
+- Array literal / fixed-array probe failed:
+  - `let xs: [I64; 3] = [1, 2, 3];`
+  - failure: parser expects `[]T` slice syntax, not `[T; N]` array syntax.
+- Buffer declaration / index assignment probe failed:
+  - `let buf: Buffer<I64, 3>;`
+  - failure: current `let` syntax expects `=` initializer.
+- Slice parameter syntax compiles:
+  - `public function first_i64(xs: []I64) -> I64 begin return xs[0]; end`
+  - but there is no proven construction / call / round-trip path for passing a slice value.
+
+Decision:
+
+Do not implement `core.collections`, `core.array`, `core.buffer`, `Vec`, `List`, or heap collections yet.
+
+Collections require a generic compiler capability first:
+
+- proven construction / initialization syntax
+- proven index read/write semantics
+- proven pass/return behaviour if exposed as function parameters
+- contract-backed run-cases and e2e tests
+
+No collection API may be claimed CPB-ready until it is implemented through normal `.ldx + .std.toml + tests`.
+
+### High-level IO status
+
+Status: `DeferredBlockedByRuntimeCapability` and partly `DeferredBlockedByCompiler`.
+
+Evidence:
+
+- `PAPAR` works as a statement.
+- `PAPAR` is not callable as an expression/function:
+  - `let x: I64 = PAPAR(2);` fails with unexpected token `PAPAR`.
+- `core.file` and `core.io_error` fail normal import parsing.
+- Current proven Result scope is only `Result<I64, I64>`, not `Result<T, IoError>`.
+
+Decision:
+
+Do not implement fake `core.io.print`, file IO, network IO, syscall IO, or `Result<T, IoError>` yet.
+
+High-level IO requires a generic capability/runtime-profile design first:
+
+- callable IO surface design
+- capability/profile enforcement
+- IO error model
+- Result payload support beyond current scalar `Result<I64, I64>`
+- contract-backed run-cases and e2e tests
+
+### Legacy module import status from probe
+
+These modules failed normal import and must not be treated as implemented:
+
+- `core.io_error` — `LegacyNotFunctioning`
+- `core.file` — `LegacyNotFunctioning`
+- `core.ring_buffer` — `LegacyNotFunctioning`
+- `core.memori` — `LegacyNotFunctioning`
+- `core.scheduler` — `LegacyNotFunctioning`
+- `core.sync` — `LegacyNotFunctioning`
+- `core.capability` — `LegacyNotFunctioning`
+- `core.shard_manifest` — `LegacyNotFunctioning`
+
+These modules are import-loadable but not contract/callable-proven:
+
+- `core.thread` — `CompilerProvenNoContract` / import-load only
+- `core.gate` — `CompilerProvenNoContract` / import-load only
+
+Import-load only does not prove public API behaviour. These modules must not be used as CPB dependencies until converted to the contract-backed pattern.
