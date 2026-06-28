@@ -1,0 +1,44 @@
+// core.option -- typed Option<I64> helpers (CPB Phase 1 / Stdlib Stage 1).
+//
+// This module is intentionally small and contract-backed. It only exposes
+// behaviour proven by the current compiler foundation:
+// - Option<I64>
+// - Some(v) / None constructors
+// - match Some(v) / None destructuring
+//
+// Generic Option<T>, nested options, map/and_then, panic-style helpers, and
+// heap-backed payloads are intentionally deferred until the compiler proves
+// those semantics end to end.
+
+public function unwrap_or_i64(x: Option<I64>, fallback: I64) -> I64 begin
+    match x begin
+        Some(v) => begin
+            return v;
+        end,
+        None => begin
+            return fallback;
+        end
+    end
+end
+
+public function is_some_i64(x: Option<I64>) -> I64 begin
+    match x begin
+        Some(v) => begin
+            return 1;
+        end,
+        None => begin
+            return 0;
+        end
+    end
+end
+
+public function is_none_i64(x: Option<I64>) -> I64 begin
+    match x begin
+        Some(v) => begin
+            return 0;
+        end,
+        None => begin
+            return 1;
+        end
+    end
+end
