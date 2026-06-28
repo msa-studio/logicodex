@@ -94,10 +94,11 @@ Priority order:
 
 Each module must follow the Stage 0 contract pattern before it is trusted.
 
-Progress: `core.text`, `core.option`, and `core.result` now ship a Stage 1
-contract-backed I64 slice following this pattern (`core.option` = `Option<I64>`,
-`core.result` = `Result<I64, I64>`). The remaining modules and the generic /
-wider-payload surface are still pending.
+Progress: `core.prelude`, `core.text`, `core.option`, and `core.result` now
+ship a Stage 1 contract-backed slice following this pattern. `core.prelude`
+is explicit-import only, `core.option` = `Option<I64>`, and `core.result` =
+`Result<I64, I64>`. The remaining modules and the generic / wider-payload
+surface are still pending.
 
 ### CPB-3: Compiler API Freeze Boundary
 

@@ -79,6 +79,7 @@ development tooling work begins.
 
 The priority is:
 
+0. `core.prelude`
 1. `core.text` or `core.string`
 2. `core.option`
 3. `core.result`
@@ -90,6 +91,21 @@ The priority is:
 9. package metadata reader
 10. package manager MVP
 11. real development tools
+
+### P1-B0: Prelude
+
+Prelude is the explicit bootstrap surface for tiny compiler-shaped programs.
+
+Status: `core.prelude` is implemented as a Stage 1 contract-backed module.
+It is explicit-import only:
+
+```logicodex
+import core.prelude;
+PAPAR core.prelude.zero_i64();
+```
+
+It is not a magic auto-prelude, does not re-export other modules, and does
+not depend on internal stdlib-to-stdlib delegation.
 
 ### P1-B1: Text/String
 
