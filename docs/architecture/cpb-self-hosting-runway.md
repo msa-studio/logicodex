@@ -208,3 +208,22 @@ High-level IO is `DeferredBlockedByRuntimeCapability`:
 - `Result<T, IoError>` is not part of the current proven Result foundation
 
 CPB Phase 1 must not fake these APIs. The next valid work is to either design generic compiler/runtime capability support or keep these blockers documented until such support exists.
+
+### Collections compiler foundation update
+
+Status: `CompilerFoundationPartial`.
+
+The CPB Collections blocker is no longer a total compiler blocker. The compiler
+now proves the first fixed-local-array foundation:
+
+- fixed array type syntax: `[T; N]`
+- array literal syntax: `[a, b, c]`
+- index read: `xs[i]`
+- index assignment: `xs[i] = v`
+- HIR type lowering for fixed arrays
+- LLVM local array storage as `[N x i64]`
+
+This does not yet make `core.collections` production-ready. It unlocks the next
+stdlib migration step: contract-backed collection helpers can now target a small,
+proven fixed-array subset before slices, dynamic buffers, iterators, maps, or
+higher-level collection APIs are promoted.
