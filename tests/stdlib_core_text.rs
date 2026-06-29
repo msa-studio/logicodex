@@ -108,3 +108,32 @@ fn core_text_typed_binding_and_return_smoke() {
     let got: Vec<&str> = out.split_whitespace().collect();
     assert_eq!(got, vec!["1"]);
 }
+
+#[test]
+fn core_text_emptiness_relationship_helpers() {
+    let out = run_main(
+        "import core.text;\n\
+         PAPAR core.text.same_emptiness_i64(\"\", \"\");\n\
+         PAPAR core.text.same_emptiness_i64(\"\", \"abc\");\n\
+         PAPAR core.text.same_emptiness_i64(\"abc\", \"\");\n\
+         PAPAR core.text.same_emptiness_i64(\"abc\", \"xyz\");\n\
+         PAPAR core.text.select_by_empty_i64(\"\", 7, 9);\n\
+         PAPAR core.text.select_by_empty_i64(\"abc\", 7, 9);\n",
+    );
+    let got: Vec<&str> = out.split_whitespace().collect();
+    assert_eq!(got, vec!["1", "0", "0", "1", "7", "9"]);
+}
+
+#[test]
+fn core_text_emptiness_helpers_with_core_assert() {
+    let out = run_main(
+        "import core.text;\n\
+         import core.assert;\n\
+         PAPAR core.assert.eq_i64(core.text.same_emptiness_i64(\"abc\", \"xyz\"), 1);\n\
+         PAPAR core.assert.eq_i64(core.text.same_emptiness_i64(\"\", \"abc\"), 0);\n\
+         PAPAR core.assert.eq_i64(core.text.select_by_empty_i64(\"\", 7, 9), 7);\n\
+         PAPAR core.assert.eq_i64(core.text.select_by_empty_i64(\"abc\", 7, 9), 9);\n",
+    );
+    let got: Vec<&str> = out.split_whitespace().collect();
+    assert_eq!(got, vec!["1", "1", "1", "1"]);
+}

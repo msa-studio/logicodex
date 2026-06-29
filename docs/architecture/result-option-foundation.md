@@ -1,9 +1,54 @@
 # Result / Option Foundation
 
-Status: active foundation branch.
+Status: minimum foundation PROVEN. The compiler now supports the typed
+`Result<I64, I64>` and `Option<I64>` slice end to end, and `core.option` /
+`core.result` ship as Stage 1 contract-backed stdlib modules. Generic
+`Result<T, E>` / `Option<T>`, helper combinators, and the richer diagnostic
+intelligence layer remain deferred (see "Out of Scope" and the LDX-DIP note
+below).
 
 This document defines the compiler and stdlib foundation required before
 continuing deeper CPB Phase 1 stdlib expansion.
+
+## Current Status (Proven)
+
+The following is implemented and proven by live (non-ignored) e2e tests in
+`tests/compiler_result_option_foundation.rs` and the stdlib acceptance tests in
+`tests/stdlib_core_result_option.rs`:
+
+- enum declarations lower to deterministic `i64` variant tags.
+- `Result<I64, I64>` can be returned from functions and constructed via
+  `Ok(I64)` / `Err(I64)`.
+- `Option<I64>` can be returned from functions and constructed via `Some(I64)`
+  / `None`.
+- `match` destructures `Ok(v)` / `Err(e)` and `Some(v)` / `None`, binding the
+  payload.
+- LLVM module verification passes and compiled programs run with the expected
+  stdout.
+
+### Transitional scalar encoding (compiler-foundation ABI)
+
+The proven slice uses a single `i64` with a low-bit discriminant, NOT a final
+tagged-union layout. This is a documented compiler-foundation step, not final
+`Result<T, E>` / `Option<T>` semantics:
+
+- `Ok(v)` and `Some(v)` lower to `(v << 1) | 1` (low bit tag = 1).
+- `Err(e)` lowers to `e << 1` (low bit tag = 0).
+- `None` lowers to `0`.
+- `match` lowers to an if-chain (`lower_match_to_if`): tag = `value & 1`,
+  payload = `value >> 1`, and the bound payload is typed `i64`.
+
+Honest limitations of this encoding:
+
+- The payload is effectively 63-bit because of the shift; a payload that uses
+  the top bit will not round-trip. Wider payloads wait for the real tagged
+  layout.
+- `match` is currently lowered to an if-chain, so there is no exhaustiveness
+  checking yet.
+- The semantic type identity (`TypeKind::Result { ok, err }` /
+  `TypeKind::Option { some }`) is preserved in the type registry so future
+  diagnostics and the real layout can recover the original meaning even though
+  the ABI is currently scalar.
 
 ## Why This Exists
 
@@ -29,16 +74,24 @@ However, the current pipeline is not yet contract-proven end to end across:
 Therefore `core.result` must not be migrated as a fake status-code bridge under
 the name `core.result`.
 
-## Current Blockers
+## Original Blockers (Resolved)
 
-Observed probe results:
+These were the probe results that originally blocked the foundation. They are
+kept as a record; each is now resolved by the proven slice described above:
 
-- `Ok(5)` and `Err(9)` compile as smoke expressions.
-- Returning `Result<I64, I64>` currently fails LLVM module verification.
-- `match` with `return` inside `Ok(...)` / `Err(...)` arms currently fails parse.
-- enum declaration syntax requires canonical confirmation.
-- enum variant layout/tag output is not yet contract-proven.
-- legacy `lib/core/result.ldx` exists but is not suitable for ContractVerified status.
+- `Ok(5)` and `Err(9)` compiled only as smoke expressions. RESOLVED — they now
+  lower as typed constructors.
+- Returning `Result<I64, I64>` previously failed LLVM module verification.
+  RESOLVED — verification passes.
+- `match` with `return` inside `Ok(...)` / `Err(...)` arms previously failed
+  parse. RESOLVED — match destructuring lowers via `lower_match_to_if`.
+- enum declaration syntax needed canonical confirmation. RESOLVED — enum
+  variants resolve to deterministic `i64` tags.
+- enum variant layout/tag output was not contract-proven. RESOLVED — proven by
+  `enum_variants_have_deterministic_i64_tags`.
+- the legacy `lib/core/result.ldx` generic sketch was not suitable for
+  ContractVerified status. RESOLVED — replaced by the Stage 1 `Result<I64, I64>`
+  contract-backed module.
 
 ## Architectural Decision
 
@@ -64,8 +117,14 @@ They must not be faked using status-code helpers.
 This branch must prioritize compiler foundation before adding more CPB stdlib
 modules.
 
-Do not add `core.error`, `core.option`, or `core.result` as ContractVerified
-stdlib modules until the relevant compiler behaviour is proven by tests.
+`core.option` and `core.result` are now Stage 1 ContractVerified for the
+`Option<I64>` / `Result<I64, I64>` slice, because the matching compiler
+behaviour is proven by tests. Any expansion beyond this slice (generic
+payloads, combinators, error payload types) must again be proven by compiler
+support, contracts, and tests before it is added as ContractVerified surface.
+
+A future `core.error` or `core.status` module must not be faked using
+status-code helpers wearing the `core.result` name.
 
 ## Minimum Foundation Target
 
@@ -98,15 +157,17 @@ Those can be added after the I64 payload foundation is proven.
 
 ## Test Strategy
 
-The branch starts with ignored executable compiler tests in:
+The branch carries executable compiler tests in:
 
 - `tests/compiler_result_option_foundation.rs`
 
-These tests define the intended behaviour and must be unignored one by one as
-the compiler foundation becomes real.
+These tests defined the intended behaviour and were unignored one by one as the
+compiler foundation became real. They are now live (non-ignored) and green for
+the proven slice; they are the visible contract for enum tags,
+`Result<I64, I64>`, `Option<I64>`, and match destructuring.
 
-Ignored tests are not a way to hide failure. They are a visible backlog of
-contract targets for this branch.
+Ignored tests were never a way to hide failure. They were a visible backlog of
+contract targets for this branch, now discharged for the I64 slice.
 
 Current compiler-foundation tests validate compile success, stderr cleanliness,
 and stdout behaviour. Process exit-code normalization is tracked separately
@@ -143,16 +204,19 @@ inside the public compiler.
 
 ## Definition of Done
 
-This branch is complete when the following are green:
+This branch's minimum foundation target is met. The following are green:
 
-- compiler e2e tests for enum tags
-- compiler e2e tests for `Result<I64, I64>`
-- compiler e2e tests for `Option<I64>`
-- match destructuring tests for Result and Option
-- LLVM module verification
-- CPB baseline regression
-- `core.option` ContractVerified
-- `core.result` ContractVerified
+- [x] compiler e2e tests for enum tags
+- [x] compiler e2e tests for `Result<I64, I64>`
+- [x] compiler e2e tests for `Option<I64>`
+- [x] match destructuring tests for Result and Option
+- [x] LLVM module verification
+- [x] CPB baseline regression (`verify_cpb_self_hosting_runway.sh`)
+- [x] `core.option` ContractVerified (Stage 1)
+- [x] `core.result` ContractVerified (Stage 1)
+
+Process exit-code normalization remains tracked separately: the foundation
+tests assert stdout behaviour, not process exit status.
 
 ## Integrity Rule
 

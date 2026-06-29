@@ -3,9 +3,10 @@
 //! These tests define the intended long-term behaviour for enum tags,
 //! Result<I64, I64>, Option<I64>, and match destructuring.
 //!
-//! They start ignored because the branch is intentionally capturing blockers
-//! before fixing compiler internals. Each test should be unignored only when
-//! the matching compiler layer is implemented end to end.
+//! They originally started ignored while the branch was capturing blockers
+//! before fixing compiler internals. Each test was unignored as the matching
+//! compiler layer became real end to end; they are now live (non-ignored) and
+//! green for the proven I64 slice.
 
 use std::path::PathBuf;
 use std::process::Command;

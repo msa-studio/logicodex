@@ -18,7 +18,10 @@ InvalidContract
 ```
 
 ## ContractVerified
-- `core.text` — CPB Phase 1 empty/non-empty text predicates, stage 1 contract-backed.
+- `core.prelude` — CPB Phase 1 explicit-import scalar bootstrap helpers (`id_i64`, `zero_i64`, `one_i64`, `truthy_i64`, `fallback_i64`), stage 1 contract-backed. This is not a magic auto-prelude and does not depend on re-export/delegation.
+- `core.text` — CPB Phase 1 empty/non-empty text predicates and emptiness-selection helpers (`is_empty_text_i64`, `not_empty_text_i64`, `same_emptiness_i64`, `select_by_empty_i64`), stage 1 contract-backed. This is not arbitrary String equality.
+- `core.option` — CPB Phase 1 `Option<I64>` predicates/unwrap (`is_some_i64`, `is_none_i64`, `unwrap_or_i64`), stage 1 contract-backed.
+- `core.result` — CPB Phase 1 `Result<I64, I64>` predicates/unwrap (`is_ok_i64`, `is_err_i64`, `unwrap_or_i64`, `unwrap_err_or_i64`), stage 1 contract-backed. Replaces the older generic `Result<T, E>` sketch.
 
 `ContractVerified` means the module follows the Stage 0 contract-backed pattern:
 
@@ -212,7 +215,6 @@ not functioning for stdlib trust purposes:
 - `core.file`
 - `core.io_error`
 - `core.memori`
-- `core.result`
 - `core.ring_buffer`
 - `core.scheduler`
 - `core.shard_manifest`
@@ -226,6 +228,10 @@ Policy:
 - Rebuild or migrate them later according to roadmap priority and subsystem
   owner.
 
+> Note: `core.result` was previously listed here as LegacyNotFunctioning. It has
+> since been rebuilt as a Stage 1 ContractVerified module (`Result<I64, I64>`)
+> and is no longer legacy.
+
 ### Static Function Surface Notes
 
 Static inventory found no legacy public functions outside the ContractVerified
@@ -236,7 +242,6 @@ Observed static states:
 - `LegacyNoFunctions`
   - `core.capability`
   - `core.gate`
-  - `core.result`
   - `core.ring_buffer`
   - `core.shard_manifest`
   - `core.thread`
@@ -270,3 +275,99 @@ Minimum migration requirement:
 - verify script coverage
 - trust-state update
 - green verification before commit/push
+
+## CPB Phase 1 Blockers: Collections and High-level IO
+
+Last probe: Block 161 capability probe on `feature/stdlib-result-option-contracts`.
+
+### Collections status
+
+Status: `DeferredBlockedByCompiler`.
+
+Evidence:
+
+- Array literal / fixed-array probe failed:
+  - `let xs: [I64; 3] = [1, 2, 3];`
+  - failure: parser expects `[]T` slice syntax, not `[T; N]` array syntax.
+- Buffer declaration / index assignment probe failed:
+  - `let buf: Buffer<I64, 3>;`
+  - failure: current `let` syntax expects `=` initializer.
+- Slice parameter syntax compiles:
+  - `public function first_i64(xs: []I64) -> I64 begin return xs[0]; end`
+  - but there is no proven construction / call / round-trip path for passing a slice value.
+
+Decision:
+
+Do not implement `core.collections`, `core.array`, `core.buffer`, `Vec`, `List`, or heap collections yet.
+
+Collections require a generic compiler capability first:
+
+- proven construction / initialization syntax
+- proven index read/write semantics
+- proven pass/return behaviour if exposed as function parameters
+- contract-backed run-cases and e2e tests
+
+No collection API may be claimed CPB-ready until it is implemented through normal `.ldx + .std.toml + tests`.
+
+### High-level IO status
+
+Status: `DeferredBlockedByRuntimeCapability` and partly `DeferredBlockedByCompiler`.
+
+Evidence:
+
+- `PAPAR` works as a statement.
+- `PAPAR` is not callable as an expression/function:
+  - `let x: I64 = PAPAR(2);` fails with unexpected token `PAPAR`.
+- `core.file` and `core.io_error` fail normal import parsing.
+- Current proven Result scope is only `Result<I64, I64>`, not `Result<T, IoError>`.
+
+Decision:
+
+Do not implement fake `core.io.print`, file IO, network IO, syscall IO, or `Result<T, IoError>` yet.
+
+High-level IO requires a generic capability/runtime-profile design first:
+
+- callable IO surface design
+- capability/profile enforcement
+- IO error model
+- Result payload support beyond current scalar `Result<I64, I64>`
+- contract-backed run-cases and e2e tests
+
+### Legacy module import status from probe
+
+These modules failed normal import and must not be treated as implemented:
+
+- `core.io_error` — `LegacyNotFunctioning`
+- `core.file` — `LegacyNotFunctioning`
+- `core.ring_buffer` — `LegacyNotFunctioning`
+- `core.memori` — `LegacyNotFunctioning`
+- `core.scheduler` — `LegacyNotFunctioning`
+- `core.sync` — `LegacyNotFunctioning`
+- `core.capability` — `LegacyNotFunctioning`
+- `core.shard_manifest` — `LegacyNotFunctioning`
+
+These modules are import-loadable but not contract/callable-proven:
+
+- `core.thread` — `CompilerProvenNoContract` / import-load only
+- `core.gate` — `CompilerProvenNoContract` / import-load only
+
+Import-load only does not prove public API behaviour. These modules must not be used as CPB dependencies until converted to the contract-backed pattern.
+
+### Collections compiler foundation update
+
+Status: `CompilerFoundationPartial`.
+
+The CPB Collections blocker is no longer a total compiler blocker. The compiler
+now proves the first fixed-local-array foundation:
+
+- fixed array type syntax: `[T; N]`
+- array literal syntax: `[a, b, c]`
+- index read: `xs[i]`
+- index assignment: `xs[i] = v`
+- HIR type lowering for fixed arrays
+- LLVM local array storage as `[N x i64]`
+
+This does not yet make `core.collections` production-ready. It unlocks the next
+stdlib migration step: contract-backed collection helpers can now target a small,
+proven fixed-array subset before slices, dynamic buffers, iterators, maps, or
+higher-level collection APIs are promoted.

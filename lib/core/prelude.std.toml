@@ -1,0 +1,80 @@
+[contract]
+version = 0
+
+[module]
+name = "core.prelude"
+layer = "core"
+stage = 1
+profile = "core"
+pure = true
+extern = false
+
+[validation]
+metadata = true
+static = true
+compile = true
+run = true
+stress = false
+
+[limits]
+compile_timeout_ms = 10000
+run_timeout_ms = 2000
+stdout_limit_bytes = 65536
+max_cases = 50
+
+[exports]
+functions = [
+  "fallback_i64",
+  "id_i64",
+  "one_i64",
+  "truthy_i64",
+  "zero_i64",
+]
+
+[constraints]
+allowed_imports = ["core.*"]
+forbidden_imports = ["std.*", "framework.*"]
+forbidden_features = ["extern", "malloc", "free", "file", "network", "syscall"]
+
+[capabilities]
+requires = []
+
+[[cases]]
+name = "id returns input"
+expr = "core.prelude.id_i64(42)"
+expect_i64 = 42
+
+[[cases]]
+name = "zero returns zero"
+expr = "core.prelude.zero_i64()"
+expect_i64 = 0
+
+[[cases]]
+name = "one returns one"
+expr = "core.prelude.one_i64()"
+expect_i64 = 1
+
+[[cases]]
+name = "truthy positive"
+expr = "core.prelude.truthy_i64(5)"
+expect_i64 = 1
+
+[[cases]]
+name = "truthy negative"
+expr = "core.prelude.truthy_i64(-3)"
+expect_i64 = 1
+
+[[cases]]
+name = "truthy zero"
+expr = "core.prelude.truthy_i64(0)"
+expect_i64 = 0
+
+[[cases]]
+name = "fallback zero"
+expr = "core.prelude.fallback_i64(0, 9)"
+expect_i64 = 9
+
+[[cases]]
+name = "fallback nonzero"
+expr = "core.prelude.fallback_i64(7, 9)"
+expect_i64 = 7

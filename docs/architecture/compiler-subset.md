@@ -79,6 +79,7 @@ development tooling work begins.
 
 The priority is:
 
+0. `core.prelude`
 1. `core.text` or `core.string`
 2. `core.option`
 3. `core.result`
@@ -90,6 +91,21 @@ The priority is:
 9. package metadata reader
 10. package manager MVP
 11. real development tools
+
+### P1-B0: Prelude
+
+Prelude is the explicit bootstrap surface for tiny compiler-shaped programs.
+
+Status: `core.prelude` is implemented as a Stage 1 contract-backed module.
+It is explicit-import only:
+
+```logicodex
+import core.prelude;
+PAPAR core.prelude.zero_i64();
+```
+
+It is not a magic auto-prelude, does not re-export other modules, and does
+not depend on internal stdlib-to-stdlib delegation.
 
 ### P1-B1: Text/String
 
@@ -117,8 +133,17 @@ They are needed for:
 - package metadata validation
 - contract verification result flow
 
-Legacy `core.result` is not a CPB proof surface. It must be rebuilt or migrated
-under contract when this blocker is implemented.
+Status: the monomorphic `Option<I64>` / `Result<I64, I64>` slice is now
+implemented at the compiler level (enum tags, typed constructors, match
+destructuring) and shipped as Stage 1 contract-backed `core.option` /
+`core.result`. The legacy generic `core.result` sketch has been replaced by this
+proven slice, so it is no longer an unproven surface.
+
+Still deferred for this blocker: generic `Option<T>` / `Result<T, E>`,
+combinators (`map`, `and_then`, `expect`), non-I64 error payloads
+(String/IO), nested Result/Option, and exhaustiveness diagnostics. These remain
+out of the CPB proof surface until proven by compiler support, contracts, and
+tests.
 
 ### P1-B3: Array/Slice/List
 
@@ -339,3 +364,44 @@ CPB-1 compiler subset is ready when:
 - required subset terms are gated
 - first three proof programs are defined
 - no legacy unverified module is required for the proof plan
+
+Text status update: `core.text` now includes contract-backed emptiness helpers `same_emptiness_i64` and `select_by_empty_i64`. These compare/select by empty vs non-empty status only; arbitrary non-empty `String == String` remains deferred.
+
+### CPB Phase 1 Collections / IO Probe Result
+
+Block 161 confirmed that collections and high-level IO remain blockers, not implemented stdlib APIs.
+
+Collections:
+
+- `[I64; 3]` fixed-array syntax / array literal construction is not compiler-proven.
+- `Buffer<I64, 3>` type syntax exists, but declaration without initializer fails under current `let` rules.
+- `[]I64` slice parameter syntax compiles, but slice construction / call / round-trip is not proven.
+
+Therefore `core.collections`, `core.array`, `core.buffer`, Vec/List, and heap collections remain deferred until generic construction and round-trip semantics are implemented and contract-proven.
+
+High-level IO:
+
+- `PAPAR` is a statement, not a callable stdlib function.
+- `core.file` and `core.io_error` are legacy/non-functioning under normal import.
+- `Result<T, IoError>` is not implemented; current proven Result scope remains `Result<I64, I64>`.
+
+Therefore high-level IO remains deferred until callable IO, runtime capability/profile enforcement, and the IO error model are designed generically.
+
+### Collections compiler foundation update
+
+Status: `CompilerFoundationPartial`.
+
+The CPB Collections blocker is no longer a total compiler blocker. The compiler
+now proves the first fixed-local-array foundation:
+
+- fixed array type syntax: `[T; N]`
+- array literal syntax: `[a, b, c]`
+- index read: `xs[i]`
+- index assignment: `xs[i] = v`
+- HIR type lowering for fixed arrays
+- LLVM local array storage as `[N x i64]`
+
+This does not yet make `core.collections` production-ready. It unlocks the next
+stdlib migration step: contract-backed collection helpers can now target a small,
+proven fixed-array subset before slices, dynamic buffers, iterators, maps, or
+higher-level collection APIs are promoted.
