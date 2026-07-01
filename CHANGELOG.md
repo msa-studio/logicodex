@@ -24,19 +24,59 @@ future versioning is corrected.
 
 ## [Unreleased]
 
-Branch: `feature/stdlib-result-option-contracts` (base `feature/stdlib-core`).
-Not yet merged.
+Branch: `feature/stdlib-core` (target `main`). Not yet merged. This is the CPB
+Phase 1 foundation: a contract-backed standard-library layer plus the generic
+language capabilities it required. All stdlib modules are normal `.ldx` files
+with `.std.toml` contracts, discovered through the ordinary import path; the
+compiler stays generic (no module-specific wiring).
 
 ### Added
+- **Module system (Stage 0).** Generic dotted-path imports via `import`,
+  `public`, `begin`/`end` keywords and a `QualifiedCall` node (`core.x.fn(...)`),
+  with `src/module_loader.rs` (topological graph, cycle detection,
+  filesystem-relative resolution), name mangling, and private-by-default
+  visibility. Proven by `tests/module_system_stage0.rs` and
+  `tests/module_dotted_paths.rs`.
+- **`lod` Stage 0** (`src/lod.rs`): a hand-written zero-dependency `logicodex.toml`
+  reader for manifest-driven C-ABI linking (`[ffi] allow` + `[dependencies.c.*]`)
+  that feeds the capability policy and linker.
+- **FfiGatekeeper capability gate** (`src/semantic_gate.rs`, `src/ffi.rs`):
+  default-deny `extern "C"`, runtime builtins auto-allowed, other foreign
+  symbols require explicit `ffi.allow`.
+- **Stage 0 contract-backed stdlib**: `core.math`, `core.assert`, `core.bits`,
+  `core.bool`, `core.compare`, `core.range` (pure `I64` helpers), each with an
+  `.ldx` source, a `.std.toml` contract, and a `tests/stdlib_core_*.rs` e2e test.
+- **`core.prelude`** (explicit-import baseline): `id_i64`, `zero_i64`, `one_i64`,
+  `truthy_i64`, `fallback_i64`. Not an automatic language prelude.
+- **`core.text` (Stage 1)**: `is_empty_text_i64`, `not_empty_text_i64`,
+  `same_emptiness_i64`, `select_by_empty_i64` (`String` in / `I64` out; only
+  `== ""` / `!= ""` proven).
 - **Stage 1 contract-backed `core.option`** for the `Option<I64>` slice
   (`is_some_i64`, `is_none_i64`, `unwrap_or_i64`), paired with
   `lib/core/option.std.toml` and proven by `tests/stdlib_core_result_option.rs`.
 - **Stage 1 contract-backed `core.result`** for the `Result<I64, I64>` slice
   (`is_ok_i64`, `is_err_i64`, `unwrap_or_i64`, `unwrap_err_or_i64`), paired with
   `lib/core/result.std.toml`.
-- Compiler-foundation coverage proven by `tests/compiler_result_option_foundation.rs`:
-  enum-to-`i64` variant tags, typed `Ok`/`Err`/`Some`/`None` construction,
-  `Result<I64, I64>` / `Option<I64>` returns, and `match` destructuring.
+- **Result/Option compiler foundation** proven by
+  `tests/compiler_result_option_foundation.rs`: enum-to-`i64` variant tags,
+  typed `Ok`/`Err`/`Some`/`None` construction, `Result<I64, I64>` /
+  `Option<I64>` returns, and `match` destructuring.
+- **Collections foundation** (generic language capability): array-literal
+  construction, fixed local arrays, and index read/write for `I64`, via the
+  `ArrayLiteral` AST node and `Type::Array`. Proven by
+  `tests/compiler_collections_foundation.rs`. No heap `Vec`/`List` and no slice
+  passing yet (deferred).
+- **`Modulo` and `BitXor` binary operators** (generic), with constant
+  divide-by-zero checking extended to `Modulo`. Proven by
+  `tests/modulo_operator.rs` and `tests/bitxor.rs`.
+- **Actor runtime backend** (`src/runtime/runtime_actor.c`): audited pthread
+  spawn/join/channel C backend completing the previously codegen-only ABI, plus
+  cross-actor channel capture (actor `params`) and `ChannelCreate`.
+- **Contract-verification infrastructure**: `tools/verify_stdlib_contracts.py`
+  (metadata validation + bounded run-cases), `scripts/dev/` verify scripts, and
+  the `.std.toml` contract format. Wired into CI (`check` validates contracts;
+  `test` runs `--run-cases`).
+- **`tests/stdlib_root_resolution.rs`** for std-root module path resolution.
 
 ### Changed
 - `lib/core/result.ldx` was narrowed from the older aspirational generic
@@ -46,21 +86,33 @@ Not yet merged.
 - Parser now accepts `result` as a dotted stdlib module leaf (`core.result`)
   even though `Result` remains a type keyword; `option`/`Some`/`None` stay plain
   identifiers.
+- Frozen core files received additive, documented changes: `src/ast.rs` (new
+  nodes/fields: `is_public`, actor `params`, `QualifiedCall`, `ArrayLiteral`,
+  Option `Some`/`None`, `ChannelCreate`, `Modulo`/`BitXor`, `Type::Array`/
+  `Type::Option`) and `src/semantic.rs` (rest-pattern tolerance, Modulo
+  divide-by-zero, allowed-operator list). No existing semantics removed.
 - Documentation aligned to the proven state: `result-option-foundation.md`
   (foundation marked proven, transitional scalar encoding documented),
   `stdlib-migration-status.md` (`core.result` moved out of the legacy lists;
   `core.option` + `core.result` added as ContractVerified Stage 1),
-  `compiler-subset.md` P1-B2, and `SPECIFICATION.md` (Option/Result generic
-  qualifier + a diagnostics-status note).
+  `compiler-subset.md` P1-B2, `SPECIFICATION.md` (Option/Result generic
+  qualifier + diagnostics-status note), and the merge/stability audits under
+  `docs/audit/`.
 
 ### Notes
-- The Stage 1 slice uses a transitional scalar `i64` encoding
+- The Result/Option Stage 1 slice uses a transitional scalar `i64` encoding
   (`Ok`/`Some(v) = (v << 1) | 1`, `Err(e) = e << 1`, `None = 0`), not the final
   tagged-union layout. Payloads are effectively 63-bit and `match` lowers to an
-  if-chain (no exhaustiveness checking yet).
+  if-chain (no exhaustiveness checking yet). Enum tagged-union layout
+  (`TypeRegistry` size/align for `Enum`) remains deferred (Sprint 2.5) and is
+  currently unreachable.
 - Deferred: generic `Option<T>` / `Result<T, E>`, `map` / `and_then` /
   `expect` / panic helpers, String / IO error payloads, nested Result/Option,
-  heap-backed payloads, and the LDX-DIP diagnostic-intelligence layer.
+  heap-backed collections (`Vec`/`List`) and slice passing, custom-enum `match`,
+  high-level file/network IO, and the LDX-DIP diagnostic-intelligence layer.
+- Merging this branch to `main` trips the size gate (>500 lines) and the
+  architecture-freeze gate (`src/ast.rs`, `src/semantic.rs`); both require a
+  maintainer override. See `docs/audit/stdlib-core-to-main-merge-readiness.md`.
 
 ---
 
