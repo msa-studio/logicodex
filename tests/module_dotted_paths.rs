@@ -68,7 +68,11 @@ fn dotted_two_segment_import_and_call() {
     );
     let root = p.file("main.ldx", "import geo.vec;\nPAPAR geo.vec.add(2, 3);\n");
     let (_code, out) = p.compile_and_run(&root);
-    assert_eq!(out.trim(), "5", "geo.vec.add(2,3) across a dotted path prints 5");
+    assert_eq!(
+        out.trim(),
+        "5",
+        "geo.vec.add(2,3) across a dotted path prints 5"
+    );
 }
 
 // Regression: single-segment modules must still work after the parser change.

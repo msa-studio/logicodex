@@ -49,10 +49,7 @@ fn core_module_resolves_via_logicodex_std() {
     );
 
     let proj = Tmp::new("proj");
-    let root = proj.file(
-        "main.ldx",
-        "import core.math;\nPAPAR core.math.answer();\n",
-    );
+    let root = proj.file("main.ldx", "import core.math;\nPAPAR core.math.answer();\n");
 
     let compile = Command::new(bin())
         .env("LOGICODEX_STD", &stdroot.dir)

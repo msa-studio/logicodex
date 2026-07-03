@@ -195,7 +195,10 @@ pub enum LiteralAst {
 pub enum TypeAst {
     Named(String),
     Pointer(Box<TypeAst>),
-    Array { element: Box<TypeAst>, len: usize },
+    Array {
+        element: Box<TypeAst>,
+        len: usize,
+    },
     /// Semantic Result identity. Codegen may still lower this to i64 ABI, but
     /// HIR keeps the meaning for match lowering and diagnostics.
     Result {

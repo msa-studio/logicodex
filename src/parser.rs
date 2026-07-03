@@ -624,7 +624,8 @@ impl Parser {
             MatchPattern::Identifier(self.previous().lexeme.clone())
         } else {
             return Err(ParseError::Expected {
-                expected: "Ok(x), Err(e), Some(x), None, _, literal, or identifier pattern".to_string(),
+                expected: "Ok(x), Err(e), Some(x), None, _, literal, or identifier pattern"
+                    .to_string(),
                 found: self.peek().lexeme.clone(),
                 line: self.peek().line,
                 column: self.peek().column,
@@ -1052,7 +1053,10 @@ impl Parser {
 
     fn factor(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.unary()?;
-        while self.matches(TokenKind::Star) || self.matches(TokenKind::Slash) || self.matches(TokenKind::Modulo) {
+        while self.matches(TokenKind::Star)
+            || self.matches(TokenKind::Slash)
+            || self.matches(TokenKind::Modulo)
+        {
             let op = if self.previous().kind == TokenKind::Star {
                 BinaryOp::Multiply
             } else if self.previous().kind == TokenKind::Slash {

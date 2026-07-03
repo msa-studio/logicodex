@@ -23,7 +23,11 @@ impl Tmp {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let uniq = COUNTER.fetch_add(1, Ordering::Relaxed);
         let mut dir = std::env::temp_dir();
-        dir.push(format!("ldx_coreassert_{name}_{}_{}", std::process::id(), uniq));
+        dir.push(format!(
+            "ldx_coreassert_{name}_{}_{}",
+            std::process::id(),
+            uniq
+        ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("mkdir");
         Tmp { dir }
@@ -94,8 +98,11 @@ fn assert_eq_of_core_math_abs() {
          import core.assert;\n\
          PAPAR core.assert.eq_i64(core.math.abs_i64(-5), 5);\n",
     );
-    assert_eq!(out.split_whitespace().next(), Some("1"),
-        "eq_i64(abs_i64(-5), 5) is true");
+    assert_eq!(
+        out.split_whitespace().next(),
+        Some("1"),
+        "eq_i64(abs_i64(-5), 5) is true"
+    );
 }
 
 #[test]

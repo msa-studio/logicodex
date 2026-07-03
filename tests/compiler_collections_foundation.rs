@@ -30,7 +30,11 @@ impl Tmp {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let uniq = COUNTER.fetch_add(1, Ordering::Relaxed);
         let mut dir = std::env::temp_dir();
-        dir.push(format!("ldx_collections_{name}_{}_{}", std::process::id(), uniq));
+        dir.push(format!(
+            "ldx_collections_{name}_{}_{}",
+            std::process::id(),
+            uniq
+        ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("mkdir");
         Tmp { dir }
@@ -57,7 +61,10 @@ fn compile_and_run(src: &str) -> Vec<String> {
     let root = proj.file("main.ldx", src);
 
     let compile = Command::new(bin())
-        .env("LOGICODEX_STD", PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("lib"))
+        .env(
+            "LOGICODEX_STD",
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("lib"),
+        )
         .arg("compile")
         .arg("--emit-ir")
         .arg(&root)

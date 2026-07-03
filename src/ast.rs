@@ -393,13 +393,18 @@ impl Type {
 
     /// Ketuk 1: Check if this is a contiguous memory type (slice or buffer).
     pub fn is_contiguous(&self) -> bool {
-        matches!(self, Type::Slice { .. } | Type::Array { .. } | Type::Buffer { .. })
+        matches!(
+            self,
+            Type::Slice { .. } | Type::Array { .. } | Type::Buffer { .. }
+        )
     }
 
     /// Ketuk 1: Get the element type if this is a slice or buffer.
     pub fn element_type(&self) -> Option<&Type> {
         match self {
-            Type::Slice { element } | Type::Array { element, .. } | Type::Buffer { element } => Some(element),
+            Type::Slice { element } | Type::Array { element, .. } | Type::Buffer { element } => {
+                Some(element)
+            }
             _ => None,
         }
     }

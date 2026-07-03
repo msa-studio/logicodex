@@ -4,10 +4,8 @@ use std::process::Command;
 #[test]
 fn modulo_operator_smoke_and_precedence() {
     let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let workdir = std::env::temp_dir().join(format!(
-        "logicodex_modulo_operator_{}",
-        std::process::id()
-    ));
+    let workdir =
+        std::env::temp_dir().join(format!("logicodex_modulo_operator_{}", std::process::id()));
 
     let _ = fs::remove_dir_all(&workdir);
     fs::create_dir_all(&workdir).expect("create temp dir");
