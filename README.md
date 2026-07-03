@@ -189,3 +189,38 @@ apply to current or future distributions.
 SPDX-License-Identifier: MPL-2.0
 
 © 2025 Mohamad Supardi Abdul (mymsastudio@gmail.com). All rights reserved.
+
+## Current CPB foundation status
+
+Logicodex is moving from aspirational stdlib APIs to evidence-backed,
+contract-verified foundations.
+
+Trusted contract-backed core modules currently include:
+
+- `core.assert`
+- `core.math`
+- `core.bits`
+- `core.bool`
+- `core.compare`
+- `core.range`
+- `core.prelude`
+- `core.text`
+- `core.option`
+- `core.result`
+
+Important scope limits:
+
+- `core.prelude` is explicit-import only, not a magic auto-prelude.
+- `core.text` proves empty/non-empty text helpers, not full string manipulation.
+- `core.option` is currently `Option<I64>` focused.
+- `core.result` is currently `Result<I64, I64>` focused.
+- Collections are `CompilerFoundationPartial`: fixed local arrays are proven,
+  but `core.array`, `core.slice`, `Vec`, `List`, and heap collections are not
+  production-ready.
+- High-level IO remains deferred until callable IO, path handling, `IoError`,
+  and runtime capability/profile policy are designed.
+
+See:
+
+- `docs/stdlib/core-trust-state.md`
+- `docs/architecture/cpb-next-roadmap-blockers.md`
