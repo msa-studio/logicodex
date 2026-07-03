@@ -8,10 +8,13 @@
 mod ast;
 mod codegen;
 mod codegen_contract;
+mod contract_metadata;
 mod ffi;
 mod hir;
 mod layout;
 mod lexer;
+mod lod;
+mod module_loader;
 mod os;
 mod parser;
 #[allow(dead_code)]
@@ -72,6 +75,54 @@ struct Cli {
     command: Option<Commands>,
 }
 
+/// Runtime profile selects which runtime ABI surface a program may use.
+///
+/// Honest status (Phase D):
+///   bare    -> no runtime builtins beyond print (minimal/native identity)
+///   std     -> print + sleep + yield (real syscall backends)  [DEFAULT]
+///   safe    -> std + capability checks                        [runtime-pending]
+///   actor   -> std + spawn/join/channel                       [runtime-pending: Phase B]
+///   service -> std + local reactor/health/metrics             [runtime-pending]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Profile {
+    Bare,
+    Std,
+    Safe,
+    Actor,
+    Service,
+}
+
+impl Profile {
+    fn parse(s: &str) -> Result<Self> {
+        match s {
+            "bare" => Ok(Profile::Bare),
+            "std" => Ok(Profile::Std),
+            "safe" => Ok(Profile::Safe),
+            "actor" => Ok(Profile::Actor),
+            "service" => Ok(Profile::Service),
+            other => Err(anyhow::anyhow!(
+                "unknown profile `{other}` (expected: bare, std, safe, actor, service)"
+            )),
+        }
+    }
+
+    /// Profiles whose runtime is not yet implemented return Some(reason).
+    /// bare/std are fully real today; the rest are reserved with honest status.
+    fn pending_reason(self) -> Option<&'static str> {
+        match self {
+            // bare/std: real today. actor: real now too — the pthread runtime
+            // (runtime_actor.c) provides spawn/join. safe/service remain pending.
+            Profile::Bare | Profile::Std | Profile::Actor => None,
+            Profile::Safe => Some(
+                "the `safe` profile (capability enforcement) is not implemented yet;                  capability types exist but are not enforced at runtime",
+            ),
+            Profile::Service => Some(
+                "the `service` profile (local reactor/health/metrics) is not implemented yet",
+            ),
+        }
+    }
+}
+
 #[derive(Debug, Subcommand)]
 enum Commands {
     #[command(about = "Print the official Logicodex terminal logo")]
@@ -101,6 +152,13 @@ enum Commands {
             help = "Select compiler pipeline: v1.30 (default) or v1.21 (legacy)"
         )]
         pipeline: String,
+        #[arg(
+            long,
+            default_value = "std",
+            value_parser = ["bare", "std", "safe", "actor", "service"],
+            help = "Runtime profile: bare, std (default), safe, actor, service"
+        )]
+        profile: String,
     },
     Check {
         #[arg(value_name = "FILE")]
@@ -149,10 +207,12 @@ fn main() -> Result<()> {
             secure,
             target,
             pipeline,
+            profile,
         }) => {
             let pipeline = pipeline
                 .parse::<CompilerPipeline>()
                 .map_err(anyhow::Error::msg)?;
+            let profile = Profile::parse(&profile)?;
             compile(
                 &file,
                 output,
@@ -162,6 +222,7 @@ fn main() -> Result<()> {
                 secure,
                 &target,
                 pipeline,
+                profile,
             )
         }
         Some(Commands::Check {
@@ -196,8 +257,17 @@ fn compile(
     secure: bool,
     target_name: &str,
     pipeline: CompilerPipeline,
+    profile: Profile,
 ) -> Result<()> {
     ensure_ldx_source(file)?;
+    // Profiles whose runtime is not implemented yet fail early with an honest,
+    // actionable message (consistent with the actor/channel compile guard).
+    // bare/std proceed normally.
+    if let Some(reason) = profile.pending_reason() {
+        return Err(anyhow::anyhow!(
+            "{reason}. Use `--profile std` (print + sleep + yield) or `--profile bare`.              See docs/runtime/PROFILES.md for current profile readiness."
+        ));
+    }
     let target = CompilationTarget::parse(target_name)?;
     let output_path = output.unwrap_or_else(|| default_output(file, object_only));
     let object_path = if object_only {
@@ -208,7 +278,9 @@ fn compile(
 
     // Compile through the HIR pipeline (CallableRegistry-backed).
     let artifact = match pipeline {
-        CompilerPipeline::V130 => compile_v130_pipeline(file, dict, &object_path, emit_ir, target)?,
+        CompilerPipeline::V130 => {
+            compile_v130_pipeline(file, dict, &object_path, emit_ir, target, profile)?
+        }
     };
     if let Some(ir_path) = artifact.ir_path.as_ref() {
         println!("LLVM IR written to {}", ir_path.display());
@@ -257,7 +329,37 @@ fn compile(
     let runtime_asm = output_path.with_extension("runtime.s");
     fs::write(&runtime_asm, os::runtime_assembly())
         .with_context(|| format!("failed to write runtime assembly {}", runtime_asm.display()))?;
-    link_executable(&artifact.object_path, &runtime_asm, &output_path)?;
+    // Build the link spec from the runtime profile. bare/std need nothing extra.
+    // actor needs the audited pthread runtime (runtime_actor.c) + -lpthread,
+    // both Logicodex-decided (runtime_libs channel), never user-requested.
+    let mut link_spec = LinkSpec::default();
+    let mut _actor_rt_tmp: Option<PathBuf> = None;
+    if profile == Profile::Actor {
+        // runtime_actor.c is a fixed, audited artifact embedded in the compiler
+        // binary (include_str!), written to a temp file next to the output so cc
+        // can compile+link it. The user cannot substitute or inject this C.
+        let rt_src = output_path.with_extension("runtime_actor.c");
+        fs::write(&rt_src, include_str!("runtime/runtime_actor.c")).with_context(|| {
+            format!("failed to write actor runtime source {}", rt_src.display())
+        })?;
+        link_spec.extra_sources.push(rt_src.clone());
+        link_spec.runtime_libs.push("pthread".to_string());
+        _actor_rt_tmp = Some(rt_src);
+    }
+    // lod Stage 0: pull external C libraries to link from logicodex.toml
+    // ([dependencies.c.*].link). These go in the user_libs channel (explicit,
+    // user-requested) -- never auto-linked. No manifest -> nothing added.
+    if let Some((manifest, _)) =
+        lod::Manifest::discover(file).map_err(|e| anyhow::anyhow!("{e}"))?
+    {
+        link_spec.user_libs.extend(manifest.user_libs());
+    }
+    link_executable(
+        &artifact.object_path,
+        &runtime_asm,
+        &output_path,
+        &link_spec,
+    )?;
     println!("Native executable written to {}", output_path.display());
     if secure {
         write_security_attestation_plan(&output_path)?;
@@ -265,13 +367,144 @@ fn compile(
     Ok(())
 }
 
+/// Scan a lowered HIR module for actor/channel operations whose runtime is not
+/// yet implemented (Phase B, pthread-based). Returns the first such operation's
+/// human label, or None if the program uses no runtime-pending threading ops.
+///
+/// `yield` and `sleep` are intentionally NOT flagged: they have real syscall
+/// backends in os::runtime_assembly() and are part of the std profile today.
+fn first_pending_actor_op(module: &hir::HirModule) -> Option<&'static str> {
+    fn scan_expr(e: &hir::HirExpr) -> Option<&'static str> {
+        use hir::HirExprKind::*;
+        match &e.kind {
+            Spawn { args, .. } => {
+                for a in args {
+                    if let Some(op) = scan_expr(a) {
+                        return Some(op);
+                    }
+                }
+                Some("spawn")
+            }
+            Join { .. } => Some("join"),
+            ChannelSend { .. } => Some("channel send"),
+            ChannelRecv { .. } => Some("channel recv"),
+            ChannelTrySend { .. } => Some("channel try_send"),
+            ChannelTryRecv { .. } => Some("channel try_recv"),
+            ChannelTimeoutRecv { .. } => Some("channel timeout_recv"),
+            Binary { left, right, .. } => scan_expr(left).or_else(|| scan_expr(right)),
+            Unary { expr, .. } | Field { base: expr, .. } | Cast { expr, .. } => scan_expr(expr),
+            Call { args, .. } => args.iter().find_map(scan_expr),
+            Sleep { duration_ms } => scan_expr(duration_ms),
+            _ => None,
+        }
+    }
+    fn scan_block(b: &hir::HirBlock) -> Option<&'static str> {
+        for s in &b.statements {
+            if let Some(op) = scan_stmt(&s.node) {
+                return Some(op);
+            }
+        }
+        None
+    }
+    fn scan_stmt(s: &hir::HirStmt) -> Option<&'static str> {
+        use hir::HirStmt::*;
+        match s {
+            Let { value: Some(v), .. } => scan_expr(v),
+            Let { value: None, .. } => None,
+            Assign { target, value } => scan_expr(target).or_else(|| scan_expr(value)),
+            If {
+                condition,
+                then_branch,
+                else_branch,
+            } => scan_expr(condition)
+                .or_else(|| scan_block(then_branch))
+                .or_else(|| else_branch.as_ref().and_then(scan_block)),
+            While { condition, body } => scan_expr(condition).or_else(|| scan_block(body)),
+            Loop { body } | UnsafeBlock(body) | HardwareZone(body) => scan_block(body),
+            Expr(e) => scan_expr(e),
+            Return(Some(e)) => scan_expr(e),
+            Return(None) | Break { .. } | Continue { .. } | HardwareDecl { .. } => None,
+        }
+    }
+    for item in &module.items {
+        if let hir::HirItem::Function(f) = &item.node {
+            if let Some(op) = scan_block(&f.body) {
+                return Some(op);
+            }
+        }
+    }
+    None
+}
+
 /// HIR compilation pipeline with CallableRegistry + Raylib FFI.
+/// Lower a (possibly multi-module) program to a single merged HirModule on one
+/// shared LoweringContext. If the root program has no `import` statements this
+/// is exactly `lower_program(root)` -- the single-file path is unchanged, byte
+/// for byte. When imports are present, the module loader resolves the graph
+/// (filesystem-relative, dot = directory, cycles rejected), each imported
+/// module is lowered in topological order (dependencies before dependents, so a
+/// module's mangled symbols exist before a later module's qualified call
+/// resolves them) under its own module name, the root is lowered last with its
+/// `main`-wrap, and all items are concatenated into one HirModule fed to the
+/// rest of the pipeline. One shared SymbolTable means cross-module qualified
+/// calls resolve against the same id-space -- no duplicate CallableIds.
+fn lower_with_modules(
+    lowering: &mut hir::LoweringContext,
+    file: &Path,
+    dict: &Path,
+    root_program: ast::Program,
+) -> Result<hir::HirModule> {
+    // Fast path: no imports -> behave exactly like before (single file).
+    if module_loader::imports_of(&root_program).is_empty() {
+        return lowering
+            .lower_program(root_program)
+            .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags));
+    }
+
+    // Multi-module path. Parsing is injected into the loader as a closure so the
+    // loader stays a pure graph/ordering unit; here it runs the real v1.30
+    // lexer+parser against the shared dictionary.
+    let dict_owned = dict.to_path_buf();
+    let parse = move |source: &str, _path: &Path| -> std::result::Result<ast::Program, String> {
+        let lexicon = Lexicon::from_path(&dict_owned)
+            .map_err(|e| format!("failed to load dictionary {}: {e}", dict_owned.display()))?;
+        let tokens = Lexer::new(source, &lexicon)
+            .tokenize()
+            .map_err(|e| format!("{e}"))?;
+        let mut parser = Parser::new(tokens).with_pipeline(CompilerPipeline::V130);
+        parser.parse().map_err(|e| format!("{e}"))
+    };
+
+    let graph = module_loader::load_graph(file, &parse)
+        .map_err(|e| anyhow::anyhow!("module loading failed: {e}"))?;
+
+    // The loader emits dependencies first and the root ("") last, which is the
+    // exact lowering order we want.
+    let mut merged: Vec<span::Spanned<hir::HirItem>> = Vec::new();
+    for module in graph.modules {
+        let lowered = if module.name.is_empty() {
+            // Root: keep the main-wrap so top-level statements run.
+            lowering
+                .lower_program(module.program)
+                .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags))?
+        } else {
+            // Imported module: function-only, mangled, no main-wrap.
+            lowering
+                .lower_module_program(&module.name, module.program)
+                .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags))?
+        };
+        merged.extend(lowered.items);
+    }
+    Ok(hir::HirModule { items: merged })
+}
+
 fn compile_v130_pipeline(
     file: &Path,
     dict: &Path,
     object_path: &Path,
     emit_ir: bool,
     target: CompilationTarget,
+    profile: Profile,
 ) -> Result<codegen::CodegenArtifact> {
     // Step 1: Parse source to AST
     let source = fs::read_to_string(file)
@@ -294,11 +527,24 @@ fn compile_v130_pipeline(
             symbols: &mut symbols,
             types: &mut types,
             diagnostics: Vec::new(),
+            current_module: String::new(),
         };
-        lowering
-            .lower_program(program)
-            .map_err(|diags| anyhow::anyhow!("v1.21 HIR lowering failed: {:?}", diags))?
+        lower_with_modules(&mut lowering, file, dict, program)?
     };
+
+    // Actor/channel runtime is reserved for Phase B (pthread-based). The HIR is
+    // lowered and codegen can emit calls to logicodex_spawn/join/channel_*, but
+    // those symbols have no runtime definition yet, so linking would fail with a
+    // bare "undefined reference". Detect this here and stop with an honest,
+    // actionable message instead. `check` does NOT run this — the program is
+    // syntactically and semantically valid; only its runtime is missing.
+    if profile != Profile::Actor {
+        if let Some(op) = first_pending_actor_op(&module_ast) {
+            return Err(anyhow::anyhow!(
+            "actor/channel runtime not available yet: this program uses `{op}`,              which is parsed and code-generated but has no runtime backend in              this build (reserved for Phase B, pthread-based). It type-checks              (`check` passes), but cannot be linked into a runnable executable.                  See docs/runtime/PROFILES.md (actor profile: runtime-pending)."
+            ));
+        }
+    }
 
     // Step 4: Set up CallableRegistry with Raylib functions
     let mut callables = ffi::CallableRegistry::default();
@@ -332,7 +578,19 @@ fn compile_v130_pipeline(
     // Build id->name map for codegen call routing before `symbols` is moved.
     let callable_names = symbols.callables_map();
 
-    // Step 5: Semantic check
+    // Step 5: Semantic check.
+    // lod Stage 0: if a logicodex.toml sits next to the source, its [ffi].allow
+    // and [dependencies.c.*].allow symbols are added to the capability policy so
+    // declared externs can pass the FfiGatekeeper. No manifest -> default-deny
+    // stays fully in force (the common case).
+    let mut policy = ffi::CapabilityPolicy::with_runtime_builtins();
+    if let Some((manifest, _)) =
+        lod::Manifest::discover(file).map_err(|e| anyhow::anyhow!("{e}"))?
+    {
+        for sym in manifest.allowed_symbols() {
+            policy.allow_symbol(sym);
+        }
+    }
     let mut semantic = semantic_gate::SemanticContext {
         types,
         symbols,
@@ -340,6 +598,8 @@ fn compile_v130_pipeline(
         diagnostics: Vec::new(),
         loop_depth: 0,
         safety_context: ffi::SafetyContext::Safe,
+        policy,
+        extern_symbols: std::collections::HashSet::new(),
     };
     semantic
         .check_module(&module_ast)
@@ -606,15 +866,24 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
             symbols: &mut symbols,
             types: &mut types,
             diagnostics: Vec::new(),
+            current_module: String::new(),
         };
-        lowering
-            .lower_program(program)
-            .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags))?
+        lower_with_modules(&mut lowering, file, dict, program)?
     };
 
     let mut callables = ffi::CallableRegistry::default();
     ffi::raylib::register_raylib_functions(&mut types, &mut callables, &raylib_type_ids);
 
+    // lod Stage 0: `check` honours the same logicodex.toml allow-list as compile,
+    // so a denied/allowed extern reports identically in both paths.
+    let mut policy = ffi::CapabilityPolicy::with_runtime_builtins();
+    if let Some((manifest, _)) =
+        lod::Manifest::discover(file).map_err(|e| anyhow::anyhow!("{e}"))?
+    {
+        for sym in manifest.allowed_symbols() {
+            policy.allow_symbol(sym);
+        }
+    }
     let mut semantic = semantic_gate::SemanticContext {
         types,
         symbols,
@@ -622,6 +891,8 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
         diagnostics: Vec::new(),
         loop_depth: 0,
         safety_context: ffi::SafetyContext::Safe,
+        policy,
+        extern_symbols: std::collections::HashSet::new(),
     };
     semantic
         .check_module(&module_ast)
@@ -694,6 +965,7 @@ fn run_v130_subsystem_self_check() -> Result<()> {
                     }],
                 },
                 is_unsafe: false,
+                is_public: false,
             }),
             span: span::Span::unknown(),
         }],
@@ -703,6 +975,7 @@ fn run_v130_subsystem_self_check() -> Result<()> {
         symbols: &mut symbols,
         types: &mut types,
         diagnostics: Vec::new(),
+        current_module: String::new(),
     };
     let hir_module = lowering
         .lower_module(module_ast)
@@ -715,6 +988,8 @@ fn run_v130_subsystem_self_check() -> Result<()> {
         diagnostics: Vec::new(),
         loop_depth: 0,
         safety_context: ffi::SafetyContext::Safe,
+        policy: ffi::CapabilityPolicy::with_runtime_builtins(),
+        extern_symbols: std::collections::HashSet::new(),
     };
     semantic
         .check_module(&hir_module)
@@ -803,13 +1078,74 @@ fn module_name(file: &Path) -> String {
         .replace('-', "_")
 }
 
-fn link_executable(object_path: &Path, runtime_asm: &Path, output_path: &Path) -> Result<()> {
+/// Libraries to link into the final executable, kept in two deliberately
+/// separate channels so the architecture stays honest about *who* requires a
+/// library (see docs/runtime/LINKING.md):
+///
+///   * `runtime_libs` — libraries the runtime/profile itself requires. These are
+///     Logicodex-decided, not user-requested: today only OS primitives such as
+///     `pthread` (needed by the actor profile). A future Logicodex *core
+///     library* would also be auto-added here. Auto-linking these never means
+///     "Logicodex depends on a third-party C lib" — they are platform/core
+///     building blocks, like the sleep/yield syscalls.
+///
+///   * `user_libs` — external C libraries the *user* explicitly opted into
+///     (e.g. `sqlite3`, `ssl`, `raylib`). Never automatic, never mandatory.
+///
+/// `lib_paths` are extra `-L` search directories (applies to both channels).
+#[derive(Debug, Default, Clone)]
+struct LinkSpec {
+    runtime_libs: Vec<String>,
+    user_libs: Vec<String>,
+    lib_paths: Vec<PathBuf>,
+    /// Extra source/object files cc should compile+link alongside the program
+    /// object and runtime assembly — e.g. the audited runtime_actor.c for the
+    /// actor profile. These are Logicodex-owned artifacts, never user input.
+    extra_sources: Vec<PathBuf>,
+}
+
+impl LinkSpec {
+    /// True when no external libraries are requested at all — the common case
+    /// today (bare/std programs link only object + runtime assembly).
+    fn is_empty(&self) -> bool {
+        self.runtime_libs.is_empty() && self.user_libs.is_empty()
+    }
+}
+
+fn link_executable(
+    object_path: &Path,
+    runtime_asm: &Path,
+    output_path: &Path,
+    spec: &LinkSpec,
+) -> Result<()> {
     let linker = std::env::var("LOGICODEX_LINKER").unwrap_or_else(|_| "cc".to_string());
-    let status = Command::new(&linker)
-        .arg(object_path)
+    let mut cmd = Command::new(&linker);
+    cmd.arg(object_path)
         .arg(runtime_asm)
         .arg("-o")
-        .arg(output_path)
+        .arg(output_path);
+
+    // Extra Logicodex-owned sources (e.g. runtime_actor.c) compiled+linked here.
+    for src in &spec.extra_sources {
+        cmd.arg(src);
+    }
+    // -L search paths first, then -l libraries. Both channels are linked the
+    // same way at the cc level; the distinction is about provenance/intent, and
+    // is preserved in the struct and surfaced in diagnostics/docs.
+    for dir in &spec.lib_paths {
+        cmd.arg("-L").arg(dir);
+    }
+    for lib in spec.runtime_libs.iter().chain(spec.user_libs.iter()) {
+        cmd.arg(format!("-l{lib}"));
+    }
+
+    if std::env::var("LOGICODEX_VERBOSE_LINK").is_ok() {
+        eprintln!(
+            "[lx-link] {linker} {:?}",
+            cmd.get_args().collect::<Vec<_>>()
+        );
+    }
+    let status = cmd
         .status()
         .with_context(|| format!("failed to invoke linker `{linker}`"))?;
     if status.success() {

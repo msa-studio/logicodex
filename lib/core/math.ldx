@@ -1,0 +1,162 @@
+// core.math -- pure integer/logic helpers (Stdlib Stage 0).
+//
+// No OS, no extern C, no malloc: bare-compatible (profile `bare`+). English
+// canonical names. The `%` (modulo) operator is available, but is_even /
+// is_odd currently keep the bitwise `& 1` form. All functions return I64 (1/0 for the
+// boolean-style predicates) so results PAPAR directly.
+
+public function abs_i64(n: I64) -> I64 begin
+    if n < 0 begin
+        return -n;
+    end
+    return n;
+end
+
+public function min_i64(a: I64, b: I64) -> I64 begin
+    if a < b begin
+        return a;
+    end
+    return b;
+end
+
+public function max_i64(a: I64, b: I64) -> I64 begin
+    if a > b begin
+        return a;
+    end
+    return b;
+end
+
+public function clamp_i64(x: I64, lo: I64, hi: I64) -> I64 begin
+    if x < lo begin
+        return lo;
+    end
+    if x > hi begin
+        return hi;
+    end
+    return x;
+end
+
+public function sign_i64(n: I64) -> I64 begin
+    if n > 0 begin
+        return 1;
+    end
+    if n < 0 begin
+        return -1;
+    end
+    return 0;
+end
+
+public function pow_i64(base: I64, exp: I64) -> I64 begin
+    let acc: I64 = 1;
+    let i: I64 = 0;
+    while i < exp begin
+        acc = acc * base;
+        i = i + 1;
+    end
+    return acc;
+end
+
+public function is_even(n: I64) -> I64 begin
+    let r: I64 = n & 1;
+    if r == 0 begin
+        return 1;
+    end
+    return 0;
+end
+
+public function is_odd(n: I64) -> I64 begin
+    let r: I64 = n & 1;
+    if r == 0 begin
+        return 0;
+    end
+    return 1;
+end
+
+public function factorial_i64(n: I64) -> I64 begin
+    if n < 0 begin
+        return 0;
+    end
+    let acc: I64 = 1;
+    let i: I64 = 1;
+    while i <= n begin
+        acc = acc * i;
+        i = i + 1;
+    end
+    return acc;
+end
+
+public function gcd_i64(a: I64, b: I64) -> I64 begin
+    let x: I64 = a;
+    let y: I64 = b;
+    let r: I64 = 0;
+
+    if x < 0 begin
+        x = 0 - x;
+    end
+    if y < 0 begin
+        y = 0 - y;
+    end
+
+    while y > 0 begin
+        r = x % y;
+        x = y;
+        y = r;
+    end
+
+    return x;
+end
+
+public function lcm_i64(a: I64, b: I64) -> I64 begin
+    if a == 0 begin
+        return 0;
+    end
+    if b == 0 begin
+        return 0;
+    end
+
+    let x: I64 = a;
+    let y: I64 = b;
+
+    if x < 0 begin
+        x = 0 - x;
+    end
+    if y < 0 begin
+        y = 0 - y;
+    end
+
+    let g: I64 = gcd_i64(x, y);
+    let scaled: I64 = x / g;
+    return scaled * y;
+end
+
+public function square_i64(n: I64) -> I64 begin
+    return n * n;
+end
+
+public function cube_i64(n: I64) -> I64 begin
+    return n * n * n;
+end
+
+public function is_positive(n: I64) -> I64 begin
+    if n > 0 begin
+        return 1;
+    end
+    return 0;
+end
+
+public function is_negative(n: I64) -> I64 begin
+    if n < 0 begin
+        return 1;
+    end
+    return 0;
+end
+
+public function between_i64(n: I64, low: I64, high: I64) -> I64 begin
+    if n < low begin
+        return 0;
+    end
+    if n > high begin
+        return 0;
+    end
+    return 1;
+end

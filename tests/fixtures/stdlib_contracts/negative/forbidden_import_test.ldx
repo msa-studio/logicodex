@@ -1,0 +1,5 @@
+import std.io;
+
+public function dummy() -> I64 begin
+    return 1;
+end

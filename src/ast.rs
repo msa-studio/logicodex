@@ -36,6 +36,9 @@ pub enum Stmt {
         params: Vec<Param>,
         return_type: Option<Type>,
         body: Vec<Stmt>,
+        /// `true` if declared `public` (exported across module boundaries).
+        /// Private by default: an item with no `public` is module-local.
+        is_public: bool,
     },
     Let {
         name: String,
@@ -98,6 +101,9 @@ pub enum Stmt {
     /// Syntax: `actor SensorSuhu { let pintu: Pintu<...> = ...; ... }`
     Actor {
         name: String,
+        /// Captured parameters (B.1b): explicit handles the actor receives, e.g.
+        /// a channel. Empty for a niladic actor (uses the old spawn ABI).
+        params: Vec<Param>,
         body: Vec<Stmt>,
     },
     /// Variable assignment: target = value (target can be any Expr)
@@ -136,6 +142,10 @@ pub enum MatchPattern {
     Ok { binding: String },
     /// Matches Err variant: Err(name)
     Err { binding: String },
+    /// Matches Some variant: Some(name)
+    Some { binding: String },
+    /// Matches None variant: None
+    None,
     /// Wildcard: _
     Wildcard,
     /// Literal pattern: 5, "hello"
@@ -178,6 +188,16 @@ pub enum Expr {
         callee: Box<Expr>, // usually Expr::Variable(name)
         args: Vec<Expr>,
     },
+    /// Module-qualified call: `module.function(args)`.
+    /// A dedicated node, not a field access followed by a call: the call carries
+    /// which module it targets, so resolution never has to infer it from
+    /// structure. This is the truth-travels-with-the-node principle the module
+    /// system depends on to avoid name-resolution aliasing.
+    QualifiedCall {
+        module: String,
+        function: String,
+        args: Vec<Expr>,
+    },
     Binary {
         left: Box<Expr>,
         op: BinaryOp,
@@ -188,6 +208,10 @@ pub enum Expr {
         base: Box<Expr>,
         index: Box<Expr>,
     },
+    /// Collections Foundation Stage 0: fixed array literal — [a, b, c]
+    ArrayLiteral {
+        elements: Vec<Expr>,
+    },
     /// Ketuk 2: Result construction — Ok(value)
     Ok {
         value: Box<Expr>,
@@ -196,6 +220,12 @@ pub enum Expr {
     Err {
         value: Box<Expr>,
     },
+    /// Foundation Option construction — Some(value)
+    Some {
+        value: Box<Expr>,
+    },
+    /// Foundation Option construction — None
+    None,
     /// Ketuk 3: File Handle ABI — Method call on opaque type.
     /// Syntax: h.read(1024), h.close(), h.seek(0, Start)
     MethodCall {
@@ -215,6 +245,13 @@ pub enum Expr {
     },
     /// Spawn a Kotak (create OS thread).
     /// Syntax: `lahirkan SensorSuhu()`
+    /// Create a channel: `Channel::baru(capacity)`. Capacity is an expression
+    /// (typically an integer literal). Lowered to logicodex_channel_create at
+    /// codegen; the handle is stored in the bound variable's slot (ABI-1,
+    /// by-handle — codegen owns the name->handle mapping, runtime stays nameless).
+    ChannelCreate {
+        capacity: Box<Expr>,
+    },
     Spawn {
         actor_name: String,
         args: Vec<Expr>,
@@ -270,6 +307,7 @@ pub enum BinaryOp {
     Subtract,
     Multiply,
     Divide,
+    Modulo,
     Greater,
     GreaterEqual,
     Less,
@@ -280,6 +318,7 @@ pub enum BinaryOp {
     Or,
     BitAnd,
     BitOr,
+    BitXor,
     ShiftLeft,
     ShiftRight,
 }
@@ -304,6 +343,10 @@ pub enum Type {
     Slice {
         element: Box<Type>,
     },
+    Array {
+        element: Box<Type>,
+        len: usize,
+    },
     Buffer {
         element: Box<Type>,
     },
@@ -312,6 +355,11 @@ pub enum Type {
     Result {
         ok: Box<Type>,
         err: Box<Type>,
+    },
+    /// Foundation Option type — Some(T) or None.
+    /// Syntax: Option<T>
+    Option {
+        some: Box<Type>,
     },
     /// Ketuk 3: File Handle ABI — Opaque type (internal structure hidden).
     /// Syntax: FileHandle, FileMode
@@ -345,13 +393,18 @@ impl Type {
 
     /// Ketuk 1: Check if this is a contiguous memory type (slice or buffer).
     pub fn is_contiguous(&self) -> bool {
-        matches!(self, Type::Slice { .. } | Type::Buffer { .. })
+        matches!(
+            self,
+            Type::Slice { .. } | Type::Array { .. } | Type::Buffer { .. }
+        )
     }
 
     /// Ketuk 1: Get the element type if this is a slice or buffer.
     pub fn element_type(&self) -> Option<&Type> {
         match self {
-            Type::Slice { element } | Type::Buffer { element } => Some(element),
+            Type::Slice { element } | Type::Array { element, .. } | Type::Buffer { element } => {
+                Some(element)
+            }
             _ => None,
         }
     }
@@ -359,6 +412,11 @@ impl Type {
     /// Ketuk 2: Check if this is a Result type.
     pub fn is_result(&self) -> bool {
         matches!(self, Type::Result { .. })
+    }
+
+    /// Check if this is an Option type.
+    pub fn is_option(&self) -> bool {
+        matches!(self, Type::Option { .. })
     }
 
     /// Ketuk 2: Get the Ok type from a Result.
@@ -431,6 +489,7 @@ impl fmt::Display for BinaryOp {
             BinaryOp::Subtract => "-",
             BinaryOp::Multiply => "*",
             BinaryOp::Divide => "/",
+            BinaryOp::Modulo => "%",
             BinaryOp::Greater => ">",
             BinaryOp::GreaterEqual => ">=",
             BinaryOp::Less => "<",
@@ -441,6 +500,7 @@ impl fmt::Display for BinaryOp {
             BinaryOp::Or => "||",
             BinaryOp::BitAnd => "&",
             BinaryOp::BitOr => "|",
+            BinaryOp::BitXor => "^",
             BinaryOp::ShiftLeft => "<<",
             BinaryOp::ShiftRight => ">>",
         };
@@ -464,8 +524,10 @@ impl fmt::Display for Type {
             Type::Pointer(inner) => write!(f, "PTR<{inner}>"),
             Type::String => write!(f, "String"),
             Type::Slice { element } => write!(f, "[]{element}"),
+            Type::Array { element, len } => write!(f, "[{element}; {len}]"),
             Type::Buffer { element } => write!(f, "Buffer<{element}>"),
             Type::Result { ok, err } => write!(f, "Result<{ok}, {err}>"),
+            Type::Option { some } => write!(f, "Option<{some}>"),
             Type::Opaque { name } => write!(f, "{name}"),
             Type::Named(name) => write!(f, "{name}"),
             Type::Channel {

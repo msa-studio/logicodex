@@ -37,6 +37,10 @@ pub struct FunctionAst {
     pub return_type: Option<TypeAst>,
     pub body: BlockAst,
     pub is_unsafe: bool,
+    /// `true` if declared `public` (exported across module boundaries). Only
+    /// consulted for module functions: a qualified call `module.fn` is allowed
+    /// only when the target is public. Root/same-module calls ignore this.
+    pub is_public: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -103,14 +107,49 @@ pub enum ExprAst {
         callee: Box<ExprAst>,
         args: Vec<ExprAst>,
     },
+    /// A module-qualified call, e.g. `math.add(2, 3)`. Kept distinct from Call
+    /// rather than pre-resolved into a Variable callee, so the target module
+    /// is explicit data on the node (truth travels with the node) instead of
+    /// being re-derived from a bare name through the same-module/contextual
+    /// resolution that plain Call uses. Resolved in lower_expr, which has
+    /// access to the symbol table.
+    QualifiedCall {
+        module: String,
+        function: String,
+        args: Vec<ExprAst>,
+    },
     Field {
         base: Box<ExprAst>,
         field: String,
+    },
+    /// Collections Foundation Stage 0: index expression, e.g. xs[0].
+    Index {
+        base: Box<ExprAst>,
+        index: Box<ExprAst>,
+    },
+    /// Collections Foundation Stage 0: fixed array literal, e.g. [1, 2, 3].
+    ArrayLiteral {
+        elements: Vec<ExprAst>,
     },
     EnumVariant {
         enum_name: String,
         variant: String,
     },
+    /// Semantic Result constructor. Codegen currently uses scalar ABI, but the
+    /// constructor identity is preserved for diagnostics and match lowering.
+    ResultOk {
+        value: Box<ExprAst>,
+    },
+    /// Semantic Result error constructor.
+    ResultErr {
+        value: Box<ExprAst>,
+    },
+    /// Semantic Option Some constructor.
+    OptionSome {
+        value: Box<ExprAst>,
+    },
+    /// Semantic Option None constructor.
+    OptionNone,
     Cast {
         expr: Box<ExprAst>,
         target: TypeAst,
@@ -122,6 +161,9 @@ pub enum ExprAst {
     },
     Join {
         actor_name: String,
+    },
+    ChannelCreate {
+        capacity: Box<ExprAst>,
     },
     ChannelSend {
         channel_name: String,
@@ -153,7 +195,20 @@ pub enum LiteralAst {
 pub enum TypeAst {
     Named(String),
     Pointer(Box<TypeAst>),
-    Array { element: Box<TypeAst>, len: usize },
+    Array {
+        element: Box<TypeAst>,
+        len: usize,
+    },
+    /// Semantic Result identity. Codegen may still lower this to i64 ABI, but
+    /// HIR keeps the meaning for match lowering and diagnostics.
+    Result {
+        ok: Box<TypeAst>,
+        err: Box<TypeAst>,
+    },
+    /// Semantic Option identity. Codegen may still lower this to i64 ABI.
+    Option {
+        some: Box<TypeAst>,
+    },
     Unit,
 }
 
@@ -163,6 +218,7 @@ pub enum BinaryOpAst {
     Sub,
     Mul,
     Div,
+    Mod,
     Eq,
     NotEq,
     Lt,
@@ -290,6 +346,16 @@ pub struct HirEnumDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct HirExternFunction {
     pub callable: CallableId,
+    /// The extern's own name and signature, captured at lowering time. Codegen
+    /// declares the LLVM function directly from these, NOT by looking the
+    /// CallableId up in the FFI CallableRegistry (whose id-space is independent
+    /// of the SymbolTable and would alias an unrelated registered fn like a
+    /// Raylib symbol). User externs live in the SymbolTable, so their truth
+    /// travels with the HIR node.
+    pub name: String,
+    pub params: Vec<crate::types::TypeId>,
+    pub return_type: crate::types::TypeId,
+    pub is_variadic: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -378,10 +444,33 @@ pub enum HirExprKind {
         base: Box<HirExpr>,
         field_index: usize,
     },
+    /// Collections Foundation Stage 0: index expression over a local fixed array.
+    Index {
+        base: Box<HirExpr>,
+        index: Box<HirExpr>,
+    },
+    /// Collections Foundation Stage 0: fixed array literal.
+    ArrayLiteral {
+        elements: Vec<HirExpr>,
+    },
     Cast {
         expr: Box<HirExpr>,
         target: TypeRef,
     },
+    /// Semantic Result Ok constructor. ABI lowering is currently scalar i64.
+    ResultOk {
+        value: Box<HirExpr>,
+    },
+    /// Semantic Result Err constructor. ABI lowering is currently scalar i64.
+    ResultErr {
+        value: Box<HirExpr>,
+    },
+    /// Semantic Option Some constructor. ABI lowering is currently scalar i64.
+    OptionSome {
+        value: Box<HirExpr>,
+    },
+    /// Semantic Option None constructor. ABI lowering is currently scalar i64.
+    OptionNone,
     // ─── Threading Expressions (A3) ───
     /// Spawn an actor instance: `spawn ActorName(args)`
     Spawn {
@@ -392,14 +481,20 @@ pub enum HirExprKind {
     Join {
         actor_name: String,
     },
-    /// Send through channel (blocking, Release semantics): `channel.send(value)`
+    /// Create a channel: `Channel::baru(capacity)` -> handle (ABI-1 by-handle).
+    ChannelCreate {
+        capacity: Box<HirExpr>,
+    },
+    /// Send through channel (blocking): `channel.send(value)`. ABI-1 by-handle:
+    /// `channel` is an expression evaluating to the i64 channel handle.
     ChannelSend {
-        channel_name: String,
+        channel: Box<HirExpr>,
         value: Box<HirExpr>,
     },
-    /// Receive from channel (blocking, Acquire semantics): `channel.recv()`
+    /// Receive from channel (blocking): `channel.recv()`. `channel` evaluates to
+    /// the i64 channel handle.
     ChannelRecv {
-        channel_name: String,
+        channel: Box<HirExpr>,
     },
     /// Non-blocking send (backpressure): `channel.try_send(value)` → bool
     ChannelTrySend {
@@ -431,6 +526,9 @@ pub struct SymbolTable {
     locals: Vec<HashMap<String, LocalBinding>>,
     callables: HashMap<String, CallableId>,
     callable_returns: HashMap<CallableId, TypeId>,
+    /// Mangled names of callables declared `public`. A qualified cross-module
+    /// call is permitted only if its resolved (mangled) target is in this set.
+    public_callables: std::collections::HashSet<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -496,6 +594,16 @@ impl SymbolTable {
         self.callables.get(name).copied()
     }
 
+    /// Record that the (mangled) callable name is exported `public`.
+    pub fn mark_public(&mut self, name: impl Into<String>) {
+        self.public_callables.insert(name.into());
+    }
+
+    /// Whether the (mangled) callable name was declared `public`.
+    pub fn is_public_callable(&self, name: &str) -> bool {
+        self.public_callables.contains(name)
+    }
+
     /// Reverse lookup: find the name a CallableId was defined under.
     pub fn callable_name(&self, id: CallableId) -> Option<&str> {
         self.callables
@@ -531,14 +639,49 @@ pub struct LoweringContext<'a> {
     pub symbols: &'a mut SymbolTable,
     pub types: &'a mut TypeRegistry,
     pub diagnostics: Vec<Diagnostic>,
+    /// The module currently being lowered. Empty for the root module (whose
+    /// symbols stay raw for backward compatibility); a dotted name like "math"
+    /// for an imported module (whose Logicodex function names are mangled into
+    /// the reserved __ldx_mod_* namespace). Set by lower_module_as before each
+    /// module is lowered.
+    pub current_module: String,
+}
+
+impl<'a> LoweringContext<'a> {
+    /// Mangle a Logicodex function name for the current module. Root ("")
+    /// returns the name raw; a named module returns the reserved mangled form.
+    /// Used at definition sites and for same-module unqualified call resolution
+    /// so the two always agree.
+    fn module_fn_name(&self, name: &str) -> String {
+        crate::module_loader::mangle_symbol(&self.current_module, name)
+    }
+
+    /// Resolve an unqualified call target by name. Inside a non-root module, a
+    /// bare name first resolves to the same-module mangled symbol (so a public
+    /// function can call a private same-module helper); failing that, it falls
+    /// back to a raw lookup (builtins like print, runtime ABI). Returns None if
+    /// neither exists -- the caller emits a clear error, never a silent Unit.
+    fn resolve_unqualified_callable(&self, name: &str) -> Option<CallableId> {
+        if !self.current_module.is_empty() {
+            let mangled = self.module_fn_name(name);
+            if let Some(id) = self.symbols.lookup_callable(&mangled) {
+                return Some(id);
+            }
+        }
+        self.symbols.lookup_callable(name)
+    }
 }
 
 impl<'a> LoweringContext<'a> {
     /// Convert an AST Program to HIR ModuleAst and lower it.
     pub fn lower_program(&mut self, program: ast::Program) -> Result<HirModule, Vec<Diagnostic>> {
         use ast::Stmt;
-        // Register built-in callables (print is always available)
+        // Register built-in callables. `print` is always available; the runtime
+        // ABI builtins below are backed by the std/runtime profile assembly
+        // (logicodex_sleep -> nanosleep, logicodex_yield -> sched_yield).
         self.symbols.define_callable("print".to_string());
+        self.symbols.define_callable("logicodex_sleep".to_string());
+        self.symbols.define_callable("logicodex_yield".to_string());
         let mut functions: Vec<Spanned<ItemAst>> = Vec::new();
         let mut top_level_stmts: Vec<Spanned<StmtAst>> = Vec::new();
 
@@ -549,6 +692,7 @@ impl<'a> LoweringContext<'a> {
                     params,
                     return_type,
                     body,
+                    is_public,
                 } => {
                     functions.push(Spanned {
                         node: ItemAst::Function(FunctionAst {
@@ -571,6 +715,7 @@ impl<'a> LoweringContext<'a> {
                                     .collect(),
                             },
                             is_unsafe: false,
+                            is_public,
                         }),
                         span: Span::unknown(),
                     });
@@ -643,6 +788,44 @@ impl<'a> LoweringContext<'a> {
                         span: Span::unknown(),
                     });
                 }
+                // Actor declaration: lower the body into a callable function named
+                // `__actor_<name>`. The actor's body becomes an ordinary HIR
+                // function (no params, unit return) so it exists as real,
+                // type-checked, code-generated code. Spawning/threading is a
+                // separate concern handled by the runtime; the *semantics* of
+                // the actor (ownership, capability, lifetime) remain
+                // Logicodex-owned and are layered on top of this lowering.
+                Stmt::Actor { name, params, body } => {
+                    functions.push(Spanned {
+                        node: ItemAst::Function(FunctionAst {
+                            name: format!("__actor_{name}"),
+                            // B.1b: captured parameters become real function
+                            // params, so `ch` is in the actor body's scope and
+                            // resolves to a local (the cross-actor guard no
+                            // longer fires; send/recv find the handle).
+                            params: params
+                                .into_iter()
+                                .map(|p| ParamAst {
+                                    name: p.name,
+                                    ty: lower_type_ast(p.ty),
+                                })
+                                .collect(),
+                            return_type: Some(TypeAst::Unit),
+                            body: BlockAst {
+                                statements: body
+                                    .into_iter()
+                                    .map(|s| Spanned {
+                                        node: lower_stmt_ast(s),
+                                        span: Span::unknown(),
+                                    })
+                                    .collect(),
+                            },
+                            is_unsafe: false,
+                            is_public: false,
+                        }),
+                        span: Span::unknown(),
+                    });
+                }
                 other => {
                     top_level_stmts.push(Spanned {
                         node: lower_stmt_ast(other),
@@ -663,6 +846,7 @@ impl<'a> LoweringContext<'a> {
                         statements: top_level_stmts,
                     },
                     is_unsafe: false,
+                    is_public: false,
                 }),
                 span: Span::unknown(),
             });
@@ -671,12 +855,137 @@ impl<'a> LoweringContext<'a> {
         self.lower_module(ModuleAst { items: functions })
     }
 
+    /// Lower an IMPORTED module's AST (a non-root module loaded by the module
+    /// loader) under its module name. Unlike lower_program, this does NOT wrap
+    /// loose statements into a `main` -- an imported module is a library of
+    /// function definitions, not an entry point, and only the root program may
+    /// own `main`.
+    ///
+    /// Stage 0 is FUNCTION-ONLY across module boundaries: an imported module may
+    /// contain `function` definitions and `import` statements (the latter are a
+    /// no-op here -- the loader already resolved the graph). Any other top-level
+    /// construct (struct, enum, extern block, actor, or a loose executable
+    /// statement) is rejected with a clear bilingual diagnostic, because
+    /// cross-module structs/enums/externs are deliberately deferred past Stage 0
+    /// and a loose statement in a library module has no `main` to live in.
+    pub fn lower_module_program(
+        &mut self,
+        module_name: &str,
+        program: ast::Program,
+    ) -> Result<HirModule, Vec<Diagnostic>> {
+        use ast::Stmt;
+        let mut functions: Vec<Spanned<ItemAst>> = Vec::new();
+        let mut errors: Vec<Diagnostic> = Vec::new();
+        for stmt in program.statements {
+            match stmt {
+                Stmt::Function {
+                    name,
+                    params,
+                    return_type,
+                    body,
+                    is_public,
+                } => {
+                    functions.push(Spanned {
+                        node: ItemAst::Function(FunctionAst {
+                            name,
+                            params: params
+                                .into_iter()
+                                .map(|p| ParamAst {
+                                    name: p.name,
+                                    ty: lower_type_ast(p.ty),
+                                })
+                                .collect(),
+                            return_type: return_type.map(lower_type_ast),
+                            body: BlockAst {
+                                statements: body
+                                    .into_iter()
+                                    .map(|s| Spanned {
+                                        node: lower_stmt_ast(s),
+                                        span: Span::unknown(),
+                                    })
+                                    .collect(),
+                            },
+                            is_unsafe: false,
+                            is_public,
+                        }),
+                        span: Span::unknown(),
+                    });
+                }
+                // The loader already walked the import graph; a nested import in
+                // a library module is just a no-op at lowering time.
+                Stmt::Use { .. } => {}
+                // Everything else is not part of Stage 0's cross-module surface.
+                _ => {
+                    errors.push(Diagnostic {
+                        code: DiagnosticCode::ParserUnsupportedFeature,
+                        severity: Severity::Error,
+                        message_ms: format!(
+                            "modul `{module_name}` mengandungi pembinaan yang tidak disokong dalam Stage 0 (modul setakat ini menyokong takrifan `function` sahaja; struct/enum/extern/aktor merentas modul belum dibina)"
+                        ),
+                        message_en: format!(
+                            "module `{module_name}` contains a construct not supported in Stage 0 (modules currently support only `function` definitions; cross-module struct/enum/extern/actor is not built yet)"
+                        ),
+                        primary_span: Span::unknown(),
+                        notes: Vec::new(),
+                    });
+                }
+            }
+        }
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        self.lower_module_as(module_name, ModuleAst { items: functions })
+    }
+
+    /// Lower a module's AST under a given module name. The name sets the
+    /// mangling context: "" leaves symbols raw (root / single-file), a dotted
+    /// name like "math" mangles this module's Logicodex functions into the
+    /// reserved namespace. Restores the previous module name afterwards so a
+    /// shared LoweringContext can lower several modules in sequence.
+    pub fn lower_module_as(
+        &mut self,
+        module_name: &str,
+        module: ModuleAst,
+    ) -> Result<HirModule, Vec<Diagnostic>> {
+        let previous = std::mem::replace(&mut self.current_module, module_name.to_string());
+        let result = self.lower_module(module);
+        self.current_module = previous;
+        result
+    }
+
     pub fn lower_module(&mut self, module: ModuleAst) -> Result<HirModule, Vec<Diagnostic>> {
         for item in &module.items {
             match &item.node {
                 ItemAst::Function(function) => {
-                    self.symbols.define_symbol(function.name.clone());
-                    self.symbols.define_callable(function.name.clone());
+                    // Reserved-namespace guard: user source may not define a
+                    // symbol in the mangling namespace, which is what keeps a
+                    // user name and a mangled module name from ever colliding.
+                    if crate::module_loader::is_reserved_symbol(&function.name) {
+                        self.diagnostics.push(Diagnostic {
+                            code: DiagnosticCode::ParserUnsupportedFeature,
+                            severity: Severity::Error,
+                            message_ms: format!(
+                                "nama `{}` guna awalan terpelihara `__ldx_` yang dikhaskan untuk simbol modul dalaman",
+                                function.name
+                            ),
+                            message_en: format!(
+                                "name `{}` uses the reserved prefix `__ldx_`, which is reserved for internal module symbols",
+                                function.name
+                            ),
+                            primary_span: item.span,
+                            notes: Vec::new(),
+                        });
+                    }
+                    // Define the function under its module-mangled name (root
+                    // modules mangle to the raw name, so this is a no-op there).
+                    let defined = self.module_fn_name(&function.name);
+                    self.symbols.define_symbol(defined.clone());
+                    // Record exported visibility so a qualified cross-module
+                    // call can be denied when the target is not `public`.
+                    if function.is_public {
+                        self.symbols.mark_public(defined.clone());
+                    }
+                    self.symbols.define_callable(defined);
                 }
                 ItemAst::Struct(decl) => {
                     self.symbols.define_symbol(decl.name.clone());
@@ -724,7 +1033,8 @@ impl<'a> LoweringContext<'a> {
         for item in &module.items {
             match &item.node {
                 ItemAst::Function(function) => {
-                    if let Some(cid) = self.symbols.lookup_callable(&function.name) {
+                    let defined = self.module_fn_name(&function.name);
+                    if let Some(cid) = self.symbols.lookup_callable(&defined) {
                         let ret = match function.return_type.clone() {
                             Some(t) => self.lower_type(t).id,
                             None => self.types.primitive(PrimitiveType::Unit),
@@ -782,7 +1092,7 @@ impl<'a> LoweringContext<'a> {
                 let body = self.lower_block(function.body);
                 self.symbols.exit_scope();
                 HirItem::Function(HirFunction {
-                    name: function.name.clone(),
+                    name: self.module_fn_name(&function.name),
                     symbol,
                     params,
                     return_type: function
@@ -822,8 +1132,23 @@ impl<'a> LoweringContext<'a> {
             ItemAst::ExternBlock(block) => {
                 let mut extern_items = Vec::new();
                 for function in block.functions {
-                    let callable = self.symbols.define_callable(function.name);
-                    extern_items.push(HirItem::ExternFunction(HirExternFunction { callable }));
+                    // Capture the extern's real signature BEFORE moving fields.
+                    let name = function.name.clone();
+                    let params: Vec<crate::types::TypeId> = function
+                        .params
+                        .into_iter()
+                        .map(|p| self.lower_type(p.ty).id)
+                        .collect();
+                    let return_type = self.lower_type(function.return_type).id;
+                    let is_variadic = function.is_variadic;
+                    let callable = self.symbols.define_callable(name.clone());
+                    extern_items.push(HirItem::ExternFunction(HirExternFunction {
+                        callable,
+                        name,
+                        params,
+                        return_type,
+                        is_variadic,
+                    }));
                 }
                 // Return first item; remaining items are stored in a side vector
                 // This preserves all extern function declarations in the HIR
@@ -891,6 +1216,55 @@ impl<'a> LoweringContext<'a> {
             .collect();
         self.symbols.exit_scope();
         HirBlock { statements }
+    }
+
+    /// Resolve a channel variable name to an expression that evaluates to its
+    /// i64 handle. The channel was bound by `BINA ch = Channel::baru(N)`, so it
+    /// is an ordinary local holding the handle. ABI-1 by-handle: the HIR carries
+    /// the handle value, never a name. If the name is unknown (shouldn't happen
+    /// after type-check), we emit a 0 handle so the runtime reports
+    /// INVALID_HANDLE rather than producing UB.
+    ///
+    /// TODO(type-check): verify the resolved local has type Channel<_, _, I64>
+    /// (or handle-compatible). The semantic pass does not yet enforce this.
+    fn lower_channel_ref(&mut self, name: &str, span: Span) -> HirExpr {
+        if let Some((local, ty)) = self.symbols.lookup_local(name) {
+            HirExpr {
+                kind: HirExprKind::Local(local),
+                ty,
+                span,
+            }
+        } else {
+            // The channel name is not in scope here. The common cause is a
+            // cross-actor channel: a channel declared in main (or another
+            // scope) used inside an actor body, which is lowered to a separate
+            // function with its own scope. Capturing an outer channel handle
+            // into an actor is NOT implemented yet (that is Channel B.1b —
+            // actor capture). Rather than silently lowering to handle 0 (which
+            // would deadlock at runtime), we fail honestly at compile time.
+            self.push_lowering_error(
+                span,
+                format!(
+                    "Ralat: penangkapan saluran rentas-pelakon belum disokong. \
+                     Saluran '{name}' tidak wujud dalam skop ini (mungkin \
+                     diisytihar di luar pelakon). Guna saluran skop-sama sahaja, \
+                     atau tunggu B.1b (actor capture)."
+                ),
+                format!(
+                    "Cross-actor channel capture is not implemented yet. Channel \
+                     '{name}' is not in scope here (likely declared outside the \
+                     actor). Use a same-scope channel only, or wait for B.1b \
+                     (actor capture)."
+                ),
+            );
+            // Emit handle 0 so the rest of lowering proceeds; the diagnostic
+            // above makes the build fail, so this never reaches runtime.
+            HirExpr {
+                kind: HirExprKind::Literal(LiteralAst::Integer(0)),
+                ty: i64_ref(self.types),
+                span,
+            }
+        }
     }
 
     fn lower_expr(&mut self, expr: ExprAst, span: Span) -> HirExpr {
@@ -971,7 +1345,7 @@ impl<'a> LoweringContext<'a> {
                     .collect();
                 let callee_id = match *callee {
                     ExprAst::Variable(name) => {
-                        self.symbols.lookup_callable(&name).unwrap_or_else(|| {
+                        self.resolve_unqualified_callable(&name).unwrap_or_else(|| {
                             self.push_lowering_error(
                                 span,
                                 format!("Ralat: Fungsi '{name}' tidak ditemui"),
@@ -1003,6 +1377,98 @@ impl<'a> LoweringContext<'a> {
                     span,
                 }
             }
+            ExprAst::QualifiedCall {
+                module,
+                function,
+                args,
+            } => {
+                let lowered_args: Vec<_> = args
+                    .into_iter()
+                    .map(|arg| self.lower_expr(arg, span))
+                    .collect();
+                // The module is explicit data on the node, not inferred from a
+                // bare name, so resolution mangles directly and looks the
+                // mangled name up -- it does not go through
+                // resolve_unqualified_callable, which is for the contextual
+                // same-module case plain Call uses.
+                let mangled = crate::module_loader::mangle_symbol(&module, &function);
+                let callee_id = self.symbols.lookup_callable(&mangled).unwrap_or_else(|| {
+                    self.push_lowering_error(
+                        span,
+                        format!(
+                            "Ralat: Fungsi `{module}.{function}` tidak ditemui (mungkin tidak diisytiharkan `public`, atau modul tidak diimport)"
+                        ),
+                        format!(
+                            "Error: Function `{module}.{function}` was not found (it may not be declared `public`, or the module is not imported)"
+                        ),
+                    );
+                    CallableId(u32::MAX)
+                });
+                // Visibility: a qualified cross-module call may target only a
+                // `public` function. The symbol resolved (mangling makes every
+                // module function findable), but privacy is enforced here: a
+                // non-public target is denied with a clear bilingual error
+                // rather than silently allowed.
+                if callee_id != CallableId(u32::MAX) && !self.symbols.is_public_callable(&mangled) {
+                    self.push_lowering_error(
+                        span,
+                        format!(
+                            "Ralat: Fungsi `{module}.{function}` adalah persendirian (tidak diisytiharkan `public`); ia tidak boleh dipanggil dari luar modul `{module}`"
+                        ),
+                        format!(
+                            "Error: Function `{module}.{function}` is private (not declared `public`); it cannot be called from outside module `{module}`"
+                        ),
+                    );
+                }
+                HirExpr {
+                    kind: HirExprKind::Call {
+                        callee: callee_id,
+                        args: lowered_args,
+                    },
+                    ty: self
+                        .symbols
+                        .callable_return(callee_id)
+                        .map(|id| TypeRef { id })
+                        .unwrap_or_else(|| unknown_ref(self.types)),
+                    span,
+                }
+            }
+            ExprAst::Index { base, index } => {
+                let base = self.lower_expr(*base, span);
+                let index = self.lower_expr(*index, span);
+                let element_ty = match self.types.resolve(base.ty.id) {
+                    TypeKind::Array { element, .. } => TypeRef { id: *element },
+                    _ => i64_ref(self.types),
+                };
+                HirExpr {
+                    kind: HirExprKind::Index {
+                        base: Box::new(base),
+                        index: Box::new(index),
+                    },
+                    ty: element_ty,
+                    span,
+                }
+            }
+            ExprAst::ArrayLiteral { elements } => {
+                let lowered: Vec<HirExpr> = elements
+                    .into_iter()
+                    .map(|element| self.lower_expr(element, span))
+                    .collect();
+                let len = lowered.len();
+                let element_id = lowered
+                    .first()
+                    .map(|element| element.ty.id)
+                    .unwrap_or_else(|| self.types.primitive(PrimitiveType::I64));
+                let array_id = self.types.intern(TypeKind::Array {
+                    element: element_id,
+                    len,
+                });
+                HirExpr {
+                    kind: HirExprKind::ArrayLiteral { elements: lowered },
+                    ty: TypeRef { id: array_id },
+                    span,
+                }
+            }
             ExprAst::EnumVariant { enum_name, variant } => {
                 let tag = self
                     .types
@@ -1016,6 +1482,41 @@ impl<'a> LoweringContext<'a> {
                     span,
                 }
             }
+            ExprAst::ResultOk { value } => {
+                let value = self.lower_expr(*value, span);
+                HirExpr {
+                    kind: HirExprKind::ResultOk {
+                        value: Box::new(value),
+                    },
+                    ty: i64_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::ResultErr { value } => {
+                let value = self.lower_expr(*value, span);
+                HirExpr {
+                    kind: HirExprKind::ResultErr {
+                        value: Box::new(value),
+                    },
+                    ty: i64_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::OptionSome { value } => {
+                let value = self.lower_expr(*value, span);
+                HirExpr {
+                    kind: HirExprKind::OptionSome {
+                        value: Box::new(value),
+                    },
+                    ty: i64_ref(self.types),
+                    span,
+                }
+            }
+            ExprAst::OptionNone => HirExpr {
+                kind: HirExprKind::OptionNone,
+                ty: i64_ref(self.types),
+                span,
+            },
             ExprAst::Field { base, field } => {
                 let base = self.lower_expr(*base, span);
                 let struct_layout_id = match self.types.resolve(base.ty.id) {
@@ -1079,14 +1580,28 @@ impl<'a> LoweringContext<'a> {
                 ty: unit_ref(self.types),
                 span,
             },
+            ExprAst::ChannelCreate { capacity } => {
+                let lowered = self.lower_expr(*capacity, span);
+                HirExpr {
+                    kind: HirExprKind::ChannelCreate {
+                        capacity: Box::new(lowered),
+                    },
+                    // Channel::baru returns an i64 handle.
+                    ty: i64_ref(self.types),
+                    span,
+                }
+            }
             ExprAst::ChannelSend {
                 channel_name,
                 value,
             } => {
+                // Resolve the channel variable to its handle (a Local), so the
+                // HIR carries a value/handle, not a name. ABI-1 by-handle.
+                let channel = self.lower_channel_ref(&channel_name, span);
                 let lowered = self.lower_expr(*value, span);
                 HirExpr {
                     kind: HirExprKind::ChannelSend {
-                        channel_name,
+                        channel: Box::new(channel),
                         value: Box::new(lowered),
                     },
                     ty: unit_ref(self.types),
@@ -1094,7 +1609,9 @@ impl<'a> LoweringContext<'a> {
                 }
             }
             ExprAst::ChannelRecv { channel_name } => HirExpr {
-                kind: HirExprKind::ChannelRecv { channel_name },
+                kind: HirExprKind::ChannelRecv {
+                    channel: Box::new(self.lower_channel_ref(&channel_name, span)),
+                },
                 ty: unit_ref(self.types),
                 span,
             },
@@ -1137,6 +1654,18 @@ impl<'a> LoweringContext<'a> {
                     element: elem.id,
                     len,
                 })
+            }
+            TypeAst::Result { ok, err } => {
+                let ok = self.lower_type(*ok);
+                let err = self.lower_type(*err);
+                self.types.intern(TypeKind::Result {
+                    ok: ok.id,
+                    err: err.id,
+                })
+            }
+            TypeAst::Option { some } => {
+                let some = self.lower_type(*some);
+                self.types.intern(TypeKind::Option { some: some.id })
             }
             TypeAst::Unit => self.types.primitive(PrimitiveType::Unit),
         };
@@ -1258,55 +1787,165 @@ fn lower_type_ast(ty: ast::Type) -> TypeAst {
         ast::Type::Pointer(inner) => TypeAst::Pointer(Box::new(lower_type_ast(*inner))),
         ast::Type::String => TypeAst::Named("String".to_string()),
         ast::Type::Named(n) => TypeAst::Named(n),
+        // Preserve semantic Result identity for diagnostics and future
+        // match destructuring. Codegen currently maps this to scalar i64 ABI.
+        ast::Type::Array { element, len } => TypeAst::Array {
+            element: Box::new(lower_type_ast(*element)),
+            len,
+        },
+        ast::Type::Result { ok, err } => TypeAst::Result {
+            ok: Box::new(lower_type_ast(*ok)),
+            err: Box::new(lower_type_ast(*err)),
+        },
+        ast::Type::Option { some } => TypeAst::Option {
+            some: Box::new(lower_type_ast(*some)),
+        },
+        // A Channel<From, To, Msg> handle is an i64 (ABI-1 by-handle). As an
+        // actor capture parameter type it lowers to i64 so the param matches the
+        // handle value flowing through ctx. The From/To/Msg type-level metadata
+        // is not represented at this layer yet (B.1b captures the handle only).
+        ast::Type::Channel { .. } => TypeAst::Named("i64".to_string()),
         _ => TypeAst::Unit,
     }
 }
 
-/// Lower a `MATCH value { pat => body, ... }` into a nested if/else chain over
-/// the (i64) value. Enum variants and integer literals become equality tests;
-/// `_` becomes the final else. Ok/Err/Tuple patterns are not yet supported.
+/// Lower a `MATCH value { pat => body, ... }` into a nested if/else chain.
+///
+/// Integer/enum patterns become equality tests. Result patterns are lowered
+/// through the transitional scalar ABI:
+///
+/// - `Ok(v)`  = `(payload << 1) | 1`
+/// - `Err(e)` = `(payload << 1)`
+///
+/// Match destructuring uses `(value & 1)` as the branch tag and `(value >> 1)`
+/// as the payload binding. This is not the final ADT layout; it is a compiler
+/// foundation step that preserves Ok/Err meaning instead of silently dropping
+/// arms.
 fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
+    fn int_lit(value: i64) -> ExprAst {
+        ExprAst::Literal(LiteralAst::Integer(value))
+    }
+
+    fn bin(left: ExprAst, op: BinaryOpAst, right: ExprAst) -> ExprAst {
+        ExprAst::Binary {
+            left: Box::new(left),
+            op,
+            right: Box::new(right),
+        }
+    }
+
+    fn eq(left: ExprAst, right: ExprAst) -> ExprAst {
+        bin(left, BinaryOpAst::Eq, right)
+    }
+
+    fn result_abi_value(value: ExprAst) -> ExprAst {
+        ExprAst::Cast {
+            expr: Box::new(value),
+            target: TypeAst::Named("i64".to_string()),
+        }
+    }
+
+    fn result_tag(value: ExprAst) -> ExprAst {
+        bin(result_abi_value(value), BinaryOpAst::BitAnd, int_lit(1))
+    }
+
+    fn result_payload(value: ExprAst) -> ExprAst {
+        bin(result_abi_value(value), BinaryOpAst::ShiftRight, int_lit(1))
+    }
+
+    fn mk_body_block(body: Vec<ast::Stmt>) -> BlockAst {
+        BlockAst {
+            statements: body
+                .into_iter()
+                .map(|s| Spanned {
+                    node: lower_stmt_ast(s),
+                    span: Span::unknown(),
+                })
+                .collect(),
+        }
+    }
+
+    fn option_abi_value(value: ExprAst) -> ExprAst {
+        ExprAst::Cast {
+            expr: Box::new(value),
+            target: TypeAst::Named("i64".to_string()),
+        }
+    }
+
+    fn option_tag(value: ExprAst) -> ExprAst {
+        bin(option_abi_value(value), BinaryOpAst::BitAnd, int_lit(1))
+    }
+
+    fn option_payload(value: ExprAst) -> ExprAst {
+        bin(option_abi_value(value), BinaryOpAst::ShiftRight, int_lit(1))
+    }
+
+    fn mk_bound_block(binding: String, payload: ExprAst, body: Vec<ast::Stmt>) -> BlockAst {
+        let mut statements = Vec::with_capacity(body.len() + 1);
+        statements.push(Spanned {
+            node: StmtAst::Let {
+                name: binding,
+                ty: Some(TypeAst::Named("i64".to_string())),
+                value: Some(payload),
+            },
+            span: Span::unknown(),
+        });
+        statements.extend(body.into_iter().map(|s| Spanned {
+            node: lower_stmt_ast(s),
+            span: Span::unknown(),
+        }));
+        BlockAst { statements }
+    }
+
     let value_ast = lower_expr_ast(value);
-    let mk_block = |body: Vec<ast::Stmt>| BlockAst {
-        statements: body
-            .into_iter()
-            .map(|s| Spanned {
-                node: lower_stmt_ast(s),
-                span: Span::unknown(),
-            })
-            .collect(),
-    };
     let mut else_branch: Option<BlockAst> = None;
     let mut conditional: Vec<(ExprAst, BlockAst)> = Vec::new();
+
     for arm in arms {
         match arm.pattern {
             ast::MatchPattern::Wildcard => {
-                else_branch = Some(mk_block(arm.body));
+                else_branch = Some(mk_body_block(arm.body));
+            }
+            ast::MatchPattern::Ok { binding } => {
+                let condition = eq(result_tag(value_ast.clone()), int_lit(1));
+                let body = mk_bound_block(binding, result_payload(value_ast.clone()), arm.body);
+                conditional.push((condition, body));
+            }
+            ast::MatchPattern::Err { binding } => {
+                let condition = eq(result_tag(value_ast.clone()), int_lit(0));
+                let body = mk_bound_block(binding, result_payload(value_ast.clone()), arm.body);
+                conditional.push((condition, body));
+            }
+            ast::MatchPattern::Some { binding } => {
+                let condition = eq(option_tag(value_ast.clone()), int_lit(1));
+                let body = mk_bound_block(binding, option_payload(value_ast.clone()), arm.body);
+                conditional.push((condition, body));
+            }
+            ast::MatchPattern::None => {
+                let condition = eq(option_tag(value_ast.clone()), int_lit(0));
+                conditional.push((condition, mk_body_block(arm.body)));
             }
             ast::MatchPattern::Identifier(name) => {
-                conditional.push((
-                    ExprAst::EnumVariant {
-                        enum_name: String::new(),
-                        variant: name,
-                    },
-                    mk_block(arm.body),
-                ));
+                let pat = ExprAst::EnumVariant {
+                    enum_name: String::new(),
+                    variant: name,
+                };
+                conditional.push((eq(value_ast.clone(), pat), mk_body_block(arm.body)));
             }
             ast::MatchPattern::Literal(expr) => {
-                conditional.push((lower_expr_ast(expr), mk_block(arm.body)));
+                conditional.push((
+                    eq(value_ast.clone(), lower_expr_ast(expr)),
+                    mk_body_block(arm.body),
+                ));
             }
-            _ => {}
+            ast::MatchPattern::Tuple(_) => {}
         }
     }
+
     let mut acc: Option<BlockAst> = else_branch;
-    for (pat, body) in conditional.into_iter().rev() {
-        let cond = ExprAst::Binary {
-            left: Box::new(value_ast.clone()),
-            op: BinaryOpAst::Eq,
-            right: Box::new(pat),
-        };
+    for (condition, body) in conditional.into_iter().rev() {
         let if_stmt = StmtAst::If {
-            condition: cond,
+            condition,
             then_branch: body,
             else_branch: acc.take(),
         };
@@ -1317,12 +1956,13 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
             }],
         });
     }
+
     match acc {
         Some(mut block) => {
             if block.statements.len() == 1 {
                 block.statements.pop().unwrap().node
             } else {
-                StmtAst::UnsafeBlock(block)
+                StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit))
             }
         }
         None => StmtAst::Expr(ExprAst::Literal(LiteralAst::Unit)),
@@ -1458,10 +2098,26 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             callee: Box::new(lower_expr_ast(*callee)),
             args: args.into_iter().map(lower_expr_ast).collect(),
         },
+        ast::Expr::QualifiedCall {
+            module,
+            function,
+            args,
+        } => ExprAst::QualifiedCall {
+            module,
+            function,
+            args: args.into_iter().map(lower_expr_ast).collect(),
+        },
         ast::Expr::Binary { left, op, right } => ExprAst::Binary {
             left: Box::new(lower_expr_ast(*left)),
             op: lower_binary_op(op),
             right: Box::new(lower_expr_ast(*right)),
+        },
+        ast::Expr::Index { base, index } => ExprAst::Index {
+            base: Box::new(lower_expr_ast(*base)),
+            index: Box::new(lower_expr_ast(*index)),
+        },
+        ast::Expr::ArrayLiteral { elements } => ExprAst::ArrayLiteral {
+            elements: elements.into_iter().map(lower_expr_ast).collect(),
         },
         ast::Expr::Grouped(inner) => lower_expr_ast(*inner),
         // ─── Threading (A3) — lowered to ExprAst ───
@@ -1478,6 +2134,9 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             value: Box::new(lower_expr_ast(*value)),
         },
         ast::Expr::Recv { channel_name } => ExprAst::ChannelRecv { channel_name },
+        ast::Expr::ChannelCreate { capacity } => ExprAst::ChannelCreate {
+            capacity: Box::new(lower_expr_ast(*capacity)),
+        },
         // ─── Phase 3: Backpressure + Scheduler (A4) ───
         ast::Expr::TrySend {
             channel_name,
@@ -1487,7 +2146,10 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             value: Box::new(lower_expr_ast(*value)),
         },
         ast::Expr::TryRecv { channel_name } => ExprAst::ChannelTryRecv { channel_name },
-        ast::Expr::Yield => ExprAst::Variable("yield".to_string()), // marker for HIR lowering
+        ast::Expr::Yield => ExprAst::Call {
+            callee: Box::new(ExprAst::Variable("logicodex_yield".to_string())),
+            args: vec![],
+        },
         ast::Expr::Sleep { duration_ms } => {
             let dur = lower_expr_ast(*duration_ms);
             ExprAst::Call {
@@ -1509,8 +2171,35 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             base: Box::new(lower_expr_ast(*base)),
             field,
         },
+        ast::Expr::Ok { value } => ExprAst::ResultOk {
+            value: Box::new(lower_expr_ast(*value)),
+        },
+        ast::Expr::Err { value } => ExprAst::ResultErr {
+            value: Box::new(lower_expr_ast(*value)),
+        },
+        ast::Expr::Some { value } => ExprAst::OptionSome {
+            value: Box::new(lower_expr_ast(*value)),
+        },
+        ast::Expr::None => ExprAst::OptionNone,
         ast::Expr::EnumVariant { enum_name, variant } => {
             ExprAst::EnumVariant { enum_name, variant }
+        }
+        // Unary operators. The parser carries the operator as a string ("-" for
+        // negation, "!" for logical not); map it to the typed UnaryOpAst here.
+        // Previously this fell through to the `_` arm below and was silently
+        // lowered to Unit, so `-5` compiled to 0 -- a correctness bug.
+        ast::Expr::Unary { op, operand } => {
+            let mapped = match op.as_str() {
+                "-" => UnaryOpAst::Negate,
+                "!" => UnaryOpAst::LogicalNot,
+                // Unknown unary operator: preserve old behaviour (Unit) rather
+                // than guess. Parser only ever emits "-" or "!" today.
+                _ => return ExprAst::Literal(LiteralAst::Unit),
+            };
+            ExprAst::Unary {
+                op: mapped,
+                expr: Box::new(lower_expr_ast(*operand)),
+            }
         }
         _ => ExprAst::Literal(LiteralAst::Unit),
     }
@@ -1522,6 +2211,7 @@ fn lower_binary_op(op: ast::BinaryOp) -> BinaryOpAst {
         ast::BinaryOp::Subtract => BinaryOpAst::Sub,
         ast::BinaryOp::Multiply => BinaryOpAst::Mul,
         ast::BinaryOp::Divide => BinaryOpAst::Div,
+        ast::BinaryOp::Modulo => BinaryOpAst::Mod,
         ast::BinaryOp::Greater => BinaryOpAst::Gt,
         ast::BinaryOp::GreaterEqual => BinaryOpAst::Gte,
         ast::BinaryOp::Less => BinaryOpAst::Lt,
@@ -1532,6 +2222,7 @@ fn lower_binary_op(op: ast::BinaryOp) -> BinaryOpAst {
         ast::BinaryOp::Or => BinaryOpAst::LogicalOr,
         ast::BinaryOp::BitAnd => BinaryOpAst::BitAnd,
         ast::BinaryOp::BitOr => BinaryOpAst::BitOr,
+        ast::BinaryOp::BitXor => BinaryOpAst::BitXor,
         ast::BinaryOp::ShiftLeft => BinaryOpAst::ShiftLeft,
         ast::BinaryOp::ShiftRight => BinaryOpAst::ShiftRight,
     }
@@ -1549,6 +2240,35 @@ mod tests {
     }
 
     #[test]
+    fn unary_negate_lowers_to_negate_not_unit() {
+        // Regression: `-5` used to fall through to the `_` arm in lower_expr_ast
+        // and become Unit (compiling to 0). It must lower to Unary(Negate, 5).
+        let expr = ast::Expr::Unary {
+            op: "-".to_string(),
+            operand: Box::new(ast::Expr::Integer(5)),
+        };
+        match lower_expr_ast(expr) {
+            ExprAst::Unary { op, expr } => {
+                assert_eq!(op, UnaryOpAst::Negate);
+                assert_eq!(*expr, ExprAst::Literal(LiteralAst::Integer(5)));
+            }
+            other => panic!("expected Unary(Negate), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn unary_logical_not_lowers_to_logical_not() {
+        let expr = ast::Expr::Unary {
+            op: "!".to_string(),
+            operand: Box::new(ast::Expr::Boolean(true)),
+        };
+        match lower_expr_ast(expr) {
+            ExprAst::Unary { op, .. } => assert_eq!(op, UnaryOpAst::LogicalNot),
+            other => panic!("expected Unary(LogicalNot), got {other:?}"),
+        }
+    }
+
+    #[test]
     fn lowers_function_params_let_and_return() {
         let mut symbols = SymbolTable::default();
         let mut types = TypeRegistry::new();
@@ -1556,6 +2276,7 @@ mod tests {
             symbols: &mut symbols,
             types: &mut types,
             diagnostics: Vec::new(),
+            current_module: String::new(),
         };
         let module = ModuleAst {
             items: vec![spanned(ItemAst::Function(FunctionAst {
@@ -1576,6 +2297,7 @@ mod tests {
                     ],
                 },
                 is_unsafe: false,
+                is_public: false,
             }))],
         };
 
@@ -1599,6 +2321,7 @@ mod tests {
             symbols: &mut symbols,
             types: &mut types,
             diagnostics: Vec::new(),
+            current_module: String::new(),
         };
         let module = ModuleAst {
             items: vec![spanned(ItemAst::Function(FunctionAst {
@@ -1611,6 +2334,7 @@ mod tests {
                     )))],
                 },
                 is_unsafe: false,
+                is_public: false,
             }))],
         };
 
@@ -1633,6 +2357,7 @@ mod tests {
             symbols: &mut symbols,
             types: &mut types,
             diagnostics: Vec::new(),
+            current_module: String::new(),
         };
         let module = ModuleAst {
             items: vec![spanned(ItemAst::ExternBlock(ExternBlockAst {

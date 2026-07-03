@@ -1,0 +1,80 @@
+[contract]
+version = 0
+
+[module]
+name = "core.assert"
+layer = "core"
+stage = 0
+profile = "core"
+pure = true
+extern = false
+
+[validation]
+metadata = true
+static = true
+compile = true
+run = true
+stress = false
+
+[limits]
+compile_timeout_ms = 10000
+run_timeout_ms = 2000
+stdout_limit_bytes = 65536
+max_cases = 50
+
+[exports]
+functions = [
+  "eq_i64",
+  "is_false",
+  "is_true",
+  "not_eq_i64",
+]
+
+[constraints]
+allowed_imports = ["core.*"]
+forbidden_imports = ["std.*", "framework.*"]
+forbidden_features = ["extern", "malloc", "free", "file", "network", "syscall"]
+
+[capabilities]
+requires = []
+
+[[cases]]
+name = "eq true"
+expr = "core.assert.eq_i64(5, 5)"
+expect_i64 = 1
+
+[[cases]]
+name = "eq false"
+expr = "core.assert.eq_i64(5, 6)"
+expect_i64 = 0
+
+[[cases]]
+name = "is_true nonzero"
+expr = "core.assert.is_true(9)"
+expect_i64 = 1
+
+[[cases]]
+name = "is_true zero"
+expr = "core.assert.is_true(0)"
+expect_i64 = 0
+
+[[cases]]
+name = "not_eq true"
+expr = "core.assert.not_eq_i64(3, 7)"
+expect_i64 = 1
+
+[[cases]]
+name = "not_eq false"
+expr = "core.assert.not_eq_i64(5, 5)"
+expect_i64 = 0
+
+[[cases]]
+name = "is_false true"
+expr = "core.assert.is_false(0)"
+expect_i64 = 1
+
+[[cases]]
+name = "is_false false"
+expr = "core.assert.is_false(9)"
+expect_i64 = 0
+

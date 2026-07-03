@@ -1,0 +1,141 @@
+[contract]
+version = 0
+
+[module]
+name = "core.range"
+layer = "core"
+stage = 0
+profile = "core"
+pure = true
+extern = false
+
+[validation]
+metadata = true
+static = true
+compile = true
+run = true
+stress = false
+
+[limits]
+compile_timeout_ms = 10000
+run_timeout_ms = 2000
+stdout_limit_bytes = 65536
+max_cases = 50
+
+[exports]
+functions = [
+  "contains_closed_i64",
+  "contains_open_i64",
+  "is_valid_i64",
+  "overlaps_closed_i64",
+  "span_i64",
+  "touches_i64",
+]
+
+[constraints]
+allowed_imports = ["core.*"]
+forbidden_imports = ["std.*", "framework.*"]
+forbidden_features = ["extern", "malloc", "free", "file", "network", "syscall"]
+
+[capabilities]
+requires = []
+
+[[cases]]
+name = "valid range"
+expr = "core.range.is_valid_i64(2, 5)"
+expect_i64 = 1
+
+[[cases]]
+name = "invalid range"
+expr = "core.range.is_valid_i64(5, 2)"
+expect_i64 = 0
+
+[[cases]]
+name = "span valid"
+expr = "core.range.span_i64(3, 7)"
+expect_i64 = 4
+
+[[cases]]
+name = "span invalid"
+expr = "core.range.span_i64(7, 3)"
+expect_i64 = 0
+
+[[cases]]
+name = "span equal"
+expr = "core.range.span_i64(5, 5)"
+expect_i64 = 0
+
+[[cases]]
+name = "closed contains start"
+expr = "core.range.contains_closed_i64(3, 7, 3)"
+expect_i64 = 1
+
+[[cases]]
+name = "closed contains end"
+expr = "core.range.contains_closed_i64(3, 7, 7)"
+expect_i64 = 1
+
+[[cases]]
+name = "closed excludes above"
+expr = "core.range.contains_closed_i64(3, 7, 8)"
+expect_i64 = 0
+
+[[cases]]
+name = "closed invalid range"
+expr = "core.range.contains_closed_i64(7, 3, 5)"
+expect_i64 = 0
+
+[[cases]]
+name = "open contains middle"
+expr = "core.range.contains_open_i64(3, 7, 5)"
+expect_i64 = 1
+
+[[cases]]
+name = "open excludes start"
+expr = "core.range.contains_open_i64(3, 7, 3)"
+expect_i64 = 0
+
+[[cases]]
+name = "open excludes end"
+expr = "core.range.contains_open_i64(3, 7, 7)"
+expect_i64 = 0
+
+[[cases]]
+name = "closed overlaps boundary"
+expr = "core.range.overlaps_closed_i64(1, 5, 5, 9)"
+expect_i64 = 1
+
+[[cases]]
+name = "closed overlaps middle"
+expr = "core.range.overlaps_closed_i64(1, 5, 3, 9)"
+expect_i64 = 1
+
+[[cases]]
+name = "closed disjoint"
+expr = "core.range.overlaps_closed_i64(1, 4, 5, 9)"
+expect_i64 = 0
+
+[[cases]]
+name = "closed invalid first"
+expr = "core.range.overlaps_closed_i64(5, 1, 2, 3)"
+expect_i64 = 0
+
+[[cases]]
+name = "touches forward"
+expr = "core.range.touches_i64(1, 5, 5, 9)"
+expect_i64 = 1
+
+[[cases]]
+name = "touches reverse"
+expr = "core.range.touches_i64(5, 9, 1, 5)"
+expect_i64 = 1
+
+[[cases]]
+name = "touches false overlap"
+expr = "core.range.touches_i64(1, 5, 4, 9)"
+expect_i64 = 0
+
+[[cases]]
+name = "touches invalid"
+expr = "core.range.touches_i64(5, 1, 1, 5)"
+expect_i64 = 0

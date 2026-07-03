@@ -113,6 +113,12 @@ pub struct LlvmCompiler<'ctx> {
     // Declared return type of the function being emitted, for fixed-width
     // wrapping of returned scalar values.
     current_return_ty: Option<crate::types::TypeRef>,
+    // Actor handle slots (ABI-1 join-by-handle): actor name -> alloca holding
+    // the i64 handle returned by logicodex_spawn. Codegen OWNS this mapping;
+    // the C runtime never sees a name. JOIN loads the stored handle. A JOIN
+    // with no prior SPAWN finds no slot and lowers to logicodex_join(0), which
+    // the runtime rejects as INVALID_HANDLE (no UB, honest failure).
+    actor_handles: HashMap<String, PointerValue<'ctx>>,
 }
 
 /// Backend trait for HIR-based codegen (the single compilation engine).
@@ -155,6 +161,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             hw_decl_addrs: HashMap::new(),
             current_sret: None,
             current_return_ty: None,
+            actor_handles: HashMap::new(),
         }
     }
 
@@ -588,20 +595,18 @@ impl<'ctx> LlvmCompiler<'ctx> {
         &mut self,
         extern_fn: &crate::hir::HirExternFunction,
     ) -> Result<()> {
-        let signature = {
-            let callables = self
-                .callables
-                .as_ref()
-                .ok_or_else(|| anyhow!("extern function codegen: CallableRegistry not attached"))?;
-            callables
-                .get(extern_fn.callable)
-                .ok_or_else(|| {
-                    anyhow!(
-                        "extern function CallableId({}) not found in registry",
-                        extern_fn.callable.0
-                    )
-                })?
-                .clone()
+        // Build the signature from the HIR extern node itself. Do NOT look the
+        // CallableId up in the FFI CallableRegistry: user externs live in the
+        // SymbolTable, and that id-space is independent of the registry's, so a
+        // lookup would alias an unrelated registered fn (e.g. a Raylib symbol).
+        let signature = CallableSignature {
+            name: extern_fn.name.clone(),
+            params: extern_fn.params.clone(),
+            return_type: extern_fn.return_type,
+            abi: crate::ffi::CallingConvention::C,
+            safety: crate::ffi::CallableSafety::UnsafeRequired,
+            is_extern: true,
+            is_variadic: extern_fn.is_variadic,
         };
         let func = self.declare_extern_func(&signature)?;
         self.hir_callable_funcs.insert(extern_fn.callable.0, func);
@@ -700,14 +705,24 @@ impl<'ctx> LlvmCompiler<'ctx> {
         use crate::hir::HirStmt;
         match stmt {
             HirStmt::Let { local, ty, value } => {
-                let alloca = self.create_entry_alloca(func, &format!("local_{}", local.0));
+                let alloca_ty = self.hir_type_to_llvm(*ty)?;
+                let alloca = self
+                    .builder
+                    .build_alloca(alloca_ty, &format!("local_{}", local.0))
+                    .context("failed to allocate local")?;
+
                 if let Some(val_expr) = value {
-                    let val = self.emit_hir_expr(val_expr, func)?;
-                    let val = self.wrap_to_width(val, *ty)?;
-                    self.builder
-                        .build_store(alloca, val)
-                        .context("failed to store let value")?;
+                    if let crate::hir::HirExprKind::ArrayLiteral { elements } = &val_expr.kind {
+                        self.emit_hir_array_literal_init(*ty, alloca, elements, func)?;
+                    } else {
+                        let val = self.emit_hir_expr(val_expr, func)?;
+                        let val = self.wrap_to_width(val, *ty)?;
+                        self.builder
+                            .build_store(alloca, val)
+                            .context("failed to store let value")?;
+                    }
                 }
+
                 self.hir_local_allocs.insert(local.0, alloca);
                 self.hir_local_types.insert(local.0, *ty);
                 Ok(())
@@ -728,6 +743,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
                                 .build_store(ptr, val)
                                 .context("failed to store assign value")?;
                         }
+                    }
+                    crate::hir::HirExprKind::Index { base, index } => {
+                        self.emit_hir_index_store(base, index, val, func)?;
                     }
                     crate::hir::HirExprKind::Field { base, field_index } => {
                         // p.field = val: int->ptr the struct i64, gep field, store.
@@ -963,6 +981,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         .builder
                         .build_int_signed_div(l, r, "divtmp")
                         .context("div"),
+                    BinaryOpAst::Mod => self
+                        .builder
+                        .build_int_signed_rem(l, r, "modtmp")
+                        .context("mod"),
                     BinaryOpAst::Eq => self.compare_to_i64(IntPredicate::EQ, l, r, "eqtmp"),
                     BinaryOpAst::NotEq => self.compare_to_i64(IntPredicate::NE, l, r, "netmp"),
                     BinaryOpAst::Lt => self.compare_to_i64(IntPredicate::SLT, l, r, "lttmp"),
@@ -1011,6 +1033,42 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 self.wrap_to_width(result, expr.ty)
             }
             HirExprKind::Call { callee, args } => self.emit_hir_call(*callee, args, func, expr.ty),
+            HirExprKind::ResultOk { value } => {
+                let payload = self.emit_hir_expr(value, func)?;
+                let one = self.i64_type.const_int(1, false);
+                let shifted = self
+                    .builder
+                    .build_left_shift(payload, one, "result_ok_payload")
+                    .context("result ok payload shift")?;
+                let encoded = self
+                    .builder
+                    .build_or(shifted, one, "result_ok_tagged")
+                    .context("result ok tag")?;
+                Ok(encoded)
+            }
+            HirExprKind::ResultErr { value } => {
+                let payload = self.emit_hir_expr(value, func)?;
+                let one = self.i64_type.const_int(1, false);
+                let encoded = self
+                    .builder
+                    .build_left_shift(payload, one, "result_err_tagged")
+                    .context("result err payload shift")?;
+                Ok(encoded)
+            }
+            HirExprKind::OptionSome { value } => {
+                let payload = self.emit_hir_expr(value, func)?;
+                let one = self.i64_type.const_int(1, false);
+                let shifted = self
+                    .builder
+                    .build_left_shift(payload, one, "option_some_payload")
+                    .context("option some payload shift")?;
+                let encoded = self
+                    .builder
+                    .build_or(shifted, one, "option_some_tagged")
+                    .context("option some tag")?;
+                Ok(encoded)
+            }
+            HirExprKind::OptionNone => Ok(self.i64_type.const_int(0, false)),
             HirExprKind::Field { base, field_index } => {
                 let base_val = self.emit_hir_expr(base, func)?;
                 let layout = match self.types.as_ref() {
@@ -1059,134 +1117,278 @@ impl<'ctx> LlvmCompiler<'ctx> {
             }
             // ─── Threading expressions — LLVM codegen ───
             HirExprKind::Spawn { actor_name, args } => {
-                // Declare runtime function: logicodex_spawn(actor_name: *const u8) -> i64
+                // ABI-1: logicodex_spawn takes a *function pointer* (not a name),
+                // so the runtime can pthread_create it directly with no name
+                // lookup/table — minimal C, smallest attack surface (zero-trust).
+                // Signature: logicodex_spawn(i8* entry) -> i64.
+                //   return >= 0 : success (provenance: C-runtime / OS)
+                //   return <  0 : failure, origin encoded for the future
+                //                 error-code system (C-runtime vs OS vs semantic).
+                let i8ptr = self.context.i8_type().ptr_type(AddressSpace::default());
                 let spawn_fn = self.declare_runtime_func(
                     "logicodex_spawn",
-                    self.i64_type.fn_type(
-                        &[self
-                            .context
-                            .i8_type()
-                            .ptr_type(AddressSpace::default())
-                            .into()],
-                        false,
-                    ),
+                    self.i64_type.fn_type(&[i8ptr.into()], false),
                 );
-                // Evaluate args (passed as pointers or values)
-                let mut llvm_args: Vec<BasicValueEnum<'ctx>> = Vec::new();
-                for arg in args {
-                    let val = self.emit_hir_expr(arg, func)?;
-                    llvm_args.push(val.into());
-                }
-                // Pass actor name as a global string
-                let name_ptr = self
-                    .builder
-                    .build_global_string_ptr(actor_name, "spawn_actor_name")
-                    .context("spawn actor name")?
-                    .as_pointer_value();
-                let call_site = self
-                    .builder
-                    .build_call(spawn_fn, &[name_ptr.into()], "spawn_call")
-                    .context("spawn call")?;
-                match call_site.try_as_basic_value().left() {
-                    Some(val) => match val {
-                        BasicValueEnum::IntValue(iv) => Ok(iv),
-                        _ => Ok(self.i64_type.const_int(0, false)),
-                    },
-                    None => Ok(self.i64_type.const_int(0, false)),
-                }
+                // Resolve the actor's lowered function `__actor_<name>` and take
+                // its address. The body was lowered to a real HIR function
+                // upstream, so it exists as an LLVM function here.
+                let actor_sym = format!("__actor_{actor_name}");
+                let actor_fn = self.module.get_function(&actor_sym).ok_or_else(|| {
+                    anyhow!(
+                        "actor entry `{actor_sym}` not found in module (actor body                          was not lowered to a function)"
+                    )
+                })?;
+                // B.1b capture: an actor with arguments captures channel
+                // handle(s). We build a ctx buffer holding the i64 handles, a
+                // small ctx-unpacking wrapper `__actor_<name>__ctx(i8* ctx)`
+                // that loads them and calls the real actor, and dispatch via
+                // logicodex_spawn_ctx(wrapper, ctx). An actor with no arguments
+                // keeps the old niladic logicodex_spawn(entry) path.
+                let call_site = if args.is_empty() {
+                    let entry_ptr = actor_fn.as_global_value().as_pointer_value();
+                    let entry_i8 = self
+                        .builder
+                        .build_bitcast(entry_ptr, i8ptr, "actor_entry_i8")
+                        .context("bitcast actor entry to i8*")?;
+                    self.builder
+                        .build_call(spawn_fn, &[entry_i8.into()], "spawn_call")
+                        .context("spawn call")?
+                } else {
+                    // Evaluate each captured handle argument (i64) in the
+                    // CURRENT block (main's scope), before we move the builder.
+                    let mut handle_vals: Vec<IntValue<'ctx>> = Vec::with_capacity(args.len());
+                    for arg in args {
+                        // emit_hir_expr returns the i64 channel handle directly.
+                        let hv = self.emit_hir_expr(arg, func)?;
+                        handle_vals.push(hv);
+                    }
+                    let n = handle_vals.len() as u32;
+                    // ctx type: an array of i64 handles. Allocate it in main's
+                    // frame and fill it with the evaluated handles.
+                    let arr_ty = self.i64_type.array_type(n);
+                    let ctx_alloca = self
+                        .builder
+                        .build_alloca(arr_ty, &format!("__ctx_{actor_name}"))
+                        .context("alloc actor ctx")?;
+                    let i64_zero = self.i64_type.const_int(0, false);
+                    for (i, hv) in handle_vals.iter().enumerate() {
+                        let idx = self.i64_type.const_int(i as u64, false);
+                        let slot = unsafe {
+                            self.builder
+                                .build_in_bounds_gep(
+                                    arr_ty,
+                                    ctx_alloca,
+                                    &[i64_zero, idx],
+                                    "ctx_slot",
+                                )
+                                .context("ctx gep")?
+                        };
+                        self.builder
+                            .build_store(slot, *hv)
+                            .context("store captured handle into ctx")?;
+                    }
+                    // Build (once per actor) the ctx-unpacking wrapper.
+                    let wrapper_sym = format!("__actor_{actor_name}__ctx");
+                    let wrapper_fn = match self.module.get_function(&wrapper_sym) {
+                        Some(f) => f,
+                        None => {
+                            let saved_block = self.builder.get_insert_block();
+                            let wrapper_ty =
+                                self.context.void_type().fn_type(&[i8ptr.into()], false);
+                            let wf = self.module.add_function(&wrapper_sym, wrapper_ty, None);
+                            let wentry = self.context.append_basic_block(wf, "entry");
+                            self.builder.position_at_end(wentry);
+                            // ctx i8* -> array pointer
+                            let ctx_param = wf.get_nth_param(0).unwrap().into_pointer_value();
+                            let arr_ptr = self
+                                .builder
+                                .build_bitcast(
+                                    ctx_param,
+                                    arr_ty.ptr_type(AddressSpace::default()),
+                                    "ctx_as_arr",
+                                )
+                                .context("bitcast ctx to array ptr")?
+                                .into_pointer_value();
+                            // Load each handle and pass to the real actor fn.
+                            let mut call_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+                                Vec::with_capacity(n as usize);
+                            let wzero = self.i64_type.const_int(0, false);
+                            for i in 0..n {
+                                let widx = self.i64_type.const_int(i as u64, false);
+                                let slot = unsafe {
+                                    self.builder
+                                        .build_in_bounds_gep(
+                                            arr_ty,
+                                            arr_ptr,
+                                            &[wzero, widx],
+                                            "wctx_slot",
+                                        )
+                                        .context("wrapper ctx gep")?
+                                };
+                                let hv = self
+                                    .builder
+                                    .build_load(self.i64_type, slot, "wctx_handle")
+                                    .context("load captured handle")?;
+                                call_args.push(hv.into());
+                            }
+                            self.builder
+                                .build_call(actor_fn, &call_args, "actor_call")
+                                .context("call real actor from wrapper")?;
+                            self.builder
+                                .build_return(None)
+                                .context("wrapper ret void")?;
+                            // Restore builder to main's block.
+                            if let Some(b) = saved_block {
+                                self.builder.position_at_end(b);
+                            }
+                            wf
+                        }
+                    };
+                    // spawn_ctx(wrapper, ctx)
+                    let spawn_ctx_fn = self.declare_runtime_func(
+                        "logicodex_spawn_ctx",
+                        self.i64_type.fn_type(&[i8ptr.into(), i8ptr.into()], false),
+                    );
+                    let wrapper_i8 = self
+                        .builder
+                        .build_bitcast(
+                            wrapper_fn.as_global_value().as_pointer_value(),
+                            i8ptr,
+                            "wrapper_i8",
+                        )
+                        .context("bitcast wrapper to i8*")?;
+                    let ctx_i8 = self
+                        .builder
+                        .build_bitcast(ctx_alloca, i8ptr, "ctx_i8")
+                        .context("bitcast ctx to i8*")?;
+                    self.builder
+                        .build_call(
+                            spawn_ctx_fn,
+                            &[wrapper_i8.into(), ctx_i8.into()],
+                            "spawn_ctx_call",
+                        )
+                        .context("spawn_ctx call")?
+                };
+                let handle = match call_site.try_as_basic_value().left() {
+                    Some(BasicValueEnum::IntValue(iv)) => iv,
+                    _ => self.i64_type.const_int(0, false),
+                };
+                // ABI-1 join-by-handle: store the spawn handle in a
+                // compiler-managed per-actor slot so a later JOIN can load it.
+                // The mapping actor-name -> handle lives here in codegen; the C
+                // runtime never sees a name. Reuse one slot per actor name.
+                let slot = match self.actor_handles.get(actor_name) {
+                    Some(ptr) => *ptr,
+                    None => {
+                        let ptr = self
+                            .builder
+                            .build_alloca(self.i64_type, &format!("__handle_{actor_name}"))
+                            .context("alloc actor handle slot")?;
+                        self.actor_handles.insert(actor_name.clone(), ptr);
+                        ptr
+                    }
+                };
+                self.builder
+                    .build_store(slot, handle)
+                    .context("store actor handle")?;
+                Ok(handle)
             }
             HirExprKind::Join { actor_name } => {
+                // ABI-1: logicodex_join(i64 handle) -> i64 status. Load the
+                // handle stored by the matching SPAWN from the compiler-managed
+                // per-actor slot. The C runtime is given a plain handle, never a
+                // name (zero-trust: no name lookup/table in C).
                 let join_fn = self.declare_runtime_func(
                     "logicodex_join",
-                    self.i64_type.fn_type(
-                        &[self
-                            .context
-                            .i8_type()
-                            .ptr_type(AddressSpace::default())
-                            .into()],
-                        false,
-                    ),
+                    self.i64_type.fn_type(&[self.i64_type.into()], false),
                 );
-                let name_ptr = self
-                    .builder
-                    .build_global_string_ptr(actor_name, "join_actor_name")
-                    .context("join actor name")?
-                    .as_pointer_value();
+                // If no SPAWN preceded this JOIN, there is no slot. Pass handle 0
+                // so the runtime returns INVALID_HANDLE — an honest failure with
+                // provenance, never UB.
+                let handle = match self.actor_handles.get(actor_name) {
+                    Some(slot) => self
+                        .builder
+                        .build_load(self.i64_type, *slot, "actor_handle")
+                        .context("load actor handle")?
+                        .into_int_value(),
+                    None => self.i64_type.const_int(0, false),
+                };
                 let call_site = self
                     .builder
-                    .build_call(join_fn, &[name_ptr.into()], "join_call")
+                    .build_call(join_fn, &[handle.into()], "join_call")
                     .context("join call")?;
                 match call_site.try_as_basic_value().left() {
-                    Some(val) => match val {
-                        BasicValueEnum::IntValue(iv) => Ok(iv),
-                        _ => Ok(self.i64_type.const_int(0, false)),
-                    },
-                    None => Ok(self.i64_type.const_int(0, false)),
+                    Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+                    _ => Ok(self.i64_type.const_int(0, false)),
                 }
             }
-            HirExprKind::ChannelSend {
-                channel_name,
-                value,
-            } => {
+            HirExprKind::ChannelCreate { capacity } => {
+                // ABI-1: logicodex_channel_create(i64 capacity) -> i64 handle.
+                // The handle is an opaque value (a malloc'd channel struct
+                // pointer, cast to i64 by the runtime). It flows into an ordinary
+                // variable via BINA; send/recv later load it as a plain handle.
+                let create_fn = self.declare_runtime_func(
+                    "logicodex_channel_create",
+                    self.i64_type.fn_type(&[self.i64_type.into()], false),
+                );
+                let cap = self.emit_hir_expr(capacity, func)?;
+                let call_site = self
+                    .builder
+                    .build_call(create_fn, &[cap.into()], "channel_create_call")
+                    .context("channel create call")?;
+                match call_site.try_as_basic_value().left() {
+                    Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+                    _ => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
+            HirExprKind::ChannelSend { channel, value } => {
+                // ABI-1 by-handle: logicodex_channel_send(i64 handle, i64 value)
+                // -> i64 status. Evaluate the channel expr to its handle; the
+                // runtime never sees a name.
                 let send_fn = self.declare_runtime_func(
                     "logicodex_channel_send",
+                    self.i64_type
+                        .fn_type(&[self.i64_type.into(), self.i64_type.into()], false),
+                );
+                let handle = self.emit_hir_expr(channel, func)?;
+                let val = self.emit_hir_expr(value, func)?;
+                let call_site = self
+                    .builder
+                    .build_call(send_fn, &[handle.into(), val.into()], "send_call")
+                    .context("send call")?;
+                match call_site.try_as_basic_value().left() {
+                    Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+                    _ => Ok(self.i64_type.const_int(0, false)),
+                }
+            }
+            HirExprKind::ChannelRecv { channel } => {
+                // ABI-1 by-handle: logicodex_channel_recv(i64 handle, i64* out)
+                // -> i64 status. The received value is written to a stack slot
+                // and loaded back; we return the value (B.1 keeps it simple).
+                let recv_fn = self.declare_runtime_func(
+                    "logicodex_channel_recv",
                     self.i64_type.fn_type(
                         &[
-                            self.context
-                                .i8_type()
-                                .ptr_type(AddressSpace::default())
-                                .into(),
                             self.i64_type.into(),
+                            self.i64_type.ptr_type(AddressSpace::default()).into(),
                         ],
                         false,
                     ),
                 );
-                let val = self.emit_hir_expr(value, func)?;
-                let name_ptr = self
+                let handle = self.emit_hir_expr(channel, func)?;
+                let out_slot = self
                     .builder
-                    .build_global_string_ptr(channel_name, "send_channel_name")
-                    .context("send channel name")?
-                    .as_pointer_value();
-                let call_site = self
-                    .builder
-                    .build_call(send_fn, &[name_ptr.into(), val.into()], "send_call")
-                    .context("send call")?;
-                match call_site.try_as_basic_value().left() {
-                    Some(val) => match val {
-                        BasicValueEnum::IntValue(iv) => Ok(iv),
-                        _ => Ok(self.i64_type.const_int(0, false)),
-                    },
-                    None => Ok(self.i64_type.const_int(0, false)),
-                }
-            }
-            HirExprKind::ChannelRecv { channel_name } => {
-                let recv_fn = self.declare_runtime_func(
-                    "logicodex_channel_recv",
-                    self.i64_type.fn_type(
-                        &[self
-                            .context
-                            .i8_type()
-                            .ptr_type(AddressSpace::default())
-                            .into()],
-                        false,
-                    ),
-                );
-                let name_ptr = self
-                    .builder
-                    .build_global_string_ptr(channel_name, "recv_channel_name")
-                    .context("recv channel name")?
-                    .as_pointer_value();
-                let call_site = self
-                    .builder
-                    .build_call(recv_fn, &[name_ptr.into()], "recv_call")
+                    .build_alloca(self.i64_type, "recv_out")
+                    .context("alloc recv out")?;
+                self.builder
+                    .build_call(recv_fn, &[handle.into(), out_slot.into()], "recv_call")
                     .context("recv call")?;
-                match call_site.try_as_basic_value().left() {
-                    Some(val) => match val {
-                        BasicValueEnum::IntValue(iv) => Ok(iv),
-                        _ => Ok(self.i64_type.const_int(0, false)),
-                    },
-                    None => Ok(self.i64_type.const_int(0, false)),
-                }
+                let out = self
+                    .builder
+                    .build_load(self.i64_type, out_slot, "recv_value")
+                    .context("load recv value")?
+                    .into_int_value();
+                Ok(out)
             }
             // ─── Backpressure + scheduler ───
             HirExprKind::ChannelTrySend {
@@ -1321,6 +1523,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     None => Ok(self.i64_type.const_int(0, false)),
                 }
             }
+            HirExprKind::Index { base, index } => self.emit_hir_index_load(base, index, func),
+            HirExprKind::ArrayLiteral { .. } => Ok(self.i64_type.const_int(0, false)),
         }
     }
 
@@ -1347,6 +1551,41 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 last = val;
             }
             return Ok(last);
+        }
+
+        // Runtime ABI builtins (std/runtime profile), provided by the linked
+        // runtime assembly: logicodex_sleep(ms:i64)->i64 (nanosleep) and
+        // logicodex_yield()->i64 (sched_yield). Declared on demand, called direct.
+        if name.as_deref() == Some("logicodex_sleep") {
+            let sleep_fn = self.declare_runtime_func(
+                "logicodex_sleep",
+                self.i64_type.fn_type(&[self.i64_type.into()], false),
+            );
+            let arg_val = if let Some(a) = args.first() {
+                self.emit_hir_expr(a, func)?
+            } else {
+                self.i64_type.const_int(0, false)
+            };
+            let call_site = self
+                .builder
+                .build_call(sleep_fn, &[arg_val.into()], "sleep_call")
+                .context("failed to build logicodex_sleep call")?;
+            return match call_site.try_as_basic_value().left() {
+                Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+                _ => Ok(self.i64_type.const_int(0, false)),
+            };
+        }
+        if name.as_deref() == Some("logicodex_yield") {
+            let yield_fn =
+                self.declare_runtime_func("logicodex_yield", self.i64_type.fn_type(&[], false));
+            let call_site = self
+                .builder
+                .build_call(yield_fn, &[], "yield_call")
+                .context("failed to build logicodex_yield call")?;
+            return match call_site.try_as_basic_value().left() {
+                Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
+                _ => Ok(self.i64_type.const_int(0, false)),
+            };
         }
 
         // Struct constructor (detected by name via the type registry).
@@ -1521,6 +1760,137 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
+    fn local_array_info(
+        &self,
+        base: &crate::hir::HirExpr,
+    ) -> Result<(
+        inkwell::types::ArrayType<'ctx>,
+        BasicTypeEnum<'ctx>,
+        crate::types::TypeRef,
+        PointerValue<'ctx>,
+    )> {
+        match &base.kind {
+            crate::hir::HirExprKind::Local(local_id) => {
+                let ty = *self
+                    .hir_local_types
+                    .get(&local_id.0)
+                    .ok_or_else(|| anyhow!("array index base local has no type"))?;
+                let ptr = self.local_ptr(local_id.0)?;
+                let types = self
+                    .types
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("array index: TypeRegistry not attached"))?;
+
+                match types.resolve(ty.id) {
+                    TypeKind::Array { element, len } => {
+                        let element_ref = crate::types::TypeRef { id: *element };
+                        let element_ty = self.hir_type_to_llvm(element_ref)?;
+                        let array_ty = element_ty.array_type(*len as u32);
+                        Ok((array_ty, element_ty, element_ref, ptr))
+                    }
+                    other => Err(anyhow!("index base is not a fixed array: {:?}", other)),
+                }
+            }
+            _ => Err(anyhow!(
+                "index base must be a local fixed array in Collections Foundation Stage 0"
+            )),
+        }
+    }
+
+    fn emit_hir_array_literal_init(
+        &mut self,
+        ty: crate::types::TypeRef,
+        alloca: PointerValue<'ctx>,
+        elements: &[crate::hir::HirExpr],
+        func: FunctionValue<'ctx>,
+    ) -> Result<()> {
+        let types = self
+            .types
+            .as_ref()
+            .ok_or_else(|| anyhow!("array literal init: TypeRegistry not attached"))?;
+
+        let (element_ref, len) = match types.resolve(ty.id) {
+            TypeKind::Array { element, len } => (crate::types::TypeRef { id: *element }, *len),
+            other => {
+                return Err(anyhow!(
+                    "array literal initializer used for non-array type: {:?}",
+                    other
+                ))
+            }
+        };
+
+        if elements.len() != len {
+            return Err(anyhow!(
+                "array literal length mismatch: declared {}, got {}",
+                len,
+                elements.len()
+            ));
+        }
+
+        let element_ty = self.hir_type_to_llvm(element_ref)?;
+        let array_ty = element_ty.array_type(len as u32);
+        let zero = self.i64_type.const_int(0, false);
+
+        for (i, element) in elements.iter().enumerate() {
+            let idx = self.i64_type.const_int(i as u64, false);
+            let slot = unsafe {
+                self.builder
+                    .build_in_bounds_gep(array_ty, alloca, &[zero, idx], "array_init_slot")
+                    .context("array literal element gep")?
+            };
+            let value = self.emit_hir_expr(element, func)?;
+            let value = self.wrap_to_width(value, element_ref)?;
+            self.builder
+                .build_store(slot, value)
+                .context("array literal element store")?;
+        }
+
+        Ok(())
+    }
+
+    fn emit_hir_index_load(
+        &mut self,
+        base: &crate::hir::HirExpr,
+        index: &crate::hir::HirExpr,
+        func: FunctionValue<'ctx>,
+    ) -> Result<IntValue<'ctx>> {
+        let (array_ty, element_ty, _element_ref, ptr) = self.local_array_info(base)?;
+        let zero = self.i64_type.const_int(0, false);
+        let idx = self.emit_hir_expr(index, func)?;
+        let slot = unsafe {
+            self.builder
+                .build_in_bounds_gep(array_ty, ptr, &[zero, idx], "array_index_slot")
+                .context("array index gep")?
+        };
+        let loaded = self
+            .builder
+            .build_load(element_ty, slot, "array_index_load")
+            .context("array index load")?;
+        Ok(loaded.into_int_value())
+    }
+
+    fn emit_hir_index_store(
+        &mut self,
+        base: &crate::hir::HirExpr,
+        index: &crate::hir::HirExpr,
+        value: IntValue<'ctx>,
+        func: FunctionValue<'ctx>,
+    ) -> Result<()> {
+        let (array_ty, _element_ty, element_ref, ptr) = self.local_array_info(base)?;
+        let zero = self.i64_type.const_int(0, false);
+        let idx = self.emit_hir_expr(index, func)?;
+        let slot = unsafe {
+            self.builder
+                .build_in_bounds_gep(array_ty, ptr, &[zero, idx], "array_assign_slot")
+                .context("array assign gep")?
+        };
+        let value = self.wrap_to_width(value, element_ref)?;
+        self.builder
+            .build_store(slot, value)
+            .context("array assign store")?;
+        Ok(())
+    }
+
     // ─── HIR Type Helpers ───
 
     fn hir_type_to_llvm(&self, type_ref: crate::types::TypeRef) -> Result<BasicTypeEnum<'ctx>> {
@@ -1537,6 +1907,10 @@ impl<'ctx> LlvmCompiler<'ctx> {
             TypeKind::Primitive(PrimitiveType::Bool) => Ok(self.bool_type.into()),
             TypeKind::Primitive(PrimitiveType::F32) => Ok(self.context.f32_type().into()),
             TypeKind::Primitive(PrimitiveType::F64) => Ok(self.context.f64_type().into()),
+            TypeKind::Array { element, len } => {
+                let element_ty = self.hir_type_to_llvm(crate::types::TypeRef { id: *element })?;
+                Ok(element_ty.array_type(*len as u32).into())
+            }
             TypeKind::Primitive(PrimitiveType::Unit) => Ok(self.context.i8_type().into()),
             // All integer widths (I8..U64) collapse to i64 in this model.
             _ => Ok(self.i64_type.into()),
@@ -1556,49 +1930,19 @@ impl<'ctx> LlvmCompiler<'ctx> {
     /// Pre-declare all callable functions from the CallableRegistry.
     /// Must be called before codegen if CallableRegistry is attached.
     fn predeclare_callables(&mut self) -> Result<()> {
-        if self.callables_predeclared {
-            return Ok(()); // already done
-        }
-        let callables = match self.callables.as_ref() {
-            Some(c) => c,
-            None => return Ok(()), // no registry attached — nothing to do
-        };
-        // Iterate through all registered callables and declare them
-        for (_idx, sig) in callables.signatures.iter().enumerate() {
-            let name = &sig.name;
-            if self.declared_funcs.contains_key(name) {
-                continue; // already declared
-            }
-            // Determine whether the return type is void (Unit)
-            let is_void = if let Some(types) = self.types.as_ref() {
-                matches!(
-                    types.resolve(sig.return_type),
-                    crate::types::TypeKind::Primitive(crate::types::PrimitiveType::Unit)
-                )
-            } else {
-                false
-            };
-            // Build parameter types
-            let mut param_types: Vec<BasicTypeEnum<'ctx>> = Vec::new();
-            for _ in &sig.params {
-                param_types.push(self.i64_type.into());
-            }
-            // Build function type
-            let fn_type = if is_void {
-                self.context.void_type().fn_type(
-                    &param_types
-                        .iter()
-                        .map(|t| (*t).into())
-                        .collect::<Vec<inkwell::types::BasicMetadataTypeEnum>>(),
-                    sig.is_variadic,
-                )
-            } else {
-                let ret_type: BasicTypeEnum<'ctx> = self.i64_type.into();
-                self.basic_type_fn_type(ret_type, &param_types, sig.is_variadic)
-            };
-            let func = self.module.add_function(name, fn_type, None);
-            self.declared_funcs.insert(name.clone(), func);
-        }
+        // Previously this eagerly declared EVERY signature in the FFI
+        // CallableRegistry (all ~55 Raylib functions) into the LLVM module,
+        // whether or not the program used them -- producing ~55 dead `declare`
+        // lines in the IR for a program that calls none of them, and (before the
+        // extern-routing fix) leaking undefined references like SetTargetFPS into
+        // the object file.
+        //
+        // It is no longer needed: emit_hir_call resolves a callee by name and
+        // declares it on demand via declare_extern_func the first time it is
+        // actually called. So a Raylib function is declared exactly when used,
+        // and a program that uses none declares none. This is left as an explicit
+        // no-op (rather than deleted) to keep the call site dan the recorded
+        // design intent visible.
         self.callables_predeclared = true;
         Ok(())
     }

@@ -80,6 +80,147 @@ fn fixed_width_i8_wraps() {
     assert_eq!(out.trim(), "44", "300 wrapped to I8");
 }
 
+// ----- runtime ABI builtins (Phase D: sleep + yield) -------------------------
+#[test]
+fn runtime_sleep_and_yield() {
+    // YIELD() -> sched_yield, SLEEP(ms) -> nanosleep. Both are real syscalls
+    // backed by os::runtime_assembly(); they must not break the program. We
+    // assert on stdout (the two PAPARs straddling the calls), not timing.
+    let src = "PAPAR 1;\nYIELD();\nSLEEP(50);\nPAPAR 2;\n";
+    let (_code, out) = compile_and_run("sleep_yield", src);
+    let lines: Vec<&str> = out.trim().lines().map(|l| l.trim()).collect();
+    assert_eq!(lines, vec!["1", "2"], "PAPARs around YIELD/SLEEP both run");
+}
+
+// ----- actor runtime is reserved (Phase B): check passes, compile bails ------
+#[test]
+fn actor_spawn_check_passes_but_compile_is_pending() {
+    let src = "ACTOR pekerja MULA\n    PAPAR 1;\nTAMAT\nSPAWN pekerja();\n";
+    // check: the program is syntactically + semantically valid.
+    let (code, _out) = check("actor_pending", src);
+    assert_eq!(code, 0, "actor program type-checks (check passes)");
+    // compile: must fail with an honest runtime-pending message, not a raw
+    // linker "undefined reference".
+    use std::process::Command;
+    let path = fixture("actor_pending_compile", src);
+    let out = Command::new(bin())
+        .arg("compile")
+        .arg(&path)
+        .output()
+        .expect("spawn compile");
+    assert!(
+        !out.status.success(),
+        "compile must fail (no actor runtime yet)"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("runtime not available") && stderr.contains("spawn"),
+        "expected honest actor-pending message, got:\n{stderr}"
+    );
+}
+
+// ----- actor runtime is real under --profile actor (Phase B): spawn + join ---
+#[test]
+fn actor_spawn_join_runs_in_a_real_thread() {
+    // With --profile actor the compiler links the audited pthread runtime
+    // (runtime_actor.c). SPAWN runs the actor body in a real OS thread; JOIN
+    // (by handle, ABI-1) makes main wait for it, so output is deterministic:
+    // the actor prints 99, then main prints 1.
+    use std::process::Command;
+    let src =
+        "ACTOR pekerja MULA\n    PAPAR 99;\nTAMAT\nSPAWN pekerja();\nJOIN pekerja;\nPAPAR 1;\n";
+    let path = fixture("actor_spawn_join", src);
+    let compile = Command::new(bin())
+        .arg("compile")
+        .arg("--profile")
+        .arg("actor")
+        .arg(&path)
+        .output()
+        .expect("spawn compile --profile actor");
+    assert!(
+        compile.status.success(),
+        "compile --profile actor failed:\n{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let exe = path.with_extension("");
+    let run = Command::new(&exe).output().expect("run actor exe");
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "99\n1",
+        "actor spawn+join is deterministic: actor 99 then main 1"
+    );
+}
+// ----- channel B.1: same-scope SPSC works; cross-actor is a clear error ------
+#[test]
+fn channel_same_scope_send_recv_works() {
+    // Channel::baru(N) creates a handle; ch.send/ch.recv are by-handle. Within
+    // a single scope (here: main creates, sends, and receives) the SPSC channel
+    // round-trips a value. Requires --profile actor (links the pthread runtime).
+    use std::process::Command;
+    let src = "BINA ch: Channel<Penghantar, Penerima, I64> = Channel::baru(4);\nch.send(123);\nBINA x: I64 = ch.recv();\nPAPAR x;\n";
+    let path = fixture("channel_same_scope", src);
+    let compile = Command::new(bin())
+        .arg("compile")
+        .arg("--profile")
+        .arg("actor")
+        .arg(&path)
+        .output()
+        .expect("spawn compile --profile actor");
+    assert!(
+        compile.status.success(),
+        "compile --profile actor failed:\n{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let exe = path.with_extension("");
+    let run = Command::new(&exe).output().expect("run channel exe");
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "123",
+        "same-scope channel round-trips the value"
+    );
+}
+#[test]
+fn channel_cross_actor_fails_with_clear_diagnostic() {
+    // A channel declared in main but used inside an actor body needs capture
+    // (Channel B.1b), which is not implemented. The compiler must reject this
+    // at check time with a clear message — never silently lower to handle 0
+    // and deadlock at runtime.
+    let src = "BINA ch: Channel<Penghantar, Penerima, I64> = Channel::baru(2);\nACTOR pengeluar MULA\n    ch.send(10);\nTAMAT\nSPAWN pengeluar();\n";
+    let (code, out) = check("channel_cross_actor", src);
+    assert_ne!(code, 0, "cross-actor channel use must fail check");
+    assert!(
+        out.contains("Cross-actor channel capture is not implemented"),
+        "expected a clear cross-actor diagnostic, got:\n{out}"
+    );
+}
+#[test]
+fn channel_actor_capture_cross_thread_works() {
+    // B.1b: an actor declares an explicit channel parameter and SPAWN passes the
+    // channel handle. The actor sends through the captured handle; main receives
+    // across the thread boundary. Capacity 2 < 3 sends also exercises blocking.
+    use std::process::Command;
+    let src = "ACTOR pengeluar(ch: Channel<Penghantar, Penerima, I64>) MULA\n    ch.send(10);\n    ch.send(20);\n    ch.send(30);\nTAMAT\nBINA ch: Channel<Penghantar, Penerima, I64> = Channel::baru(2);\nSPAWN pengeluar(ch);\nBINA satu: I64 = ch.recv();\nPAPAR satu;\nBINA dua: I64 = ch.recv();\nPAPAR dua;\nBINA tiga: I64 = ch.recv();\nPAPAR tiga;\nJOIN pengeluar;\n";
+    let path = fixture("channel_actor_capture", src);
+    let compile = Command::new(bin())
+        .arg("compile")
+        .arg("--profile")
+        .arg("actor")
+        .arg(&path)
+        .output()
+        .expect("spawn compile --profile actor");
+    assert!(
+        compile.status.success(),
+        "capture compile --profile actor failed:\n{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let exe = path.with_extension("");
+    let run = Command::new(&exe).output().expect("run capture exe");
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "10\n20\n30",
+        "actor sends via captured channel handle; main receives across threads"
+    );
+}
 // ----- capability vocabulary check: `check` exit semantics -------------------
 
 #[test]

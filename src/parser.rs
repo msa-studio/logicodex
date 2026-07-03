@@ -103,6 +103,21 @@ impl Parser {
     }
 
     fn declaration_or_statement(&mut self) -> Result<Stmt, ParseError> {
+        // `public` marks the following item as exported. Stage 0 supports
+        // `public function` (public struct/enum come next). The flag travels
+        // into the item itself; visibility is decided at the module boundary.
+        if self.matches(TokenKind::Public) {
+            if self.matches(TokenKind::Fn) {
+                return self.function_definition(true);
+            }
+            let tok = self.peek();
+            return Err(ParseError::Expected {
+                expected: "`function` after `public`".to_string(),
+                found: tok.lexeme.clone(),
+                line: tok.line,
+                column: tok.column,
+            });
+        }
         if self.matches(TokenKind::Use) {
             return self.use_declaration();
         }
@@ -113,7 +128,7 @@ impl Parser {
             return self.hardware_zone_block();
         }
         if self.matches(TokenKind::Fn) {
-            return self.function_definition();
+            return self.function_definition(false);
         }
         if self.check(TokenKind::Struct) {
             return self.struct_declaration();
@@ -240,10 +255,30 @@ impl Parser {
     }
 
     fn use_declaration(&mut self) -> Result<Stmt, ParseError> {
-        let module = self
+        let mut module = self
             .consume(TokenKind::Identifier, "module name after use")?
             .lexeme
             .clone();
+        // Dotted module paths: `import core.math;` -> module = "core.math".
+        //
+        // `result` is a reserved type keyword, but it is also the canonical
+        // stdlib module leaf in `core.result`. Accept it only as a dotted module
+        // segment so keyword semantics elsewhere remain unchanged.
+        while self.matches(TokenKind::Dot) {
+            let seg = if self.check(TokenKind::Identifier) || self.check(TokenKind::Result) {
+                self.advance().lexeme.clone()
+            } else {
+                let tok = self.peek();
+                return Err(ParseError::Expected {
+                    expected: "module path segment after '.'".to_string(),
+                    found: tok.lexeme.clone(),
+                    line: tok.line,
+                    column: tok.column,
+                });
+            };
+            module.push('.');
+            module.push_str(&seg);
+        }
         self.consume(TokenKind::Semicolon, "; after use declaration")?;
         Ok(Stmt::Use { module })
     }
@@ -270,7 +305,7 @@ impl Parser {
         Ok(Stmt::HardwareDecl { name, ty, address })
     }
 
-    fn function_definition(&mut self) -> Result<Stmt, ParseError> {
+    fn function_definition(&mut self, is_public: bool) -> Result<Stmt, ParseError> {
         let name = self
             .consume(TokenKind::Identifier, "function name")?
             .lexeme
@@ -306,6 +341,7 @@ impl Parser {
             params,
             return_type,
             body,
+            is_public,
         })
     }
 
@@ -325,8 +361,32 @@ impl Parser {
             .consume(TokenKind::Identifier, "Actor name after 'actor'")?
             .lexeme
             .clone();
+        // Optional explicit capture parameters (B.1b): `ACTOR name(ch: T) MULA`.
+        // No parentheses = niladic actor (old spawn ABI). Reuses the function
+        // parameter grammar: `(name: type, ...)`.
+        let mut params = Vec::new();
+        if self.matches(TokenKind::LeftParen) {
+            if !self.check(TokenKind::RightParen) {
+                loop {
+                    let param_name = self
+                        .consume(TokenKind::Identifier, "parameter name")?
+                        .lexeme
+                        .clone();
+                    self.consume(TokenKind::Colon, ": after parameter name")?;
+                    let ty = self.parse_type()?;
+                    params.push(Param {
+                        name: param_name,
+                        ty,
+                    });
+                    if !self.matches(TokenKind::Comma) {
+                        break;
+                    }
+                }
+            }
+            self.consume(TokenKind::RightParen, ") after actor parameter list")?;
+        }
         let body = self.block()?;
-        Ok(Stmt::Actor { name, body })
+        Ok(Stmt::Actor { name, params, body })
     }
 
     // v1.33.0-alpha: Service manifest — deterministic network reactor
@@ -533,6 +593,18 @@ impl Parser {
                 .clone();
             self.consume(TokenKind::RightParen, "')' after Err binding")?;
             MatchPattern::Err { binding }
+        } else if self.check(TokenKind::Identifier) && self.peek().lexeme == "Some" {
+            self.advance();
+            self.consume(TokenKind::LeftParen, "'(' after 'Some'")?;
+            let binding = self
+                .consume(TokenKind::Identifier, "binding name in Some pattern")?
+                .lexeme
+                .clone();
+            self.consume(TokenKind::RightParen, "')' after Some binding")?;
+            MatchPattern::Some { binding }
+        } else if self.check(TokenKind::Identifier) && self.peek().lexeme == "None" {
+            self.advance();
+            MatchPattern::None
         } else if self.matches(TokenKind::Underscore) {
             MatchPattern::Wildcard
         } else if self.matches(TokenKind::Integer) {
@@ -552,7 +624,8 @@ impl Parser {
             MatchPattern::Identifier(self.previous().lexeme.clone())
         } else {
             return Err(ParseError::Expected {
-                expected: "Ok(x), Err(e), _, literal, or identifier pattern".to_string(),
+                expected: "Ok(x), Err(e), Some(x), None, _, literal, or identifier pattern"
+                    .to_string(),
                 found: self.peek().lexeme.clone(),
                 line: self.peek().line,
                 column: self.peek().column,
@@ -689,12 +762,35 @@ impl Parser {
             self.consume(TokenKind::Greater, "> after pointer type")?;
             return Ok(Type::Pointer(Box::new(inner)));
         }
-        // Ketuk 1: Core Memory Model — Slice syntax: []T
+        // Core Memory Model:
+        // - []T      = slice type
+        // - [T; N]   = fixed array type
         if self.matches(TokenKind::LeftBracket) {
-            self.consume(TokenKind::RightBracket, "']' after '[' in slice type")?;
+            if self.matches(TokenKind::RightBracket) {
+                let element = self.parse_type()?;
+                return Ok(Type::Slice {
+                    element: Box::new(element),
+                });
+            }
+
             let element = self.parse_type()?;
-            return Ok(Type::Slice {
+            self.consume(TokenKind::Semicolon, "';' after fixed array element type")?;
+            let len_text = self
+                .consume(TokenKind::Integer, "fixed array length")?
+                .lexeme
+                .clone();
+            let len = len_text
+                .parse::<usize>()
+                .map_err(|_| ParseError::Expected {
+                    expected: "fixed array length".to_string(),
+                    found: len_text.clone(),
+                    line: self.previous().line,
+                    column: self.previous().column,
+                })?;
+            self.consume(TokenKind::RightBracket, "']' after fixed array type")?;
+            return Ok(Type::Array {
                 element: Box::new(element),
+                len,
             });
         }
         // Ketuk 1: Core Memory Model — Buffer syntax: Buffer<T> or Buffer<T, N>
@@ -725,6 +821,17 @@ impl Parser {
                 err: Box::new(err),
             });
         }
+        // Option type syntax: Option<T>. Option is currently accepted as a
+        // canonical identifier so lexer vocabulary can remain backward-safe.
+        if self.check(TokenKind::Identifier) && self.peek().lexeme == "Option" {
+            self.advance();
+            self.consume(TokenKind::Less, "'<' after 'Option'")?;
+            let some = self.parse_type()?;
+            self.consume(TokenKind::Greater, "'>' after Option type")?;
+            return Ok(Type::Option {
+                some: Box::new(some),
+            });
+        }
         // Ketuk 3: File Handle ABI — Opaque types
         if self.matches(TokenKind::FileHandle) {
             return Ok(Type::Opaque {
@@ -744,10 +851,17 @@ impl Parser {
                 .lexeme
                 .clone();
             self.consume(TokenKind::Comma, "',' after receiver")?;
-            let message_type = self
-                .consume(TokenKind::Identifier, "message type")?
-                .lexeme
-                .clone();
+            // Message type may be a primitive keyword (I64, etc.) or a named
+            // type (struct/enum identifier). We capture its lexeme either way.
+            // B.1 runtime only supports I64 messages; other message types parse
+            // and type-check but have no channel runtime backend yet.
+            let message_type = if self.check(TokenKind::Identifier) {
+                self.advance().lexeme.clone()
+            } else {
+                // Accept a primitive type keyword as the message type.
+                let tok = self.advance();
+                tok.lexeme.clone()
+            };
             self.consume(TokenKind::Greater, "'>' after message type")?;
             return Ok(Type::Channel {
                 from,
@@ -800,12 +914,27 @@ impl Parser {
     }
 
     fn bit_or(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.bit_and()?;
+        let mut expr = self.bit_xor()?;
         while self.matches(TokenKind::BitOr) {
-            let right = self.bit_and()?;
+            let right = self.bit_xor()?;
             expr = Expr::Binary {
                 left: Box::new(expr),
                 op: BinaryOp::BitOr,
+                right: Box::new(right),
+            };
+        }
+        Ok(expr)
+    }
+
+    // Bitwise XOR binds tighter than `|` and looser than `&` (C-like):
+    //   & > ^ > |
+    fn bit_xor(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.bit_and()?;
+        while self.matches(TokenKind::BitXor) {
+            let right = self.bit_and()?;
+            expr = Expr::Binary {
+                left: Box::new(expr),
+                op: BinaryOp::BitXor,
                 right: Box::new(right),
             };
         }
@@ -924,11 +1053,16 @@ impl Parser {
 
     fn factor(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.unary()?;
-        while self.matches(TokenKind::Star) || self.matches(TokenKind::Slash) {
+        while self.matches(TokenKind::Star)
+            || self.matches(TokenKind::Slash)
+            || self.matches(TokenKind::Modulo)
+        {
             let op = if self.previous().kind == TokenKind::Star {
                 BinaryOp::Multiply
-            } else {
+            } else if self.previous().kind == TokenKind::Slash {
                 BinaryOp::Divide
+            } else {
+                BinaryOp::Modulo
             };
             let right = self.unary()?;
             expr = Expr::Binary {
@@ -967,6 +1101,19 @@ impl Parser {
         Ok(expr)
     }
 
+    /// Lookahead for `Channel :: baru` at the current position (does not
+    /// consume). `::` is two `:` tokens. Used to disambiguate a channel-create
+    /// expression from the `Channel<...>` type position.
+    fn peek_channel_baru(&self) -> bool {
+        let t = |i: usize| self.tokens.get(self.current + i).map(|x| &x.kind);
+        t(0) == Some(&TokenKind::Channel)
+            && t(1) == Some(&TokenKind::Colon)
+            && t(2) == Some(&TokenKind::Colon)
+            && self.tokens.get(self.current + 3).map_or(false, |x| {
+                x.kind == TokenKind::Identifier && x.lexeme == "baru"
+            })
+    }
+
     fn primary(&mut self) -> Result<Expr, ParseError> {
         if self.matches(TokenKind::Integer) {
             let token = self.previous();
@@ -988,6 +1135,26 @@ impl Parser {
         }
         if self.matches(TokenKind::StringLiteral) {
             return Ok(Expr::StringLiteral(self.previous().lexeme.clone()));
+        }
+        // Channel::baru(capacity) — create a channel, returns a handle.
+        // `Channel` is a keyword (also used as a type); here in expression
+        // position it must be followed by `::baru(<capacity>)`.
+        if self.check(TokenKind::Channel) {
+            // Lookahead: Channel :: baru ( ... )  — only treat as creation when
+            // the `::baru` path follows, so the type position is unaffected.
+            let is_create = self.peek_channel_baru();
+            if is_create {
+                self.advance(); // Channel
+                self.advance(); // first ':'
+                self.advance(); // second ':'
+                self.advance(); // baru (identifier)
+                self.consume(TokenKind::LeftParen, "'(' after Channel::baru")?;
+                let capacity = self.expression()?;
+                self.consume(TokenKind::RightParen, "')' after channel capacity")?;
+                return Ok(Expr::ChannelCreate {
+                    capacity: Box::new(capacity),
+                });
+            }
         }
         // Spawn — lahirkan KotakName()
         if self.matches(TokenKind::Spawn) {
@@ -1048,6 +1215,43 @@ impl Parser {
                 value: Box::new(value),
             });
         }
+        if self.check(TokenKind::Identifier) && self.peek().lexeme == "Some" {
+            self.advance();
+            self.consume(TokenKind::LeftParen, "'(' after 'Some'")?;
+            let value = self.expression()?;
+            self.consume(TokenKind::RightParen, "')' after Some value")?;
+            return Ok(Expr::Some {
+                value: Box::new(value),
+            });
+        }
+        if self.check(TokenKind::Identifier) && self.peek().lexeme == "None" {
+            self.advance();
+            return Ok(Expr::None);
+        }
+        // Collections Foundation Stage 0: fixed array literal expression.
+        // Type context remains handled by parse_type(): []T and [T; N].
+        // Expression context handles: [a, b, c]
+        if self.matches(TokenKind::LeftBracket) {
+            let mut elements = Vec::new();
+
+            if !self.check(TokenKind::RightBracket) {
+                loop {
+                    elements.push(self.expression()?);
+                    if !self.matches(TokenKind::Comma) {
+                        break;
+                    }
+
+                    // Optional trailing comma: [1, 2, 3,]
+                    if self.check(TokenKind::RightBracket) {
+                        break;
+                    }
+                }
+            }
+
+            self.consume(TokenKind::RightBracket, "']' after array literal")?;
+            return Ok(Expr::ArrayLiteral { elements });
+        }
+
         if self.matches(TokenKind::Identifier) {
             let name = self.previous().lexeme.clone();
             // Enum variant path: `Enum::Variant` (two `:` tokens; no `::` token).
@@ -1096,55 +1300,90 @@ impl Parser {
                     index: Box::new(index),
                 });
             }
-            // Ketuk 3: Check if followed by '.' → method call on opaque type
-            // h.read(1024), h.close(), h.seek(0)
-            // pintu.hantar(val), pintu.terima()
+            // Ketuk 3: Check if followed by '.' → qualified call, channel
+            // method, or field access. Accumulate the full dotted chain first,
+            // then decide based on what follows:
+            //   a.b.c(args)   -> QualifiedCall{ module: "a.b", function: "c" }
+            //   a.method(args)-> (len 2) channel method or single-seg qualified call
+            //   a.b.c         -> nested FieldAccess chain (no '(' -> struct fields)
+            // h.read(1024), pintu.hantar(val) stay in the len-2 case.
             if self.check(TokenKind::Dot) {
-                self.advance(); // consume '.'
-                let member = self.consume_member_name("field or method name after '.'")?;
-                // Bare field access `obj.field` (not followed by '(').
+                let mut segments: Vec<String> = vec![name.clone()];
+                while self.matches(TokenKind::Dot) {
+                    let seg = self.consume_member_name("field or method name after '.'")?;
+                    segments.push(seg);
+                    if !self.check(TokenKind::Dot) {
+                        break;
+                    }
+                }
+                // No call follows -> field-access chain (preserves `obj.field`).
                 if !self.check(TokenKind::LeftParen) {
-                    return Ok(Expr::FieldAccess {
-                        base: Box::new(Expr::Variable(name.clone())),
-                        field: member,
+                    let mut expr = Expr::Variable(segments[0].clone());
+                    for field in segments.iter().skip(1) {
+                        expr = Expr::FieldAccess {
+                            base: Box::new(expr),
+                            field: field.clone(),
+                        };
+                    }
+                    return Ok(expr);
+                }
+                // A call follows: last segment is the function name; any
+                // preceding segments form the (possibly dotted) module path.
+                let function = segments.last().unwrap().clone();
+                if segments.len() == 2 {
+                    // Single-segment base: unchanged channel-method / qualified-call.
+                    let method = function;
+                    self.consume(TokenKind::LeftParen, "'(' after method name")?;
+                    if method == "send" {
+                        let value = self.expression()?;
+                        self.consume(TokenKind::RightParen, "')' after send value")?;
+                        return Ok(Expr::Send {
+                            channel_name: name,
+                            value: Box::new(value),
+                        });
+                    }
+                    if method == "recv" {
+                        self.consume(TokenKind::RightParen, "')' after recv'")?;
+                        return Ok(Expr::Recv { channel_name: name });
+                    }
+                    if method == "try_send" {
+                        let value = self.expression()?;
+                        self.consume(TokenKind::RightParen, "')' after try_send value")?;
+                        return Ok(Expr::TrySend {
+                            channel_name: name,
+                            value: Box::new(value),
+                        });
+                    }
+                    if method == "try_recv" {
+                        self.consume(TokenKind::RightParen, "')' after try_recv'")?;
+                        return Ok(Expr::TryRecv { channel_name: name });
+                    }
+                    if method == "timeout_recv" {
+                        let timeout_ms = self.expression()?;
+                        self.consume(TokenKind::RightParen, "')' after timeout_recv'")?;
+                        return Ok(Expr::TimeoutRecv {
+                            channel_name: name,
+                            timeout_ms: Box::new(timeout_ms),
+                        });
+                    }
+                    let mut args = Vec::new();
+                    if !self.check(TokenKind::RightParen) {
+                        loop {
+                            args.push(self.expression()?);
+                            if !self.matches(TokenKind::Comma) {
+                                break;
+                            }
+                        }
+                    }
+                    self.consume(TokenKind::RightParen, "')' after method args")?;
+                    return Ok(Expr::QualifiedCall {
+                        module: name,
+                        function: method,
+                        args,
                     });
                 }
-                let method = member;
-                self.consume(TokenKind::LeftParen, "'(' after method name")?;
-                // Channel method calls — send, recv
-                if method == "send" {
-                    let value = self.expression()?;
-                    self.consume(TokenKind::RightParen, "')' after send value")?;
-                    return Ok(Expr::Send {
-                        channel_name: name,
-                        value: Box::new(value),
-                    });
-                }
-                if method == "recv" {
-                    self.consume(TokenKind::RightParen, "')' after recv'")?;
-                    return Ok(Expr::Recv { channel_name: name });
-                }
-                // Backpressure — try_send, try_recv, timeout_recv
-                if method == "try_send" {
-                    let value = self.expression()?;
-                    self.consume(TokenKind::RightParen, "')' after try_send value")?;
-                    return Ok(Expr::TrySend {
-                        channel_name: name,
-                        value: Box::new(value),
-                    });
-                }
-                if method == "try_recv" {
-                    self.consume(TokenKind::RightParen, "')' after try_recv'")?;
-                    return Ok(Expr::TryRecv { channel_name: name });
-                }
-                if method == "timeout_recv" {
-                    let timeout_ms = self.expression()?;
-                    self.consume(TokenKind::RightParen, "')' after timeout_recv'")?;
-                    return Ok(Expr::TimeoutRecv {
-                        channel_name: name,
-                        timeout_ms: Box::new(timeout_ms),
-                    });
-                }
+                // Multi-segment dotted module path, e.g. `core.math.abs_i64(...)`.
+                self.consume(TokenKind::LeftParen, "'(' after qualified call")?;
                 let mut args = Vec::new();
                 if !self.check(TokenKind::RightParen) {
                     loop {
@@ -1154,10 +1393,11 @@ impl Parser {
                         }
                     }
                 }
-                self.consume(TokenKind::RightParen, "')' after method args")?;
-                return Ok(Expr::MethodCall {
-                    object: name,
-                    method,
+                self.consume(TokenKind::RightParen, "')' after qualified-call args")?;
+                let module = segments[..segments.len() - 1].join(".");
+                return Ok(Expr::QualifiedCall {
+                    module,
+                    function,
                     args,
                 });
             }

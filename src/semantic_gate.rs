@@ -23,6 +23,16 @@ pub struct SemanticContext {
     pub diagnostics: Vec<Diagnostic>,
     pub loop_depth: u32,
     pub safety_context: SafetyContext,
+    /// FFI capability policy (zero-trust, default deny). Seeded with the runtime
+    /// builtins; lod (or manual ffi.allow) adds external symbols. The semantic
+    /// gate passes this to the FfiGatekeeper so denied externs fail at check.
+    pub policy: crate::ffi::CapabilityPolicy,
+    /// Names of user-declared `extern "C"` functions (collected from the HIR
+    /// module's ExternFunction items at check start). These live in the
+    /// SymbolTable, not the FFI CallableRegistry, so the capability gate checks
+    /// them here directly — a Call to one of these names is a foreign call and
+    /// must satisfy the CapabilityPolicy.
+    pub extern_symbols: std::collections::HashSet<String>,
 }
 
 impl SemanticContext {
@@ -38,6 +48,16 @@ impl SemanticContext {
                         format!("Ralat: Fungsi '{}' ditakrif lebih daripada sekali", f.name),
                         format!("Error: Function '{}' is defined more than once", f.name),
                     );
+                }
+            }
+        }
+        // Collect user-declared extern symbol names so the capability gate can
+        // recognise foreign calls (these are in the SymbolTable, not the FFI
+        // CallableRegistry which only holds compiler-registered FFI like Raylib).
+        for item in &module.items {
+            if let HirItem::ExternFunction(ext) = &item.node {
+                if let Some(name) = self.symbols.callable_name(ext.callable) {
+                    self.extern_symbols.insert(name.to_string());
                 }
             }
         }
@@ -195,11 +215,34 @@ impl SemanticContext {
                     let gate = FfiGatekeeper {
                         types: &self.types,
                         callables: Some(&self.callables),
+                        policy: Some(&self.policy),
                     };
                     let result =
                         gate.validate_call(signature, args, self.safety_context, expr.span);
                     if let Err(diagnostic) = result {
                         self.diagnostics.push(diagnostic);
+                    }
+                } else if let Some(name) = self.symbols.callable_name(*callee) {
+                    // User-declared extern (in the SymbolTable, not the FFI
+                    // registry). It is a foreign call, so it must pass the
+                    // capability gate: default-deny unless explicitly allowed.
+                    // (unsafe/arity/type for these are handled elsewhere; here we
+                    // enforce ONLY the capability layer.)
+                    if self.extern_symbols.contains(name) && !self.policy.is_symbol_allowed(name) {
+                        self.diagnostics.push(crate::span::Diagnostic {
+                            code: DiagnosticCode::FfiBoundaryViolation,
+                            severity: Severity::Error,
+                            message_ms: format!(
+                                "Ralat: panggilan extern '{name}' ditolak oleh polisi \
+                                 keupayaan FFI. Isytiharkannya dalam ffi.allow sebelum guna."
+                            ),
+                            message_en: format!(
+                                "Error: extern call '{name}' denied by FFI capability \
+                                 policy. Declare it in ffi.allow before use."
+                            ),
+                            primary_span: expr.span,
+                            notes: Vec::new(),
+                        });
                     }
                 }
             }
@@ -284,6 +327,8 @@ mod tests {
             diagnostics: Vec::new(),
             loop_depth: 0,
             safety_context: SafetyContext::Safe,
+            policy: crate::ffi::CapabilityPolicy::with_runtime_builtins(),
+            extern_symbols: std::collections::HashSet::new(),
         }
     }
 
@@ -434,6 +479,8 @@ pub fn validate_module(module: &HirModule, types: TypeRegistry) -> Result<(), Ve
         diagnostics: Vec::new(),
         loop_depth: 0,
         safety_context: SafetyContext::Safe,
+        policy: crate::ffi::CapabilityPolicy::with_runtime_builtins(),
+        extern_symbols: std::collections::HashSet::new(),
     };
     ctx.check_module(module)
 }

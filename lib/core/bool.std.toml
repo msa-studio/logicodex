@@ -1,0 +1,126 @@
+[contract]
+version = 0
+
+[module]
+name = "core.bool"
+layer = "core"
+stage = 0
+profile = "core"
+pure = true
+extern = false
+
+[validation]
+metadata = true
+static = true
+compile = true
+run = true
+stress = false
+
+[limits]
+compile_timeout_ms = 10000
+run_timeout_ms = 2000
+stdout_limit_bytes = 65536
+max_cases = 50
+
+[exports]
+functions = [
+  "and_i64",
+  "falsey_i64",
+  "not_i64",
+  "or_i64",
+  "truthy_i64",
+  "xor_i64",
+]
+
+[constraints]
+allowed_imports = ["core.*"]
+forbidden_imports = ["std.*", "framework.*"]
+forbidden_features = ["extern", "malloc", "free", "file", "network", "syscall"]
+
+[capabilities]
+requires = []
+
+[[cases]]
+name = "truthy positive"
+expr = "core.bool.truthy_i64(5)"
+expect_i64 = 1
+
+[[cases]]
+name = "truthy negative"
+expr = "core.bool.truthy_i64(-3)"
+expect_i64 = 1
+
+[[cases]]
+name = "truthy zero"
+expr = "core.bool.truthy_i64(0)"
+expect_i64 = 0
+
+[[cases]]
+name = "falsey zero"
+expr = "core.bool.falsey_i64(0)"
+expect_i64 = 1
+
+[[cases]]
+name = "falsey nonzero"
+expr = "core.bool.falsey_i64(9)"
+expect_i64 = 0
+
+[[cases]]
+name = "not zero"
+expr = "core.bool.not_i64(0)"
+expect_i64 = 1
+
+[[cases]]
+name = "not nonzero"
+expr = "core.bool.not_i64(4)"
+expect_i64 = 0
+
+[[cases]]
+name = "and both true"
+expr = "core.bool.and_i64(1, -2)"
+expect_i64 = 1
+
+[[cases]]
+name = "and left false"
+expr = "core.bool.and_i64(0, 7)"
+expect_i64 = 0
+
+[[cases]]
+name = "and right false"
+expr = "core.bool.and_i64(7, 0)"
+expect_i64 = 0
+
+[[cases]]
+name = "or both false"
+expr = "core.bool.or_i64(0, 0)"
+expect_i64 = 0
+
+[[cases]]
+name = "or left true"
+expr = "core.bool.or_i64(8, 0)"
+expect_i64 = 1
+
+[[cases]]
+name = "or right true"
+expr = "core.bool.or_i64(0, -8)"
+expect_i64 = 1
+
+[[cases]]
+name = "xor false false"
+expr = "core.bool.xor_i64(0, 0)"
+expect_i64 = 0
+
+[[cases]]
+name = "xor true false"
+expr = "core.bool.xor_i64(9, 0)"
+expect_i64 = 1
+
+[[cases]]
+name = "xor false true"
+expr = "core.bool.xor_i64(0, -9)"
+expect_i64 = 1
+
+[[cases]]
+name = "xor true true"
+expr = "core.bool.xor_i64(2, 3)"
+expect_i64 = 0

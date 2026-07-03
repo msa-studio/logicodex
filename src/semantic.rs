@@ -269,6 +269,7 @@ impl Analyzer {
                 params,
                 return_type,
                 body,
+                ..
             } => {
                 if self.functions.contains_key(name) {
                     return Err(SemanticError::DuplicateFunction(name.clone()));
@@ -453,7 +454,7 @@ impl Analyzer {
                     Ok(())
                 }
             }
-            Stmt::Actor { name, body } => {
+            Stmt::Actor { name, body, .. } => {
                 // Register Kotak in topology
                 if self.actor_registry.contains(name) {
                     return Err(SemanticError::DuplicateActor { name: name.clone() });
@@ -1026,7 +1027,9 @@ impl Analyzer {
             }
             Expr::Grouped(inner) => self.expression(inner),
             Expr::Binary { left, op, right } => {
-                if *op == BinaryOp::Divide && matches!(right.as_ref(), Expr::Integer(0)) {
+                if (*op == BinaryOp::Divide || *op == BinaryOp::Modulo)
+                    && matches!(right.as_ref(), Expr::Integer(0))
+                {
                     return Err(SemanticError::DivisionByZero);
                 }
                 let left_ty = self.expression(left)?;
@@ -1036,8 +1039,10 @@ impl Analyzer {
                     | BinaryOp::Subtract
                     | BinaryOp::Multiply
                     | BinaryOp::Divide
+                    | BinaryOp::Modulo
                     | BinaryOp::BitAnd
                     | BinaryOp::BitOr
+                    | BinaryOp::BitXor
                     | BinaryOp::ShiftLeft
                     | BinaryOp::ShiftRight => {
                         if is_numeric(&left_ty) && is_numeric(&right_ty) {

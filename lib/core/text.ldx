@@ -1,0 +1,44 @@
+// core.text -- pure text/string predicates (CPB Phase 1 / Stdlib Stage 1).
+//
+// This module is intentionally small. Current compiler support proves String
+// literals, typed String bindings, String return values, String parameters, and
+// comparison against the empty string.
+//
+// General String equality/inequality between two arbitrary non-empty String
+// values is not contract-verified yet and is intentionally deferred.
+
+public function is_empty_text_i64(x: String) -> I64 begin
+    if x == "" begin
+        return 1;
+    end
+    return 0;
+end
+
+public function not_empty_text_i64(x: String) -> I64 begin
+    if x != "" begin
+        return 1;
+    end
+    return 0;
+end
+
+public function same_emptiness_i64(a: String, b: String) -> I64 begin
+    if a == "" begin
+        if b == "" begin
+            return 1;
+        end
+        return 0;
+    end
+
+    if b != "" begin
+        return 1;
+    end
+
+    return 0;
+end
+
+public function select_by_empty_i64(x: String, empty_value: I64, nonempty_value: I64) -> I64 begin
+    if x == "" begin
+        return empty_value;
+    end
+    return nonempty_value;
+end

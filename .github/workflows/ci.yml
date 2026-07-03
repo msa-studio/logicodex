@@ -32,6 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Verify stdlib contracts
+        run: python3 tools/verify_stdlib_contracts.py
       - name: Install LLVM 15
         run: |
           sudo apt-get update
@@ -72,6 +74,8 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Build
         run: cargo build --release
+      - name: Run stdlib contract cases
+        run: python3 tools/verify_stdlib_contracts.py --run-cases --bin target/release/logicodex
       - name: Run full test suite
         run: cargo test 2>&1 | tee test-output.log
       - name: Upload test log

@@ -1,0 +1,92 @@
+[contract]
+version = 0
+
+[module]
+name = "core.bits"
+layer = "core"
+stage = 0
+profile = "core"
+pure = true
+extern = false
+
+[validation]
+metadata = true
+static = true
+compile = true
+run = true
+stress = false
+
+[limits]
+compile_timeout_ms = 10000
+run_timeout_ms = 2000
+stdout_limit_bytes = 65536
+max_cases = 50
+
+[exports]
+functions = [
+  "bit_and_i64",
+  "bit_or_i64",
+  "bit_xor_i64",
+  "clear_flag_i64",
+  "has_flag_i64",
+  "set_flag_i64",
+  "toggle_flag_i64",
+]
+
+[constraints]
+allowed_imports = ["core.*"]
+forbidden_imports = ["std.*", "framework.*"]
+forbidden_features = ["extern", "malloc", "free", "file", "network", "syscall"]
+
+[capabilities]
+requires = []
+
+[[cases]]
+name = "bit and masks"
+expr = "core.bits.bit_and_i64(6, 3)"
+expect_i64 = 2
+
+[[cases]]
+name = "bit or combines"
+expr = "core.bits.bit_or_i64(4, 1)"
+expect_i64 = 5
+
+[[cases]]
+name = "bit xor toggles"
+expr = "core.bits.bit_xor_i64(7, 3)"
+expect_i64 = 4
+
+[[cases]]
+name = "has flag true"
+expr = "core.bits.has_flag_i64(6, 2)"
+expect_i64 = 1
+
+[[cases]]
+name = "has flag false"
+expr = "core.bits.has_flag_i64(4, 2)"
+expect_i64 = 0
+
+[[cases]]
+name = "set flag"
+expr = "core.bits.set_flag_i64(4, 2)"
+expect_i64 = 6
+
+[[cases]]
+name = "toggle flag present"
+expr = "core.bits.toggle_flag_i64(6, 2)"
+expect_i64 = 4
+
+[[cases]]
+name = "toggle flag absent"
+expr = "core.bits.toggle_flag_i64(4, 2)"
+expect_i64 = 6
+
+[[cases]]
+name = "clear flag present"
+expr = "core.bits.clear_flag_i64(7, 2)"
+expect_i64 = 5
+
+[[cases]]
+name = "clear flag absent"
+expr = "core.bits.clear_flag_i64(4, 2)"
+expect_i64 = 4

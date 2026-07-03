@@ -1,0 +1,89 @@
+[contract]
+version = 0
+
+[module]
+name = "core.text"
+layer = "core"
+stage = 1
+profile = "core"
+pure = true
+extern = false
+
+[validation]
+metadata = true
+static = true
+compile = true
+run = true
+stress = false
+
+[limits]
+compile_timeout_ms = 10000
+run_timeout_ms = 2000
+stdout_limit_bytes = 65536
+max_cases = 50
+
+[exports]
+functions = [
+  "is_empty_text_i64",
+  "not_empty_text_i64",
+  "same_emptiness_i64",
+  "select_by_empty_i64",
+]
+
+[constraints]
+allowed_imports = ["core.*"]
+forbidden_imports = ["std.*", "framework.*"]
+forbidden_features = ["extern", "malloc", "free", "file", "network", "syscall"]
+
+[capabilities]
+requires = []
+
+[[cases]]
+name = "empty true"
+expr = "core.text.is_empty_text_i64(\"\")"
+expect_i64 = 1
+
+[[cases]]
+name = "empty false"
+expr = "core.text.is_empty_text_i64(\"abc\")"
+expect_i64 = 0
+
+[[cases]]
+name = "not empty true"
+expr = "core.text.not_empty_text_i64(\"abc\")"
+expect_i64 = 1
+
+[[cases]]
+name = "not empty false"
+expr = "core.text.not_empty_text_i64(\"\")"
+expect_i64 = 0
+
+[[cases]]
+name = "same emptiness both empty"
+expr = "core.text.same_emptiness_i64(\"\", \"\")"
+expect_i64 = 1
+
+[[cases]]
+name = "same emptiness left empty"
+expr = "core.text.same_emptiness_i64(\"\", \"abc\")"
+expect_i64 = 0
+
+[[cases]]
+name = "same emptiness right empty"
+expr = "core.text.same_emptiness_i64(\"abc\", \"\")"
+expect_i64 = 0
+
+[[cases]]
+name = "same emptiness both nonempty"
+expr = "core.text.same_emptiness_i64(\"abc\", \"xyz\")"
+expect_i64 = 1
+
+[[cases]]
+name = "select empty"
+expr = "core.text.select_by_empty_i64(\"\", 7, 9)"
+expect_i64 = 7
+
+[[cases]]
+name = "select nonempty"
+expr = "core.text.select_by_empty_i64(\"abc\", 7, 9)"
+expect_i64 = 9

@@ -1,0 +1,212 @@
+[contract]
+version = 0
+
+[module]
+name = "core.math"
+layer = "core"
+stage = 0
+profile = "core"
+pure = true
+extern = false
+
+[validation]
+metadata = true
+static = true
+compile = true
+run = true
+stress = false
+
+[limits]
+compile_timeout_ms = 10000
+run_timeout_ms = 2000
+stdout_limit_bytes = 65536
+max_cases = 50
+
+[exports]
+functions = [
+  "abs_i64",
+  "between_i64",
+  "clamp_i64",
+  "cube_i64",
+  "factorial_i64",
+  "gcd_i64",
+  "is_even",
+  "is_negative",
+  "is_odd",
+  "is_positive",
+  "lcm_i64",
+  "max_i64",
+  "min_i64",
+  "pow_i64",
+  "sign_i64",
+  "square_i64",
+]
+
+[constraints]
+allowed_imports = ["core.*"]
+forbidden_imports = ["std.*", "framework.*"]
+forbidden_features = ["extern", "malloc", "free", "file", "network", "syscall"]
+
+[capabilities]
+requires = []
+
+[[cases]]
+name = "abs negative"
+expr = "core.math.abs_i64(-5)"
+expect_i64 = 5
+
+[[cases]]
+name = "min chooses lower"
+expr = "core.math.min_i64(3, 7)"
+expect_i64 = 3
+
+[[cases]]
+name = "max chooses higher"
+expr = "core.math.max_i64(3, 7)"
+expect_i64 = 7
+
+[[cases]]
+name = "clamp in range"
+expr = "core.math.clamp_i64(5, 0, 10)"
+expect_i64 = 5
+
+[[cases]]
+name = "clamp below range"
+expr = "core.math.clamp_i64(-2, 0, 10)"
+expect_i64 = 0
+
+[[cases]]
+name = "clamp above range"
+expr = "core.math.clamp_i64(12, 0, 10)"
+expect_i64 = 10
+
+[[cases]]
+name = "sign positive"
+expr = "core.math.sign_i64(9)"
+expect_i64 = 1
+
+[[cases]]
+name = "sign negative"
+expr = "core.math.sign_i64(-9)"
+expect_i64 = -1
+
+[[cases]]
+name = "sign zero"
+expr = "core.math.sign_i64(0)"
+expect_i64 = 0
+
+[[cases]]
+name = "pow simple"
+expr = "core.math.pow_i64(2, 5)"
+expect_i64 = 32
+
+[[cases]]
+name = "is_even true"
+expr = "core.math.is_even(8)"
+expect_i64 = 1
+
+[[cases]]
+name = "is_odd true"
+expr = "core.math.is_odd(7)"
+expect_i64 = 1
+
+[[cases]]
+name = "factorial zero"
+expr = "core.math.factorial_i64(0)"
+expect_i64 = 1
+
+[[cases]]
+name = "factorial small"
+expr = "core.math.factorial_i64(5)"
+expect_i64 = 120
+
+[[cases]]
+name = "factorial negative"
+expr = "core.math.factorial_i64(-3)"
+expect_i64 = 0
+
+[[cases]]
+name = "gcd normal"
+expr = "core.math.gcd_i64(54, 24)"
+expect_i64 = 6
+
+[[cases]]
+name = "gcd negative"
+expr = "core.math.gcd_i64(-48, 18)"
+expect_i64 = 6
+
+[[cases]]
+name = "gcd zero"
+expr = "core.math.gcd_i64(0, 9)"
+expect_i64 = 9
+
+[[cases]]
+name = "lcm normal"
+expr = "core.math.lcm_i64(6, 8)"
+expect_i64 = 24
+
+[[cases]]
+name = "lcm negative"
+expr = "core.math.lcm_i64(-6, 8)"
+expect_i64 = 24
+
+[[cases]]
+name = "lcm zero"
+expr = "core.math.lcm_i64(0, 8)"
+expect_i64 = 0
+
+[[cases]]
+name = "square positive"
+expr = "core.math.square_i64(7)"
+expect_i64 = 49
+
+[[cases]]
+name = "square negative"
+expr = "core.math.square_i64(-4)"
+expect_i64 = 16
+
+[[cases]]
+name = "cube positive"
+expr = "core.math.cube_i64(3)"
+expect_i64 = 27
+
+[[cases]]
+name = "cube negative"
+expr = "core.math.cube_i64(-3)"
+expect_i64 = -27
+
+[[cases]]
+name = "is_positive true"
+expr = "core.math.is_positive(5)"
+expect_i64 = 1
+
+[[cases]]
+name = "is_positive false zero"
+expr = "core.math.is_positive(0)"
+expect_i64 = 0
+
+[[cases]]
+name = "is_negative true"
+expr = "core.math.is_negative(-5)"
+expect_i64 = 1
+
+[[cases]]
+name = "is_negative false zero"
+expr = "core.math.is_negative(0)"
+expect_i64 = 0
+
+[[cases]]
+name = "between true"
+expr = "core.math.between_i64(5, 1, 10)"
+expect_i64 = 1
+
+[[cases]]
+name = "between below"
+expr = "core.math.between_i64(0, 1, 10)"
+expect_i64 = 0
+
+[[cases]]
+name = "between above"
+expr = "core.math.between_i64(11, 1, 10)"
+expect_i64 = 0
+
