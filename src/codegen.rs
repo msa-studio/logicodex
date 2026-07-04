@@ -966,10 +966,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 };
                 Ok(loaded.into_int_value())
             }
-            HirExprKind::Global(_symbol_id) => {
-                // Global: try to resolve as a zero-argument function call
-                Ok(self.i64_type.const_int(0, false))
-            }
+            HirExprKind::Global(_symbol_id) => Err(anyhow!(
+                "unsupported codegen path: global symbol expressions are not implemented yet"
+            )),
             HirExprKind::Binary { left, op, right } => {
                 let l = self.emit_hir_expr(left, func)?;
                 let r = self.emit_hir_expr(right, func)?;
@@ -1574,7 +1573,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
             let arg_val = if let Some(a) = args.first() {
                 self.emit_hir_expr(a, func)?
             } else {
-                self.i64_type.const_int(0, false)
+                return Err(anyhow!(
+                    "unsupported codegen path: logicodex_sleep requires one duration argument"
+                ));
             };
             let call_site = self
                 .builder

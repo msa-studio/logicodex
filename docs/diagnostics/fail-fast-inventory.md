@@ -873,3 +873,24 @@ src/hir.rs:1318:                let lowered = self.lower_expr(*expr, span);
 src/hir.rs:1338:                    span,
 src/hir.rs:1344:                    .map(|arg| self.lower_expr(arg, span))
 ```
+
+## P0-B classification
+
+Second fail-fast batch.
+
+| File/context | Category | Action |
+|---|---|---|
+| `src/codegen.rs` `HirExprKind::Global` | Suspicious fallback-zero | fail-fast; global symbol expressions are not implemented yet |
+| `src/codegen.rs` builtin `logicodex_sleep` missing argument | Suspicious fallback-zero | fail-fast; runtime sleep requires a duration argument |
+
+Still deferred:
+
+| File/context | Category | Reason |
+|---|---|---|
+| implicit function return `0` | Deferred policy | requires return-type policy audit before behavior change |
+| `LiteralAst::Unit` | Allowed zero | unit-like value currently encoded as `0` |
+| `OptionNone` | Allowed zero | semantic encoding: `None = 0` |
+| actor/channel runtime return defaults | Deferred ABI policy | may be runtime status/handle normalization, not necessarily fallback |
+| GEP index zero values | Allowed zero | LLVM indexing helper value, not semantic fallback |
+| `print` builtin initial `last = 0` | Deferred builtin policy | only applies to empty print argument list; parser/semantic policy should decide |
+| generic non-i64 call return default | Deferred ABI policy | may require callable return typing before behavior change |
