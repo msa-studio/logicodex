@@ -1027,8 +1027,12 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         let not_b = self.builder.build_not(b, "nottmp").context("not")?;
                         Ok(self.bool_to_i64(not_b))
                     }
-                    UnaryOpAst::AddressOf => Ok(self.i64_type.const_int(0, false)), // placeholder
-                    UnaryOpAst::Deref => Ok(self.i64_type.const_int(0, false)),     // placeholder
+                    UnaryOpAst::AddressOf => Err(anyhow!(
+                        "unsupported codegen path: address-of expressions are not implemented yet"
+                    )),
+                    UnaryOpAst::Deref => Err(anyhow!(
+                        "unsupported codegen path: dereference expressions are not implemented yet"
+                    )),
                 })?;
                 self.wrap_to_width(result, expr.ty)
             }
@@ -1080,7 +1084,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 };
                 let layout = match layout {
                     Some(l) => l,
-                    None => return Ok(self.i64_type.const_int(0, false)),
+                    None => {
+                        return Err(anyhow!(
+                            "unsupported codegen path: field access requires a resolved struct layout"
+                        ));
+                    }
                 };
                 let mut field_llvm: Vec<BasicTypeEnum<'ctx>> =
                     Vec::with_capacity(layout.fields.len());
@@ -1524,7 +1532,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 }
             }
             HirExprKind::Index { base, index } => self.emit_hir_index_load(base, index, func),
-            HirExprKind::ArrayLiteral { .. } => Ok(self.i64_type.const_int(0, false)),
+            HirExprKind::ArrayLiteral { .. } => Err(anyhow!(
+                "unsupported codegen path: array literals are only supported as typed local initializers"
+            )),
         }
     }
 
@@ -1991,7 +2001,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         }
                         _ => {
                             let _val = self.emit_hir_expr(arg, func)?;
-                            return Ok(self.i64_type.const_int(0, false));
+                            return Err(anyhow!(
+                                "unsupported codegen path: Color constructor currently requires literal byte arguments"
+                            ));
                         }
                     }
                 }
@@ -2107,7 +2119,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .and_then(|t| t.find_struct_by_name(struct_name).map(|(_, l)| l.clone()));
                 let layout = match layout {
                     Some(l) => l,
-                    None => return Ok(self.i64_type.const_int(0, false)),
+                    None => {
+                        return Err(anyhow!(
+                            "unsupported codegen path: struct constructor requires a resolved struct layout"
+                        ));
+                    }
                 };
                 let mut field_llvm: Vec<BasicTypeEnum<'ctx>> =
                     Vec::with_capacity(layout.fields.len());

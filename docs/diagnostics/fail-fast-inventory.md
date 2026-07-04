@@ -72,6 +72,31 @@ Create a classified table in a follow-up patch.
 
 Do not change compiler behavior until the inventory is classified.
 
+## P0-A classification
+
+This first fail-fast batch intentionally targets only the clearest suspicious
+paths. Runtime ABI defaults and intentionally-zero semantic values are left
+unchanged until a later classification pass.
+
+| File/context | Category | Action |
+|---|---|---|
+| `src/codegen.rs` `UnaryOpAst::AddressOf` | Suspicious placeholder-zero | fail-fast with unsupported codegen diagnostic |
+| `src/codegen.rs` `UnaryOpAst::Deref` | Suspicious placeholder-zero | fail-fast with unsupported codegen diagnostic |
+| `src/codegen.rs` unresolved field layout | Suspicious fallback-zero | fail-fast because field access requires resolved struct layout |
+| `src/codegen.rs` direct `HirExprKind::ArrayLiteral` expression | Suspicious fallback-zero | fail-fast; currently only typed local initializers are supported |
+| `src/codegen.rs` `Color(...)` non-literal byte arguments | Suspicious fallback-zero | fail-fast until constructor semantics support evaluated byte arguments |
+| `src/codegen.rs` unknown struct constructor layout | Suspicious fallback-zero | fail-fast because constructor requires resolved struct layout |
+
+Left for later batches:
+
+- actor/channel runtime return defaults
+- `None = 0`
+- false-like boolean values
+- runtime call return-value normalization
+- implicit function return policy
+- global symbol expression policy
+
+
 ## Snapshot: zero fallback grep
 
 ```text
