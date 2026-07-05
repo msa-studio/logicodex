@@ -144,6 +144,7 @@ impl SemanticContext {
                 else_branch,
             } => {
                 self.check_expression(condition);
+                self.check_condition_type(condition, stmt.span, "if");
                 self.check_block(then_branch);
                 if let Some(else_branch) = else_branch {
                     self.check_block(else_branch);
@@ -151,6 +152,7 @@ impl SemanticContext {
             }
             HirStmt::While { condition, body } => {
                 self.check_expression(condition);
+                self.check_condition_type(condition, stmt.span, "while");
                 self.loop_depth += 1;
                 self.check_block(body);
                 self.loop_depth -= 1;
@@ -373,6 +375,37 @@ impl SemanticContext {
         }
     }
 
+    fn check_condition_type(&mut self, condition: &HirExpr, span: Span, context: &str) {
+        if self.is_condition_type(condition.ty.id) {
+            return;
+        }
+
+        let label = self.type_label(condition.ty.id);
+        self.push_error(
+            DiagnosticCode::TypeMismatch,
+            span,
+            format!(
+                "Ralat: Jenis syarat {} tidak sepadan: dijangka Bool, diterima {}",
+                context, label
+            ),
+            format!(
+                "Error: {} condition type mismatch: expected Bool, got {}",
+                context, label
+            ),
+        );
+    }
+
+    fn is_condition_type(&self, id: crate::types::TypeId) -> bool {
+        self.is_bool_type(id) || self.is_unknown_type(id)
+    }
+
+    fn is_bool_type(&self, id: crate::types::TypeId) -> bool {
+        matches!(
+            self.types.resolve(id),
+            crate::types::TypeKind::Primitive(crate::types::PrimitiveType::Bool)
+        )
+    }
+
     /// True if a TypeId resolves to any integer primitive (I8..U64). Used to
     /// treat integer operands of differing widths as compatible under the
     /// uniform-i64 codegen model.
@@ -503,6 +536,126 @@ mod tests {
             policy: crate::ffi::CapabilityPolicy::with_runtime_builtins(),
             extern_symbols: std::collections::HashSet::new(),
         }
+    }
+
+    fn expr_bool(types: &TypeRegistry, value: bool) -> HirExpr {
+        HirExpr {
+            kind: HirExprKind::Literal(LiteralAst::Boolean(value)),
+            ty: TypeRef {
+                id: types.primitive_ids().bool_,
+            },
+            span: Span::unknown(),
+        }
+    }
+
+    #[test]
+    fn rejects_i64_if_condition_in_hir() {
+        let mut ctx = base_context();
+        let module = HirModule {
+            items: vec![spanned(HirItem::Function(HirFunction {
+                name: "bad_if".to_string(),
+                symbol: SymbolId(0),
+                params: vec![],
+                return_type: TypeRef {
+                    id: ctx.types.primitive_ids().unit,
+                },
+                body: HirBlock {
+                    statements: vec![spanned(HirStmt::If {
+                        condition: expr_i64(&ctx.types, 1),
+                        then_branch: HirBlock { statements: vec![] },
+                        else_branch: None,
+                    })],
+                },
+                safety: SafetyContext::Safe,
+            }))],
+        };
+
+        let diagnostics = ctx
+            .check_module(&module)
+            .expect_err("i64 if condition should fail");
+
+        let rendered = diagnostics
+            .iter()
+            .map(|d| format!("{} / {}", d.message_ms, d.message_en))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(
+            rendered.contains("if condition type mismatch") || rendered.contains("Jenis syarat if"),
+            "expected if condition type diagnostic, got:\n{}",
+            rendered
+        );
+    }
+
+    #[test]
+    fn rejects_i64_while_condition_in_hir() {
+        let mut ctx = base_context();
+        let module = HirModule {
+            items: vec![spanned(HirItem::Function(HirFunction {
+                name: "bad_while".to_string(),
+                symbol: SymbolId(0),
+                params: vec![],
+                return_type: TypeRef {
+                    id: ctx.types.primitive_ids().unit,
+                },
+                body: HirBlock {
+                    statements: vec![spanned(HirStmt::While {
+                        condition: expr_i64(&ctx.types, 1),
+                        body: HirBlock { statements: vec![] },
+                    })],
+                },
+                safety: SafetyContext::Safe,
+            }))],
+        };
+
+        let diagnostics = ctx
+            .check_module(&module)
+            .expect_err("i64 while condition should fail");
+
+        let rendered = diagnostics
+            .iter()
+            .map(|d| format!("{} / {}", d.message_ms, d.message_en))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(
+            rendered.contains("while condition type mismatch")
+                || rendered.contains("Jenis syarat while"),
+            "expected while condition type diagnostic, got:\n{}",
+            rendered
+        );
+    }
+
+    #[test]
+    fn accepts_bool_if_and_while_conditions_in_hir() {
+        let mut ctx = base_context();
+        let module = HirModule {
+            items: vec![spanned(HirItem::Function(HirFunction {
+                name: "good_conditions".to_string(),
+                symbol: SymbolId(0),
+                params: vec![],
+                return_type: TypeRef {
+                    id: ctx.types.primitive_ids().unit,
+                },
+                body: HirBlock {
+                    statements: vec![
+                        spanned(HirStmt::If {
+                            condition: expr_bool(&ctx.types, true),
+                            then_branch: HirBlock { statements: vec![] },
+                            else_branch: None,
+                        }),
+                        spanned(HirStmt::While {
+                            condition: expr_bool(&ctx.types, false),
+                            body: HirBlock { statements: vec![] },
+                        }),
+                    ],
+                },
+                safety: SafetyContext::Safe,
+            }))],
+        };
+
+        ctx.check_module(&module)
+            .expect("bool if/while conditions should pass");
     }
 
     #[test]

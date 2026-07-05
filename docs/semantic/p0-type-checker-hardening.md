@@ -58,3 +58,17 @@ Current P0 behavior:
   - current uniform integer compatibility,
   - transitional scalar ABI compatibility for current `Option<I64>` and
     `Result<I64, I64>` foundations.
+
+## Condition type validation
+
+The active HIR semantic gate validates control-flow condition expressions before
+codegen.
+
+Current P0 behavior:
+
+- `if` conditions must lower to `Bool` or `Unknown`.
+- `while` conditions must lower to `Bool` or `Unknown`.
+- `Unknown` remains tolerated so name-resolution/type-inference gaps do not
+  cascade into misleading secondary errors.
+- Integer truthiness helpers such as `core.bool.truthy_i64(...)` should be used
+  explicitly when an integer value is intended to become a boolean condition.
