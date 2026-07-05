@@ -149,3 +149,18 @@ fn function_return_expression_type_mismatch_fails() {
 fn function_return_expression_with_matching_type_still_passes() {
     check_ok("function flag() -> Bool begin\n    return true;\nend\nPAPAR 1;\n");
 }
+
+#[test]
+fn assignment_type_mismatch_fails() {
+    let output = check_fail("let x: I64 = 1;\nx = true;\nPAPAR 1;\n");
+
+    assert!(
+        output.contains("Assignment type mismatch") || output.contains("Jenis tugasan"),
+        "expected assignment type mismatch diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn assignment_type_match_still_passes() {
+    check_ok("let x: I64 = 1;\nx = 2;\nPAPAR x;\n");
+}
