@@ -72,3 +72,20 @@ Current P0 behavior:
   cascade into misleading secondary errors.
 - Integer truthiness helpers such as `core.bool.truthy_i64(...)` should be used
   explicitly when an integer value is intended to become a boolean condition.
+
+## Operator operand validation
+
+The active HIR semantic gate validates operator operand categories before
+codegen.
+
+Current P0 behavior:
+
+- Arithmetic, bitwise, modulo, divide, and shift operators require integer
+  operands.
+- Ordering comparisons require integer operands.
+- Logical `&&` / `||` require `Bool` operands.
+- Equality / inequality require compatible operand types.
+- Unary negation requires an integer operand.
+- Unary logical-not requires a `Bool` operand.
+- `Unknown` remains tolerated to avoid cascading diagnostics from unresolved
+  names or intentionally incomplete inference.
