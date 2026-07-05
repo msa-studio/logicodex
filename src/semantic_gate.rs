@@ -121,6 +121,22 @@ impl SemanticContext {
             HirStmt::Assign { target, value } => {
                 self.check_expression(target);
                 self.check_expression(value);
+                if !self.types_compatible(target.ty.id, value.ty.id) {
+                    self.push_error(
+                        DiagnosticCode::TypeMismatch,
+                        stmt.span,
+                        format!(
+                            "Ralat: Jenis tugasan tidak sepadan: dijangka {}, diterima {}",
+                            self.type_label(target.ty.id),
+                            self.type_label(value.ty.id)
+                        ),
+                        format!(
+                            "Error: Assignment type mismatch: expected {}, got {}",
+                            self.type_label(target.ty.id),
+                            self.type_label(value.ty.id)
+                        ),
+                    );
+                }
             }
             HirStmt::If {
                 condition,

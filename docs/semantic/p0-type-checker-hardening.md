@@ -42,3 +42,19 @@ Current P0 behavior:
   diagnostic. Source-level bare `return;` may be rejected earlier by the parser.
 - Transitional scalar ABI compatibility for current `Option<I64>` and
   `Result<I64, I64>` foundations remains preserved.
+
+## Assignment type validation
+
+The active HIR semantic gate validates assignment statements before codegen.
+
+Current P0 behavior:
+
+- `target = value;` requires the lowered target type to be compatible with the
+  lowered value type.
+- Compatibility reuses the same rule set as let-binding, call arguments, and
+  return expressions:
+  - exact/equivalent types,
+  - unknown-type tolerance,
+  - current uniform integer compatibility,
+  - transitional scalar ABI compatibility for current `Option<I64>` and
+    `Result<I64, I64>` foundations.
