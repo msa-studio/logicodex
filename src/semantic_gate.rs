@@ -121,6 +121,7 @@ impl SemanticContext {
             HirStmt::Assign { target, value } => {
                 self.check_expression(target);
                 self.check_expression(value);
+                self.check_assignment_target(target, stmt.span);
                 if !self.types_compatible(target.ty.id, value.ty.id) {
                     self.push_error(
                         DiagnosticCode::TypeMismatch,
@@ -347,6 +348,61 @@ impl SemanticContext {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn check_assignment_target(&mut self, target: &HirExpr, span: Span) {
+        if self.is_assignment_target(target) {
+            return;
+        }
+
+        self.push_error(
+            DiagnosticCode::TypeMismatch,
+            span,
+            format!(
+                "Ralat: Sasaran tugasan tidak boleh ditulis: {}",
+                self.assignment_target_label(target)
+            ),
+            format!(
+                "Error: Assignment target is not writable: {}",
+                self.assignment_target_label(target)
+            ),
+        );
+    }
+
+    fn is_assignment_target(&self, target: &HirExpr) -> bool {
+        match &target.kind {
+            HirExprKind::Local(_) | HirExprKind::Index { .. } | HirExprKind::Field { .. } => true,
+            _ => false,
+        }
+    }
+
+    fn assignment_target_label(&self, target: &HirExpr) -> &'static str {
+        match &target.kind {
+            HirExprKind::Literal(_) => "literal",
+            HirExprKind::Local(_) => "local",
+            HirExprKind::Global(_) => "global",
+            HirExprKind::Binary { .. } => "binary expression",
+            HirExprKind::Unary { .. } => "unary expression",
+            HirExprKind::Call { .. } => "call result",
+            HirExprKind::Field { .. } => "field",
+            HirExprKind::Index { .. } => "index",
+            HirExprKind::ArrayLiteral { .. } => "array literal",
+            HirExprKind::Cast { .. } => "cast result",
+            HirExprKind::ResultOk { .. } => "Result::Ok",
+            HirExprKind::ResultErr { .. } => "Result::Err",
+            HirExprKind::OptionSome { .. } => "Option::Some",
+            HirExprKind::OptionNone => "Option::None",
+            HirExprKind::Spawn { .. } => "spawn result",
+            HirExprKind::Join { .. } => "join result",
+            HirExprKind::ChannelCreate { .. } => "channel creation",
+            HirExprKind::ChannelSend { .. } => "channel send",
+            HirExprKind::ChannelRecv { .. } => "channel receive",
+            HirExprKind::ChannelTrySend { .. } => "channel try_send",
+            HirExprKind::ChannelTryRecv { .. } => "channel try_recv",
+            HirExprKind::Yield => "yield",
+            HirExprKind::Sleep { .. } => "sleep",
+            HirExprKind::ChannelTimeoutRecv { .. } => "channel timeout_recv",
         }
     }
 
