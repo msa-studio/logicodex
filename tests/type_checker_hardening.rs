@@ -134,3 +134,18 @@ fn local_function_call_with_matching_args_still_passes() {
         "function add(a: I64, b: I64) -> I64 begin\n    return a + b;\nend\nPAPAR add(1, 2);\n",
     );
 }
+
+#[test]
+fn function_return_expression_type_mismatch_fails() {
+    let output = check_fail("function bad() -> I64 begin\n    return true;\nend\nPAPAR 1;\n");
+
+    assert!(
+        output.contains("Return type mismatch") || output.contains("Jenis pulangan"),
+        "expected return type mismatch diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn function_return_expression_with_matching_type_still_passes() {
+    check_ok("function flag() -> Bool begin\n    return true;\nend\nPAPAR 1;\n");
+}

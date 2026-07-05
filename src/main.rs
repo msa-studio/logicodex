@@ -598,6 +598,7 @@ fn compile_v130_pipeline(
         diagnostics: Vec::new(),
         loop_depth: 0,
         safety_context: ffi::SafetyContext::Safe,
+        current_return_type: None,
         policy,
         extern_symbols: std::collections::HashSet::new(),
     };
@@ -891,6 +892,7 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
         diagnostics: Vec::new(),
         loop_depth: 0,
         safety_context: ffi::SafetyContext::Safe,
+        current_return_type: None,
         policy,
         extern_symbols: std::collections::HashSet::new(),
     };
@@ -988,6 +990,7 @@ fn run_v130_subsystem_self_check() -> Result<()> {
         diagnostics: Vec::new(),
         loop_depth: 0,
         safety_context: ffi::SafetyContext::Safe,
+        current_return_type: None,
         policy: ffi::CapabilityPolicy::with_runtime_builtins(),
         extern_symbols: std::collections::HashSet::new(),
     };

@@ -23,6 +23,8 @@ pub struct SemanticContext {
     pub diagnostics: Vec<Diagnostic>,
     pub loop_depth: u32,
     pub safety_context: SafetyContext,
+    /// Expected return type for the function currently being checked.
+    pub current_return_type: Option<crate::types::TypeId>,
     /// FFI capability policy (zero-trust, default deny). Seeded with the runtime
     /// builtins; lod (or manual ffi.allow) adds external symbols. The semantic
     /// gate passes this to the FfiGatekeeper so denied externs fail at check.
@@ -76,8 +78,11 @@ impl SemanticContext {
         match &item.node {
             HirItem::Function(function) => {
                 let previous_safety = self.safety_context;
+                let previous_return_type = self.current_return_type;
                 self.safety_context = function.safety;
+                self.current_return_type = Some(function.return_type.id);
                 self.check_block(&function.body);
+                self.current_return_type = previous_return_type;
                 self.safety_context = previous_safety;
             }
             HirItem::Struct(_) | HirItem::Enum(_) | HirItem::ExternFunction(_) => {}
@@ -165,11 +170,47 @@ impl SemanticContext {
                 // Hardware register declaration: no sub-expressions to check.
             }
             HirStmt::Expr(expr) => self.check_expression(expr),
-            HirStmt::Return(expr) => {
-                if let Some(expr) = expr {
+            HirStmt::Return(expr) => match expr {
+                Some(expr) => {
                     self.check_expression(expr);
+                    if let Some(expected) = self.current_return_type {
+                        if !self.types_compatible(expected, expr.ty.id) {
+                            self.push_error(
+                                DiagnosticCode::TypeMismatch,
+                                stmt.span,
+                                format!(
+                                    "Ralat: Jenis pulangan tidak sepadan: dijangka {}, diterima {}",
+                                    self.type_label(expected),
+                                    self.type_label(expr.ty.id)
+                                ),
+                                format!(
+                                    "Error: Return type mismatch: expected {}, got {}",
+                                    self.type_label(expected),
+                                    self.type_label(expr.ty.id)
+                                ),
+                            );
+                        }
+                    }
                 }
-            }
+                None => {
+                    if let Some(expected) = self.current_return_type {
+                        if !self.is_unit_type(expected) && !self.is_unknown_type(expected) {
+                            self.push_error(
+                                DiagnosticCode::TypeMismatch,
+                                stmt.span,
+                                format!(
+                                    "Ralat: Pulangan memerlukan nilai jenis {}",
+                                    self.type_label(expected)
+                                ),
+                                format!(
+                                    "Error: Return requires a value of type {}",
+                                    self.type_label(expected)
+                                ),
+                            );
+                        }
+                    }
+                }
+            },
         }
     }
 
@@ -381,6 +422,13 @@ impl SemanticContext {
         )
     }
 
+    fn is_unit_type(&self, id: crate::types::TypeId) -> bool {
+        matches!(
+            self.types.resolve(id),
+            crate::types::TypeKind::Primitive(crate::types::PrimitiveType::Unit)
+        )
+    }
+
     fn type_label(&self, id: crate::types::TypeId) -> String {
         format!("{:?}", self.types.resolve(id))
     }
@@ -435,9 +483,45 @@ mod tests {
             diagnostics: Vec::new(),
             loop_depth: 0,
             safety_context: SafetyContext::Safe,
+            current_return_type: None,
             policy: crate::ffi::CapabilityPolicy::with_runtime_builtins(),
             extern_symbols: std::collections::HashSet::new(),
         }
+    }
+
+    #[test]
+    fn rejects_bare_return_in_non_unit_hir_function() {
+        let mut ctx = base_context();
+        let module = HirModule {
+            items: vec![spanned(HirItem::Function(HirFunction {
+                name: "bad".to_string(),
+                symbol: SymbolId(0),
+                params: vec![],
+                return_type: TypeRef {
+                    id: ctx.types.primitive_ids().i64_,
+                },
+                body: HirBlock {
+                    statements: vec![spanned(HirStmt::Return(None))],
+                },
+                safety: SafetyContext::Safe,
+            }))],
+        };
+
+        let diagnostics = ctx
+            .check_module(&module)
+            .expect_err("bare return in non-Unit function should fail");
+
+        let rendered = diagnostics
+            .iter()
+            .map(|d| format!("{} / {}", d.message_ms, d.message_en))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(
+            rendered.contains("Return requires a value")
+                || rendered.contains("Pulangan memerlukan nilai"),
+            "expected missing return value diagnostic, got:\n{rendered}"
+        );
     }
 
     #[test]
@@ -587,6 +671,7 @@ pub fn validate_module(module: &HirModule, types: TypeRegistry) -> Result<(), Ve
         diagnostics: Vec::new(),
         loop_depth: 0,
         safety_context: SafetyContext::Safe,
+        current_return_type: None,
         policy: crate::ffi::CapabilityPolicy::with_runtime_builtins(),
         extern_symbols: std::collections::HashSet::new(),
     };
