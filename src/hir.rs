@@ -526,6 +526,7 @@ pub struct SymbolTable {
     locals: Vec<HashMap<String, LocalBinding>>,
     callables: HashMap<String, CallableId>,
     callable_returns: HashMap<CallableId, TypeId>,
+    callable_params: HashMap<CallableId, Vec<TypeId>>,
     /// Mangled names of callables declared `public`. A qualified cross-module
     /// call is permitted only if its resolved (mangled) target is in this set.
     public_callables: std::collections::HashSet<String>,
@@ -626,6 +627,14 @@ impl SymbolTable {
 
     pub fn callable_return(&self, id: CallableId) -> Option<TypeId> {
         self.callable_returns.get(&id).copied()
+    }
+
+    pub fn set_callable_params(&mut self, id: CallableId, params: Vec<TypeId>) {
+        self.callable_params.insert(id, params);
+    }
+
+    pub fn callable_params(&self, id: CallableId) -> Option<&[TypeId]> {
+        self.callable_params.get(&id).map(Vec::as_slice)
     }
 }
 
@@ -1035,23 +1044,41 @@ impl<'a> LoweringContext<'a> {
                 ItemAst::Function(function) => {
                     let defined = self.module_fn_name(&function.name);
                     if let Some(cid) = self.symbols.lookup_callable(&defined) {
+                        let params = function
+                            .params
+                            .iter()
+                            .map(|p| self.lower_type(p.ty.clone()).id)
+                            .collect();
                         let ret = match function.return_type.clone() {
                             Some(t) => self.lower_type(t).id,
                             None => self.types.primitive(PrimitiveType::Unit),
                         };
+                        self.symbols.set_callable_params(cid, params);
                         self.symbols.set_callable_return(cid, ret);
                     }
                 }
                 ItemAst::Struct(decl) => {
                     if let Some(cid) = self.symbols.lookup_callable(&decl.name) {
                         let ty = named_type_id(self.types, &decl.name);
+                        let params = decl
+                            .fields
+                            .iter()
+                            .map(|field| self.lower_type(field.ty.clone()).id)
+                            .collect();
+                        self.symbols.set_callable_params(cid, params);
                         self.symbols.set_callable_return(cid, ty);
                     }
                 }
                 ItemAst::ExternBlock(block) => {
                     for function in &block.functions {
                         if let Some(cid) = self.symbols.lookup_callable(&function.name) {
+                            let params = function
+                                .params
+                                .iter()
+                                .map(|p| self.lower_type(p.ty.clone()).id)
+                                .collect();
                             let ret = self.lower_type(function.return_type.clone()).id;
+                            self.symbols.set_callable_params(cid, params);
                             self.symbols.set_callable_return(cid, ret);
                         }
                     }
@@ -1612,7 +1639,8 @@ impl<'a> LoweringContext<'a> {
                 kind: HirExprKind::ChannelRecv {
                     channel: Box::new(self.lower_channel_ref(&channel_name, span)),
                 },
-                ty: unit_ref(self.types),
+                // ABI-1 channels currently carry i64 payloads.
+                ty: i64_ref(self.types),
                 span,
             },
             // ─── Phase 3: Backpressure + Scheduler (A4) ───
