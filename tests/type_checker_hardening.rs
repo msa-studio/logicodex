@@ -164,3 +164,46 @@ fn assignment_type_mismatch_fails() {
 fn assignment_type_match_still_passes() {
     check_ok("let x: I64 = 1;\nx = 2;\nPAPAR x;\n");
 }
+
+#[test]
+fn arithmetic_bool_operands_fail() {
+    let output = check_fail("PAPAR true + false;\n");
+
+    assert!(
+        output.contains("Invalid binary operator operand types")
+            || output.contains("operand operator binari"),
+        "expected arithmetic operator operand diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn logical_integer_operands_fail() {
+    let output = check_fail("PAPAR 1 && 2;\n");
+
+    assert!(
+        output.contains("Invalid binary operator operand types")
+            || output.contains("operand operator binari"),
+        "expected logical operator operand diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn unary_not_integer_operand_fails() {
+    let output = check_fail("PAPAR !1;\n");
+
+    assert!(
+        output.contains("Invalid unary operator operand type")
+            || output.contains("operand operator unari"),
+        "expected unary operator operand diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn arithmetic_integer_operands_still_pass() {
+    check_ok("PAPAR 1 + 2 * 3;\n");
+}
+
+#[test]
+fn logical_bool_operands_still_pass() {
+    check_ok("PAPAR true && false;\n");
+}

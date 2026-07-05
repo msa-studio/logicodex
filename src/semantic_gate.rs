@@ -238,38 +238,13 @@ impl SemanticContext {
             HirExprKind::Binary { left, op, right } => {
                 self.check_expression(left);
                 self.check_expression(right);
-                // Division by a literal zero (ported from the legacy analyzer).
-                if matches!(op, BinaryOpAst::Div) {
-                    if let HirExprKind::Literal(LiteralAst::Integer(0)) = &right.kind {
-                        self.push_error(
-                            DiagnosticCode::DivisionByZero,
-                            expr.span,
-                            "Ralat: Pembahagian dengan sifar".to_string(),
-                            "Error: Division by zero".to_string(),
-                        );
-                    }
-                }
-                // The compiler uses a uniform i64 integer model, so integer operands of
-                // differing declared widths (e.g. I32 vs the default-I64 of an
-                // integer literal) are compatible. Only flag genuinely mismatched
-                // categories (e.g. int vs float).
-                let either_unknown =
-                    self.is_unknown_type(left.ty.id) || self.is_unknown_type(right.ty.id);
-                if left.ty.id != right.ty.id
-                    && !either_unknown
-                    && !(self.is_integer_type(left.ty.id) && self.is_integer_type(right.ty.id))
-                {
-                    self.push_error(
-                        DiagnosticCode::TypeMismatch,
-                        expr.span,
-                        "Ralat: Jenis operand binari tidak sepadan".to_string(),
-                        "Error: Binary operand types do not match".to_string(),
-                    );
-                }
+                self.check_binary_operator(op, left, right, expr.span);
             }
-            HirExprKind::Unary { expr, .. }
-            | HirExprKind::Field { base: expr, .. }
-            | HirExprKind::Cast { expr, .. } => {
+            HirExprKind::Unary { op, expr: operand } => {
+                self.check_expression(operand);
+                self.check_unary_operator(op, operand, expr.span);
+            }
+            HirExprKind::Field { base: expr, .. } | HirExprKind::Cast { expr, .. } => {
                 self.check_expression(expr);
             }
             HirExprKind::Call { callee, args } => {
@@ -373,6 +348,133 @@ impl SemanticContext {
             }
             _ => {}
         }
+    }
+
+    fn check_binary_operator(
+        &mut self,
+        op: &BinaryOpAst,
+        left: &HirExpr,
+        right: &HirExpr,
+        span: Span,
+    ) {
+        if matches!(op, BinaryOpAst::Div | BinaryOpAst::Mod) {
+            if let HirExprKind::Literal(LiteralAst::Integer(0)) = &right.kind {
+                self.push_error(
+                    DiagnosticCode::DivisionByZero,
+                    span,
+                    "Ralat: Pembahagian dengan sifar".to_string(),
+                    "Error: Division by zero".to_string(),
+                );
+            }
+        }
+
+        if self.is_unknown_type(left.ty.id) || self.is_unknown_type(right.ty.id) {
+            return;
+        }
+
+        match op {
+            BinaryOpAst::Add
+            | BinaryOpAst::Sub
+            | BinaryOpAst::Mul
+            | BinaryOpAst::Div
+            | BinaryOpAst::Mod
+            | BinaryOpAst::BitAnd
+            | BinaryOpAst::BitOr
+            | BinaryOpAst::BitXor
+            | BinaryOpAst::ShiftLeft
+            | BinaryOpAst::ShiftRight => {
+                if !(self.is_integer_type(left.ty.id) && self.is_integer_type(right.ty.id)) {
+                    self.push_binary_operator_error(span, "integer", left.ty.id, right.ty.id);
+                }
+            }
+            BinaryOpAst::Lt | BinaryOpAst::Lte | BinaryOpAst::Gt | BinaryOpAst::Gte => {
+                if !(self.is_integer_type(left.ty.id) && self.is_integer_type(right.ty.id)) {
+                    self.push_binary_operator_error(
+                        span,
+                        "integer comparison",
+                        left.ty.id,
+                        right.ty.id,
+                    );
+                }
+            }
+            BinaryOpAst::LogicalAnd | BinaryOpAst::LogicalOr => {
+                if !(self.is_bool_type(left.ty.id) && self.is_bool_type(right.ty.id)) {
+                    self.push_binary_operator_error(span, "Bool", left.ty.id, right.ty.id);
+                }
+            }
+            BinaryOpAst::Eq | BinaryOpAst::NotEq => {
+                if !self.types_compatible(left.ty.id, right.ty.id) {
+                    self.push_binary_operator_error(span, "matching", left.ty.id, right.ty.id);
+                }
+            }
+        }
+    }
+
+    fn check_unary_operator(&mut self, op: &crate::hir::UnaryOpAst, operand: &HirExpr, span: Span) {
+        if self.is_unknown_type(operand.ty.id) {
+            return;
+        }
+
+        match op {
+            crate::hir::UnaryOpAst::Negate => {
+                if !self.is_integer_type(operand.ty.id) {
+                    self.push_unary_operator_error(span, "integer", operand.ty.id);
+                }
+            }
+            crate::hir::UnaryOpAst::LogicalNot => {
+                if !self.is_bool_type(operand.ty.id) {
+                    self.push_unary_operator_error(span, "Bool", operand.ty.id);
+                }
+            }
+            crate::hir::UnaryOpAst::AddressOf | crate::hir::UnaryOpAst::Deref => {}
+        }
+    }
+
+    fn push_binary_operator_error(
+        &mut self,
+        span: Span,
+        expected: &str,
+        left: crate::types::TypeId,
+        right: crate::types::TypeId,
+    ) {
+        self.push_error(
+            DiagnosticCode::TypeMismatch,
+            span,
+            format!(
+                "Ralat: Jenis operand operator binari tidak sah: dijangka {}, diterima {} dan {}",
+                expected,
+                self.type_label(left),
+                self.type_label(right)
+            ),
+            format!(
+                "Error: Invalid binary operator operand types: expected {}, got {} and {}",
+                expected,
+                self.type_label(left),
+                self.type_label(right)
+            ),
+        );
+    }
+
+    fn push_unary_operator_error(
+        &mut self,
+        span: Span,
+        expected: &str,
+        actual: crate::types::TypeId,
+    ) {
+        self.push_error(
+            DiagnosticCode::TypeMismatch,
+            span,
+            format!(
+                "Ralat: Jenis operand operator unari tidak sah: dijangka {}, diterima {}",
+                expected,
+                self.type_label(actual)
+            ),
+            format!(
+                "Error: Invalid unary operator operand type: expected {}, got {}",
+                expected,
+                self.type_label(actual)
+            ),
+        );
     }
 
     fn check_condition_type(&mut self, condition: &HirExpr, span: Span, context: &str) {
