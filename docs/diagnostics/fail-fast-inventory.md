@@ -894,3 +894,32 @@ Still deferred:
 | GEP index zero values | Allowed zero | LLVM indexing helper value, not semantic fallback |
 | `print` builtin initial `last = 0` | Deferred builtin policy | only applies to empty print argument list; parser/semantic policy should decide |
 | generic non-i64 call return default | Deferred ABI policy | may require callable return typing before behavior change |
+
+## P0 final status
+
+This PR converts the clearest unsupported codegen fallback-zero cases into
+fail-fast errors and records the remaining zero-producing paths for future
+policy work.
+
+### Converted to fail-fast
+
+- address-of expression placeholder
+- dereference expression placeholder
+- unresolved field layout fallback
+- direct array literal expression fallback
+- non-literal `Color(...)` byte arguments
+- unresolved struct constructor layout fallback
+- global symbol expression fallback
+- missing `logicodex_sleep` duration argument fallback
+
+### Intentionally not changed in this PR
+
+- `None = 0`
+- unit/false/literal-zero encodings
+- LLVM GEP index zero helper values
+- actor/channel runtime ABI default handling
+- implicit function return policy
+- generic non-i64 call return policy
+- empty `print` argument policy
+
+Those remaining items need separate semantic/ABI policy before behavior changes.
