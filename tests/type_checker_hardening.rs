@@ -207,3 +207,34 @@ fn arithmetic_integer_operands_still_pass() {
 fn logical_bool_operands_still_pass() {
     check_ok("PAPAR true && false;\n");
 }
+
+#[test]
+fn literal_assignment_target_fails() {
+    let output = check_fail("1 = 2;\nPAPAR 1;\n");
+
+    assert!(
+        output.contains("Assignment target is not writable") || output.contains("Sasaran tugasan"),
+        "expected non-writable assignment target diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn call_result_assignment_target_fails() {
+    let output =
+        check_fail("function id(a: I64) -> I64 begin\n    return a;\nend\nid(1) = 2;\nPAPAR 1;\n");
+
+    assert!(
+        output.contains("Assignment target is not writable") || output.contains("Sasaran tugasan"),
+        "expected non-writable call-result assignment target diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn binary_expression_assignment_target_fails() {
+    let output = check_fail("(1 + 2) = 3;\nPAPAR 1;\n");
+
+    assert!(
+        output.contains("Assignment target is not writable") || output.contains("Sasaran tugasan"),
+        "expected non-writable binary-expression assignment target diagnostic, got:\n{output}"
+    );
+}

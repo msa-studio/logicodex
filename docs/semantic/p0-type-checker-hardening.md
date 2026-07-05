@@ -89,3 +89,17 @@ Current P0 behavior:
 - Unary logical-not requires a `Bool` operand.
 - `Unknown` remains tolerated to avoid cascading diagnostics from unresolved
   names or intentionally incomplete inference.
+
+## Assignment target validation
+
+The active HIR semantic gate validates assignment targets before codegen.
+
+Current P0 behavior:
+
+- Writable assignment targets are limited to HIR places that codegen can store
+  into: local variables, index targets, and field targets.
+- Non-place expressions such as literals, call results, binary expressions,
+  unary expressions, casts, constructors, channel operations, and temporaries are
+  rejected before codegen.
+- This prevents unsupported assignment targets from silently becoming no-op
+  stores in the backend.
