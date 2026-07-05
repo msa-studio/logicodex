@@ -92,9 +92,25 @@ impl SemanticContext {
 
     fn check_statement(&mut self, stmt: &Spanned<HirStmt>) {
         match &stmt.node {
-            HirStmt::Let { value, .. } => {
+            HirStmt::Let { ty, value, .. } => {
                 if let Some(value) = value {
                     self.check_expression(value);
+                    if !self.types_compatible(ty.id, value.ty.id) {
+                        self.push_error(
+                            DiagnosticCode::TypeMismatch,
+                            stmt.span,
+                            format!(
+                                "Ralat: Jenis ikatan tidak sepadan: dijangka {}, diterima {}",
+                                self.type_label(ty.id),
+                                self.type_label(value.ty.id)
+                            ),
+                            format!(
+                                "Error: Binding type mismatch: expected {}, got {}",
+                                self.type_label(ty.id),
+                                self.type_label(value.ty.id)
+                            ),
+                        );
+                    }
                 }
             }
             HirStmt::Assign { target, value } => {
@@ -201,6 +217,56 @@ impl SemanticContext {
                 for arg in args {
                     self.check_expression(arg);
                 }
+
+                let expected_params = self.symbols.callable_params(*callee).map(|p| p.to_vec());
+                if let Some(expected_params) = expected_params {
+                    let name = self
+                        .symbols
+                        .callable_name(*callee)
+                        .unwrap_or("<unknown>")
+                        .to_string();
+
+                    if expected_params.len() != args.len() {
+                        self.push_error(
+                            DiagnosticCode::TypeMismatch,
+                            expr.span,
+                            format!(
+                                "Ralat: Bilangan argumen fungsi `{name}` tidak sepadan: dijangka {}, diterima {}",
+                                expected_params.len(),
+                                args.len()
+                            ),
+                            format!(
+                                "Error: Function `{name}` argument count mismatch: expected {}, got {}",
+                                expected_params.len(),
+                                args.len()
+                            ),
+                        );
+                    } else {
+                        for (idx, (expected, actual)) in
+                            expected_params.iter().copied().zip(args.iter()).enumerate()
+                        {
+                            if !self.types_compatible(expected, actual.ty.id) {
+                                self.push_error(
+                                    DiagnosticCode::TypeMismatch,
+                                    actual.span,
+                                    format!(
+                                        "Ralat: Jenis argumen fungsi `{name}` tidak sepadan pada argumen {}: dijangka {}, diterima {}",
+                                        idx + 1,
+                                        self.type_label(expected),
+                                        self.type_label(actual.ty.id)
+                                    ),
+                                    format!(
+                                        "Error: Function `{name}` argument {} type mismatch: expected {}, got {}",
+                                        idx + 1,
+                                        self.type_label(expected),
+                                        self.type_label(actual.ty.id)
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+
                 // Resolve the callee by NAME against the FFI registry. The HIR
                 // Call.callee is a SymbolTable id (builtins/user fns) whose id-space
                 // is independent of the FFI CallableRegistry, so a raw .get(id) can
@@ -275,6 +341,48 @@ impl SemanticContext {
     /// wildcard rather than a hard binary-operand mismatch.
     fn is_unknown_type(&self, id: crate::types::TypeId) -> bool {
         matches!(self.types.resolve(id), crate::types::TypeKind::Unknown)
+    }
+
+    fn types_compatible(
+        &self,
+        expected: crate::types::TypeId,
+        actual: crate::types::TypeId,
+    ) -> bool {
+        self.types.is_equivalent(expected, actual)
+            || self.is_unknown_type(expected)
+            || self.is_unknown_type(actual)
+            || (self.is_integer_type(expected) && self.is_integer_type(actual))
+            || self.is_transitional_scalar_abi_compatible(expected, actual)
+    }
+
+    fn is_transitional_scalar_abi_compatible(
+        &self,
+        expected: crate::types::TypeId,
+        actual: crate::types::TypeId,
+    ) -> bool {
+        (self.is_option_result_i64_scalar_abi(expected) && self.is_i64_type(actual))
+            || (self.is_option_result_i64_scalar_abi(actual) && self.is_i64_type(expected))
+    }
+
+    fn is_option_result_i64_scalar_abi(&self, id: crate::types::TypeId) -> bool {
+        match self.types.resolve(id) {
+            crate::types::TypeKind::Option { some } => self.is_i64_type(*some),
+            crate::types::TypeKind::Result { ok, err } => {
+                self.is_i64_type(*ok) && self.is_i64_type(*err)
+            }
+            _ => false,
+        }
+    }
+
+    fn is_i64_type(&self, id: crate::types::TypeId) -> bool {
+        matches!(
+            self.types.resolve(id),
+            crate::types::TypeKind::Primitive(crate::types::PrimitiveType::I64)
+        )
+    }
+
+    fn type_label(&self, id: crate::types::TypeId) -> String {
+        format!("{:?}", self.types.resolve(id))
     }
 
     fn push_error(
