@@ -27,3 +27,18 @@ Deferred:
 - builtin call policy cleanup
 - generic/unknown call expression handling outside simple local function names
 - richer structured diagnostic codes for semantic errors
+
+## Return type validation
+
+The active HIR semantic gate validates explicit `return` statements against the
+current function return type before LLVM codegen.
+
+Current P0 behavior:
+
+- `return expr;` must be compatible with the enclosing function return type.
+- At HIR level, bare `Return(None)` is accepted only for `Unit`/unknown
+  return contexts.
+- Non-`Unit` HIR functions with bare `Return(None)` produce a type mismatch
+  diagnostic. Source-level bare `return;` may be rejected earlier by the parser.
+- Transitional scalar ABI compatibility for current `Option<I64>` and
+  `Result<I64, I64>` foundations remains preserved.
