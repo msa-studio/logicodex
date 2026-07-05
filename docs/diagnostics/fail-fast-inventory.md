@@ -72,6 +72,31 @@ Create a classified table in a follow-up patch.
 
 Do not change compiler behavior until the inventory is classified.
 
+## P0-A classification
+
+This first fail-fast batch intentionally targets only the clearest suspicious
+paths. Runtime ABI defaults and intentionally-zero semantic values are left
+unchanged until a later classification pass.
+
+| File/context | Category | Action |
+|---|---|---|
+| `src/codegen.rs` `UnaryOpAst::AddressOf` | Suspicious placeholder-zero | fail-fast with unsupported codegen diagnostic |
+| `src/codegen.rs` `UnaryOpAst::Deref` | Suspicious placeholder-zero | fail-fast with unsupported codegen diagnostic |
+| `src/codegen.rs` unresolved field layout | Suspicious fallback-zero | fail-fast because field access requires resolved struct layout |
+| `src/codegen.rs` direct `HirExprKind::ArrayLiteral` expression | Suspicious fallback-zero | fail-fast; currently only typed local initializers are supported |
+| `src/codegen.rs` `Color(...)` non-literal byte arguments | Suspicious fallback-zero | fail-fast until constructor semantics support evaluated byte arguments |
+| `src/codegen.rs` unknown struct constructor layout | Suspicious fallback-zero | fail-fast because constructor requires resolved struct layout |
+
+Left for later batches:
+
+- actor/channel runtime return defaults
+- `None = 0`
+- false-like boolean values
+- runtime call return-value normalization
+- implicit function return policy
+- global symbol expression policy
+
+
 ## Snapshot: zero fallback grep
 
 ```text
@@ -848,3 +873,53 @@ src/hir.rs:1318:                let lowered = self.lower_expr(*expr, span);
 src/hir.rs:1338:                    span,
 src/hir.rs:1344:                    .map(|arg| self.lower_expr(arg, span))
 ```
+
+## P0-B classification
+
+Second fail-fast batch.
+
+| File/context | Category | Action |
+|---|---|---|
+| `src/codegen.rs` `HirExprKind::Global` | Suspicious fallback-zero | fail-fast; global symbol expressions are not implemented yet |
+| `src/codegen.rs` builtin `logicodex_sleep` missing argument | Suspicious fallback-zero | fail-fast; runtime sleep requires a duration argument |
+
+Still deferred:
+
+| File/context | Category | Reason |
+|---|---|---|
+| implicit function return `0` | Deferred policy | requires return-type policy audit before behavior change |
+| `LiteralAst::Unit` | Allowed zero | unit-like value currently encoded as `0` |
+| `OptionNone` | Allowed zero | semantic encoding: `None = 0` |
+| actor/channel runtime return defaults | Deferred ABI policy | may be runtime status/handle normalization, not necessarily fallback |
+| GEP index zero values | Allowed zero | LLVM indexing helper value, not semantic fallback |
+| `print` builtin initial `last = 0` | Deferred builtin policy | only applies to empty print argument list; parser/semantic policy should decide |
+| generic non-i64 call return default | Deferred ABI policy | may require callable return typing before behavior change |
+
+## P0 final status
+
+This PR converts the clearest unsupported codegen fallback-zero cases into
+fail-fast errors and records the remaining zero-producing paths for future
+policy work.
+
+### Converted to fail-fast
+
+- address-of expression placeholder
+- dereference expression placeholder
+- unresolved field layout fallback
+- direct array literal expression fallback
+- non-literal `Color(...)` byte arguments
+- unresolved struct constructor layout fallback
+- global symbol expression fallback
+- missing `logicodex_sleep` duration argument fallback
+
+### Intentionally not changed in this PR
+
+- `None = 0`
+- unit/false/literal-zero encodings
+- LLVM GEP index zero helper values
+- actor/channel runtime ABI default handling
+- implicit function return policy
+- generic non-i64 call return policy
+- empty `print` argument policy
+
+Those remaining items need separate semantic/ABI policy before behavior changes.

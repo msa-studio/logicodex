@@ -1,3 +1,13 @@
+## Unreleased
+
+### Diagnostics
+
+- Converted the clearest unsupported codegen fallback-zero paths into fail-fast
+  errors instead of silently producing `0`.
+- Added regression coverage for unsupported direct array literal expressions.
+- Classified remaining zero-producing codegen paths into allowed, deferred, or
+  ABI-policy categories.
+
 # Logicodex Changelog
 
 All notable changes to the Logicodex compiler are documented in this file.
