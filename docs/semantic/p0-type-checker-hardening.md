@@ -103,3 +103,17 @@ Current P0 behavior:
   rejected before codegen.
 - This prevents unsupported assignment targets from silently becoming no-op
   stores in the backend.
+
+## Index and array literal validation
+
+The active HIR semantic gate validates fixed-array indexing before codegen.
+
+Current P0 behavior:
+
+- Index expressions require a local fixed-array base.
+- Index expressions require an integer index expression.
+- Array literal elements must have mutually compatible element types.
+- Index assignment value compatibility remains covered by assignment type
+  validation because the HIR index expression carries the array element type.
+- `Unknown` remains tolerated to avoid cascading diagnostics from unresolved
+  names or incomplete upstream inference.
