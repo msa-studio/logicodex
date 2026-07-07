@@ -248,6 +248,17 @@ impl SemanticContext {
             HirExprKind::Field { base: expr, .. } | HirExprKind::Cast { expr, .. } => {
                 self.check_expression(expr);
             }
+            HirExprKind::Index { base, index } => {
+                self.check_expression(base);
+                self.check_expression(index);
+                self.check_index_expression(base, index, expr.span);
+            }
+            HirExprKind::ArrayLiteral { elements } => {
+                for element in elements {
+                    self.check_expression(element);
+                }
+                self.check_array_literal_elements(elements, expr.span);
+            }
             HirExprKind::Call { callee, args } => {
                 for arg in args {
                     self.check_expression(arg);
@@ -348,6 +359,85 @@ impl SemanticContext {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn check_index_expression(&mut self, base: &HirExpr, index: &HirExpr, span: Span) {
+        if !self.is_supported_index_base(base) {
+            self.push_error(
+                DiagnosticCode::TypeMismatch,
+                span,
+                format!(
+                    "Ralat: Asas indeks mesti tatasusunan tetap tempatan, diterima {}",
+                    self.type_label(base.ty.id)
+                ),
+                format!(
+                    "Error: Index base must be a local fixed array, got {}",
+                    self.type_label(base.ty.id)
+                ),
+            );
+        }
+
+        if !self.is_unknown_type(index.ty.id) && !self.is_integer_type(index.ty.id) {
+            self.push_error(
+                DiagnosticCode::TypeMismatch,
+                span,
+                format!(
+                    "Ralat: Indeks tatasusunan mesti integer, diterima {}",
+                    self.type_label(index.ty.id)
+                ),
+                format!(
+                    "Error: Array index must be an integer, got {}",
+                    self.type_label(index.ty.id)
+                ),
+            );
+        }
+    }
+
+    fn is_supported_index_base(&self, base: &HirExpr) -> bool {
+        if self.is_unknown_type(base.ty.id) {
+            return true;
+        }
+
+        matches!(base.kind, HirExprKind::Local(_))
+            && matches!(
+                self.types.resolve(base.ty.id),
+                crate::types::TypeKind::Array { .. }
+            )
+    }
+
+    fn check_array_literal_elements(&mut self, elements: &[HirExpr], span: Span) {
+        let Some(expected) = elements
+            .iter()
+            .map(|element| element.ty.id)
+            .find(|id| !self.is_unknown_type(*id))
+        else {
+            return;
+        };
+
+        for (idx, element) in elements.iter().enumerate() {
+            if self.is_unknown_type(element.ty.id) {
+                continue;
+            }
+
+            if !self.types_compatible(expected, element.ty.id) {
+                self.push_error(
+                    DiagnosticCode::TypeMismatch,
+                    span,
+                    format!(
+                        "Ralat: Jenis elemen literal tatasusunan tidak sepadan pada elemen {}: dijangka {}, diterima {}",
+                        idx + 1,
+                        self.type_label(expected),
+                        self.type_label(element.ty.id)
+                    ),
+                    format!(
+                        "Error: Array literal element {} type mismatch: expected {}, got {}",
+                        idx + 1,
+                        self.type_label(expected),
+                        self.type_label(element.ty.id)
+                    ),
+                );
+            }
         }
     }
 

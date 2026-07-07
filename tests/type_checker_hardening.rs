@@ -238,3 +238,38 @@ fn binary_expression_assignment_target_fails() {
         "expected non-writable binary-expression assignment target diagnostic, got:\n{output}"
     );
 }
+
+#[test]
+fn index_non_array_base_fails() {
+    let output = check_fail("let x: I64 = 1;\nPAPAR x[0];\n");
+
+    assert!(
+        output.contains("Index base must be a local fixed array") || output.contains("Asas indeks"),
+        "expected index base diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn index_non_integer_index_fails() {
+    let output = check_fail("let xs: [I64; 3] = [1, 2, 3];\nPAPAR xs[true];\n");
+
+    assert!(
+        output.contains("Array index must be an integer") || output.contains("Indeks tatasusunan"),
+        "expected index type diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn mixed_array_literal_element_types_fail() {
+    let output = check_fail("let xs: [I64; 3] = [1, true, 3];\nPAPAR 1;\n");
+
+    assert!(
+        output.contains("Array literal element") || output.contains("elemen literal tatasusunan"),
+        "expected array literal element diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn fixed_array_index_read_and_write_still_pass() {
+    check_ok("let xs: [I64; 3] = [1, 2, 3];\nxs[1] = 99;\nPAPAR xs[1];\n");
+}
