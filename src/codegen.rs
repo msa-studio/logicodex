@@ -803,6 +803,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 condition,
                 then_branch,
                 else_branch,
+                ..
             } => self.emit_hir_if(condition, then_branch, else_branch.as_ref(), func),
             HirStmt::While { condition, body } => self.emit_hir_while(condition, body, func),
             HirStmt::Loop { body } => self.emit_hir_loop(body, func),

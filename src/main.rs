@@ -416,6 +416,7 @@ fn first_pending_actor_op(module: &hir::HirModule) -> Option<&'static str> {
                 condition,
                 then_branch,
                 else_branch,
+                ..
             } => scan_expr(condition)
                 .or_else(|| scan_block(then_branch))
                 .or_else(|| else_branch.as_ref().and_then(scan_block)),

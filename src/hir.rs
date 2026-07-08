@@ -69,6 +69,7 @@ pub enum StmtAst {
         condition: ExprAst,
         then_branch: BlockAst,
         else_branch: Option<BlockAst>,
+        control_origin: HirControlOrigin,
     },
     While {
         condition: ExprAst,
@@ -375,6 +376,12 @@ pub struct HirBlock {
     pub statements: Vec<Spanned<HirStmt>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HirControlOrigin {
+    Plain,
+    LoweredExhaustiveMatch,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum HirStmt {
     Let {
@@ -390,6 +397,7 @@ pub enum HirStmt {
         condition: HirExpr,
         then_branch: HirBlock,
         else_branch: Option<HirBlock>,
+        control_origin: HirControlOrigin,
     },
     While {
         condition: HirExpr,
@@ -1205,7 +1213,9 @@ impl<'a> LoweringContext<'a> {
                 condition,
                 then_branch,
                 else_branch,
+                control_origin,
             } => HirStmt::If {
+                control_origin,
                 condition: self.lower_expr(condition, span),
                 then_branch: self.lower_block(then_branch),
                 else_branch: else_branch.map(|b| self.lower_block(b)),
@@ -1928,28 +1938,38 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
     let value_ast = lower_expr_ast(value);
     let mut else_branch: Option<BlockAst> = None;
     let mut conditional: Vec<(ExprAst, BlockAst)> = Vec::new();
+    let mut has_wildcard = false;
+    let mut has_ok = false;
+    let mut has_err = false;
+    let mut has_some = false;
+    let mut has_none = false;
 
     for arm in arms {
         match arm.pattern {
             ast::MatchPattern::Wildcard => {
+                has_wildcard = true;
                 else_branch = Some(mk_body_block(arm.body));
             }
             ast::MatchPattern::Ok { binding } => {
+                has_ok = true;
                 let condition = eq(result_tag(value_ast.clone()), int_lit(1));
                 let body = mk_bound_block(binding, result_payload(value_ast.clone()), arm.body);
                 conditional.push((condition, body));
             }
             ast::MatchPattern::Err { binding } => {
+                has_err = true;
                 let condition = eq(result_tag(value_ast.clone()), int_lit(0));
                 let body = mk_bound_block(binding, result_payload(value_ast.clone()), arm.body);
                 conditional.push((condition, body));
             }
             ast::MatchPattern::Some { binding } => {
+                has_some = true;
                 let condition = eq(option_tag(value_ast.clone()), int_lit(1));
                 let body = mk_bound_block(binding, option_payload(value_ast.clone()), arm.body);
                 conditional.push((condition, body));
             }
             ast::MatchPattern::None => {
+                has_none = true;
                 let condition = eq(option_tag(value_ast.clone()), int_lit(0));
                 conditional.push((condition, mk_body_block(arm.body)));
             }
@@ -1970,12 +1990,19 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
         }
     }
 
+    let match_origin = if has_wildcard || (has_ok && has_err) || (has_some && has_none) {
+        HirControlOrigin::LoweredExhaustiveMatch
+    } else {
+        HirControlOrigin::Plain
+    };
+
     let mut acc: Option<BlockAst> = else_branch;
     for (condition, body) in conditional.into_iter().rev() {
         let if_stmt = StmtAst::If {
             condition,
             then_branch: body,
             else_branch: acc.take(),
+            control_origin: match_origin,
         };
         acc = Some(BlockAst {
             statements: vec![Spanned {
@@ -2025,6 +2052,7 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
             else_branch,
         } => StmtAst::If {
             condition: lower_expr_ast(condition),
+            control_origin: HirControlOrigin::Plain,
             then_branch: BlockAst {
                 statements: then_branch
                     .into_iter()

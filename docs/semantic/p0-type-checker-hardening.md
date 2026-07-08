@@ -117,3 +117,41 @@ Current P0 behavior:
   validation because the HIR index expression carries the array element type.
 - `Unknown` remains tolerated to avoid cascading diagnostics from unresolved
   names or incomplete upstream inference.
+
+## Missing return validation
+
+The active HIR semantic gate validates that non-`Unit` functions have a
+guaranteed return path.
+
+Current P0 behavior:
+
+- Functions returning non-`Unit` / non-`Unknown` types must definitely return.
+- `Unit` functions may omit `return`.
+- A block definitely returns if a reachable statement definitely returns.
+- The final tail expression of a non-`Unit` function can satisfy the return
+  path when its type is compatible with the function return type.
+- An `if` definitely returns only when both `then` and `else` branches
+  definitely return.
+- `unsafe` and hardware-zone blocks forward their inner return behavior.
+- Loops are not treated as guaranteed-return yet; full CFG/divergence analysis
+  is deferred beyond this conservative P0 check.
+
+### Accepted transitional debt: match-lowering metadata
+
+P0 missing-return validation uses explicit HIR control-origin metadata to
+distinguish ordinary `if` statements from `if` chains produced by exhaustive
+`match` lowering.
+
+Accepted debt:
+
+- `HirStmt::If` carries `HirControlOrigin::LoweredExhaustiveMatch` for
+  exhaustive lowered matches.
+- This preserves semantic truth without guessing from nested-if shape.
+- It avoids Option/Result-specific special cases in the semantic gate.
+- It avoids weakening the missing-return checker.
+
+Repayment trigger:
+
+- Replace this transitional metadata with a native HIR `Match` node or a proper
+  CFG/exhaustiveness pass once match semantics are promoted beyond the current
+  Result/Option foundation.

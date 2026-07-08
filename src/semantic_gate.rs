@@ -82,11 +82,97 @@ impl SemanticContext {
                 self.safety_context = function.safety;
                 self.current_return_type = Some(function.return_type.id);
                 self.check_block(&function.body);
+                self.check_missing_return(function.return_type.id, &function.body, item.span);
                 self.current_return_type = previous_return_type;
                 self.safety_context = previous_safety;
             }
             HirItem::Struct(_) | HirItem::Enum(_) | HirItem::ExternFunction(_) => {}
         }
+    }
+
+    fn check_missing_return(
+        &mut self,
+        return_type: crate::types::TypeId,
+        body: &HirBlock,
+        span: Span,
+    ) {
+        if self.is_unit_type(return_type) || self.is_unknown_type(return_type) {
+            return;
+        }
+
+        if self.block_definitely_returns(body) {
+            return;
+        }
+
+        self.push_error(
+            DiagnosticCode::TypeMismatch,
+            span,
+            format!(
+                "Ralat: Fungsi yang memulangkan {} mesti mempunyai laluan return yang dijamin",
+                self.type_label(return_type)
+            ),
+            format!(
+                "Error: Function returning {} must have a guaranteed return path",
+                self.type_label(return_type)
+            ),
+        );
+    }
+
+    fn block_definitely_returns(&self, block: &HirBlock) -> bool {
+        self.block_definitely_returns_with_tail_values(block, true)
+    }
+
+    fn block_definitely_returns_with_tail_values(
+        &self,
+        block: &HirBlock,
+        tail_values_allowed: bool,
+    ) -> bool {
+        let last_index = block.statements.len().saturating_sub(1);
+        block.statements.iter().enumerate().any(|(idx, stmt)| {
+            self.statement_definitely_returns(&stmt.node, tail_values_allowed && idx == last_index)
+        })
+    }
+
+    fn statement_definitely_returns(&self, stmt: &HirStmt, tail_value_position: bool) -> bool {
+        match stmt {
+            HirStmt::Return(_) => true,
+            HirStmt::Expr(expr) if tail_value_position => {
+                self.tail_expr_returns_current_function(expr)
+            }
+            HirStmt::If {
+                then_branch,
+                else_branch: None,
+                control_origin: crate::hir::HirControlOrigin::LoweredExhaustiveMatch,
+                ..
+            } => self.block_definitely_returns_with_tail_values(then_branch, tail_value_position),
+            HirStmt::If {
+                then_branch,
+                else_branch: Some(else_branch),
+                ..
+            } => {
+                self.block_definitely_returns_with_tail_values(then_branch, tail_value_position)
+                    && self
+                        .block_definitely_returns_with_tail_values(else_branch, tail_value_position)
+            }
+            HirStmt::UnsafeBlock(block) | HirStmt::HardwareZone(block) => {
+                self.block_definitely_returns_with_tail_values(block, tail_value_position)
+            }
+            // Conservative P0: loops are not treated as guaranteed-return yet.
+            // Full control-flow graph / divergence analysis is a later pass.
+            _ => false,
+        }
+    }
+
+    fn tail_expr_returns_current_function(&self, expr: &HirExpr) -> bool {
+        let Some(expected) = self.current_return_type else {
+            return false;
+        };
+
+        if self.is_unit_type(expected) || self.is_unknown_type(expected) {
+            return false;
+        }
+
+        self.types_compatible(expected, expr.ty.id)
     }
 
     fn check_block(&mut self, block: &HirBlock) {
@@ -143,6 +229,7 @@ impl SemanticContext {
                 condition,
                 then_branch,
                 else_branch,
+                ..
             } => {
                 self.check_expression(condition);
                 self.check_condition_type(condition, stmt.span, "if");
@@ -809,6 +896,7 @@ mod tests {
                 },
                 body: HirBlock {
                     statements: vec![spanned(HirStmt::If {
+                        control_origin: crate::hir::HirControlOrigin::Plain,
                         condition: expr_i64(&ctx.types, 1),
                         then_branch: HirBlock { statements: vec![] },
                         else_branch: None,
@@ -888,6 +976,7 @@ mod tests {
                 body: HirBlock {
                     statements: vec![
                         spanned(HirStmt::If {
+                            control_origin: crate::hir::HirControlOrigin::Plain,
                             condition: expr_bool(&ctx.types, true),
                             then_branch: HirBlock { statements: vec![] },
                             else_branch: None,
