@@ -273,3 +273,64 @@ fn mixed_array_literal_element_types_fail() {
 fn fixed_array_index_read_and_write_still_pass() {
     check_ok("let xs: [I64; 3] = [1, 2, 3];\nxs[1] = 99;\nPAPAR xs[1];\n");
 }
+
+#[test]
+fn non_unit_function_missing_return_fails() {
+    let output = check_fail("function bad() -> I64 begin\n    let x: I64 = 1;\nend\nPAPAR 1;\n");
+
+    assert!(
+        output.contains("guaranteed return path") || output.contains("laluan return yang dijamin"),
+        "expected missing return diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn non_unit_function_with_return_still_passes() {
+    check_ok("function good() -> I64 begin\n    return 1;\nend\nPAPAR good();\n");
+}
+
+#[test]
+fn unit_function_without_return_still_passes() {
+    check_ok("function side_effect() begin\n    let x: I64 = 1;\nend\nPAPAR 1;\n");
+}
+
+#[test]
+fn non_unit_function_with_tail_expression_still_passes() {
+    check_ok("function good_tail() -> I64 begin\n    1;\nend\nPAPAR good_tail();\n");
+}
+
+#[test]
+fn exhaustive_result_match_satisfies_missing_return() {
+    check_ok(
+        "function unwrap(x: Result<I64, I64>, fallback: I64) -> I64 begin\n\
+             match x begin\n\
+                 Ok(v) => begin\n\
+                     return v;\n\
+                 end,\n\
+                 Err(e) => begin\n\
+                     return fallback;\n\
+                 end\n\
+             end\n\
+         end\n\
+         PAPAR unwrap(Ok(7), 9);\n",
+    );
+}
+
+#[test]
+fn non_exhaustive_result_match_still_fails_missing_return() {
+    let output = check_fail(
+        "function unwrap_bad(x: Result<I64, I64>) -> I64 begin\n\
+             match x begin\n\
+                 Ok(v) => begin\n\
+                     return v;\n\
+                 end\n\
+             end\n\
+         end\n\
+         PAPAR unwrap_bad(Ok(7));\n",
+    );
+
+    assert!(
+        output.contains("guaranteed return path") || output.contains("laluan return yang dijamin"),
+        "expected missing return diagnostic, got:\n{output}"
+    );
+}
