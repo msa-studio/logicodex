@@ -155,3 +155,16 @@ Repayment trigger:
 - Replace this transitional metadata with a native HIR `Match` node or a proper
   CFG/exhaustiveness pass once match semantics are promoted beyond the current
   Result/Option foundation.
+
+## Field access validation
+
+The active HIR semantic gate validates field access before codegen.
+
+Current P0 behavior:
+
+- Field access requires a known struct base.
+- Accessing a field on a non-struct value fails in semantic validation.
+- Accessing an unknown field on a known struct fails in semantic validation.
+- Unknown base types remain tolerated to avoid cascading diagnostics.
+- HIR preserves the original field name so diagnostics can identify the failed
+  field instead of reporting only a lowered field index.

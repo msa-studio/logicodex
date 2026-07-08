@@ -334,3 +334,53 @@ fn non_exhaustive_result_match_still_fails_missing_return() {
         "expected missing return diagnostic, got:\n{output}"
     );
 }
+
+#[test]
+fn field_access_on_non_struct_base_fails() {
+    let output = check_fail(
+        "function bad() -> I64 begin\n\
+             let x: I64 = 7;\n\
+             return x.y;\n\
+         end\n\
+         PAPAR bad();\n",
+    );
+
+    assert!(
+        output.contains("Field access base must be a struct")
+            || output.contains("Asas akses medan mesti struct"),
+        "expected non-struct field access diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn unknown_struct_field_fails() {
+    let output = check_fail(
+        "struct Point begin\n\
+             x: I64;\n\
+         end\n\
+         function bad(p: Point) -> I64 begin\n\
+             return p.y;\n\
+         end\n\
+         PAPAR 1;\n",
+    );
+
+    assert!(
+        output.contains("Struct field `y` was not found")
+            || output.contains("Medan struct `y` tidak ditemui"),
+        "expected unknown struct field diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn known_struct_field_still_passes() {
+    check_ok(
+        "struct Point begin\n\
+             x: I64;\n\
+             y: I64;\n\
+         end\n\
+         function good(p: Point) -> I64 begin\n\
+             return p.x;\n\
+         end\n\
+         PAPAR 1;\n",
+    );
+}

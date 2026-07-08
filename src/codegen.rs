@@ -747,7 +747,9 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     crate::hir::HirExprKind::Index { base, index } => {
                         self.emit_hir_index_store(base, index, val, func)?;
                     }
-                    crate::hir::HirExprKind::Field { base, field_index } => {
+                    crate::hir::HirExprKind::Field {
+                        base, field_index, ..
+                    } => {
                         // p.field = val: int->ptr the struct i64, gep field, store.
                         let base_val = self.emit_hir_expr(base, func)?;
                         let layout = match self.types.as_ref() {
@@ -1073,7 +1075,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 Ok(encoded)
             }
             HirExprKind::OptionNone => Ok(self.i64_type.const_int(0, false)),
-            HirExprKind::Field { base, field_index } => {
+            HirExprKind::Field { base, field_index, .. } => {
                 let base_val = self.emit_hir_expr(base, func)?;
                 let layout = match self.types.as_ref() {
                     Some(t) => match t.resolve(base.ty.id) {
