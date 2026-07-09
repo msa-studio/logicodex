@@ -332,7 +332,13 @@ impl SemanticContext {
                 self.check_expression(operand);
                 self.check_unary_operator(op, operand, expr.span);
             }
-            HirExprKind::Field { base: expr, .. } | HirExprKind::Cast { expr, .. } => {
+            HirExprKind::Field {
+                base, field_name, ..
+            } => {
+                self.check_expression(base);
+                self.check_field_access(base, field_name, expr.span);
+            }
+            HirExprKind::Cast { expr, .. } => {
                 self.check_expression(expr);
             }
             HirExprKind::Index { base, index } => {
@@ -446,6 +452,51 @@ impl SemanticContext {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn check_field_access(&mut self, base: &HirExpr, field_name: &str, span: Span) {
+        if self.is_unknown_type(base.ty.id) {
+            return;
+        }
+
+        match self.types.resolve(base.ty.id) {
+            crate::types::TypeKind::Struct(layout_id) => {
+                if let Some(layout) = self.types.get_struct_layout(*layout_id) {
+                    if layout.fields.iter().any(|field| field.name == field_name) {
+                        return;
+                    }
+
+                    self.push_error(
+                        DiagnosticCode::TypeMismatch,
+                        span,
+                        format!(
+                            "Ralat: Medan struct `{}` tidak ditemui pada {}",
+                            field_name,
+                            self.type_label(base.ty.id)
+                        ),
+                        format!(
+                            "Error: Struct field `{}` was not found on {}",
+                            field_name,
+                            self.type_label(base.ty.id)
+                        ),
+                    );
+                }
+            }
+            _ => {
+                self.push_error(
+                    DiagnosticCode::TypeMismatch,
+                    span,
+                    format!(
+                        "Ralat: Asas akses medan mesti struct, diterima {}",
+                        self.type_label(base.ty.id)
+                    ),
+                    format!(
+                        "Error: Field access base must be a struct, got {}",
+                        self.type_label(base.ty.id)
+                    ),
+                );
+            }
         }
     }
 

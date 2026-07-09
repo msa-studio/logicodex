@@ -451,6 +451,7 @@ pub enum HirExprKind {
     Field {
         base: Box<HirExpr>,
         field_index: usize,
+        field_name: String,
     },
     /// Collections Foundation Stage 0: index expression over a local fixed array.
     Index {
@@ -1580,6 +1581,7 @@ impl<'a> LoweringContext<'a> {
                     kind: HirExprKind::Field {
                         base: Box::new(base),
                         field_index,
+                        field_name: field,
                     },
                     ty: field_ty,
                     span,
