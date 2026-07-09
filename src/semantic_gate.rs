@@ -338,8 +338,12 @@ impl SemanticContext {
                 self.check_expression(base);
                 self.check_field_access(base, field_name, expr.span);
             }
-            HirExprKind::Cast { expr, .. } => {
-                self.check_expression(expr);
+            HirExprKind::Cast {
+                expr: operand,
+                target,
+            } => {
+                self.check_expression(operand);
+                self.check_cast_expression(operand, *target, expr.span);
             }
             HirExprKind::Index { base, index } => {
                 self.check_expression(base);
@@ -453,6 +457,50 @@ impl SemanticContext {
             }
             _ => {}
         }
+    }
+
+    fn check_cast_expression(
+        &mut self,
+        source: &HirExpr,
+        target: crate::types::TypeRef,
+        span: Span,
+    ) {
+        if self.is_unknown_type(source.ty.id) || self.is_unknown_type(target.id) {
+            return;
+        }
+
+        if self.is_allowed_cast(source.ty.id, target.id) {
+            return;
+        }
+
+        self.push_error(
+            DiagnosticCode::TypeMismatch,
+            span,
+            format!(
+                "Ralat: Cast tidak sah: tidak boleh cast {} kepada {}",
+                self.type_label(source.ty.id),
+                self.type_label(target.id)
+            ),
+            format!(
+                "Error: Invalid cast: cannot cast {} to {}",
+                self.type_label(source.ty.id),
+                self.type_label(target.id)
+            ),
+        );
+    }
+
+    fn is_allowed_cast(&self, source: crate::types::TypeId, target: crate::types::TypeId) -> bool {
+        self.types.is_equivalent(source, target)
+            || (self.is_integer_type(source) && self.is_integer_type(target))
+            || self.is_transitional_scalar_abi_cast(source, target)
+    }
+
+    fn is_transitional_scalar_abi_cast(
+        &self,
+        source: crate::types::TypeId,
+        target: crate::types::TypeId,
+    ) -> bool {
+        self.is_option_result_i64_scalar_abi(source) && self.is_i64_type(target)
     }
 
     fn check_field_access(&mut self, base: &HirExpr, field_name: &str, span: Span) {
@@ -1210,6 +1258,87 @@ mod tests {
         };
 
         assert!(ctx.check_module(&module).is_ok());
+    }
+
+    fn hir_function_returning_i64(
+        ctx: &super::SemanticContext,
+        expr: crate::hir::HirExpr,
+    ) -> crate::hir::HirModule {
+        crate::hir::HirModule {
+            items: vec![spanned(crate::hir::HirItem::Function(
+                crate::hir::HirFunction {
+                    name: "cast_test".to_string(),
+                    symbol: crate::hir::SymbolId(0),
+                    params: vec![],
+                    return_type: crate::types::TypeRef {
+                        id: ctx.types.primitive_ids().i64_,
+                    },
+                    body: crate::hir::HirBlock {
+                        statements: vec![spanned(crate::hir::HirStmt::Return(Some(expr)))],
+                    },
+                    safety: SafetyContext::Safe,
+                },
+            ))],
+        }
+    }
+
+    #[test]
+    fn accepts_same_type_hir_cast() {
+        let mut ctx = base_context();
+        let ids = ctx.types.primitive_ids();
+        let i64_ref = crate::types::TypeRef { id: ids.i64_ };
+
+        let cast = crate::hir::HirExpr {
+            kind: crate::hir::HirExprKind::Cast {
+                expr: Box::new(expr_i64(&ctx.types, 7)),
+                target: i64_ref,
+            },
+            ty: i64_ref,
+            span: Span::unknown(),
+        };
+
+        let module = hir_function_returning_i64(&ctx, cast);
+        ctx.check_module(&module)
+            .expect("same-type HIR cast should pass");
+    }
+
+    #[test]
+    fn rejects_invalid_unit_to_i64_hir_cast() {
+        let mut ctx = base_context();
+        let ids = ctx.types.primitive_ids();
+        let unit_ref = crate::types::TypeRef { id: ids.unit };
+        let i64_ref = crate::types::TypeRef { id: ids.i64_ };
+
+        let unit_expr = crate::hir::HirExpr {
+            kind: crate::hir::HirExprKind::Literal(crate::hir::LiteralAst::Unit),
+            ty: unit_ref,
+            span: Span::unknown(),
+        };
+
+        let cast = crate::hir::HirExpr {
+            kind: crate::hir::HirExprKind::Cast {
+                expr: Box::new(unit_expr),
+                target: i64_ref,
+            },
+            ty: i64_ref,
+            span: Span::unknown(),
+        };
+
+        let module = hir_function_returning_i64(&ctx, cast);
+        let diagnostics = ctx
+            .check_module(&module)
+            .expect_err("Unit -> I64 HIR cast should fail");
+
+        let rendered = diagnostics
+            .iter()
+            .map(|d| format!("{} / {}", d.message_ms, d.message_en))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(
+            rendered.contains("Invalid cast") || rendered.contains("Cast tidak sah"),
+            "expected invalid cast diagnostic, got:\n{rendered}"
+        );
     }
 }
 
