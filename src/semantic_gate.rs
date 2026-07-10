@@ -86,7 +86,83 @@ impl SemanticContext {
                 self.current_return_type = previous_return_type;
                 self.safety_context = previous_safety;
             }
-            HirItem::Struct(_) | HirItem::Enum(_) | HirItem::ExternFunction(_) => {}
+            HirItem::Struct(struct_decl) => {
+                self.check_struct_declaration(struct_decl, item.span);
+            }
+            HirItem::Enum(_) | HirItem::ExternFunction(_) => {}
+        }
+    }
+
+    fn check_struct_declaration(&mut self, struct_decl: &crate::hir::HirStructDecl, span: Span) {
+        let mut seen_fields = std::collections::BTreeSet::new();
+
+        for field in &struct_decl.fields {
+            if !seen_fields.insert(field.name.clone()) {
+                self.push_error(
+                    DiagnosticCode::LayoutError,
+                    span,
+                    format!(
+                        "Ralat: Medan struct `{}` diisytihar lebih daripada sekali dalam `{}`",
+                        field.name, struct_decl.name
+                    ),
+                    format!(
+                        "Error: Struct field `{}` is declared more than once in `{}`",
+                        field.name, struct_decl.name
+                    ),
+                );
+            }
+
+            if self.is_unknown_type(field.ty.id) {
+                self.push_error(
+                    DiagnosticCode::LayoutError,
+                    span,
+                    format!(
+                        "Ralat: Medan struct `{}.{}` menggunakan jenis yang tidak diketahui",
+                        struct_decl.name, field.name
+                    ),
+                    format!(
+                        "Error: Struct field `{}.{}` uses an unknown type",
+                        struct_decl.name, field.name
+                    ),
+                );
+                continue;
+            }
+
+            match self.types.resolve(field.ty.id) {
+                crate::types::TypeKind::Struct(layout_id) => {
+                    if let Some(layout) = self.types.get_struct_layout(*layout_id) {
+                        if layout.name == struct_decl.name {
+                            self.push_error(
+                                DiagnosticCode::LayoutError,
+                                span,
+                                format!(
+                                    "Ralat: Struct `{}` mengandungi medan rekursif by-value `{}`",
+                                    struct_decl.name, field.name
+                                ),
+                                format!(
+                                    "Error: Struct `{}` contains recursive by-value field `{}`",
+                                    struct_decl.name, field.name
+                                ),
+                            );
+                        }
+                    }
+                }
+                crate::types::TypeKind::Never => {
+                    self.push_error(
+                        DiagnosticCode::LayoutError,
+                        span,
+                        format!(
+                            "Ralat: Medan struct `{}.{}` menggunakan jenis Never yang tiada layout nilai",
+                            struct_decl.name, field.name
+                        ),
+                        format!(
+                            "Error: Struct field `{}.{}` uses Never, which has no value layout",
+                            struct_decl.name, field.name
+                        ),
+                    );
+                }
+                _ => {}
+            }
         }
     }
 
