@@ -195,7 +195,11 @@ impl SemanticContext {
     }
 
     fn block_definitely_returns(&self, block: &HirBlock) -> bool {
-        self.block_definitely_returns_with_tail_values(block, true)
+        // P0 fail-fast policy: only explicit return/control-flow returns satisfy
+        // a non-Unit function return obligation. Tail expressions are still HIR
+        // `Expr` statements and codegen discards their value; treating them as
+        // returns would silently reach codegen's implicit return-zero fallback.
+        self.block_definitely_returns_with_tail_values(block, false)
     }
 
     fn block_definitely_returns_with_tail_values(
