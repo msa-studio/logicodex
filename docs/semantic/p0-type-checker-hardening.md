@@ -260,3 +260,16 @@ Current P0 behavior:
 - Tail-expression returns may be reintroduced later only after HIR/codegen
   carries them as real return semantics rather than discarded expression
   statements.
+
+## Return value validation for Unit/unknown returns
+
+The active semantic gate now rejects invalid return value paths before codegen.
+
+Current P0 behavior:
+
+- A `Unit`/unknown-return function cannot silently return a value.
+- A return expression with unresolved result type fails semantic validation instead
+  of reaching backend type fallback handling.
+- Unit functions may still omit an explicit return.
+- Strict rejection of all unknown binding annotations is deferred until enum
+  annotations and unknown/missing type names can be distinguished cleanly.

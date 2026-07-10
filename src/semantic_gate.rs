@@ -368,6 +368,31 @@ impl SemanticContext {
                             self.check_call_result_used_as_value(expr, stmt.span, "return");
                         }
                         let actual = self.expression_effective_type(expr);
+
+                        if self.is_unit_type(expected) && !self.is_unit_type(actual) {
+                            self.push_error(
+                                DiagnosticCode::TypeMismatch,
+                                stmt.span,
+                                format!(
+                                    "Ralat: Fungsi Unit tidak boleh memulangkan nilai jenis {}",
+                                    self.type_label(actual)
+                                ),
+                                format!(
+                                    "Error: Unit function cannot return a value of type {}",
+                                    self.type_label(actual)
+                                ),
+                            );
+                        }
+
+                        if self.is_unknown_type(expected) || self.is_unknown_type(actual) {
+                            self.push_error(
+                                DiagnosticCode::TypeMismatch,
+                                stmt.span,
+                                "Ralat: Jenis pulangan tidak diketahui".to_string(),
+                                "Error: Return type is unknown".to_string(),
+                            );
+                        }
+
                         if !self.types_compatible(expected, actual) {
                             self.push_error(
                                 DiagnosticCode::TypeMismatch,

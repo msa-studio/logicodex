@@ -619,3 +619,34 @@ end
 "#,
     );
 }
+
+#[test]
+fn unit_function_returning_value_fails() {
+    let output = check_fail(
+        r#"
+function main() -> Unit begin
+    return 1;
+end
+"#,
+    );
+
+    assert!(
+        output.contains("Unit function cannot return a value")
+            || output.contains("Fungsi Unit tidak boleh memulangkan nilai")
+            || output.contains("Return type is unknown")
+            || output.contains("Jenis pulangan tidak diketahui")
+            || output.contains("Return type mismatch"),
+        "expected Unit/unknown return value diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn unit_function_omitted_return_still_passes() {
+    check_ok(
+        r#"
+function main() -> Unit begin
+    let x: I64 = 1;
+end
+"#,
+    );
+}
