@@ -192,3 +192,25 @@ Debt note:
 - Full source cast syntax and pointer/provenance-aware cast policy are deferred.
 - This step only prevents internal HIR cast nodes from silently becoming codegen
   no-ops without semantic validation.
+
+## Struct declaration layout validation
+
+The active HIR semantic gate validates source-defined struct declarations before
+codegen.
+
+Current P0 behavior:
+
+- Duplicate field names in the same struct are rejected.
+- Struct fields with unknown field types are rejected.
+- Direct by-value self-recursive struct fields are rejected when they resolve to
+  the same struct layout.
+- Unknown recursive references may surface as unknown field-type diagnostics until
+  a later named-type predeclaration pass exists.
+- Valid struct declarations with known field types continue to pass.
+- Enum layout validation is deferred because current source enum syntax and
+  payload representation are not yet production-grade.
+
+Debt note:
+
+- Full recursive type analysis, pointer/provenance-aware recursive layouts, and
+  enum tagged-union layout remain future work.

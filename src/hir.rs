@@ -334,6 +334,7 @@ pub struct HirParam {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HirStructDecl {
+    pub name: String,
     pub symbol: SymbolId,
     pub fields: Vec<HirField>,
 }
@@ -1144,6 +1145,7 @@ impl<'a> LoweringContext<'a> {
                 })
             }
             ItemAst::Struct(decl) => HirItem::Struct(HirStructDecl {
+                name: decl.name.clone(),
                 symbol: self.symbols.define_symbol(decl.name),
                 fields: decl
                     .fields

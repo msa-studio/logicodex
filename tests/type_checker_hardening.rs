@@ -384,3 +384,81 @@ fn known_struct_field_still_passes() {
          PAPAR 1;\n",
     );
 }
+
+#[test]
+fn duplicate_struct_field_fails() {
+    let output = check_fail(
+        r#"
+struct Bad begin
+    x: I64;
+    x: I64;
+end
+
+PAPAR 1;
+"#,
+    );
+
+    assert!(
+        output.contains("Struct field `x` is declared more than once")
+            || output.contains("Medan struct `x` diisytihar lebih daripada sekali"),
+        "expected duplicate struct field diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn unknown_struct_field_type_fails() {
+    let output = check_fail(
+        r#"
+struct Bad begin
+    x: MissingType;
+end
+
+PAPAR 1;
+"#,
+    );
+
+    assert!(
+        output.contains("Struct field `Bad.x` uses an unknown type")
+            || output.contains("Medan struct `Bad.x` menggunakan jenis yang tidak diketahui"),
+        "expected unknown struct field type diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn recursive_struct_by_value_fails() {
+    let output = check_fail(
+        r#"
+struct Node begin
+    next: Node;
+end
+
+PAPAR 1;
+"#,
+    );
+
+    assert!(
+        output.contains("Struct field `Node.next` uses an unknown type")
+            || output.contains("Struct `Node` contains recursive by-value field `next`")
+            || output.contains("Medan struct `Node.next` menggunakan jenis yang tidak diketahui")
+            || output.contains("mengandungi medan rekursif by-value"),
+        "expected recursive/unknown struct field diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn valid_struct_layout_still_passes() {
+    check_ok(
+        r#"
+struct Point begin
+    x: I64;
+    y: I64;
+end
+
+function get_x(p: Point) -> I64 begin
+    return p.x;
+end
+
+PAPAR 1;
+"#,
+    );
+}
