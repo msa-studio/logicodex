@@ -1513,8 +1513,26 @@ impl<'a> LoweringContext<'a> {
                 let tag = self
                     .types
                     .enum_variant_tag(&enum_name, &variant)
-                    .or_else(|| self.types.enum_variant_tag_any(&variant))
-                    .unwrap_or(0);
+                    .or_else(|| self.types.enum_variant_tag_any(&variant));
+
+                let tag = match tag {
+                    Some(tag) => tag,
+                    None => {
+                        self.push_lowering_error(
+                            span,
+                            format!(
+                                "Ralat: Varian enum `{}::{}` tidak ditemui",
+                                enum_name, variant
+                            ),
+                            format!(
+                                "Error: Enum variant `{}::{}` was not found",
+                                enum_name, variant
+                            ),
+                        );
+                        0
+                    }
+                };
+
                 let i64_id = self.types.primitive(PrimitiveType::I64);
                 HirExpr {
                     kind: HirExprKind::Literal(LiteralAst::Integer(tag)),
