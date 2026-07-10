@@ -462,3 +462,21 @@ PAPAR 1;
 "#,
     );
 }
+
+#[test]
+fn unknown_enum_variant_fails_in_hir_lowering() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    return MissingEnum::MissingVariant;
+end
+"#,
+    );
+
+    assert!(
+        output.contains("Enum variant `MissingEnum::MissingVariant` was not found")
+            || output.contains("Varian enum `MissingEnum::MissingVariant` tidak ditemui")
+            || output.contains("HIR lowering failed"),
+        "expected unknown enum variant diagnostic, got:\n{output}"
+    );
+}

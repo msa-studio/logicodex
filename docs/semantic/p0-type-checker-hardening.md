@@ -214,3 +214,17 @@ Debt note:
 
 - Full recursive type analysis, pointer/provenance-aware recursive layouts, and
   enum tagged-union layout remain future work.
+
+## Enum variant lowering validation
+
+The HIR lowering path now rejects unresolved enum variant references instead of
+silently lowering them to tag `0`.
+
+Current P0 behavior:
+
+- Known enum variants continue to lower to their numeric tag.
+- Unknown `Enum::Variant` references produce a lowering diagnostic.
+- The lowered placeholder tag remains `0` only after an emitted diagnostic, so
+  `check`/`compile` fail instead of producing a successful binary.
+- Full enum payload/layout validation remains deferred until source enum syntax
+  and tagged-union representation are production-grade.
