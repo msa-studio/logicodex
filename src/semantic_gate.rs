@@ -248,7 +248,7 @@ impl SemanticContext {
             return false;
         }
 
-        self.types_compatible(expected, expr.ty.id)
+        self.types_compatible(expected, self.expression_effective_type(expr))
     }
 
     fn check_block(&mut self, block: &HirBlock) {
@@ -262,19 +262,23 @@ impl SemanticContext {
             HirStmt::Let { ty, value, .. } => {
                 if let Some(value) = value {
                     self.check_expression(value);
-                    if !self.types_compatible(ty.id, value.ty.id) {
+                    if !self.is_unit_type(ty.id) {
+                        self.check_call_result_used_as_value(value, stmt.span, "binding");
+                    }
+                    let actual = self.expression_effective_type(value);
+                    if !self.types_compatible(ty.id, actual) {
                         self.push_error(
                             DiagnosticCode::TypeMismatch,
                             stmt.span,
                             format!(
                                 "Ralat: Jenis ikatan tidak sepadan: dijangka {}, diterima {}",
                                 self.type_label(ty.id),
-                                self.type_label(value.ty.id)
+                                self.type_label(actual)
                             ),
                             format!(
                                 "Error: Binding type mismatch: expected {}, got {}",
                                 self.type_label(ty.id),
-                                self.type_label(value.ty.id)
+                                self.type_label(actual)
                             ),
                         );
                     }
@@ -356,19 +360,23 @@ impl SemanticContext {
                 Some(expr) => {
                     self.check_expression(expr);
                     if let Some(expected) = self.current_return_type {
-                        if !self.types_compatible(expected, expr.ty.id) {
+                        if !self.is_unit_type(expected) {
+                            self.check_call_result_used_as_value(expr, stmt.span, "return");
+                        }
+                        let actual = self.expression_effective_type(expr);
+                        if !self.types_compatible(expected, actual) {
                             self.push_error(
                                 DiagnosticCode::TypeMismatch,
                                 stmt.span,
                                 format!(
                                     "Ralat: Jenis pulangan tidak sepadan: dijangka {}, diterima {}",
                                     self.type_label(expected),
-                                    self.type_label(expr.ty.id)
+                                    self.type_label(actual)
                                 ),
                                 format!(
                                     "Error: Return type mismatch: expected {}, got {}",
                                     self.type_label(expected),
-                                    self.type_label(expr.ty.id)
+                                    self.type_label(actual)
                                 ),
                             );
                         }
@@ -464,7 +472,15 @@ impl SemanticContext {
                         for (idx, (expected, actual)) in
                             expected_params.iter().copied().zip(args.iter()).enumerate()
                         {
-                            if !self.types_compatible(expected, actual.ty.id) {
+                            if !self.is_unit_type(expected) {
+                                self.check_call_result_used_as_value(
+                                    actual,
+                                    actual.span,
+                                    "argument",
+                                );
+                            }
+                            let actual_ty = self.expression_effective_type(actual);
+                            if !self.types_compatible(expected, actual_ty) {
                                 self.push_error(
                                     DiagnosticCode::TypeMismatch,
                                     actual.span,
@@ -472,13 +488,13 @@ impl SemanticContext {
                                         "Ralat: Jenis argumen fungsi `{name}` tidak sepadan pada argumen {}: dijangka {}, diterima {}",
                                         idx + 1,
                                         self.type_label(expected),
-                                        self.type_label(actual.ty.id)
+                                        self.type_label(actual_ty)
                                     ),
                                     format!(
                                         "Error: Function `{name}` argument {} type mismatch: expected {}, got {}",
                                         idx + 1,
                                         self.type_label(expected),
-                                        self.type_label(actual.ty.id)
+                                        self.type_label(actual_ty)
                                     ),
                                 );
                             }
@@ -530,6 +546,67 @@ impl SemanticContext {
                         });
                     }
                 }
+            }
+            _ => {}
+        }
+    }
+
+    fn expression_effective_type(&self, expr: &HirExpr) -> crate::types::TypeId {
+        match &expr.kind {
+            HirExprKind::Call { callee, .. } => {
+                self.symbols.callable_return(*callee).unwrap_or(expr.ty.id)
+            }
+            _ => expr.ty.id,
+        }
+    }
+
+    fn check_call_result_used_as_value(&mut self, expr: &HirExpr, span: Span, context: &str) {
+        let HirExprKind::Call { callee, .. } = &expr.kind else {
+            return;
+        };
+
+        let name = self
+            .symbols
+            .callable_name(*callee)
+            .unwrap_or("<unknown>")
+            .to_string();
+
+        match self.symbols.callable_return(*callee) {
+            Some(return_type) if self.is_unit_type(return_type) => {
+                self.push_error(
+                    DiagnosticCode::TypeMismatch,
+                    span,
+                    format!(
+                        "Ralat: Panggilan `{name}` memulangkan Unit dan tidak boleh digunakan sebagai nilai dalam {context}"
+                    ),
+                    format!(
+                        "Error: Call `{name}` returns Unit and cannot be used as a value in {context}"
+                    ),
+                );
+            }
+            Some(return_type) if self.is_unknown_type(return_type) => {
+                self.push_error(
+                    DiagnosticCode::TypeMismatch,
+                    span,
+                    format!(
+                        "Ralat: Jenis hasil panggilan `{name}` tidak dapat diselesaikan untuk digunakan sebagai nilai dalam {context}"
+                    ),
+                    format!(
+                        "Error: Call `{name}` result type could not be resolved for value use in {context}"
+                    ),
+                );
+            }
+            None => {
+                self.push_error(
+                    DiagnosticCode::TypeMismatch,
+                    span,
+                    format!(
+                        "Ralat: Jenis hasil panggilan `{name}` tidak diketahui untuk digunakan sebagai nilai dalam {context}"
+                    ),
+                    format!(
+                        "Error: Call `{name}` result type is unknown for value use in {context}"
+                    ),
+                );
             }
             _ => {}
         }

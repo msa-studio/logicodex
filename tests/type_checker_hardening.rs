@@ -480,3 +480,42 @@ end
         "expected unknown enum variant diagnostic, got:\n{output}"
     );
 }
+
+#[test]
+fn unit_call_used_as_i64_return_fails() {
+    let output = check_fail(
+        r#"
+function noop() -> Unit begin
+end
+
+function main() -> I64 begin
+    return noop();
+end
+"#,
+    );
+
+    assert!(
+        output.contains("returns Unit and cannot be used as a value")
+            || output.contains("result type could not be resolved")
+            || output.contains("result type is unknown")
+            || output.contains("Return type mismatch")
+            || output.contains("tidak boleh digunakan sebagai nilai")
+            || output.contains("Jenis hasil panggilan"),
+        "expected Unit/non-value call result diagnostic, got:\n{output}"
+    );
+}
+
+#[test]
+fn unit_call_statement_still_passes() {
+    check_ok(
+        r#"
+function noop() -> Unit begin
+end
+
+function main() -> I64 begin
+    noop();
+    return 1;
+end
+"#,
+    );
+}
