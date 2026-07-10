@@ -1697,7 +1697,32 @@ impl<'a> LoweringContext<'a> {
 
     fn lower_type(&mut self, ty: TypeAst) -> TypeRef {
         let id = match ty {
-            TypeAst::Named(name) => named_type_id(self.types, &name),
+            TypeAst::Named(name) => {
+                if name == "Unit" {
+                    unit_ref(self.types).id
+                } else if self.types.has_enum(&name) {
+                    // P0 transitional enum ABI: known enum annotations carry
+                    // scalar tag values until full TypeKind::Enum identity is
+                    // enforced end-to-end.
+                    i64_ref(self.types).id
+                } else {
+                    let lowered_id = named_type_id(self.types, &name);
+                    if matches!(
+                        self.types.resolve(lowered_id),
+                        crate::types::TypeKind::Unknown
+                    ) {
+                        self.diagnostics.push(Diagnostic {
+                            code: DiagnosticCode::ParserUnsupportedFeature,
+                            severity: Severity::Error,
+                            message_ms: format!("Ralat: Jenis `{name}` tidak ditemui"),
+                            message_en: format!("Error: Type `{name}` was not found"),
+                            primary_span: Span::unknown(),
+                            notes: Vec::new(),
+                        });
+                    }
+                    lowered_id
+                }
+            }
             TypeAst::Pointer(inner) => {
                 let pointee = self.lower_type(*inner);
                 self.types.intern(TypeKind::Pointer {
