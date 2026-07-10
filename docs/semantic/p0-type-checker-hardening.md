@@ -273,3 +273,14 @@ Current P0 behavior:
 - Unit functions may still omit an explicit return.
 - Strict rejection of all unknown binding annotations is deferred until enum
   annotations and unknown/missing type names can be distinguished cleanly.
+
+## Exact enum qualifier validation
+
+Qualified enum references now require an exact enum-name match.
+
+Current P0 behavior:
+
+- `Status::Ready` resolves only through enum `Status`.
+- `MissingEnum::Ready` fails even if another enum has a `Ready` variant.
+- Variant-name-only fallback is not allowed for qualified `Enum::Variant`
+  references.

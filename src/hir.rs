@@ -1510,10 +1510,7 @@ impl<'a> LoweringContext<'a> {
                 }
             }
             ExprAst::EnumVariant { enum_name, variant } => {
-                let tag = self
-                    .types
-                    .enum_variant_tag(&enum_name, &variant)
-                    .or_else(|| self.types.enum_variant_tag_any(&variant));
+                let tag = self.types.enum_variant_tag(&enum_name, &variant);
 
                 let tag = match tag {
                     Some(tag) => tag,
