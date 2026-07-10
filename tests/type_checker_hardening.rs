@@ -650,3 +650,27 @@ end
 "#,
     );
 }
+
+#[test]
+fn wrong_enum_qualifier_for_existing_variant_fails() {
+    let output = check_fail(
+        r#"
+enum Status begin
+    Ready;
+    Done;
+end
+
+function main() -> I64 begin
+    let s: Status = MissingEnum::Ready;
+    return 1;
+end
+"#,
+    );
+
+    assert!(
+        output.contains("Enum variant `MissingEnum::Ready` was not found")
+            || output.contains("Varian enum `MissingEnum::Ready` tidak ditemui")
+            || output.contains("HIR lowering failed"),
+        "expected wrong enum qualifier diagnostic, got:\n{output}"
+    );
+}
