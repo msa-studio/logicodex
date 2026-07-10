@@ -244,3 +244,19 @@ Current P0 behavior:
   is intentionally discarded.
 - This prevents void/no-value calls from reaching codegen and becoming fallback
   zero values.
+
+## Explicit return policy
+
+The active semantic gate now requires explicit `return` statements for non-Unit
+functions.
+
+Current P0 behavior:
+
+- A non-Unit function must have an explicit guaranteed return path.
+- Tail expressions such as `42;` or `Point(1, 2);` do not satisfy return
+  obligations yet because they lower to `HirStmt::Expr`.
+- Codegen currently discards `HirStmt::Expr` values and may otherwise add an
+  implicit fallback `return 0`; the semantic gate prevents that path.
+- Tail-expression returns may be reintroduced later only after HIR/codegen
+  carries them as real return semantics rather than discarded expression
+  statements.

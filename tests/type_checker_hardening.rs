@@ -295,10 +295,15 @@ fn unit_function_without_return_still_passes() {
 }
 
 #[test]
-fn non_unit_function_with_tail_expression_still_passes() {
-    check_ok("function good_tail() -> I64 begin\n    1;\nend\nPAPAR good_tail();\n");
+fn non_unit_function_with_explicit_return_still_passes() {
+    check_ok(
+        r#"
+function main() -> I64 begin
+    return 42;
+end
+"#,
+    );
 }
-
 #[test]
 fn exhaustive_result_match_satisfies_missing_return() {
     check_ok(
@@ -514,6 +519,101 @@ end
 
 function main() -> I64 begin
     noop();
+    return 1;
+end
+"#,
+    );
+}
+
+#[test]
+fn tail_i64_expression_requires_explicit_return() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    42;
+end
+"#,
+    );
+
+    assert!(
+        output.contains("must have a guaranteed return path")
+            || output.contains("mesti mempunyai laluan return yang dijamin"),
+        "expected missing return diagnostic for tail expression, got:\n{output}"
+    );
+}
+
+#[test]
+fn tail_i64_call_requires_explicit_return() {
+    let output = check_fail(
+        r#"
+function id(x: I64) -> I64 begin
+    return x;
+end
+
+function main() -> I64 begin
+    id(42);
+end
+"#,
+    );
+
+    assert!(
+        output.contains("must have a guaranteed return path")
+            || output.contains("mesti mempunyai laluan return yang dijamin"),
+        "expected missing return diagnostic for tail call, got:\n{output}"
+    );
+}
+
+#[test]
+fn tail_struct_constructor_requires_explicit_return() {
+    let output = check_fail(
+        r#"
+struct Point begin
+    x: I64;
+    y: I64;
+end
+
+function mk() -> Point begin
+    Point(1, 2);
+end
+
+function main() -> I64 begin
+    return 1;
+end
+"#,
+    );
+
+    assert!(
+        output.contains("must have a guaranteed return path")
+            || output.contains("mesti mempunyai laluan return yang dijamin"),
+        "expected missing return diagnostic for tail constructor, got:\n{output}"
+    );
+}
+
+#[test]
+fn explicit_i64_return_still_passes() {
+    check_ok(
+        r#"
+function main() -> I64 begin
+    return 42;
+end
+"#,
+    );
+}
+
+#[test]
+fn explicit_struct_constructor_return_still_passes() {
+    check_ok(
+        r#"
+struct Point begin
+    x: I64;
+    y: I64;
+end
+
+function mk() -> Point begin
+    return Point(1, 2);
+end
+
+function main() -> I64 begin
     return 1;
 end
 "#,
