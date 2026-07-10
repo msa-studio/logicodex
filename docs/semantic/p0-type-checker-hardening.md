@@ -168,3 +168,27 @@ Current P0 behavior:
 - Unknown base types remain tolerated to avoid cascading diagnostics.
 - HIR preserves the original field name so diagnostics can identify the failed
   field instead of reporting only a lowered field index.
+
+## Cast validation
+
+The active HIR semantic gate validates internal `HirExprKind::Cast` nodes before
+codegen.
+
+Current P0 behavior:
+
+- Source-level `x as T` syntax is still parser-blocked and intentionally not
+  enabled by this step.
+- Same-type casts are allowed.
+- Integer-to-integer casts are allowed under the current uniform integer codegen
+  model.
+- Transitional `Option<I64>` / `Result<I64, I64>` scalar ABI casts to `I64` are
+  allowed for current match-lowering foundations.
+- Struct, array, Unit, function, and pointer casts are rejected unless a future
+  explicit capability/provenance rule allows them.
+- Unknown source/target types remain tolerated to avoid cascading diagnostics.
+
+Debt note:
+
+- Full source cast syntax and pointer/provenance-aware cast policy are deferred.
+- This step only prevents internal HIR cast nodes from silently becoming codegen
+  no-ops without semantic validation.
