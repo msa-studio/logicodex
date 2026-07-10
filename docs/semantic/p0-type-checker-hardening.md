@@ -228,3 +228,19 @@ Current P0 behavior:
   `check`/`compile` fail instead of producing a successful binary.
 - Full enum payload/layout validation remains deferred until source enum syntax
   and tagged-union representation are production-grade.
+
+## Call result value validation
+
+The active HIR semantic gate now rejects calls that do not produce a usable value
+when they appear in value-required positions.
+
+Current P0 behavior:
+
+- A call returning `Unit` cannot be used as an `I64` return value, binding value,
+  or non-Unit function argument.
+- A call with an unresolved/unknown result type cannot silently satisfy a
+  value-required position.
+- Unit-returning calls remain valid as expression statements where their result
+  is intentionally discarded.
+- This prevents void/no-value calls from reaching codegen and becoming fallback
+  zero values.
