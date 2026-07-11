@@ -73,6 +73,11 @@ pub enum Severity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DiagnosticCode {
     ParserUnsupportedFeature,
+    UnknownName,
+    UnknownFunction,
+    UnknownType,
+    UnknownEnumVariant,
+    EnumTypeMismatch,
     TypeMismatch,
     UnsafeBoundaryViolation,
     FfiBoundaryViolation,
