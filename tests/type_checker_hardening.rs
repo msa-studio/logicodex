@@ -998,3 +998,101 @@ end
         "{output}"
     );
 }
+
+#[test]
+fn unknown_name_uses_recovered_source_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let a = 1;
+    let b = 2;
+    return missing_name;
+end
+"#,
+    );
+
+    assert!(output.contains("UnknownName"), "{output}");
+    assert!(output.contains("missing_name"), "{output}");
+    assert!(!output.contains("start_line: 0, start_col: 0"), "{output}");
+}
+
+#[test]
+fn unknown_function_uses_recovered_source_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let a = 1;
+    return missing_fn();
+end
+"#,
+    );
+
+    assert!(output.contains("UnknownFunction"), "{output}");
+    assert!(output.contains("missing_fn"), "{output}");
+    assert!(!output.contains("start_line: 0, start_col: 0"), "{output}");
+}
+
+#[test]
+fn unknown_type_uses_recovered_source_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let a = 1;
+    let x: MissingType = 1;
+    return a;
+end
+"#,
+    );
+
+    assert!(output.contains("UnknownType"), "{output}");
+    assert!(output.contains("MissingType"), "{output}");
+    assert!(!output.contains("start_line: 0, start_col: 0"), "{output}");
+}
+
+#[test]
+fn unknown_enum_variant_uses_recovered_source_span() {
+    let output = check_fail(
+        r#"
+enum Status begin
+    Ready;
+    Done;
+end
+
+function main() -> I64 begin
+    let a = 1;
+    let s: Status = Status::Missing;
+    return a;
+end
+"#,
+    );
+
+    assert!(output.contains("UnknownEnumVariant"), "{output}");
+    assert!(output.contains("Status::Missing"), "{output}");
+    assert!(!output.contains("start_line: 0, start_col: 0"), "{output}");
+}
+
+#[test]
+fn wrong_enum_qualifier_uses_recovered_source_span() {
+    let output = check_fail(
+        r#"
+enum Status begin
+    Ready;
+    Done;
+end
+
+enum Other begin
+    Ready;
+end
+
+function main() -> I64 begin
+    let a = 1;
+    let s: Status = Other::Ready;
+    return a;
+end
+"#,
+    );
+
+    assert!(output.contains("EnumTypeMismatch"), "{output}");
+    assert!(output.contains("Other::Ready"), "{output}");
+    assert!(!output.contains("start_line: 0, start_col: 0"), "{output}");
+}

@@ -437,6 +437,81 @@ fn first_pending_actor_op(module: &hir::HirModule) -> Option<&'static str> {
     None
 }
 
+fn is_unknown_span(span: span::Span) -> bool {
+    span.file_id == span::FileId(0)
+        && span.start_line == 0
+        && span.start_col == 0
+        && span.end_line == 0
+        && span.end_col == 0
+}
+
+fn text_between(message: &str, prefix: &str, suffix: &str) -> Option<String> {
+    let start = message.find(prefix)? + prefix.len();
+    let rest = &message[start..];
+    let end = rest.find(suffix)?;
+    Some(rest[..end].to_string())
+}
+
+fn diagnostic_needle(diagnostic: &span::Diagnostic) -> Option<String> {
+    match diagnostic.code {
+        span::DiagnosticCode::UnknownName => {
+            text_between(&diagnostic.message_en, "Name '", "' was not found")
+        }
+        span::DiagnosticCode::UnknownFunction => {
+            text_between(&diagnostic.message_en, "Function '", "' was not found")
+                .or_else(|| text_between(&diagnostic.message_en, "Function `", "` was not found"))
+        }
+        span::DiagnosticCode::UnknownType => {
+            text_between(&diagnostic.message_en, "Type `", "` was not found")
+        }
+        span::DiagnosticCode::UnknownEnumVariant => {
+            text_between(&diagnostic.message_en, "Enum variant `", "` was not found")
+        }
+        span::DiagnosticCode::EnumTypeMismatch => {
+            text_between(&diagnostic.message_en, "Enum variant `", "` does not match")
+                .or_else(|| text_between(&diagnostic.message_en, "Call returns enum `", "` but"))
+        }
+        _ => None,
+    }
+}
+
+fn source_span_for_needle(source: &str, needle: &str) -> Option<span::Span> {
+    if needle.is_empty() {
+        return None;
+    }
+
+    let byte_index = source.find(needle)?;
+    let before = &source[..byte_index];
+    let line = before.chars().filter(|ch| *ch == '\n').count() as u32 + 1;
+
+    let line_start = before.rfind('\n').map(|idx| idx + 1).unwrap_or(0);
+    let col = source[line_start..byte_index].chars().count() as u32 + 1;
+    let end_col = col + needle.chars().count() as u32;
+
+    Some(span::Span::new(span::FileId(0), line, col, line, end_col))
+}
+
+fn recover_hir_lowering_spans(source: &str, diagnostics: &mut [span::Diagnostic]) {
+    for diagnostic in diagnostics {
+        if !is_unknown_span(diagnostic.primary_span) {
+            continue;
+        }
+
+        let Some(needle) = diagnostic_needle(diagnostic) else {
+            continue;
+        };
+
+        if let Some(span) = source_span_for_needle(source, &needle) {
+            diagnostic.primary_span = span;
+        }
+    }
+}
+
+fn hir_lowering_error(source: &str, mut diagnostics: Vec<span::Diagnostic>) -> anyhow::Error {
+    recover_hir_lowering_spans(source, &mut diagnostics);
+    anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diagnostics)
+}
+
 /// HIR compilation pipeline with CallableRegistry + Raylib FFI.
 /// Lower a (possibly multi-module) program to a single merged HirModule on one
 /// shared LoweringContext. If the root program has no `import` statements this
@@ -453,13 +528,14 @@ fn lower_with_modules(
     lowering: &mut hir::LoweringContext,
     file: &Path,
     dict: &Path,
+    root_source: &str,
     root_program: ast::Program,
 ) -> Result<hir::HirModule> {
     // Fast path: no imports -> behave exactly like before (single file).
     if module_loader::imports_of(&root_program).is_empty() {
         return lowering
             .lower_program(root_program)
-            .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags));
+            .map_err(|diags| hir_lowering_error(root_source, diags));
     }
 
     // Multi-module path. Parsing is injected into the loader as a closure so the
@@ -487,7 +563,7 @@ fn lower_with_modules(
             // Root: keep the main-wrap so top-level statements run.
             lowering
                 .lower_program(module.program)
-                .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags))?
+                .map_err(|diags| hir_lowering_error(root_source, diags))?
         } else {
             // Imported module: function-only, mangled, no main-wrap.
             lowering
@@ -531,7 +607,7 @@ fn compile_v130_pipeline(
             current_module: String::new(),
             current_return_enum: None,
         };
-        lower_with_modules(&mut lowering, file, dict, program)?
+        lower_with_modules(&mut lowering, file, dict, &source, program)?
     };
 
     // Actor/channel runtime is reserved for Phase B (pthread-based). The HIR is
@@ -872,7 +948,7 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
             current_module: String::new(),
             current_return_enum: None,
         };
-        lower_with_modules(&mut lowering, file, dict, program)?
+        lower_with_modules(&mut lowering, file, dict, &source, program)?
     };
 
     let mut callables = ffi::CallableRegistry::default();
