@@ -329,3 +329,20 @@ Guarded contexts:
 
 This keeps the current scalar ABI stable while preventing unrelated enum types
 from becoming silently interchangeable.
+
+## HIR diagnostic classification phase 1
+
+HIR-lowering semantic failures now use specific diagnostic codes instead of
+routing all such failures through `ParserUnsupportedFeature`.
+
+Phase 1 classification:
+
+- unknown value/name lookup: `UnknownName`
+- unknown function/callable lookup: `UnknownFunction`
+- unknown named type annotation: `UnknownType`
+- unknown enum variant: `UnknownEnumVariant`
+- wrong enum qualifier/enum identity mismatch: `EnumTypeMismatch`
+
+`ParserUnsupportedFeature` remains reserved for genuine unsupported syntax or
+capability gaps. Span quality is tracked separately; this phase does not rewrite
+span propagation.

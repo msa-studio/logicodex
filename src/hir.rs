@@ -753,7 +753,7 @@ impl<'a> LoweringContext<'a> {
     ) {
         match expr {
             ExprAst::EnumVariant { enum_name, variant } if enum_name != expected => {
-                self.push_lowering_error(
+                self.push_lowering_diagnostic(DiagnosticCode::EnumTypeMismatch,
                     span,
                     format!(
                         "Ralat: Varian enum `{}::{}` tidak sepadan dengan enum dijangka `{}` dalam {}",
@@ -768,7 +768,7 @@ impl<'a> LoweringContext<'a> {
             ExprAst::Call { .. } | ExprAst::QualifiedCall { .. } => {
                 if let Some(actual) = self.callable_return_enum_for_expr(expr) {
                     if actual != expected {
-                        self.push_lowering_error(
+                        self.push_lowering_diagnostic(DiagnosticCode::EnumTypeMismatch,
                             span,
                             format!(
                                 "Ralat: Panggilan memulangkan enum `{}` tetapi enum `{}` dijangka dalam {}",
@@ -1485,7 +1485,8 @@ impl<'a> LoweringContext<'a> {
                         span,
                     }
                 } else {
-                    self.push_lowering_error(
+                    self.push_lowering_diagnostic(
+                        DiagnosticCode::UnknownName,
                         span,
                         format!("Ralat: Nama '{name}' tidak ditemui"),
                         format!("Error: Name '{name}' was not found"),
@@ -1544,7 +1545,8 @@ impl<'a> LoweringContext<'a> {
                 let callee_id = match *callee {
                     ExprAst::Variable(name) => {
                         self.resolve_unqualified_callable(&name).unwrap_or_else(|| {
-                            self.push_lowering_error(
+                            self.push_lowering_diagnostic(
+                                DiagnosticCode::UnknownFunction,
                                 span,
                                 format!("Ralat: Fungsi '{name}' tidak ditemui"),
                                 format!("Error: Function '{name}' was not found"),
@@ -1593,7 +1595,7 @@ impl<'a> LoweringContext<'a> {
                 // same-module case plain Call uses.
                 let mangled = crate::module_loader::mangle_symbol(&module, &function);
                 let callee_id = self.symbols.lookup_callable(&mangled).unwrap_or_else(|| {
-                    self.push_lowering_error(
+                    self.push_lowering_diagnostic(DiagnosticCode::UnknownFunction,
                         span,
                         format!(
                             "Ralat: Fungsi `{module}.{function}` tidak ditemui (mungkin tidak diisytiharkan `public`, atau modul tidak diimport)"
@@ -1676,7 +1678,8 @@ impl<'a> LoweringContext<'a> {
                 let tag = match tag {
                     Some(tag) => tag,
                     None => {
-                        self.push_lowering_error(
+                        self.push_lowering_diagnostic(
+                            DiagnosticCode::UnknownEnumVariant,
                             span,
                             format!(
                                 "Ralat: Varian enum `{}::{}` tidak ditemui",
@@ -1873,7 +1876,7 @@ impl<'a> LoweringContext<'a> {
                         crate::types::TypeKind::Unknown
                     ) {
                         self.diagnostics.push(Diagnostic {
-                            code: DiagnosticCode::ParserUnsupportedFeature,
+                            code: DiagnosticCode::UnknownType,
                             severity: Severity::Error,
                             message_ms: format!("Ralat: Jenis `{name}` tidak ditemui"),
                             message_en: format!("Error: Type `{name}` was not found"),
@@ -1915,15 +1918,30 @@ impl<'a> LoweringContext<'a> {
         TypeRef { id }
     }
 
-    fn push_lowering_error(&mut self, span: Span, message_ms: String, message_en: String) {
+    fn push_lowering_diagnostic(
+        &mut self,
+        code: DiagnosticCode,
+        span: Span,
+        message_ms: String,
+        message_en: String,
+    ) {
         self.diagnostics.push(Diagnostic {
-            code: DiagnosticCode::ParserUnsupportedFeature,
+            code,
             severity: Severity::Error,
             message_ms,
             message_en,
             primary_span: span,
             notes: Vec::new(),
         });
+    }
+
+    fn push_lowering_error(&mut self, span: Span, message_ms: String, message_en: String) {
+        self.push_lowering_diagnostic(
+            DiagnosticCode::ParserUnsupportedFeature,
+            span,
+            message_ms,
+            message_en,
+        );
     }
 }
 
@@ -2604,10 +2622,7 @@ mod tests {
         let diagnostics = ctx
             .lower_module(module)
             .expect_err("unknown variable should fail");
-        assert_eq!(
-            diagnostics[0].code,
-            DiagnosticCode::ParserUnsupportedFeature
-        );
+        assert_eq!(diagnostics[0].code, DiagnosticCode::UnknownName);
         assert!(diagnostics[0].message_ms.contains("Ralat:"));
         assert!(diagnostics[0].message_en.contains("Error:"));
     }

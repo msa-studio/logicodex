@@ -896,3 +896,105 @@ end
         "{output}"
     );
 }
+
+#[test]
+fn unknown_name_uses_specific_diagnostic_code() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    return missing_name;
+end
+"#,
+    );
+
+    assert!(output.contains("UnknownName"), "{output}");
+    assert!(
+        !output.contains("code: ParserUnsupportedFeature"),
+        "{output}"
+    );
+}
+
+#[test]
+fn unknown_function_uses_specific_diagnostic_code() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    return missing_fn();
+end
+"#,
+    );
+
+    assert!(output.contains("UnknownFunction"), "{output}");
+    assert!(
+        !output.contains("code: ParserUnsupportedFeature"),
+        "{output}"
+    );
+}
+
+#[test]
+fn unknown_type_uses_specific_diagnostic_code() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let x: MissingType = 1;
+    return 1;
+end
+"#,
+    );
+
+    assert!(output.contains("UnknownType"), "{output}");
+    assert!(
+        !output.contains("code: ParserUnsupportedFeature"),
+        "{output}"
+    );
+}
+
+#[test]
+fn unknown_enum_variant_uses_specific_diagnostic_code() {
+    let output = check_fail(
+        r#"
+enum Status begin
+    Ready;
+    Done;
+end
+
+function main() -> I64 begin
+    let s: Status = Status::Missing;
+    return 1;
+end
+"#,
+    );
+
+    assert!(output.contains("UnknownEnumVariant"), "{output}");
+    assert!(
+        !output.contains("code: ParserUnsupportedFeature"),
+        "{output}"
+    );
+}
+
+#[test]
+fn wrong_enum_qualifier_uses_specific_diagnostic_code() {
+    let output = check_fail(
+        r#"
+enum Status begin
+    Ready;
+    Done;
+end
+
+enum Other begin
+    Ready;
+end
+
+function main() -> I64 begin
+    let s: Status = Other::Ready;
+    return 1;
+end
+"#,
+    );
+
+    assert!(output.contains("EnumTypeMismatch"), "{output}");
+    assert!(
+        !output.contains("code: ParserUnsupportedFeature"),
+        "{output}"
+    );
+}
