@@ -600,44 +600,48 @@ impl SemanticContext {
             .unwrap_or("<unknown>")
             .to_string();
 
-        match self.symbols.callable_return(*callee) {
-            Some(return_type) if self.is_unit_type(return_type) => {
-                self.push_error(
-                    DiagnosticCode::TypeMismatch,
-                    span,
-                    format!(
-                        "Ralat: Panggilan `{name}` memulangkan Unit dan tidak boleh digunakan sebagai nilai dalam {context}"
-                    ),
-                    format!(
-                        "Error: Call `{name}` returns Unit and cannot be used as a value in {context}"
-                    ),
-                );
-            }
-            Some(return_type) if self.is_unknown_type(return_type) => {
-                self.push_error(
-                    DiagnosticCode::TypeMismatch,
-                    span,
+        // HIR lowering already stamped call expressions with the effective
+        // callable return type. Compile-time semantic revalidation may not have
+        // the original lowering SymbolTable/CallableId metadata, so fall back to
+        // the HIR expression type instead of treating a known call as Unknown.
+        let return_type = self.symbols.callable_return(*callee).unwrap_or(expr.ty.id);
+
+        if self.is_unit_type(return_type) {
+            self.push_error(
+                DiagnosticCode::TypeMismatch,
+                span,
+                format!(
+                    "Ralat: Panggilan `{name}` memulangkan Unit dan tidak boleh digunakan sebagai nilai dalam {context}"
+                ),
+                format!(
+                    "Error: Call `{name}` returns Unit and cannot be used as a value in {context}"
+                ),
+            );
+        } else if self.is_unknown_type(return_type) {
+            let metadata_missing = self.symbols.callable_return(*callee).is_none();
+
+            self.push_error(
+                DiagnosticCode::TypeMismatch,
+                span,
+                if metadata_missing {
                     format!(
                         "Ralat: Jenis hasil panggilan `{name}` tidak dapat diselesaikan untuk digunakan sebagai nilai dalam {context}"
-                    ),
-                    format!(
-                        "Error: Call `{name}` result type could not be resolved for value use in {context}"
-                    ),
-                );
-            }
-            None => {
-                self.push_error(
-                    DiagnosticCode::TypeMismatch,
-                    span,
+                    )
+                } else {
                     format!(
                         "Ralat: Jenis hasil panggilan `{name}` tidak diketahui untuk digunakan sebagai nilai dalam {context}"
-                    ),
+                    )
+                },
+                if metadata_missing {
+                    format!(
+                        "Error: Call `{name}` result type could not be resolved for value use in {context}"
+                    )
+                } else {
                     format!(
                         "Error: Call `{name}` result type is unknown for value use in {context}"
-                    ),
-                );
-            }
-            _ => {}
+                    )
+                },
+            );
         }
     }
 

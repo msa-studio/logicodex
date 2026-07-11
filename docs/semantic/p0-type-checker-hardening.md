@@ -298,3 +298,18 @@ Current P0 behavior:
   ABI (`I64`) until full `TypeKind::Enum` identity is enforced end-to-end.
 - This avoids treating missing type names and known enum annotations as the same
   `Unknown` type.
+
+## HIR call result metadata fallback
+
+Call expressions now use their HIR-stamped expression type as the fallback source
+of truth when semantic revalidation cannot resolve callable metadata by
+`CallableId`.
+
+This keeps compile-time semantic revalidation aligned with HIR lowering without
+rehydrating a fresh callable table by name:
+
+- local function calls retain their return type during compile-time gate checks;
+- enum-returning functions retain the current transitional scalar ABI return type;
+- value-use validation no longer reports `Call <unknown>` for known local calls;
+- FFI symbol/capability metadata is not perturbed by a secondary callable
+  hydration pass.

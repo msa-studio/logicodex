@@ -740,3 +740,40 @@ end
 "#,
     );
 }
+
+#[test]
+fn hir_call_type_flows_to_i64_binding() {
+    check_ok(
+        r#"
+function value() -> I64 begin
+    return 7;
+end
+
+function main() -> I64 begin
+    let x: I64 = value();
+    return x;
+end
+"#,
+    );
+}
+
+#[test]
+fn hir_call_type_flows_to_enum_binding() {
+    check_ok(
+        r#"
+enum Status begin
+    Ready;
+    Done;
+end
+
+function status() -> Status begin
+    return Status::Ready;
+end
+
+function main() -> I64 begin
+    let s: Status = status();
+    return 1;
+end
+"#,
+    );
+}
