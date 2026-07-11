@@ -346,3 +346,20 @@ Phase 1 classification:
 `ParserUnsupportedFeature` remains reserved for genuine unsupported syntax or
 capability gaps. Span quality is tracked separately; this phase does not rewrite
 span propagation.
+
+## HIR diagnostic span recovery phase 1
+
+HIR-lowering diagnostics now recover source spans for key semantic failures when
+their primary span would otherwise be `Span::unknown()`.
+
+Phase 1 covers:
+
+- `UnknownName`
+- `UnknownFunction`
+- `UnknownType`
+- `UnknownEnumVariant`
+- `EnumTypeMismatch`
+
+This is a source-text recovery layer at the CLI pipeline boundary. It does not
+change parser grammar, AST shape, HIR semantics, ABI, or codegen. Full AST span
+propagation remains a later migration once the P0/CPB semantic gates are stable.
