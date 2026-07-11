@@ -537,6 +537,8 @@ pub struct SymbolTable {
     callables: HashMap<String, CallableId>,
     callable_returns: HashMap<CallableId, TypeId>,
     callable_params: HashMap<CallableId, Vec<TypeId>>,
+    callable_return_enums: HashMap<CallableId, Option<String>>,
+    callable_param_enums: HashMap<CallableId, Vec<Option<String>>>,
     /// Mangled names of callables declared `public`. A qualified cross-module
     /// call is permitted only if its resolved (mangled) target is in this set.
     public_callables: std::collections::HashSet<String>,
@@ -646,6 +648,24 @@ impl SymbolTable {
     pub fn callable_params(&self, id: CallableId) -> Option<&[TypeId]> {
         self.callable_params.get(&id).map(Vec::as_slice)
     }
+
+    pub fn set_callable_return_enum(&mut self, id: CallableId, enum_name: Option<String>) {
+        self.callable_return_enums.insert(id, enum_name);
+    }
+
+    pub fn callable_return_enum(&self, id: CallableId) -> Option<&str> {
+        self.callable_return_enums
+            .get(&id)
+            .and_then(|name| name.as_deref())
+    }
+
+    pub fn set_callable_param_enums(&mut self, id: CallableId, params: Vec<Option<String>>) {
+        self.callable_param_enums.insert(id, params);
+    }
+
+    pub fn callable_param_enums(&self, id: CallableId) -> Option<&[Option<String>]> {
+        self.callable_param_enums.get(&id).map(Vec::as_slice)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -664,6 +684,11 @@ pub struct LoweringContext<'a> {
     /// the reserved __ldx_mod_* namespace). Set by lower_module_as before each
     /// module is lowered.
     pub current_module: String,
+    /// Expected enum annotation for the function currently being lowered.
+    ///
+    /// P0 keeps enum ABI as scalar I64, so this preserves just enough source
+    /// enum identity to reject `return Other::Ready` from `-> Status`.
+    pub current_return_enum: Option<String>,
 }
 
 impl<'a> LoweringContext<'a> {
@@ -688,6 +713,101 @@ impl<'a> LoweringContext<'a> {
             }
         }
         self.symbols.lookup_callable(name)
+    }
+
+    fn enum_annotation_name(&self, ty: &TypeAst) -> Option<String> {
+        match ty {
+            TypeAst::Named(name) if self.types.has_enum(name) => Some(name.clone()),
+            _ => None,
+        }
+    }
+
+    fn callable_return_enum_for_expr(&self, expr: &ExprAst) -> Option<String> {
+        match expr {
+            ExprAst::Call { callee, .. } => match callee.as_ref() {
+                ExprAst::Variable(name) => self
+                    .resolve_unqualified_callable(name)
+                    .and_then(|callee| self.symbols.callable_return_enum(callee))
+                    .map(str::to_string),
+                _ => None,
+            },
+            ExprAst::QualifiedCall {
+                module, function, ..
+            } => {
+                let mangled = crate::module_loader::mangle_symbol(module, function);
+                self.symbols
+                    .lookup_callable(&mangled)
+                    .and_then(|callee| self.symbols.callable_return_enum(callee))
+                    .map(str::to_string)
+            }
+            _ => None,
+        }
+    }
+
+    fn check_expr_matches_expected_enum(
+        &mut self,
+        expected: &str,
+        expr: &ExprAst,
+        span: Span,
+        context: &str,
+    ) {
+        match expr {
+            ExprAst::EnumVariant { enum_name, variant } if enum_name != expected => {
+                self.push_lowering_error(
+                    span,
+                    format!(
+                        "Ralat: Varian enum `{}::{}` tidak sepadan dengan enum dijangka `{}` dalam {}",
+                        enum_name, variant, expected, context
+                    ),
+                    format!(
+                        "Error: Enum variant `{}::{}` does not match expected enum `{}` in {}",
+                        enum_name, variant, expected, context
+                    ),
+                );
+            }
+            ExprAst::Call { .. } | ExprAst::QualifiedCall { .. } => {
+                if let Some(actual) = self.callable_return_enum_for_expr(expr) {
+                    if actual != expected {
+                        self.push_lowering_error(
+                            span,
+                            format!(
+                                "Ralat: Panggilan memulangkan enum `{}` tetapi enum `{}` dijangka dalam {}",
+                                actual, expected, context
+                            ),
+                            format!(
+                                "Error: Call returns enum `{}` but enum `{}` is expected in {}",
+                                actual, expected, context
+                            ),
+                        );
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn check_call_argument_enum_qualifiers(
+        &mut self,
+        callee: CallableId,
+        args: &[ExprAst],
+        span: Span,
+    ) {
+        let expected_params = self
+            .symbols
+            .callable_param_enums(callee)
+            .map(|p| p.to_vec());
+
+        let Some(expected_params) = expected_params else {
+            return;
+        };
+
+        for (idx, arg) in args.iter().enumerate() {
+            let Some(Some(expected)) = expected_params.get(idx) else {
+                continue;
+            };
+
+            self.check_expr_matches_expected_enum(expected, arg, span, "argument");
+        }
     }
 }
 
@@ -1059,12 +1179,23 @@ impl<'a> LoweringContext<'a> {
                             .iter()
                             .map(|p| self.lower_type(p.ty.clone()).id)
                             .collect();
+                        let param_enums = function
+                            .params
+                            .iter()
+                            .map(|p| self.enum_annotation_name(&p.ty))
+                            .collect();
+                        let return_enum = function
+                            .return_type
+                            .as_ref()
+                            .and_then(|ty| self.enum_annotation_name(ty));
                         let ret = match function.return_type.clone() {
                             Some(t) => self.lower_type(t).id,
                             None => self.types.primitive(PrimitiveType::Unit),
                         };
                         self.symbols.set_callable_params(cid, params);
+                        self.symbols.set_callable_param_enums(cid, param_enums);
                         self.symbols.set_callable_return(cid, ret);
+                        self.symbols.set_callable_return_enum(cid, return_enum);
                     }
                 }
                 ItemAst::Struct(decl) => {
@@ -1087,9 +1218,17 @@ impl<'a> LoweringContext<'a> {
                                 .iter()
                                 .map(|p| self.lower_type(p.ty.clone()).id)
                                 .collect();
+                            let param_enums = function
+                                .params
+                                .iter()
+                                .map(|p| self.enum_annotation_name(&p.ty))
+                                .collect();
+                            let return_enum = self.enum_annotation_name(&function.return_type);
                             let ret = self.lower_type(function.return_type.clone()).id;
                             self.symbols.set_callable_params(cid, params);
+                            self.symbols.set_callable_param_enums(cid, param_enums);
                             self.symbols.set_callable_return(cid, ret);
+                            self.symbols.set_callable_return_enum(cid, return_enum);
                         }
                     }
                 }
@@ -1117,6 +1256,7 @@ impl<'a> LoweringContext<'a> {
             ItemAst::Function(function) => {
                 let symbol = self.symbols.define_symbol(function.name.clone());
                 self.symbols.enter_scope();
+                let return_type_ast = function.return_type.clone();
                 let params = function
                     .params
                     .into_iter()
@@ -1126,14 +1266,18 @@ impl<'a> LoweringContext<'a> {
                         HirParam { local, ty }
                     })
                     .collect();
+                let previous_return_enum = self.current_return_enum.clone();
+                self.current_return_enum = return_type_ast
+                    .as_ref()
+                    .and_then(|ty| self.enum_annotation_name(ty));
                 let body = self.lower_block(function.body);
+                self.current_return_enum = previous_return_enum;
                 self.symbols.exit_scope();
                 HirItem::Function(HirFunction {
                     name: self.module_fn_name(&function.name),
                     symbol,
                     params,
-                    return_type: function
-                        .return_type
+                    return_type: return_type_ast
                         .map(|ty| self.lower_type(ty))
                         .unwrap_or_else(|| unit_ref(self.types)),
                     body,
@@ -1200,6 +1344,11 @@ impl<'a> LoweringContext<'a> {
         let span = stmt.span;
         let node = match stmt.node {
             StmtAst::Let { name, ty, value } => {
+                let expected_enum = ty.as_ref().and_then(|ty| self.enum_annotation_name(ty));
+                if let (Some(expected), Some(expr)) = (expected_enum.as_deref(), value.as_ref()) {
+                    self.check_expr_matches_expected_enum(expected, expr, span, "binding");
+                }
+
                 let value = value.map(|expr| self.lower_expr(expr, span));
                 let ty = ty
                     .map(|ty| self.lower_type(ty))
@@ -1242,7 +1391,15 @@ impl<'a> LoweringContext<'a> {
                 HirStmt::HardwareDecl { local, ty, address }
             }
             StmtAst::Expr(expr) => HirStmt::Expr(self.lower_expr(expr, span)),
-            StmtAst::Return(expr) => HirStmt::Return(expr.map(|expr| self.lower_expr(expr, span))),
+            StmtAst::Return(expr) => {
+                if let (Some(expected), Some(expr)) =
+                    (self.current_return_enum.clone(), expr.as_ref())
+                {
+                    self.check_expr_matches_expected_enum(&expected, expr, span, "return");
+                }
+
+                HirStmt::Return(expr.map(|expr| self.lower_expr(expr, span)))
+            }
         };
         Some(Spanned { node, span })
     }
@@ -1379,6 +1536,7 @@ impl<'a> LoweringContext<'a> {
                 }
             }
             ExprAst::Call { callee, args } => {
+                let raw_args = args.clone();
                 let lowered_args: Vec<_> = args
                     .into_iter()
                     .map(|arg| self.lower_expr(arg, span))
@@ -1404,6 +1562,7 @@ impl<'a> LoweringContext<'a> {
                         CallableId(u32::MAX)
                     }
                 };
+                self.check_call_argument_enum_qualifiers(callee_id, &raw_args, span);
                 HirExpr {
                     kind: HirExprKind::Call {
                         callee: callee_id,
@@ -1422,6 +1581,7 @@ impl<'a> LoweringContext<'a> {
                 function,
                 args,
             } => {
+                let raw_args = args.clone();
                 let lowered_args: Vec<_> = args
                     .into_iter()
                     .map(|arg| self.lower_expr(arg, span))
@@ -1460,6 +1620,7 @@ impl<'a> LoweringContext<'a> {
                         ),
                     );
                 }
+                self.check_call_argument_enum_qualifiers(callee_id, &raw_args, span);
                 HirExpr {
                     kind: HirExprKind::Call {
                         callee: callee_id,
@@ -2377,6 +2538,7 @@ mod tests {
             types: &mut types,
             diagnostics: Vec::new(),
             current_module: String::new(),
+            current_return_enum: None,
         };
         let module = ModuleAst {
             items: vec![spanned(ItemAst::Function(FunctionAst {
@@ -2422,6 +2584,7 @@ mod tests {
             types: &mut types,
             diagnostics: Vec::new(),
             current_module: String::new(),
+            current_return_enum: None,
         };
         let module = ModuleAst {
             items: vec![spanned(ItemAst::Function(FunctionAst {
@@ -2458,6 +2621,7 @@ mod tests {
             types: &mut types,
             diagnostics: Vec::new(),
             current_module: String::new(),
+            current_return_enum: None,
         };
         let module = ModuleAst {
             items: vec![spanned(ItemAst::ExternBlock(ExternBlockAst {

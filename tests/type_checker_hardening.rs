@@ -777,3 +777,122 @@ end
 "#,
     );
 }
+
+#[test]
+fn enum_binding_rejects_wrong_qualifier() {
+    let output = check_fail(
+        r#"
+enum Status begin
+    Ready;
+    Done;
+end
+
+enum Other begin
+    Ready;
+end
+
+function main() -> I64 begin
+    let s: Status = Other::Ready;
+    return 1;
+end
+"#,
+    );
+
+    assert!(
+        output.contains("does not match expected enum `Status`")
+            || output.contains("tidak sepadan dengan enum dijangka `Status`"),
+        "{output}"
+    );
+}
+
+#[test]
+fn enum_return_rejects_wrong_qualifier() {
+    let output = check_fail(
+        r#"
+enum Status begin
+    Ready;
+    Done;
+end
+
+enum Other begin
+    Ready;
+end
+
+function status() -> Status begin
+    return Other::Ready;
+end
+
+function main() -> I64 begin
+    let s: Status = status();
+    return 1;
+end
+"#,
+    );
+
+    assert!(
+        output.contains("does not match expected enum `Status`")
+            || output.contains("tidak sepadan dengan enum dijangka `Status`"),
+        "{output}"
+    );
+}
+
+#[test]
+fn enum_argument_rejects_wrong_qualifier() {
+    let output = check_fail(
+        r#"
+enum Status begin
+    Ready;
+    Done;
+end
+
+enum Other begin
+    Ready;
+end
+
+function use_status(s: Status) -> I64 begin
+    return 1;
+end
+
+function main() -> I64 begin
+    return use_status(Other::Ready);
+end
+"#,
+    );
+
+    assert!(
+        output.contains("does not match expected enum `Status`")
+            || output.contains("tidak sepadan dengan enum dijangka `Status`"),
+        "{output}"
+    );
+}
+
+#[test]
+fn enum_call_return_rejects_wrong_binding_enum() {
+    let output = check_fail(
+        r#"
+enum Status begin
+    Ready;
+    Done;
+end
+
+enum Other begin
+    Ready;
+end
+
+function other() -> Other begin
+    return Other::Ready;
+end
+
+function main() -> I64 begin
+    let s: Status = other();
+    return 1;
+end
+"#,
+    );
+
+    assert!(
+        output.contains("Call returns enum `Other` but enum `Status` is expected")
+            || output.contains("Panggilan memulangkan enum `Other` tetapi enum `Status` dijangka"),
+        "{output}"
+    );
+}

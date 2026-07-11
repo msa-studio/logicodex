@@ -529,6 +529,7 @@ fn compile_v130_pipeline(
             types: &mut types,
             diagnostics: Vec::new(),
             current_module: String::new(),
+            current_return_enum: None,
         };
         lower_with_modules(&mut lowering, file, dict, program)?
     };
@@ -869,6 +870,7 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
             types: &mut types,
             diagnostics: Vec::new(),
             current_module: String::new(),
+            current_return_enum: None,
         };
         lower_with_modules(&mut lowering, file, dict, program)?
     };
@@ -979,6 +981,7 @@ fn run_v130_subsystem_self_check() -> Result<()> {
         types: &mut types,
         diagnostics: Vec::new(),
         current_module: String::new(),
+        current_return_enum: None,
     };
     let hir_module = lowering
         .lower_module(module_ast)

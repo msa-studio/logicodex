@@ -313,3 +313,19 @@ rehydrating a fresh callable table by name:
 - value-use validation no longer reports `Call <unknown>` for known local calls;
 - FFI symbol/capability metadata is not perturbed by a secondary callable
   hydration pass.
+
+## Enum qualifier identity guard
+
+P0 enum ABI remains scalar-tag based (`I64`) while HIR/codegen mature, but
+lowering now preserves enough source enum annotation metadata to reject wrong
+qualified variants before enum identity is erased by the transitional ABI.
+
+Guarded contexts:
+
+- `let s: Status = Other::Ready;`
+- `return Other::Ready;` inside `function f() -> Status`
+- `use_status(Other::Ready)` when the parameter annotation is `Status`
+- `let s: Status = other();` when `other() -> Other`
+
+This keeps the current scalar ABI stable while preventing unrelated enum types
+from becoming silently interchangeable.
