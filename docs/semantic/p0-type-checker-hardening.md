@@ -284,3 +284,17 @@ Current P0 behavior:
 - `MissingEnum::Ready` fails even if another enum has a `Ready` variant.
 - Variant-name-only fallback is not allowed for qualified `Enum::Variant`
   references.
+
+## Missing named type vs enum annotation
+
+Named type annotations are now distinguished during HIR lowering.
+
+Current P0 behavior:
+
+- A truly missing named type such as `MissingType` fails HIR lowering.
+- A known enum annotation such as `Status` is accepted.
+- Primitive named annotations such as `Unit` remain valid.
+- Known enum annotations are still lowered through the transitional scalar tag
+  ABI (`I64`) until full `TypeKind::Enum` identity is enforced end-to-end.
+- This avoids treating missing type names and known enum annotations as the same
+  `Unknown` type.

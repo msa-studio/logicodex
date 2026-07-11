@@ -518,6 +518,15 @@ impl TypeRegistry {
         self.enum_variants.insert(name.to_string(), variants);
     }
 
+    /// True when a named enum has been registered in the current type registry.
+    ///
+    /// This is intentionally weaker than full `TypeKind::Enum` identity. The
+    /// current P0 enum ABI is still scalar-tag based, so HIR lowering uses this
+    /// only to distinguish a known enum annotation from a truly missing type.
+    pub fn has_enum(&self, name: &str) -> bool {
+        self.enum_variants.contains_key(name)
+    }
+
     /// Resolve a variant's tag within a named enum.
     pub fn enum_variant_tag(&self, enum_name: &str, variant: &str) -> Option<i64> {
         self.enum_variants
