@@ -575,6 +575,16 @@ fn semantic_type_mismatch_span(source: &str, diagnostic: &span::Diagnostic) -> O
         .or_else(|| source_span_for_first_line_keyword(source, "if"))
 }
 
+fn semantic_division_by_zero_span(source: &str) -> Option<span::Span> {
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.contains('/') && trimmed.contains('0') {
+            return source_span_for_needle(source, trimmed);
+        }
+    }
+    None
+}
+
 fn recover_semantic_diagnostic_spans(source: &str, diagnostics: &mut [span::Diagnostic]) {
     for diagnostic in diagnostics {
         if !is_unknown_span(diagnostic.primary_span) {
@@ -583,6 +593,13 @@ fn recover_semantic_diagnostic_spans(source: &str, diagnostics: &mut [span::Diag
 
         if diagnostic.code == span::DiagnosticCode::TypeMismatch {
             if let Some(span) = semantic_type_mismatch_span(source, diagnostic) {
+                diagnostic.primary_span = span;
+            }
+            continue;
+        }
+
+        if diagnostic.code == span::DiagnosticCode::DivisionByZero {
+            if let Some(span) = semantic_division_by_zero_span(source) {
                 diagnostic.primary_span = span;
             }
         }

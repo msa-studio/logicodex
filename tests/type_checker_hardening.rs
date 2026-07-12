@@ -1292,3 +1292,18 @@ end
     assert!(output.contains("span: file"), "{output}");
     assert!(!output.contains("span: file 0:0:0-0:0"), "{output}");
 }
+
+#[test]
+fn semantic_division_by_zero_has_nonzero_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    return 1 / 0;
+end
+"#,
+    );
+
+    assert!(output.contains("code: DivisionByZero"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(!output.contains("span: file 0:0:0-0:0"), "{output}");
+}
