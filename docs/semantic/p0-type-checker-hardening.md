@@ -378,3 +378,24 @@ This makes semantic-gate diagnostics such as `TypeMismatch` visible to users and
 AI agents as structured output instead of message-only text. The change is
 formatter-only: it does not change semantic rules, HIR, parser/AST shape, ABI, or
 codegen.
+
+## Semantic-gate span recovery phase 1
+
+Semantic-gate `TypeMismatch` diagnostics now recover a non-zero source span when
+the HIR-derived span is still `Span::unknown()`.
+
+This is a P0 recovery layer at the CLI diagnostic boundary. It keeps the current
+parser/AST/HIR shape unchanged while improving diagnostic usefulness for users,
+tests, and AI agents.
+
+Covered examples include:
+
+- invalid return value type
+- declared `let` type mismatch
+- non-boolean `if` condition
+- invalid array index type
+- assignment type mismatch
+- call argument type mismatch
+
+This does not change semantic rules, diagnostic codes, ABI, parser grammar, AST,
+HIR semantics, or codegen. Full AST span propagation remains a later migration.
