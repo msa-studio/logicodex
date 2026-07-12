@@ -521,7 +521,9 @@ fn semantic_type_mismatch_span(source: &str, diagnostic: &span::Diagnostic) -> O
     let msg = format!("{} {}", diagnostic.message_ms, diagnostic.message_en).to_lowercase();
 
     if msg.contains("return") || msg.contains("pulangan") {
-        return source_span_for_first_line_keyword(source, "return");
+        return source_span_for_first_line_keyword(source, "return")
+            .or_else(|| source_span_for_first_line_keyword(source, "function"))
+            .or_else(|| source_span_for_first_line_keyword(source, "let"));
     }
 
     if msg.contains("condition") || msg.contains("syarat") || msg.contains("if condition") {
