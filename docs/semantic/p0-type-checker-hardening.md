@@ -399,3 +399,13 @@ Covered examples include:
 
 This does not change semantic rules, diagnostic codes, ABI, parser grammar, AST,
 HIR semantics, or codegen. Full AST span propagation remains a later migration.
+
+## Missing-return span recovery
+
+The semantic-gate span recovery now handles missing-return `TypeMismatch`
+diagnostics. When a return-related diagnostic has no explicit `return` statement
+to point at, the recovery layer falls back to the enclosing `function` line and
+then to the first local `let` line.
+
+This keeps missing-return diagnostics source-locating without changing parser,
+AST, HIR semantics, semantic rules, ABI, or codegen.

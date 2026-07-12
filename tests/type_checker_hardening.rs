@@ -1277,3 +1277,18 @@ end
     assert!(output.contains("span: file"), "{output}");
     assert!(!output.contains("span: file 0:0:0-0:0"), "{output}");
 }
+
+#[test]
+fn semantic_missing_return_has_nonzero_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let x = 1;
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(!output.contains("span: file 0:0:0-0:0"), "{output}");
+}
