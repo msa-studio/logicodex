@@ -419,3 +419,25 @@ division-by-zero expression.
 
 This is diagnostic recovery only. It does not change semantic rules, parser,
 AST, HIR semantics, ABI, or codegen.
+
+## P0 hardening closure matrix
+
+The P0 semantic and diagnostic hardening phase is guarded by the permanent
+integration test `tests/p0_hardening_closure_matrix.rs`.
+
+The matrix proves that representative invalid programs:
+
+- fail during `check`
+- emit a structured `code: <DiagnosticCode>`
+- emit `span: file ...`
+- do not emit `span: file 0:0:0-0:0`
+- do not fall back to `ParserUnsupportedFeature`
+- do not leak to LLVM verifier/codegen errors
+
+Covered diagnostic families include `UnknownName`, `UnknownFunction`,
+`UnknownType`, `UnknownEnumVariant`, `EnumTypeMismatch`, `TypeMismatch`, and
+`DivisionByZero`.
+
+This marks P0 semantic/diagnostic hardening as closure-ready for CPB, while
+leaving full AST span propagation, richer source excerpts, JSON diagnostics, and
+LDX-DIP intelligent debugging as later enhancements.
