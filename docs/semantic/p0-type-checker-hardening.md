@@ -409,3 +409,13 @@ then to the first local `let` line.
 
 This keeps missing-return diagnostics source-locating without changing parser,
 AST, HIR semantics, semantic rules, ABI, or codegen.
+
+## Division-by-zero span recovery
+
+The semantic-gate diagnostic recovery now handles `DivisionByZero` diagnostics
+with non-zero source spans. When the semantic diagnostic arrives with an unknown
+HIR span, the CLI recovery layer points at the source line containing the
+division-by-zero expression.
+
+This is diagnostic recovery only. It does not change semantic rules, parser,
+AST, HIR semantics, ABI, or codegen.
