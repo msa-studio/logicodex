@@ -507,6 +507,94 @@ fn recover_hir_lowering_spans(source: &str, diagnostics: &mut [span::Diagnostic]
     }
 }
 
+fn source_span_for_first_line_keyword(source: &str, keyword: &str) -> Option<span::Span> {
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with(keyword) {
+            return source_span_for_needle(source, trimmed);
+        }
+    }
+    None
+}
+
+fn semantic_type_mismatch_span(source: &str, diagnostic: &span::Diagnostic) -> Option<span::Span> {
+    let msg = format!("{} {}", diagnostic.message_ms, diagnostic.message_en).to_lowercase();
+
+    if msg.contains("return") || msg.contains("pulangan") {
+        return source_span_for_first_line_keyword(source, "return");
+    }
+
+    if msg.contains("condition") || msg.contains("syarat") || msg.contains("if condition") {
+        return source_span_for_first_line_keyword(source, "if");
+    }
+
+    if msg.contains("index") || msg.contains("indeks") {
+        if let Some(start) = source.find('[') {
+            if let Some(end_rel) = source[start..].find(']') {
+                let needle = &source[start..start + end_rel + 1];
+                return source_span_for_needle(source, needle);
+            }
+        }
+    }
+
+    if msg.contains("argument") || msg.contains("argumen") || msg.contains("parameter") {
+        if let Some(call_start) = source.rfind('(') {
+            if let Some(call_end_rel) = source[call_start..].find(')') {
+                let needle = &source[call_start..call_start + call_end_rel + 1];
+                return source_span_for_needle(source, needle);
+            }
+        }
+    }
+
+    if msg.contains("assignment")
+        || msg.contains("penetapan")
+        || msg.contains("binding")
+        || msg.contains("let")
+    {
+        if let Some(span) = source_span_for_first_line_keyword(source, "let") {
+            return Some(span);
+        }
+        if let Some(eq) = source.find('=') {
+            let after = source[eq + 1..]
+                .lines()
+                .next()
+                .unwrap_or("")
+                .trim()
+                .trim_end_matches(';')
+                .trim();
+            if !after.is_empty() {
+                return source_span_for_needle(source, after);
+            }
+        }
+    }
+
+    source_span_for_first_line_keyword(source, "return")
+        .or_else(|| source_span_for_first_line_keyword(source, "let"))
+        .or_else(|| source_span_for_first_line_keyword(source, "if"))
+}
+
+fn recover_semantic_diagnostic_spans(source: &str, diagnostics: &mut [span::Diagnostic]) {
+    for diagnostic in diagnostics {
+        if !is_unknown_span(diagnostic.primary_span) {
+            continue;
+        }
+
+        if diagnostic.code == span::DiagnosticCode::TypeMismatch {
+            if let Some(span) = semantic_type_mismatch_span(source, diagnostic) {
+                diagnostic.primary_span = span;
+            }
+        }
+    }
+}
+
+fn semantic_diagnostics_error(
+    source: &str,
+    mut diagnostics: Vec<span::Diagnostic>,
+) -> anyhow::Error {
+    recover_semantic_diagnostic_spans(source, &mut diagnostics);
+    anyhow::anyhow!(format_v130_diagnostics(&diagnostics))
+}
+
 fn hir_lowering_error(source: &str, mut diagnostics: Vec<span::Diagnostic>) -> anyhow::Error {
     recover_hir_lowering_spans(source, &mut diagnostics);
     anyhow::anyhow!(
@@ -685,7 +773,7 @@ fn compile_v130_pipeline(
     };
     semantic
         .check_module(&module_ast)
-        .map_err(|diagnostics| anyhow::anyhow!(format_v130_diagnostics(&diagnostics)))?;
+        .map_err(|diagnostics| semantic_diagnostics_error(&source, diagnostics))?;
 
     // Step 6: HIR → LLVM object via compile_v130 with registries
     codegen::compile_v130(
@@ -980,7 +1068,7 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
     };
     semantic
         .check_module(&module_ast)
-        .map_err(|diagnostics| anyhow::anyhow!(format_v130_diagnostics(&diagnostics)))?;
+        .map_err(|diagnostics| semantic_diagnostics_error(&source, diagnostics))?;
     Ok(())
 }
 

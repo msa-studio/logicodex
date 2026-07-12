@@ -1173,3 +1173,107 @@ end
         "{output}"
     );
 }
+
+#[test]
+fn semantic_return_type_mismatch_has_nonzero_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let a = 1;
+    return true;
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(!output.contains("span: file 0:0:0-0:0"), "{output}");
+}
+
+#[test]
+fn semantic_let_type_mismatch_has_nonzero_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let a = 1;
+    let x: I64 = true;
+    return a;
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(!output.contains("span: file 0:0:0-0:0"), "{output}");
+}
+
+#[test]
+fn semantic_if_condition_mismatch_has_nonzero_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let a = 1;
+    if 1 begin
+        return 1;
+    end
+    return 0;
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(!output.contains("span: file 0:0:0-0:0"), "{output}");
+}
+
+#[test]
+fn semantic_array_index_mismatch_has_nonzero_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let xs: [I64; 2] = [1, 2];
+    return xs[true];
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(!output.contains("span: file 0:0:0-0:0"), "{output}");
+}
+
+#[test]
+fn semantic_assignment_mismatch_has_nonzero_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let x: I64 = 1;
+    x = true;
+    return x;
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(!output.contains("span: file 0:0:0-0:0"), "{output}");
+}
+
+#[test]
+fn semantic_call_argument_mismatch_has_nonzero_span() {
+    let output = check_fail(
+        r#"
+function add(a: I64, b: I64) -> I64 begin
+    return a + b;
+end
+
+function main() -> I64 begin
+    return add(1, true);
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(!output.contains("span: file 0:0:0-0:0"), "{output}");
+}
