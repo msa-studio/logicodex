@@ -509,7 +509,10 @@ fn recover_hir_lowering_spans(source: &str, diagnostics: &mut [span::Diagnostic]
 
 fn hir_lowering_error(source: &str, mut diagnostics: Vec<span::Diagnostic>) -> anyhow::Error {
     recover_hir_lowering_spans(source, &mut diagnostics);
-    anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diagnostics)
+    anyhow::anyhow!(
+        "v1.30 HIR lowering failed:\n{}",
+        format_v130_diagnostics(&diagnostics)
+    )
 }
 
 /// HIR compilation pipeline with CallableRegistry + Raylib FFI.
@@ -1089,8 +1092,42 @@ fn format_v130_diagnostics(diagnostics: &[span::Diagnostic]) -> String {
         .join("\n")
 }
 
+fn format_v130_span(span: span::Span) -> String {
+    format!(
+        "file {}:{}:{}-{}:{}",
+        span.file_id.0, span.start_line, span.start_col, span.end_line, span.end_col
+    )
+}
+
 fn format_v130_diagnostic(diagnostic: &span::Diagnostic) -> String {
-    format!("{} / {}", diagnostic.message_ms, diagnostic.message_en)
+    let mut rendered = format!(
+        "code: {:?}\nspan: {}\n{} / {}",
+        diagnostic.code,
+        format_v130_span(diagnostic.primary_span),
+        diagnostic.message_ms,
+        diagnostic.message_en
+    );
+
+    for note in &diagnostic.notes {
+        match note.span {
+            Some(span) => {
+                rendered.push_str(&format!(
+                    "\nnote: {} / {} [{}]",
+                    note.message_ms,
+                    note.message_en,
+                    format_v130_span(span)
+                ));
+            }
+            None => {
+                rendered.push_str(&format!(
+                    "\nnote: {} / {}",
+                    note.message_ms, note.message_en
+                ));
+            }
+        }
+    }
+
+    rendered
 }
 
 fn parse_and_analyze_for_target(

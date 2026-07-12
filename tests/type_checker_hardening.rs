@@ -1096,3 +1096,80 @@ end
     assert!(output.contains("Other::Ready"), "{output}");
     assert!(!output.contains("start_line: 0, start_col: 0"), "{output}");
 }
+
+#[test]
+fn return_type_mismatch_formats_code_and_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    return true;
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(
+        output.contains("return") || output.contains("pulangan") || output.contains("Return"),
+        "{output}"
+    );
+}
+
+#[test]
+fn let_declared_type_mismatch_formats_code_and_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let x: I64 = true;
+    return 1;
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(
+        output.contains("TypeMismatch") || output.contains("jenis") || output.contains("type"),
+        "{output}"
+    );
+}
+
+#[test]
+fn if_condition_type_mismatch_formats_code_and_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    if 1 begin
+        return 1;
+    end
+    return 0;
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(
+        output.contains("condition") || output.contains("syarat") || output.contains("bool"),
+        "{output}"
+    );
+}
+
+#[test]
+fn array_index_type_mismatch_formats_code_and_span() {
+    let output = check_fail(
+        r#"
+function main() -> I64 begin
+    let xs: [I64; 2] = [1, 2];
+    return xs[true];
+end
+"#,
+    );
+
+    assert!(output.contains("code: TypeMismatch"), "{output}");
+    assert!(output.contains("span: file"), "{output}");
+    assert!(
+        output.contains("index") || output.contains("indeks") || output.contains("array"),
+        "{output}"
+    );
+}

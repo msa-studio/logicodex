@@ -363,3 +363,18 @@ Phase 1 covers:
 This is a source-text recovery layer at the CLI pipeline boundary. It does not
 change parser grammar, AST shape, HIR semantics, ABI, or codegen. Full AST span
 propagation remains a later migration once the P0/CPB semantic gates are stable.
+
+## v1.30 diagnostic formatter subset
+
+The v1.30 diagnostic formatter now renders structured diagnostic metadata for
+compiler diagnostics:
+
+- `code: <DiagnosticCode>`
+- `span: file <file_id>:<start_line>:<start_col>-<end_line>:<end_col>`
+- bilingual Malay/English diagnostic message
+- optional diagnostic notes
+
+This makes semantic-gate diagnostics such as `TypeMismatch` visible to users and
+AI agents as structured output instead of message-only text. The change is
+formatter-only: it does not change semantic rules, HIR, parser/AST shape, ABI, or
+codegen.
