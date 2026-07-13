@@ -514,52 +514,28 @@ jobs:
           echo "Architecture change control PASS"
 
   # JOB: summarize
-  # Posts a consolidated summary comment on PR open (optional, informative)
+  # Always evaluates mandatory job results after dependency completion.
+  # The evaluator owns result classification and Action summary rendering.
   # ==========================================================================
   summarize:
     name: Policy Summary
     runs-on: ubuntu-latest
     needs: [check_phase_compliance, check_documentation, check_size, check_architecture_control]
-    if: github.event.action == 'opened' && github.event.pull_request
+    if: ${{ always() && github.event.pull_request }}
     steps:
-      - name: Post welcome / policy reminder
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          script: |
-            const prNumber = context.issue.number;
-            if (!prNumber) return;
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-            const body = `## 🛡️ Gatekeeper Active
-
-            This PR is being monitored by the **Logicodex Policy Enforcement** workflow.
-
-            ### Checks Running
-
-            | # | Check | What it verifies |
-            |---|-------|-----------------|
-            | 1 | **Phase Compliance** | Label matches current roadmap phase |
-            | 2 | **Documentation Gate** | Feature PRs include docs updates |
-            | 3 | **PR Size Check** | Large PRs (>500 lines) need \`rfc-required\` label |
-            | 4 | **Architecture Control** | Declared architecture changes require an approved RFC |
-
-            ### Quick Reference: Labels
-
-            | Label | Purpose |
-            |-------|---------|
-            | \`phase-1\` | Current: v0.46.x stabilization / CPB |
-            | \`phase-2\` | For v1.50.x development items |
-            | \`rfc-required\` | Large PRs with approved RFC |
-            | \`architecture-change\` | Declares an architecture-changing PR |
-            | \`rfc-approved\` | Confirms approved RFC and authorization |
-            | \`bugfix\` | Exempt from some feature-only gates |
-
-            All checks must pass before merge. Failures will be annotated with fix instructions.
-
-            > 📖 See [ROADMAP_v2.md](${{ github.server_url }}/${{ github.repository }}/blob/main/ROADMAP_v2.md) and \`docs/governance/architecture-change-control.md\` for active policy.`;
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body
-            });
+      - name: Evaluate mandatory policy gates
+        env:
+          PHASE_RESULT: ${{ needs.check_phase_compliance.result }}
+          DOCUMENTATION_RESULT: ${{ needs.check_documentation.result }}
+          SIZE_RESULT: ${{ needs.check_size.result }}
+          ARCHITECTURE_RESULT: ${{ needs.check_architecture_control.result }}
+        run: |
+          python3 scripts/dev/evaluate_policy_summary.py \
+            --phase "$PHASE_RESULT" \
+            --documentation "$DOCUMENTATION_RESULT" \
+            --size "$SIZE_RESULT" \
+            --architecture "$ARCHITECTURE_RESULT" \
+            --summary-file "$GITHUB_STEP_SUMMARY"
