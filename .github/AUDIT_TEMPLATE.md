@@ -22,8 +22,8 @@
 | Field | Value |
 |-------|-------|
 | **Audit Date** | `YYYY-MM-DD` |
-| **Source Phase** | `{SOURCE_PHASE}` (e.g., Phase 1 — v1.45.x Maintenance) |
-| **Target Phase** | `{TARGET_PHASE}` (e.g., Phase 2 — v1.50.x Development) |
+| **Source Phase** | `{SOURCE_PHASE}` (e.g., Phase 1 — v0.46.x Stabilization) |
+| **Target Phase** | `{TARGET_PHASE}` (e.g., next approved roadmap phase) |
 | **Auditor** | `@github-username` |
 | **Auditor Role** | `Core Maintainer / Technical Lead / Release Engineer / External Auditor` |
 | **Target Commit Hash** | `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (full SHA of commit being audited) |
@@ -57,7 +57,7 @@
 |---|-----------|--------|---------------|-------|
 | G1 | All CI checks passing for 14 consecutive days | [ ] | CI run link | |
 | G2 | Zero critical security vulnerabilities (dependabot, cargo-audit) | [ ] | Audit report link | |
-| G3 | Architecture freeze compliance: zero unauthorized changes | [ ] | Gatekeeper run log | |
+| G3 | Architecture change-control compliance: no unauthorized invariant changes | [ ] | Gatekeeper run log | |
 | G4 | RFC process documented and tooling ready | [ ] | CONTRIBUTING.md §RFCs | |
 | G5 | Team capacity confirmed for target phase scope | [ ] | Team capacity doc / comment | |
 
@@ -67,12 +67,12 @@
 
 | # | Criterion (from ROADMAP.md "NOW" items) | Status | Evidence Link | Notes |
 |---|------------------------------------------|--------|---------------|-------|
-| P1 | **Architecture Freeze Enforcement** — Freeze compliance audit passes; zero unauthorized architecture changes between v1.45.0 and v1.46.0; enforcement bot active in CI | [ ] | Gatekeeper logs, diffstat | |
+| P1 | **Architecture Change Control** — declared architecture changes have approved RFC evidence; locked invariants and Gatekeeper policy pass | [ ] | Gatekeeper logs, diffstat | |
 | P2 | **Validator Hardening** — Validator false-positive rate < 0.5%; ICE crash rate = 0 on fuzzer corpus (100K inputs); all new diagnostics include error codes | [ ] | Fuzzer report, diagnostics audit | |
 | P3 | **Documentation Polish** — Language reference 100% coverage of alpha surface; architecture docs pass tech-writer review; v1.21 → v1.45 migration guide published | [ ] | Docs coverage report, review sign-off | |
 | P4 | **Post-v1.45 Deep Clean Closure** — Deferred item count = 0; closing issue referenced and closed | [ ] | Issue tracker query, closing commit | |
 | P5 | **v1.21 Pipeline Deprecation** — Deprecation notice published; v1.21 CI jobs marked deprecated; EOL date announced | [ ] | Deprecation notice link, CI config | |
-| P6 | **v1.45.0-alpha RC Readiness** — 148/148 checks remain green for 2 consecutive weeks | [ ] | CI history link | |
+| P6 | **Current Stabilization Readiness** — all applicable integrity gates remain green for the required evidence window | [ ] | CI history link | |
 
 ### 2C. Target Phase Readiness (Phase 2 Entry)
 
@@ -80,7 +80,7 @@
 |---|-----------|--------|---------------|-------|
 | T1 | At least one pre-approved RFC exists for Phase 2 work | [ ] | RFC discussion link | |
 | T2 | 4 alignment checks template published | [ ] | .github/ALIGNMENT_CHECKS.md | |
-| T3 | Phase 2 tracking labels created (`phase-2`, `v1.50.x`) | [ ] | Labels page link | |
+| T3 | Target-phase and architecture-control labels are available | [ ] | Labels page link | |
 | T4 | Experimental pipeline (v1.30) ready for prototyping | [ ] | v1.30 CI status | |
 
 ### Criteria Summary
@@ -117,7 +117,7 @@
 | 1 | Language reference | `docs/lang-ref/` | Coverage report | Tech-writer review | [ ] |
 | 2 | Architecture docs | `docs/architecture/` | Coverage report | Peer review | [ ] |
 | 3 | API documentation | `cargo doc --no-deps` output | CI doc build | `rustdoc` clean | [ ] |
-| 4 | Migration guide (v1.21 → v1.45) | `docs/migrations/v1.21-to-v1.45.md` | Manual inspection | Published | [ ] |
+| 4 | Migration guide (previous stable baseline → current baseline) | `docs/migrations/<previous>-to-<current>.md` | Manual inspection | Published | [ ] |
 | 5 | ROADMAP.md updated | `ROADMAP.md` | Git diff | Accurate, dated | [ ] |
 | 6 | CHANGELOG.md | `CHANGELOG.md` | Version diff | All entries accounted | [ ] |
 
@@ -284,7 +284,7 @@
 | # | Risk | Impact (1-5) | Probability (1-5) | Score | Mitigation Plan | Owner |
 |---|------|-------------|-------------------|-------|-----------------|-------|
 | 1 | RFC process overhead slows development velocity | 3 | 4 | 12 | Streamlined template; async review; time-boxed decisions | `@owner` |
-| 2 | Phase 2 scope creep pulls in v2.0-vision items | 4 | 4 | 16 | Strict labeling; architecture freeze enforcement; quarterly review | `@owner` |
+| 2 | Phase 2 scope creep pulls in v2.0-vision items | 4 | 4 | 16 | Strict labeling; architecture change control; quarterly review | `@owner` |
 | 3 | Team bandwidth insufficient for parallel Phase 2 streams | 4 | 3 | 12 | Prioritize 2A→2B→2C sequentially; external contributions welcome | `@owner` |
 
 ### 7C. External Risks

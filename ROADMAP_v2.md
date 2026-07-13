@@ -3,10 +3,16 @@
 ## Phase-Gated Development Plan
 
 **Document Version:** 2.0  
-**Last Updated:** 2025-07-15  
-**Status:** Active — supersedes all previous roadmaps  
-**Policy Reference:** See `ROADMAP_POLICY.md` for governance, RFC process, and change procedures  
+**Last Updated:** 2026-07-13
+**Status:** Active baseline — historical freeze exited; v0.46 control active
+**Policy Reference:** See `.github/ROADMAP_POLICY.md`, `docs/governance/architecture-freeze-exit-2026-07-13.md`, and `docs/governance/architecture-change-control.md`
 **Maintainer:** Single maintainer (see `CONTRIBUTING.md` for co-maintainer recruitment)
+
+> **Architecture Freeze exit:** The historical v1.45 freeze was formally
+> concluded on 2026-07-13 after Architect acceptance of the independent
+> readiness audit and subsequent GitHub Actions stability evidence. Active
+> architecture governance is defined in
+> `docs/governance/architecture-change-control.md`.
 
 ---
 
@@ -33,7 +39,7 @@ Logicodex is at **v0.46.0-alpha**, maintained by a single developer. The codebas
 | WASM backend | PARTIAL | LLVM path exists, no linker/runtime/CI | Issue #10 |
 | Freestanding x86_64 | PARTIAL | Boots in QEMU (multiboot1 -> long-mode -> COM1 serial 'Logicodex' -> clean exit 33). Runtime in shared crate logicodex-os (uart/IDT-256+PIC/panic/allocator/halt). All 4 freestanding gaps closed: IDT-32 (g11), panic-UART (g2), SSE2 (g9), MMIO codegen (g12 complete: zone-volatile + address-backed registers via inttoptr, verified in IR). Suite 229/0/3 (g1/g10/g14 string-tested crt0 against the dormant src/os/startup.rs spec — now honestly #[ignore]'d; live kernel boots via a multiboot _start in freestanding/). NOTE two roles: src/os/* = compiler freestanding capability SPEC (string-presence contract); logicodex-os/* = LIVE no_std runtime proven in QEMU. Boot reproducible via `make boot-evidence` (debug profile; release link has an isr_stub_table reloc issue to resolve later). NOTE: an env RUSTFLAGS overrides .cargo/config.toml rustflags — build.sh now unsets it. Pending: end-to-end .ldx->kernel emission, full crt0 (zero-BSS/.data, trigger-based #3) | Issue #11 |
 | Raylib FFI | PARTIAL | 55 wrappers, partial API coverage | Issue #12 |
-| CI/CD | PARTIAL | Suite compiles & green: 229 passed / 0 failed / 3 ignored (g1/g10/g14 = crt0, deferred #3); drift-resistant e2e + example phase-gates added. 2-week CI stability pending | Issue #13 |
+| CI/CD | PARTIAL | Suite compiles & green: 229 passed / 0 failed / 3 ignored (g1/g10/g14 = crt0, deferred #3); drift-resistant e2e + example phase-gates added. historical 14-day stability requirement accepted; see freeze-exit decision | Issue #13 |
 | HIR lowering | FULL | Active — Issue #02 resolved (ACTIVATE) | structs, enums+match, fns, control flow |
 | Deterministic execution | SKELETON | Framework only, no runtime integration | Issue #14 |
 | Freestanding aarch64 | SKELETON | LLVM triple only | Issue #15 |
@@ -44,19 +50,34 @@ Logicodex is at **v0.46.0-alpha**, maintained by a single developer. The codebas
 
 ---
 
-## Architecture Freeze Policy
+## Architecture Change Control
 
-1. **Inter-phase architecture is frozen.** No architectural changes may be proposed during an active phase. All architectural RFCs must be filed against `ROADMAP_POLICY.md` and are evaluated only at phase boundaries.
-2. **Intra-phase additions require auditor approval.** If a critical bug or security issue demands an architectural change mid-phase, it must be approved by the phase auditor (see `ROADMAP_POLICY.md` Section 4).
-3. **HIR decision is Phase 1 only.** The decision to activate, remove, or redesign HIR is gated entirely to Phase 1. No HIR discussions in Phases 2-5.
-4. **Backend additions frozen until Phase 4.** No new architecture backends may be proposed before Phase 4 entry audit.
-5. **Self-hosting interface frozen at Phase 5 entry.** The compiler's public API (parser, typechecker, codegen interfaces) will be frozen at the Phase 5 entry audit to enable self-hosting work.
+The historical v1.45 Architecture Freeze is formally concluded.
+
+The exit decision and supporting evidence are recorded in:
+
+`docs/governance/architecture-freeze-exit-2026-07-13.md`
+
+The active `0.46.x-alpha` line uses Architecture Change Control:
+
+1. File modification alone is not an architectural change.
+2. Small bug fixes, diagnostics, tests, lifecycle annotations, compatibility
+   fixes, and additive non-breaking work use normal review.
+3. Changes to canonical execution, Meaning Authority, AST/HIR contracts,
+   ABI/layout, backend architecture, runtime boundaries, ownership/capability
+   policy, or assurance boundaries require an approved RFC.
+4. Canonical HIR and `semantic_gate` authority remain locked invariants.
+5. Backend additions remain prohibited before the permitted backend phase.
+
+Full active policy:
+
+`docs/governance/architecture-change-control.md`
 
 ---
 
 ## RFC Process
 
-All major changes must follow the RFC process defined in `ROADMAP_POLICY.md`:
+All major changes must follow the RFC process defined in `.github/ROADMAP_POLICY.md`:
 
 | Change Type | RFC Required | Approval |
 |-------------|-------------|----------|
@@ -71,15 +92,15 @@ All major changes must follow the RFC process defined in `ROADMAP_POLICY.md`:
 
 ## How to Propose Changes
 
-1. **Check `ROADMAP_POLICY.md`** for the current phase and frozen areas.
+1. **Check `.github/ROADMAP_POLICY.md`** for the current phase and frozen areas.
 2. **File an issue** using the appropriate template (`feature-request.md`, `bug-report.md`, `rfc-proposal.md`).
 3. **Reference the roadmap phase** in the issue title: `[PHASE-N] Title`.
-4. **If RFC required**, create `rfcs/YYYY-MM-DD-title.md` following the template in `ROADMAP_POLICY.md`.
+4. **If RFC required**, create `rfcs/YYYY-MM-DD-title.md` following the template in `.github/ROADMAP_POLICY.md`.
 5. **Submit PR** only after issue/RFC approval. PRs without prior approval will be closed.
 
 ---
 
-## Phase 1: HARDEN (Current — v1.45.x)
+## Phase 1: HARDEN (historical v1.45.x baseline)
 
 ### Goal
 Restore project credibility by fixing CI, hardening the compiler core, booting x86_64 in QEMU, making honest documentation, and removing all overclaims.
@@ -104,7 +125,7 @@ Restore project credibility by fixing CI, hardening the compiler core, booting x
 
 ### Audit Checklist
 
-> **Auditor:** External or designated community member (see `ROADMAP_POLICY.md`).  
+> **Auditor:** External or designated community member (see `.github/ROADMAP_POLICY.md`).
 > **Sign-off required:** All items ticked, evidence linked.
 
 - [ ] **P1-A1** — CI history review: Last 14 days of CI runs on `main` show all green (link to CI dashboard)
@@ -468,4 +489,4 @@ If a regression is detected during a phase:
 
 ---
 
-*This roadmap is a living document. Changes require RFC per `ROADMAP_POLICY.md`. No dates are promised. Ship when audit passes.*
+*This roadmap is a living document. Changes require RFC per `.github/ROADMAP_POLICY.md`. No dates are promised. Ship when audit passes.*

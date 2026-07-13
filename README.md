@@ -89,7 +89,7 @@ Tiers: **FULL** (working, tested) · **PARTIAL** (works for some cases, gaps) ·
 | WASM backend | PARTIAL (emits object; no linker) |
 | Freestanding x86_64 | PARTIAL (boots in QEMU; **end-to-end `.ldx`->kernel proven + CI-guarded**; runtime in `logicodex-os`; 4 gaps closed incl. full MMIO; crt0 tests g1/g10/g14 deferred) |
 | Raylib FFI | PARTIAL (not wired to HIR) |
-| CI/CD | PARTIAL (suite green; 2-week stability pending) |
+| CI/CD | ACTIVE (full suite and freeze-exit stability evidence accepted) |
 | Deterministic execution | SKELETON |
 | Freestanding aarch64 / riscv64 | SKELETON |
 | Self-hosting, package manager, LSP | SKELETON |

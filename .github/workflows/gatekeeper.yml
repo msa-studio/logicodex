@@ -3,14 +3,14 @@
 #
 #   "The police force that blocks PRs violating roadmap policy."
 #
-# This workflow enforces the Architecture Freeze Policy defined in ROADMAP.md
-# and ensures all pull requests comply with phase governance before merging.
+# This workflow enforces the active governance defined in ROADMAP_v2.md and
+# docs/governance/architecture-change-control.md.
 #
 # Policies Enforced:
 #   1. Phase Compliance  — PR labels must match the current roadmap phase
 #   2. Documentation Gate — Feature PRs must include documentation updates
 #   3. Size Check        — PRs >500 lines require "rfc-required" label
-#   4. Architecture Freeze — Core files (ast.rs, semantic.rs) need approval
+#   4. Architecture Control — Declared architecture changes require an approved RFC
 #
 # Failures post detailed comments on the PR via GitHub Script.
 # ============================================================================
@@ -33,12 +33,12 @@ permissions:
   issues: write
 
 env:
-  # Phase label taxonomy — must stay synchronized with ROADMAP.md
-  PHASE_LABELS: "phase-1,phase-2,v1.50.x,v2.0-vision"
-  # Files under architecture freeze (core structures)
-  FROZEN_FILES: "src/ast.rs,src/semantic.rs"
+  # Label taxonomy — synchronized with active v0.46 governance
+  PHASE_LABELS: "phase-1,phase-2,v1.50.x,v2.0-vision,architecture-change,rfc-approved"
+  # Architecture-sensitive surfaces requiring focused review
+  ARCH_SENSITIVE_FILES: "src/main.rs,src/ast.rs,src/hir.rs,src/semantic.rs,src/semantic_gate.rs,src/codegen.rs,src/types.rs"
   # Files that count as documentation
-  DOCS_PATHS: "docs/,README.md,SPECIFICATION.md,ROADMAP.md,CHANGELOG.md,CONTRIBUTING.md,.roadmap/"
+  DOCS_PATHS: "docs/,README.md,SPECIFICATION.md,ROADMAP.md,ROADMAP_v2.md,CHANGELOG.md,CONTRIBUTING.md,.roadmap/"
   # Maximum lines changed before RFC is required
   SIZE_LIMIT: "500"
 
@@ -55,30 +55,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Determine current phase from ROADMAP.md
+      - name: Determine current phase from active v0.46 authority
         id: detect_phase
         run: |
-          echo "=== Detecting current phase from ROADMAP.md ==="
+          echo "=== Detecting active Logicodex phase ==="
 
-          # Extract current version/status line
-          CURRENT_VERSION=$(grep -m1 "Current Version" ROADMAP.md | sed 's/.*`\([^`]*\)`.*/\1/')
-          CURRENT_STATUS=$(grep -m1 "Status:" ROADMAP.md | sed 's/.*Status:[[:space:]]*\([^—]*\).*/\1/' | xargs)
+          CURRENT_VERSION=$(grep -m1 '^version[[:space:]]*=' Cargo.toml | sed 's/.*"\([^"]*\)".*/\1/')
+          CURRENT_STATUS=$(grep -m1 '^\*\*Status:\*\*' ROADMAP_v2.md | sed 's/^\*\*Status:\*\*[[:space:]]*//' | xargs)
+
+          EXPECTED_LABEL="phase-1"
+          PHASE_NAME="Phase 1 (v0.46.x stabilization / CPB)"
 
           echo "current_version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
           echo "current_status=${CURRENT_STATUS}" >> "$GITHUB_OUTPUT"
-
-          # Determine expected phase label
-          if echo "$CURRENT_STATUS" | grep -qi "alpha.*architecture freeze"; then
-            EXPECTED_LABEL="phase-1"
-            PHASE_NAME="Phase 1 (v1.45.x Maintenance / Architecture Freeze)"
-          elif echo "$CURRENT_STATUS" | grep -qi "phase 2\|v1.50"; then
-            EXPECTED_LABEL="phase-2"
-            PHASE_NAME="Phase 2 (v1.50.x Development)"
-          else
-            EXPECTED_LABEL="phase-1"
-            PHASE_NAME="Phase 1 (default fallback)"
-          fi
-
           echo "expected_label=${EXPECTED_LABEL}" >> "$GITHUB_OUTPUT"
           echo "phase_name=${PHASE_NAME}" >> "$GITHUB_OUTPUT"
 
@@ -170,10 +159,10 @@ jobs:
             ### Required Actions
 
             1. Add the \`${expectedLabel}\` label to this PR
-            2. Ensure the PR scope aligns with [ROADMAP.md](${{ github.server_url }}/${{ github.repository }}/blob/main/ROADMAP.md)
+            2. Ensure the PR scope aligns with [ROADMAP_v2.md](${{ github.server_url }}/${{ github.repository }}/blob/main/ROADMAP_v2.md)
             3. If you believe this is an exception, request a **maintainer override** with justification
 
-            > 📖 **Policy Reference:** ROADMAP.md Architecture Freeze Policy (v1.45+)
+            > 📖 **Policy Reference:** docs/governance/architecture-change-control.md
             > All feature work must be tagged with the current phase label.
 
             <sub>🔍 [View workflow run](${runUrl})</sub>`;
@@ -420,7 +409,7 @@ jobs:
             **Option C — Justify exception:**
             Comment below with justification for maintainer override.
 
-            > 📖 **Policy Reference:** ROADMAP.md Architecture Freeze Policy §2
+            > 📖 **Policy Reference:** docs/governance/architecture-change-control.md
             > "No new language features, compiler subsystems, or public APIs may be introduced without a published RFC."
 
             <sub>🔍 [View workflow run](${runUrl})</sub>`;
@@ -433,11 +422,12 @@ jobs:
             });
 
   # ==========================================================================
-  # JOB: check_freeze
-  # Blocks changes to frozen architecture files without explicit approval.
+  # JOB: check_architecture_control
+  # Reviews architecture-sensitive files without treating file touch alone as
+  # an architectural change. Declared architecture changes require RFC approval.
   # ==========================================================================
-  check_freeze:
-    name: Architecture Freeze Enforcement
+  check_architecture_control:
+    name: Architecture Change Control
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -445,25 +435,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect frozen file changes
-        id: detect_frozen
+      - name: Evaluate architecture change control
+        id: control
         env:
-          FROZEN_FILES: ${{ env.FROZEN_FILES }}
+          ARCH_SENSITIVE_FILES: ${{ env.ARCH_SENSITIVE_FILES }}
         run: |
-          echo "=== Architecture Freeze Detection ==="
+          echo "=== Architecture Change Control ==="
 
-          # Architecture freeze protects release/main integration.
-          # Internal integration branches such as feature/* -> feature/stdlib-core
-          # must remain unblocked so compiler foundation work can progress.
           BASE_REF='${{ github.base_ref }}'
+
           if [ -n "$BASE_REF" ] && [ "$BASE_REF" != "main" ] && [ "$BASE_REF" != "master" ]; then
             echo "result=SKIP" >> "$GITHUB_OUTPUT"
-            echo "violations<<EOF" >> "$GITHUB_OUTPUT"
-            echo "" >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
-            echo "violation_count=0" >> "$GITHUB_OUTPUT"
-            echo "has_override=false" >> "$GITHUB_OUTPUT"
-            echo "⏭️  Architecture freeze SKIP: target branch '$BASE_REF' is not main/master"
+            echo "sensitive_count=0" >> "$GITHUB_OUTPUT"
+            echo "Architecture control SKIP: target '$BASE_REF' is not main/master"
             exit 0
           fi
 
@@ -472,134 +456,70 @@ jobs:
 
           if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
             echo "result=SKIP" >> "$GITHUB_OUTPUT"
-            echo "Cannot determine diff range — skipping freeze check"
+            echo "sensitive_count=0" >> "$GITHUB_OUTPUT"
+            echo "Cannot determine PR diff range; architecture control skipped"
             exit 0
           fi
 
-          # Parse frozen files list
-          IFS=',' read -ra FROZEN <<< "$FROZEN_FILES"
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
 
-          VIOLATIONS=""
-          VIOLATION_COUNT=0
+          SENSITIVE_COUNT=0
+          SENSITIVE_CHANGED=""
 
-          for file in "${FROZEN[@]}"; do
-            file=$(echo "$file" | xargs) # trim whitespace
-            CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -x "$file" || true)
-            if [ -n "$CHANGED" ]; then
-              VIOLATIONS="${VIOLATIONS}\n- \`${CHANGED}\`"
-              VIOLATION_COUNT=$((VIOLATION_COUNT + 1))
+          IFS=',' read -ra SENSITIVE <<< "$ARCH_SENSITIVE_FILES"
+
+          for file in "${SENSITIVE[@]}"; do
+            file=$(echo "$file" | xargs)
+
+            if echo "$CHANGED_FILES" | grep -qx "$file"; then
+              SENSITIVE_COUNT=$((SENSITIVE_COUNT + 1))
+              SENSITIVE_CHANGED="${SENSITIVE_CHANGED}${file}\n"
             fi
           done
 
-          echo "violations<<EOF" >> "$GITHUB_OUTPUT"
-          printf "%s\n" "$VIOLATIONS" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-          echo "violation_count=${VIOLATION_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "sensitive_count=${SENSITIVE_COUNT}" >> "$GITHUB_OUTPUT"
 
-          # Check for freeze-override label
           LABELS_JSON='${{ toJson(github.event.pull_request.labels) }}'
-          HAS_OVERRIDE=$(echo "$LABELS_JSON" | grep -oE '"name":\s*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"' | grep -x "freeze-override" || true)
-          if [ -n "$HAS_OVERRIDE" ]; then
-            echo "has_override=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_override=false" >> "$GITHUB_OUTPUT"
+
+          HAS_ARCH_CHANGE=$(echo "$LABELS_JSON"             | grep -oE '"name":\s*"[^"]*"'             | grep -oE '"[^"]*"$'             | tr -d '"'             | grep -x "architecture-change" || true)
+
+          HAS_RFC_APPROVED=$(echo "$LABELS_JSON"             | grep -oE '"name":\s*"[^"]*"'             | grep -oE '"[^"]*"$'             | tr -d '"'             | grep -x "rfc-approved" || true)
+
+          if [ -n "$HAS_ARCH_CHANGE" ] && [ -z "$HAS_RFC_APPROVED" ]; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "Architecture change declared without rfc-approved label"
+            exit 1
           fi
 
-          if [ "$VIOLATION_COUNT" -gt 0 ]; then
-            if [ -n "$HAS_OVERRIDE" ]; then
-              echo "result=OVERRIDE" >> "$GITHUB_OUTPUT"
-              echo "⚠️  Architecture freeze violation detected but override label present"
-              echo "   Violations:${VIOLATIONS}"
+          if [ -n "$HAS_RFC_APPROVED" ] && [ -z "$HAS_ARCH_CHANGE" ]; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "rfc-approved label requires architecture-change declaration"
+            exit 1
+          fi
+
+          if [ "$SENSITIVE_COUNT" -gt 0 ]; then
+            echo "Architecture-sensitive files changed:"
+            printf "%b" "$SENSITIVE_CHANGED"
+
+            if [ -n "$HAS_ARCH_CHANGE" ]; then
+              echo "Declared architecture change has approved RFC labels"
             else
-              echo "result=FAIL" >> "$GITHUB_OUTPUT"
-              echo "❌ Architecture freeze FAIL: ${VIOLATION_COUNT} frozen file(s) modified"
-              echo "   Violations:${VIOLATIONS}"
-              exit 1
+              echo "Focused review required; file touch alone is not an architecture change"
             fi
           else
-            echo "result=PASS" >> "$GITHUB_OUTPUT"
-            echo "✅ Architecture freeze PASS: no frozen files modified"
+            echo "No architecture-sensitive files changed"
           fi
 
-      - name: Post comment on freeze violation
-        if: always() && steps.detect_frozen.outputs.violation_count != '0'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          script: |
-            const prNumber = context.issue.number || '${{ github.event.inputs.pr_number }}';
-            if (!prNumber) return;
+          echo "result=PASS" >> "$GITHUB_OUTPUT"
+          echo "Architecture change control PASS"
 
-            const result = '${{ steps.detect_frozen.outputs.result }}';
-            const violations = ${{ toJson(steps.detect_frozen.outputs.violations) }};
-            const hasOverride = '${{ steps.detect_frozen.outputs.has_override }}' === 'true';
-            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
-
-            let title, body;
-            if (result === 'OVERRIDE') {
-              title = `⚠️ Gatekeeper: Architecture Freeze Override Applied`;
-              body = `${title}
-
-            This PR modifies **frozen architecture files** with maintainer override.
-
-            **Modified frozen files:**
-            ${violations}
-
-            **Override applied via:** \`freeze-override\` label
-
-            > 🔔 This override is logged for audit purposes. A phase transition audit must reference this override.
-
-            <sub>🔍 [View workflow run](${runUrl})</sub>`;
-            } else {
-              title = `🚫 Gatekeeper: Architecture Freeze Violation`;
-              body = `${title}
-
-            This PR modifies **frozen architecture files** without authorization.
-
-            **Modified frozen files:**
-            ${violations}
-
-            ### Architecture Freeze Policy (effective v1.45+)
-
-            The following core files are under architecture freeze:
-            - \`src/ast.rs\` — Abstract Syntax Tree core structures
-            - \`src/semantic.rs\` — Semantic analysis core structures
-
-            ### Required Actions
-
-            **For bug fixes:**
-            1. Ensure the fix is minimal and does not change structural definitions
-            2. Add \`bugfix\` label — cosmetic fixes may be exempt
-
-            **For structural changes:**
-            1. Publish an RFC discussing the proposed change
-            2. Complete 4 alignment checks (technical review, compatibility audit, performance impact, maintainer consensus)
-            3. Request a maintainer to apply \`freeze-override\` label after approval
-            3. Record approval in \`#rfcs\`
-
-            **To proceed:**
-            A maintainer must review and explicitly apply the \`freeze-override\` label.
-
-            > 📖 **Policy Reference:** ROADMAP.md Architecture Freeze Policy
-            > "No new language features, compiler subsystems, or public APIs may be introduced without a published RFC document and 4 alignment checks."
-
-            <sub>🔍 [View workflow run](${runUrl})</sub>`;
-            }
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: parseInt(prNumber),
-              body
-            });
-
-  # ==========================================================================
   # JOB: summarize
   # Posts a consolidated summary comment on PR open (optional, informative)
   # ==========================================================================
   summarize:
     name: Policy Summary
     runs-on: ubuntu-latest
-    needs: [check_phase_compliance, check_documentation, check_size, check_freeze]
+    needs: [check_phase_compliance, check_documentation, check_size, check_architecture_control]
     if: github.event.action == 'opened' && github.event.pull_request
     steps:
       - name: Post welcome / policy reminder
@@ -620,21 +540,22 @@ jobs:
             | 1 | **Phase Compliance** | Label matches current roadmap phase |
             | 2 | **Documentation Gate** | Feature PRs include docs updates |
             | 3 | **PR Size Check** | Large PRs (>500 lines) need \`rfc-required\` label |
-            | 4 | **Architecture Freeze** | Core files (\`src/ast.rs\`, \`src/semantic.rs\`) require override |
+            | 4 | **Architecture Control** | Declared architecture changes require an approved RFC |
 
             ### Quick Reference: Labels
 
             | Label | Purpose |
             |-------|---------|
-            | \`phase-1\` | Current: v1.45.x maintenance / architecture freeze |
+            | \`phase-1\` | Current: v0.46.x stabilization / CPB |
             | \`phase-2\` | For v1.50.x development items |
             | \`rfc-required\` | Large PRs with approved RFC |
-            | \`freeze-override\` | Maintainer approval for frozen file changes |
+            | \`architecture-change\` | Declares an architecture-changing PR |
+            | \`rfc-approved\` | Confirms approved RFC and authorization |
             | \`bugfix\` | Exempt from some feature-only gates |
 
             All checks must pass before merge. Failures will be annotated with fix instructions.
 
-            > 📖 See [ROADMAP.md](${{ github.server_url }}/${{ github.repository }}/blob/main/ROADMAP.md) for full policy details.`;
+            > 📖 See [ROADMAP_v2.md](${{ github.server_url }}/${{ github.repository }}/blob/main/ROADMAP_v2.md) and \`docs/governance/architecture-change-control.md\` for active policy.`;
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,

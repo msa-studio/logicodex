@@ -34,6 +34,21 @@ jobs:
       - uses: actions/checkout@v5
       - name: Verify stdlib contracts
         run: python3 tools/verify_stdlib_contracts.py
+      - name: Verify integrity runner contracts
+        run: |
+          bash -n scripts/dev/verify_full_integrity.sh
+          bash -n scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'cargo check --all-targets' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'cargo test --quiet --lib' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'FOCUSED_TEST' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'cargo test --quiet' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'cargo build --release' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'make boot-evidence' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'make boot-e2e' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'validate_v144_freestanding.py' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'verify_stdlib_stage0.sh' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'verify_cpb_self_hosting_runway.sh' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'verify_architecture_change_control.sh' scripts/dev/verify_full_integrity.sh
       - name: Install LLVM 15
         run: |
           sudo apt-get update

@@ -493,7 +493,7 @@ Freestanding components:
 | v2.00 — Pointer Provenance Engine (5-level) | 🔬 Research | 12-18 months R&D |
 | Benchmark Layer 4 (Security stress) | 🔬 Research | Validation incomplete |
 
-### 7.3 Long-Term (Requires RFC Under Architecture Freeze)
+### 7.3 Long-Term (Requires RFC Under Architecture Change Control)
 
 | Feature | Depends On |
 |---|---|
@@ -506,16 +506,36 @@ Freestanding components:
 | Full Bootloader | 3-arch freestanding |
 | AI Repair Loop | LSP + Migrator |
 
-### 7.4 Architecture Freeze (v1.45+)
+### 7.4 Architecture Change Control (v0.46+)
 
-As of v1.45, Logicodex is under **Architecture Freeze**. No new features without an RFC passing 4 alignment checks:
+The historical v1.45 Architecture Freeze was formally concluded on
+2026-07-13.
 
-- [ ] **Static Topology** — preserves compile-time structure verification
-- [ ] **Explicit Ownership** — preserves zero-cost memory safety
-- [ ] **Shard Isolation** — preserves deterministic concurrency
-- [ ] **Deterministic Behavior** — preserves reproducible execution
+The supporting evidence and Architect ratification are recorded in:
 
-RFC template: `docs/RFC_TEMPLATE.md`
+`docs/governance/architecture-freeze-exit-2026-07-13.md`
+
+Modification of an architecture-sensitive file does not by itself constitute
+an architectural change.
+
+Bug fixes, tests, diagnostics, lifecycle classification, compatibility fixes,
+and additive non-breaking work may proceed through normal review when they
+preserve active compiler authority and public contracts.
+
+An approved RFC remains mandatory for changes to:
+
+- canonical HIR execution;
+- Meaning Authority;
+- AST or HIR public contracts;
+- ABI or type-layout policy;
+- production backend architecture;
+- runtime-profile boundaries;
+- ownership or capability policy;
+- assurance boundaries.
+
+The active policy is defined in:
+
+`docs/governance/architecture-change-control.md`
 
 ---
 
@@ -540,7 +560,7 @@ The names **Logicodex**, **Logicodex Language**, and the ASCII logo are trademar
 
 ### 8.4 Decision Authority
 
-- **Architect** (Mohamad Supardi Abdul): Strategic direction, architecture freeze/unfreeze, RFC approval
+- **Architect** (Mohamad Supardi Abdul): Strategic direction, architecture change control, freeze-exit ratification, RFC approval
 - **Contributors**: Bug fixes, tests, documentation, features via RFC
 - **AI Assistant**: Architecture exploration, friction discovery, documentation drafting
 
