@@ -1,0 +1,84 @@
+[contract]
+version = 0
+
+[module]
+name = "std.path"
+layer = "std"
+stage = 1
+profile = "std"
+pure = true
+extern = false
+
+[validation]
+metadata = true
+static = true
+compile = true
+run = true
+stress = false
+
+[limits]
+compile_timeout_ms = 10000
+run_timeout_ms = 2000
+stdout_limit_bytes = 65536
+max_cases = 50
+
+[exports]
+functions = [
+  "is_empty_path_i64",
+  "not_empty_path_i64",
+  "same_emptiness_path_i64",
+  "select_by_empty_path_i64",
+]
+
+[constraints]
+allowed_imports = ["core.*"]
+forbidden_imports = ["framework.*"]
+forbidden_features = ["extern", "malloc", "free", "file", "network", "syscall"]
+
+[capabilities]
+requires = []
+
+[[cases]]
+name = "empty path is empty"
+expr = 'std.path.is_empty_path_i64("")'
+expect_i64 = 1
+
+[[cases]]
+name = "nonempty path is not empty"
+expr = 'std.path.is_empty_path_i64("src/main.ldx")'
+expect_i64 = 0
+
+[[cases]]
+name = "not empty true"
+expr = 'std.path.not_empty_path_i64("src/main.ldx")'
+expect_i64 = 1
+
+[[cases]]
+name = "not empty false"
+expr = 'std.path.not_empty_path_i64("")'
+expect_i64 = 0
+
+[[cases]]
+name = "same emptiness both empty"
+expr = 'std.path.same_emptiness_path_i64("", "")'
+expect_i64 = 1
+
+[[cases]]
+name = "same emptiness mixed"
+expr = 'std.path.same_emptiness_path_i64("", "src/main.ldx")'
+expect_i64 = 0
+
+[[cases]]
+name = "same emptiness both nonempty"
+expr = 'std.path.same_emptiness_path_i64("src/main.ldx", "docs/readme.md")'
+expect_i64 = 1
+
+[[cases]]
+name = "select empty path"
+expr = 'std.path.select_by_empty_path_i64("", 7, 9)'
+expect_i64 = 7
+
+[[cases]]
+name = "select nonempty path"
+expr = 'std.path.select_by_empty_path_i64("src/main.ldx", 7, 9)'
+expect_i64 = 9

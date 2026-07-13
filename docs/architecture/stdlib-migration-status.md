@@ -380,3 +380,10 @@ index read/write, and representative semantic rejection cases.
 
 This is not a CPB-ready `core.array` or `core.slice` claim. See
 `docs/architecture/p1b3-fixed-array-cpb-boundary.md`.
+
+## P1-B4a std.path lexical foundation
+
+`std.path` now has a contract-backed CPB foundation slice for pure lexical
+empty/non-empty path helpers. It is not a file system or normalization API.
+
+See `docs/architecture/std-path-foundation.md`.

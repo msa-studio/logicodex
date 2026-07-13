@@ -1,0 +1,29 @@
+// std.path -- lexical path predicates (CPB Phase 1 / Stdlib Stage 1).
+//
+// P1-B4a is intentionally narrow:
+// - pure String-to-I64 helpers only
+// - no filesystem access
+// - no normalization
+// - no separator inspection
+// - no absolute/relative path semantics
+//
+// Current compiler String behaviour safely supports emptiness-style predicates.
+// Rich path parsing must wait for stronger string operations.
+
+import core.text;
+
+public function is_empty_path_i64(path: String) -> I64 begin
+    return core.text.is_empty_text_i64(path);
+end
+
+public function not_empty_path_i64(path: String) -> I64 begin
+    return core.text.not_empty_text_i64(path);
+end
+
+public function same_emptiness_path_i64(left: String, right: String) -> I64 begin
+    return core.text.same_emptiness_i64(left, right);
+end
+
+public function select_by_empty_path_i64(path: String, when_empty: I64, when_nonempty: I64) -> I64 begin
+    return core.text.select_by_empty_i64(path, when_empty, when_nonempty);
+end
