@@ -22,6 +22,7 @@ echo "---------->>> REQUIRED FILES"
 test -s docs/governance/architecture-freeze-exit-2026-07-13.md
 test -s docs/governance/architecture-change-control.md
 test -s .github/workflows/gatekeeper.yml
+test -s scripts/dev/evaluate_policy_summary.py
 test -s ROADMAP_v2.md
 test -s SPECIFICATION.md
 
@@ -111,6 +112,45 @@ missing = sorted(expected_jobs - set(jobs))
 if missing:
     raise SystemExit(f"ERROR: missing workflow jobs: {missing}")
 
+summary = jobs["summarize"]
+expected_needs = [
+    "check_phase_compliance",
+    "check_documentation",
+    "check_size",
+    "check_architecture_control",
+]
+
+if summary.get("needs") != expected_needs:
+    raise SystemExit(
+        "ERROR: Policy Summary needs do not match mandatory jobs"
+    )
+
+expected_if = "${{ always() && github.event.pull_request }}"
+
+if summary.get("if") != expected_if:
+    raise SystemExit(
+        f"ERROR: Policy Summary if must be {expected_if!r}"
+    )
+
+summary_steps = summary.get("steps", [])
+
+if not isinstance(summary_steps, list):
+    raise SystemExit("ERROR: Policy Summary steps missing")
+
+summary_runs = [
+    step.get("run", "")
+    for step in summary_steps
+    if isinstance(step, dict)
+]
+
+if not any(
+    "scripts/dev/evaluate_policy_summary.py" in run
+    for run in summary_runs
+):
+    raise SystemExit(
+        "ERROR: Policy Summary evaluator is not wired"
+    )
+
 if "check_freeze" in jobs:
     raise SystemExit("ERROR: stale check_freeze job remains")
 
@@ -120,6 +160,12 @@ required_text = [
     'grep -x "architecture-change"',
     'grep -x "rfc-approved"',
     "check_size, check_architecture_control",
+    "scripts/dev/evaluate_policy_summary.py",
+    "needs.check_phase_compliance.result",
+    "needs.check_documentation.result",
+    "needs.check_size.result",
+    "needs.check_architecture_control.result",
+    "GITHUB_STEP_SUMMARY",
     "ROADMAP_v2.md",
     "docs/governance/architecture-change-control.md",
 ]
@@ -133,6 +179,8 @@ stale_text = [
     "FROZEN_FILES",
     "freeze-override",
     "Architecture Freeze Enforcement",
+    "Post welcome / policy reminder",
+    "github.event.action == 'opened' && github.event.pull_request",
 ]
 
 for item in stale_text:
@@ -223,6 +271,12 @@ for name, (labels, expected) in scenarios.items():
 
 print("label_policy_scenarios=PASS")
 PY
+
+echo "---------->>> POLICY SUMMARY EVALUATOR"
+
+python3 scripts/dev/evaluate_policy_summary.py --self-test
+
+echo "policy_summary_evaluator=PASS"
 
 echo "---------->>> STALE ACTIVE POLICY TEXT"
 
