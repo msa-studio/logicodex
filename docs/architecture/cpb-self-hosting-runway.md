@@ -236,3 +236,11 @@ tracked in `docs/architecture/p1b3-fixed-array-cpb-boundary.md`.
 This narrows the blocker but does not complete `core.array` or `core.slice`.
 Public stdlib APIs still require the normal `.ldx + .std.toml + tests` contract
 path before they can become CPB dependencies.
+
+### P1-B3b Array parameter and return barrier
+
+The CPB runway must not depend on public `core.array` functions yet. Local fixed
+arrays are proven, but array function parameters and return values still require
+a stable ABI/codegen policy.
+
+See `docs/architecture/p1b3-array-codegen-barrier.md`.
