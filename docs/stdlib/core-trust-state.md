@@ -169,3 +169,12 @@ limited to empty/non-empty path helpers. It does not provide filesystem access,
 normalization, basename/dirname, extension parsing, or platform path semantics.
 
 See `docs/architecture/std-path-foundation.md`.
+
+### P1-B5a `std.file` / `std.io`
+
+`std.file` and callable `std.io` are intentionally not ContractVerified yet.
+`PAPAR` is builtin output, not a public stdlib IO API. File/IO requires explicit
+capability policy, runtime profile policy, handle lifetime rules, and IO error
+modelling before contracts are added.
+
+See `docs/architecture/std-file-io-boundary.md`.

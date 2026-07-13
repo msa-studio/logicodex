@@ -252,3 +252,11 @@ empty/non-empty path checks and simple selection. It must not depend on
 filesystem access, normalization, or platform path semantics yet.
 
 See `docs/architecture/std-path-foundation.md`.
+
+### P1-B5a std.file / std.io boundary
+
+The CPB runway must not depend on `std.file` or callable `std.io` yet. The only
+proven output surface is builtin `PAPAR`; high-level file/IO APIs require
+capability and runtime-profile policy first.
+
+See `docs/architecture/std-file-io-boundary.md`.
