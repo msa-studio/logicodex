@@ -415,3 +415,11 @@ Current CPB proof is limited to the compiler fixed-array subset: `[T; N]`,
 array literals, local index read/write, and semantic rejection of representative
 invalid array programs. This does not claim `core.array`, `core.slice`, `Vec`,
 `List`, heap collections, or slice round-trip semantics as CPB-ready.
+
+### P1-B3b Array parameter and return barrier
+
+P1-B3b confirms that array parameters and array return values are still codegen
+barriers. Do not introduce public `core.array` or `core.slice` APIs until array
+ABI policy is implemented and proven.
+
+See `docs/architecture/p1b3-array-codegen-barrier.md`.

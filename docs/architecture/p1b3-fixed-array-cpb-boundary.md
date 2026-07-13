@@ -71,3 +71,12 @@ The next valid expansion is one of:
    array subset only;
 3. defer `core.slice` until construction, call, and round-trip behaviour are
    proven end to end.
+
+## P1-B3b array boundary update
+
+P1-B3b confirms that local fixed arrays are not enough to introduce a public
+`core.array` API. Array parameters and array return values currently pass
+semantic `check` but fail during `compile`, so array ABI policy remains a CPB
+blocker.
+
+See `docs/architecture/p1b3-array-codegen-barrier.md`.

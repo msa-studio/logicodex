@@ -153,3 +153,11 @@ they are implemented through the contract-backed `.ldx + .std.toml + tests`
 path.
 
 See `docs/architecture/p1b3-fixed-array-cpb-boundary.md`.
+
+### P1-B3b array ABI blocker
+
+`core.array` and `core.slice` remain unclaimed because array parameters and
+array return values are still codegen barriers. The proven subset is local
+fixed-array use only.
+
+See `docs/architecture/p1b3-array-codegen-barrier.md`.
