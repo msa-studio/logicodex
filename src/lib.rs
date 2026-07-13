@@ -47,7 +47,10 @@ pub mod module_loader;
 pub mod os;
 pub mod package;
 pub mod parser;
+// Mixed-lifecycle compatibility module. Its AST Analyzer is
+// LegacyReferenceOnly and is not canonical semantic authority.
 pub mod semantic;
+// Active canonical HIR semantic authority.
 pub mod semantic_gate;
 pub mod span;
 // pub mod net;  // Module file not present

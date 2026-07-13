@@ -507,7 +507,9 @@ pub unsafe fn is_audio_stream_playing(stream: AudioStream) -> bool {
 /// # Safety
 /// The callback runs on the audio thread (ISR-like).
 /// The callback function name should be registered with StrictAudioContext
-/// via `Analyzer::register_audio_callback()` for safety validation.
+/// The retired AST Analyzer once used `register_audio_callback()` for
+/// safety validation. That path is LegacyReferenceOnly and is not active in
+/// the canonical HIR semantic pipeline.
 pub unsafe fn set_audio_stream_callback(stream: AudioStream, callback: AudioCallback) {
     raylib_sys::SetAudioStreamCallback(stream, callback);
 }
