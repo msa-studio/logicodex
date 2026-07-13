@@ -7,7 +7,11 @@
 # Compiler core
 /src/lexer.rs @mymsa
 /src/parser.rs @mymsa
+/src/main.rs @mymsa
+/src/ast.rs @mymsa
 /src/semantic.rs @mymsa
+/src/semantic_gate.rs @mymsa
+/src/types.rs @mymsa
 /src/codegen.rs @mymsa
 /src/hir.rs @mymsa
 
@@ -32,3 +36,7 @@
 
 # CI/CD
 /.github/ @mymsa
+# Governance and integrity
+/docs/governance/ @mymsa
+/scripts/dev/verify_architecture_change_control.sh @mymsa
+/scripts/dev/verify_full_integrity.sh @mymsa

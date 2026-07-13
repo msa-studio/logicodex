@@ -19,16 +19,24 @@ Brief description of the changes.
 - [ ] Documentation is updated (if applicable)
 - [ ] CHANGELOG.md is updated (if applicable)
 
-## For Architecture Changes (RFC Required)
+## Architecture Change Declaration
 
-Architecture Freeze is active. If this changes architecture:
+- [ ] This PR preserves canonical execution, Meaning Authority, and public
+      compiler contracts.
+- [ ] This PR is an architectural change and carries the
+      `architecture-change` label.
+
+For a declared architectural change:
 
 - [ ] RFC submitted and approved
-- [ ] 4 alignment checks passed:
-  - [ ] Static Topology
-  - [ ] Explicit Ownership
-  - [ ] Shard Isolation
-  - [ ] Deterministic Behavior
+- [ ] `rfc-approved` label applied
+- [ ] Compatibility and migration impact documented
+- [ ] Canonical HIR and Meaning Authority impact documented
+- [ ] Architect or maintainer approval recorded
+
+Policy:
+
+`docs/governance/architecture-change-control.md`
 
 ## Testing
 

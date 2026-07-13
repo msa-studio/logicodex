@@ -1,15 +1,16 @@
 # ROADMAP_POLICY.md — Logicodex Governance & Anti-Feature-Creep Enforcement
 
-**Project:** Logicodex Programming Language Compiler  
-**Version:** v1.45.0-alpha  
-**Maintainer:** msa-studio  
-**Policy Version:** 1.0.0  
-**Status:** ENFORCED — effective immediately upon merge  
-**Last Updated:** 2025-07-17  
+**Project:** Logicodex Programming Language Compiler
+**Version:** v0.46.0-alpha
+**Maintainer:** msa-studio
+**Policy Version:** 1.1.0
+**Status:** ENFORCED — effective immediately upon merge
+**Last Updated:** 2026-07-13
 
-> **This document is the single source of truth for roadmap compliance.**  
-> **No code change shall bypass these rules.**  
-> **Violations require public acknowledgment and corrective action.**  
+> **This document defines roadmap-compliance process. Current phase authority is `ROADMAP_v2.md`.**
+> **Architecture authority is `docs/governance/architecture-change-control.md`.**
+> **No code change shall bypass these rules.**
+> **Violations require public acknowledgment and corrective action.**
 
 ---
 
@@ -36,7 +37,7 @@ Logicodex operates under three non-negotiable principles. Every decision — eve
 
 > **No new feature shall be added while existing features remain unaudited, untested, or undocumented.**
 
-The current audit (v1.45.0-alpha) reveals **22 capabilities**: 7 fully implemented, 9 partial, 5 skeleton. This is unacceptable. The project overclaims capability. We harden the 16 incomplete items before adding capability #23. 
+The historical v1.45.0-alpha audit revealed **22 capabilities**: 7 fully implemented, 9 partial, 5 skeleton. This is unacceptable. The project overclaims capability. We harden the 16 incomplete items before adding capability #23.
 
 **Hardness levels (enforced definitions):**
 
@@ -247,9 +248,9 @@ Moving from Phase N to Phase N+1 is a **significant event** requiring formal pro
 - [ ] Documentation updated: [link to docs PR]
 
 ### Audit Summary
-**Auditor:** @username  
-**Date:** YYYY-MM-DD  
-**Findings:** [PASS / PASS-with-notes / FAIL]  
+**Auditor:** @username
+**Date:** YYYY-MM-DD
+**Findings:** [PASS / PASS-with-notes / FAIL]
 **Notes:** [Any observations]
 
 ### Risk Assessment
@@ -773,7 +774,7 @@ PHASE TRANSITION RESPONSIBILITIES:
 
 ---
 
-*"A compiler is not judged by the number of its features, but by the reliability of each one."*  
+*"A compiler is not judged by the number of its features, but by the reliability of each one."*
 *— Logicodex Governance Principle*
 
 ---

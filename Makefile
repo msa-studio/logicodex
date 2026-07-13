@@ -1,7 +1,7 @@
 # Logicodex Makefile
 # Simple task automation for common development operations
 
-.PHONY: all build test test-all fmt lint bench clean install boot boot-evidence boot-e2e
+.PHONY: all build test test-all fmt lint bench clean install quick integrity boot boot-evidence boot-e2e
 
 LLVM_DIR ?= /usr/lib/llvm-15
 RUSTFLAGS ?= -L$(LLVM_DIR)/lib
@@ -83,3 +83,11 @@ boot-e2e:
 	@grep -q "QEMU_EXIT_CODE=33" /tmp/logicodex-e2e.clean || { echo "FAIL: no clean exit 33"; exit 1; }
 	@grep -q "Logicodex" /tmp/logicodex-e2e.clean || { echo "FAIL: 'Logicodex' marker missing"; exit 1; }
 	@echo "PASS: showcase.ldx compiled -> linked -> booted with correct output (10 20 55 17 36)"
+
+# Fast change-aware validation for small development iterations.
+quick:
+	@FOCUSED_TEST="$(TEST)" ./scripts/dev/verify_quick_integrity.sh
+
+# Complete pre-commit engine and governance integrity gate.
+integrity:
+	@./scripts/dev/verify_full_integrity.sh
