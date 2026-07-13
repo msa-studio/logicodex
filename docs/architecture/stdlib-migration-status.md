@@ -387,3 +387,10 @@ This is not a CPB-ready `core.array` or `core.slice` claim. See
 empty/non-empty path helpers. It is not a file system or normalization API.
 
 See `docs/architecture/std-path-foundation.md`.
+
+## P1-B5a std.file / std.io boundary
+
+`std.file` and callable `std.io` remain intentionally absent. `PAPAR` works as a
+builtin output statement, but that does not make `std.io` a CPB-ready module.
+
+See `docs/architecture/std-file-io-boundary.md`.

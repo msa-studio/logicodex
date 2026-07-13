@@ -433,3 +433,13 @@ This does not claim filesystem access, path normalization, basename/dirname,
 extension parsing, or platform path semantics.
 
 See `docs/architecture/std-path-foundation.md`.
+
+### P1-B5a std.file / std.io boundary
+
+`std.file` and callable `std.io` remain blocked. `PAPAR` is currently a
+compiler/runtime builtin output statement, not a public `std.io` API.
+
+Do not add fake file/IO modules until capability policy, runtime profile policy,
+handle lifetime, target behaviour, and IO error modelling are defined.
+
+See `docs/architecture/std-file-io-boundary.md`.

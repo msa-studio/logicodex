@@ -201,3 +201,11 @@ Recommended order:
 12. `ldx-pkg` MVP
 13. sqlite3
 14. Raylib
+
+### P1.4a `std.file` / `std.io` boundary record
+
+`std.file` and callable `std.io` remain blocked by capability/runtime-profile
+policy. The first CPB-safe step is the boundary record and negative regression
+guard, not public file/IO APIs.
+
+See `docs/architecture/std-file-io-boundary.md`.
