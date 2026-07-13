@@ -45,6 +45,7 @@ pub mod lexer;
 pub mod lod;
 pub mod module_loader;
 pub mod os;
+pub mod package;
 pub mod parser;
 pub mod semantic;
 pub mod semantic_gate;
