@@ -227,3 +227,12 @@ This does not yet make `core.collections` production-ready. It unlocks the next
 stdlib migration step: contract-backed collection helpers can now target a small,
 proven fixed-array subset before slices, dynamic buffers, iterators, maps, or
 higher-level collection APIs are promoted.
+
+### P1-B3a Fixed-array boundary update
+
+The CPB collections blocker now has a proven compiler-side fixed-array subset,
+tracked in `docs/architecture/p1b3-fixed-array-cpb-boundary.md`.
+
+This narrows the blocker but does not complete `core.array` or `core.slice`.
+Public stdlib APIs still require the normal `.ldx + .std.toml + tests` contract
+path before they can become CPB dependencies.

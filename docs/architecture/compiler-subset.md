@@ -405,3 +405,13 @@ This does not yet make `core.collections` production-ready. It unlocks the next
 stdlib migration step: contract-backed collection helpers can now target a small,
 proven fixed-array subset before slices, dynamic buffers, iterators, maps, or
 higher-level collection APIs are promoted.
+
+### P1-B3a Fixed-array boundary update
+
+The active P1-B3 implementation boundary is recorded in
+`docs/architecture/p1b3-fixed-array-cpb-boundary.md`.
+
+Current CPB proof is limited to the compiler fixed-array subset: `[T; N]`,
+array literals, local index read/write, and semantic rejection of representative
+invalid array programs. This does not claim `core.array`, `core.slice`, `Vec`,
+`List`, heap collections, or slice round-trip semantics as CPB-ready.

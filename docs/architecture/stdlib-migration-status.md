@@ -371,3 +371,12 @@ This does not yet make `core.collections` production-ready. It unlocks the next
 stdlib migration step: contract-backed collection helpers can now target a small,
 proven fixed-array subset before slices, dynamic buffers, iterators, maps, or
 higher-level collection APIs are promoted.
+
+## P1-B3a Fixed-array boundary update
+
+The fixed-array compiler subset is now treated as the safe CPB boundary for
+collections work. The current proof covers local fixed arrays, array literals,
+index read/write, and representative semantic rejection cases.
+
+This is not a CPB-ready `core.array` or `core.slice` claim. See
+`docs/architecture/p1b3-fixed-array-cpb-boundary.md`.

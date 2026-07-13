@@ -144,3 +144,12 @@ Blocked by ABI completeness:
 - static/dynamic linker integration
 - manifest allowlist and unsafe marker
 - ownership/null/error policy
+
+### P1-B3a fixed-array boundary
+
+The compiler-proven fixed-array subset is tracked as a CPB boundary, not as a
+stable public stdlib module. `core.array` and `core.slice` remain unclaimed until
+they are implemented through the contract-backed `.ldx + .std.toml + tests`
+path.
+
+See `docs/architecture/p1b3-fixed-array-cpb-boundary.md`.
