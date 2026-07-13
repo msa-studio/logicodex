@@ -244,3 +244,11 @@ arrays are proven, but array function parameters and return values still require
 a stable ABI/codegen policy.
 
 See `docs/architecture/p1b3-array-codegen-barrier.md`.
+
+### P1-B4a std.path lexical foundation
+
+The CPB runway may use the narrow `std.path` lexical foundation for
+empty/non-empty path checks and simple selection. It must not depend on
+filesystem access, normalization, or platform path semantics yet.
+
+See `docs/architecture/std-path-foundation.md`.

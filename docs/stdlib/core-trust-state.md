@@ -161,3 +161,11 @@ array return values are still codegen barriers. The proven subset is local
 fixed-array use only.
 
 See `docs/architecture/p1b3-array-codegen-barrier.md`.
+
+### `std.path`
+
+`std.path` has a narrow contract-backed lexical foundation. It is pure and
+limited to empty/non-empty path helpers. It does not provide filesystem access,
+normalization, basename/dirname, extension parsing, or platform path semantics.
+
+See `docs/architecture/std-path-foundation.md`.

@@ -423,3 +423,13 @@ barriers. Do not introduce public `core.array` or `core.slice` APIs until array
 ABI policy is implemented and proven.
 
 See `docs/architecture/p1b3-array-codegen-barrier.md`.
+
+### P1-B4a std.path lexical foundation
+
+`std.path` now starts with a narrow contract-backed lexical foundation:
+empty/non-empty path predicates and selection helpers only.
+
+This does not claim filesystem access, path normalization, basename/dirname,
+extension parsing, or platform path semantics.
+
+See `docs/architecture/std-path-foundation.md`.
