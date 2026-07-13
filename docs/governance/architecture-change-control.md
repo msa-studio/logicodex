@@ -27,6 +27,37 @@ These surfaces require focused review but are not blanket-frozen:
 
 CODEOWNERS remains applicable.
 
+## Governance label contract
+
+The three RFC-related labels represent separate governance facts:
+
+- `architecture-change`
+  declares that the pull request changes an architecture-controlled boundary.
+  Merely touching an architecture-sensitive file does not require this label.
+
+- `rfc-required`
+  declares that an RFC process or an explicit size or governance exception is
+  required. It does not mean that an RFC has already been approved.
+
+- `rfc-approved`
+  records that the Architect or authorized maintainer has approved the RFC
+  and authorized the architecture-changing implementation.
+
+The supported combinations are:
+
+| Pull-request state | Required labels | Governance meaning |
+| --- | --- | --- |
+| Routine focused change | no RFC label | Normal review |
+| Large non-architecture change | `rfc-required` | RFC or explicit exception process required |
+| Architecture proposal awaiting approval | `architecture-change`, `rfc-required` | Architecture implementation is not yet approved |
+| Approved architecture implementation | `architecture-change`, `rfc-approved` | Approved RFC evidence must be linked |
+
+`rfc-required` and `rfc-approved` represent different lifecycle states and
+must not be used interchangeably. Once an architecture RFC is approved,
+`rfc-required` is replaced by `rfc-approved`.
+
+`rfc-approved` must never be applied only to bypass the PR-size gate.
+
 ## Changes requiring an RFC
 
 An approved RFC and explicit Architect or maintainer approval are required
@@ -40,10 +71,18 @@ when a change:
 - changes runtime-profile, capability, ownership, or assurance boundaries;
 - performs a broad architecture rewrite instead of a staged migration.
 
-Such pull requests must carry:
+Before approval, an architecture proposal carries:
+
+- `architecture-change`
+- `rfc-required`
+
+After approval and implementation authorization, it carries:
 
 - `architecture-change`
 - `rfc-approved`
+
+The approved RFC and authorization evidence must be linked from the pull
+request.
 
 ## Locked invariants
 

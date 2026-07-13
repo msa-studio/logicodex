@@ -46,7 +46,15 @@ grep -Fqx -- \
   docs/governance/architecture-change-control.md
 
 grep -Fqx -- \
+  '- `rfc-required`' \
+  docs/governance/architecture-change-control.md
+
+grep -Fqx -- \
   '- `rfc-approved`' \
+  docs/governance/architecture-change-control.md
+
+grep -Fqx \
+  '`rfc-approved` must never be applied only to bypass the PR-size gate.' \
   docs/governance/architecture-change-control.md
 
 echo "governance_documents=PASS"
@@ -138,42 +146,77 @@ PY
 echo "---------->>> LABEL POLICY SCENARIOS"
 
 python3 - <<'PY'
-def policy_result(labels: set[str]) -> str:
+def policy_state(labels: set[str]) -> str:
     architecture_change = "architecture-change" in labels
+    rfc_required = "rfc-required" in labels
     rfc_approved = "rfc-approved" in labels
 
-    if architecture_change and not rfc_approved:
-        return "FAIL"
-
     if rfc_approved and not architecture_change:
-        return "FAIL"
+        return "INVALID"
 
-    return "PASS"
+    if architecture_change:
+        if rfc_required and rfc_approved:
+            return "INVALID"
+
+        if rfc_approved:
+            return "ARCHITECTURE_APPROVED"
+
+        if rfc_required:
+            return "ARCHITECTURE_PENDING"
+
+        return "INVALID"
+
+    if rfc_required:
+        return "RFC_REQUIRED"
+
+    return "ROUTINE"
 
 
 scenarios = {
-    "routine": (set(), "PASS"),
-    "architecture_without_rfc": (
-        {"architecture-change"},
-        "FAIL",
+    "routine": (
+        set(),
+        "ROUTINE",
     ),
-    "rfc_without_declaration": (
-        {"rfc-approved"},
-        "FAIL",
+    "large_non_architecture": (
+        {"rfc-required"},
+        "RFC_REQUIRED",
     ),
-    "approved_architecture_change": (
+    "architecture_pending": (
+        {"architecture-change", "rfc-required"},
+        "ARCHITECTURE_PENDING",
+    ),
+    "architecture_approved": (
         {"architecture-change", "rfc-approved"},
-        "PASS",
+        "ARCHITECTURE_APPROVED",
+    ),
+    "architecture_without_rfc_state": (
+        {"architecture-change"},
+        "INVALID",
+    ),
+    "approved_without_architecture": (
+        {"rfc-approved"},
+        "INVALID",
+    ),
+    "pending_and_approved_together": (
+        {
+            "architecture-change",
+            "rfc-required",
+            "rfc-approved",
+        },
+        "INVALID",
+    ),
+    "approved_size_bypass": (
+        {"rfc-required", "rfc-approved"},
+        "INVALID",
     ),
 }
 
 for name, (labels, expected) in scenarios.items():
-    actual = policy_result(labels)
+    actual = policy_state(labels)
 
     if actual != expected:
-        raise SystemExit(
-            f"ERROR: scenario {name}: "
-            f"expected {expected}, got {actual}"
+        raise RuntimeError(
+            f"scenario {name}: expected {expected}, got {actual}"
         )
 
     print(f"{name}={actual}")
