@@ -1,11 +1,12 @@
 // =========================================================================
-// Logicodex v1.38 — Semantic Gatekeeper (I1: Activated)
+// Logicodex Semantic Gate — ACTIVE / CANONICAL MEANING AUTHORITY
 //
-// Final semantic validation pass before codegen.
+// Canonical HIR semantic validation used by `check`, `compile`, and the
+// defensive codegen boundary. The retired AST Analyzer in `semantic.rs` is
+// not authoritative for current compiler behaviour.
+//
 // Checks: break/continue in loops, unsafe block correctness,
 // FFI call safety, return path validity.
-//
-// Called after semantic analysis and before LLVM codegen.
 // =========================================================================
 
 use crate::ffi::{CallableRegistry, FfiGatekeeper, SafetyContext};

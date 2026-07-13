@@ -30,8 +30,10 @@ use codegen::{CodegenOptions, MemoryIntegrityPlan, PhysicalMemoryAccessPlan};
 use lexer::{Lexer, Lexicon};
 use os::target::CompilationTarget;
 use parser::{CompilerPipeline, Parser};
-// v1.21 Analyzer retired from the pipeline (audit: lowering + semantic_gate
-// now own semantic validation). Module kept for reference / domain checks.
+// Semantic lifecycle boundary:
+// - HIR lowering + semantic_gate own canonical semantic validation.
+// - semantic::Analyzer is retained as LegacyReferenceOnly.
+// - selected semantic types remain imported by non-canonical subsystems.
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
