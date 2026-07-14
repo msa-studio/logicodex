@@ -94,6 +94,14 @@ run_gate \
   ./scripts/dev/verify_architecture_change_control.sh
 
 run_gate \
+  code_lifecycle_self_test \
+  python3 -B scripts/dev/test_code_lifecycle.py
+
+run_gate \
+  code_lifecycle \
+  python3 -B scripts/dev/verify_code_lifecycle.py
+
+run_gate \
   cargo_fmt \
   cargo fmt --all -- --check
 
