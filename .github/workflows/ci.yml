@@ -49,6 +49,10 @@ jobs:
           grep -Fq 'verify_stdlib_stage0.sh' scripts/dev/verify_full_integrity.sh
           grep -Fq 'verify_cpb_self_hosting_runway.sh' scripts/dev/verify_full_integrity.sh
           grep -Fq 'verify_architecture_change_control.sh' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'test_code_lifecycle.py' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'verify_code_lifecycle.py' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'test_code_lifecycle.py' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'verify_code_lifecycle.py' scripts/dev/verify_full_integrity.sh
       - name: Install LLVM 15
         run: |
           sudo apt-get update
