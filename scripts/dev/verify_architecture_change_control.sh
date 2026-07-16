@@ -47,6 +47,10 @@ grep -Fqx -- \
   docs/governance/architecture-change-control.md
 
 grep -Fqx -- \
+  '- `size-exception`' \
+  docs/governance/architecture-change-control.md
+
+grep -Fqx -- \
   '- `rfc-required`' \
   docs/governance/architecture-change-control.md
 
@@ -196,16 +200,20 @@ echo "---------->>> LABEL POLICY SCENARIOS"
 python3 - <<'PY'
 def policy_state(labels: set[str]) -> str:
     architecture_change = "architecture-change" in labels
+    size_exception = "size-exception" in labels
     rfc_required = "rfc-required" in labels
     rfc_approved = "rfc-approved" in labels
+
+    if rfc_required and rfc_approved:
+        return "INVALID"
 
     if rfc_approved and not architecture_change:
         return "INVALID"
 
-    if architecture_change:
-        if rfc_required and rfc_approved:
-            return "INVALID"
+    if rfc_required and not architecture_change:
+        return "INVALID"
 
+    if architecture_change:
         if rfc_approved:
             return "ARCHITECTURE_APPROVED"
 
@@ -214,8 +222,8 @@ def policy_state(labels: set[str]) -> str:
 
         return "INVALID"
 
-    if rfc_required:
-        return "RFC_REQUIRED"
+    if size_exception:
+        return "SIZE_EXCEPTION"
 
     return "ROUTINE"
 
@@ -225,21 +233,43 @@ scenarios = {
         set(),
         "ROUTINE",
     ),
+    "roadmap_aligned_implementation": (
+        set(),
+        "ROUTINE",
+    ),
     "large_non_architecture": (
+        {"size-exception"},
+        "SIZE_EXCEPTION",
+    ),
+    "legacy_size_rfc_conflation": (
         {"rfc-required"},
-        "RFC_REQUIRED",
+        "INVALID",
+    ),
+    "architecture_without_lifecycle": (
+        {"architecture-change"},
+        "INVALID",
     ),
     "architecture_pending": (
-        {"architecture-change", "rfc-required"},
+        {
+            "architecture-change",
+            "rfc-required",
+        },
         "ARCHITECTURE_PENDING",
     ),
     "architecture_approved": (
-        {"architecture-change", "rfc-approved"},
+        {
+            "architecture-change",
+            "rfc-approved",
+        },
         "ARCHITECTURE_APPROVED",
     ),
-    "architecture_without_rfc_state": (
-        {"architecture-change"},
-        "INVALID",
+    "large_architecture_approved": (
+        {
+            "architecture-change",
+            "rfc-approved",
+            "size-exception",
+        },
+        "ARCHITECTURE_APPROVED",
     ),
     "approved_without_architecture": (
         {"rfc-approved"},
@@ -253,8 +283,11 @@ scenarios = {
         },
         "INVALID",
     ),
-    "approved_size_bypass": (
-        {"rfc-required", "rfc-approved"},
+    "size_and_rfc_without_architecture": (
+        {
+            "size-exception",
+            "rfc-required",
+        },
         "INVALID",
     ),
 }
@@ -262,14 +295,17 @@ scenarios = {
 for name, (labels, expected) in scenarios.items():
     actual = policy_state(labels)
 
+    print(
+        f"SCENARIO[{name}]="
+        f"{actual}"
+    )
+
     if actual != expected:
-        raise RuntimeError(
-            f"scenario {name}: expected {expected}, got {actual}"
+        raise SystemExit(
+            f"{name}: expected {expected}, got {actual}"
         )
 
-    print(f"{name}={actual}")
-
-print("label_policy_scenarios=PASS")
+print("LABEL_POLICY_SCENARIOS=PASS")
 PY
 
 echo "---------->>> POLICY SUMMARY EVALUATOR"
