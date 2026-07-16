@@ -35,9 +35,26 @@ The three RFC-related labels represent separate governance facts:
   declares that the pull request changes an architecture-controlled boundary.
   Merely touching an architecture-sensitive file does not require this label.
 
+  The label is required only when the change alters at least one of:
+
+  - Meaning Authority or canonical HIR semantics;
+  - the canonical execution path or backend responsibility;
+  - subsystem ownership or dependency direction;
+  - a capability, security, isolation, or trust boundary;
+  - a public ABI, contract, or compatibility obligation;
+  - approved roadmap architecture or phase authority.
+
+  Implementing an already-approved roadmap item inside its existing boundary
+  is controlled implementation, not architecture drift.
+
+- `size-exception`
+  records maintainer review of a pull request above the default size threshold.
+  It is a review and cohesion signal only. It neither declares nor approves an
+  architecture change.
+
 - `rfc-required`
-  declares that an RFC process or an explicit size or governance exception is
-  required. It does not mean that an RFC has already been approved.
+  declares that a proposed architecture-controlled boundary change is awaiting
+  RFC review. It does not mean that the RFC has already been approved.
 
 - `rfc-approved`
   records that the Architect or authorized maintainer has approved the RFC
@@ -47,16 +64,43 @@ The supported combinations are:
 
 | Pull-request state | Required labels | Governance meaning |
 | --- | --- | --- |
-| Routine focused change | no RFC label | Normal review |
-| Large non-architecture change | `rfc-required` | RFC or explicit exception process required |
+| Routine focused or roadmap-aligned implementation | no governance exception label | Normal review |
+| Large non-architecture change | `size-exception` | Cohesion justification and maintainer size review |
 | Architecture proposal awaiting approval | `architecture-change`, `rfc-required` | Architecture implementation is not yet approved |
 | Approved architecture implementation | `architecture-change`, `rfc-approved` | Approved RFC evidence must be linked |
+| Large approved architecture implementation | `architecture-change`, `rfc-approved`, `size-exception` | Architecture authorization and size review are independent |
+
+`size-exception` is independent from architecture authorization. It must not
+be used as an RFC substitute, and RFC labels must not be required only because
+a pull request is large.
 
 `rfc-required` and `rfc-approved` represent different lifecycle states and
 must not be used interchangeably. Once an architecture RFC is approved,
 `rfc-required` is replaced by `rfc-approved`.
 
 `rfc-approved` must never be applied only to bypass the PR-size gate.
+
+## Size control and architecture control
+
+The default line threshold is an advisory review boundary, not an architecture
+veto. A cohesive, roadmap-aligned change may proceed with `size-exception`
+when its pull request records:
+
+- the owning roadmap item and bounded scope;
+- why further splitting would reduce cohesion or validation quality;
+- focused and full-integrity validation evidence;
+- confirmation that no architecture-controlled boundary is being changed.
+
+A large pull request that also changes an architecture-controlled boundary
+must satisfy both controls independently.
+
+The following do not by themselves constitute architecture drift:
+
+- implementing an already-approved roadmap item;
+- touching an architecture-sensitive file;
+- adding tests, validators, tooling, examples, or documentation;
+- behaviour-preserving internal refactoring;
+- exceeding the default pull-request size threshold.
 
 ## Changes requiring an RFC
 

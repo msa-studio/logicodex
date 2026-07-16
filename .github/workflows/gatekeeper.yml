@@ -9,7 +9,7 @@
 # Policies Enforced:
 #   1. Phase Compliance  — PR labels must match the current roadmap phase
 #   2. Documentation Gate — Feature PRs must include documentation updates
-#   3. Size Check        — PRs >500 lines require "rfc-required" label
+#   3. Size Check        — PRs >500 lines require "size-exception" label
 #   4. Architecture Control — Declared architecture changes require an approved RFC
 #
 # Failures post detailed comments on the PR via GitHub Script.
@@ -289,7 +289,7 @@ jobs:
 
   # ==========================================================================
   # JOB: check_size
-  # Blocks large PRs (>500 lines changed) without "rfc-required" label.
+  # Blocks large PRs (>500 lines changed) without reviewed "size-exception".
   # ==========================================================================
   check_size:
     name: PR Size Check
@@ -348,34 +348,34 @@ jobs:
             echo "✅ Size check PASS: ${TOTAL_LINES} lines within ${SIZE_LIMIT} limit"
           fi
 
-      - name: Check RFC label
-        id: check_rfc_label
+      - name: Check size-exception label
+        id: check_size_exception
         if: steps.calc_size.outputs.result == 'LARGE'
         run: |
-          echo "=== Checking for RFC label on large PR ==="
+          echo "=== Checking governed size exception for large PR ==="
 
           LABELS_JSON='${{ toJson(github.event.pull_request.labels) }}'
           if [ "$LABELS_JSON" = "null" ] || [ -z "$LABELS_JSON" ]; then
             echo "result=FAIL" >> "$GITHUB_OUTPUT"
-            echo "❌ Size gate FAIL: large PR without 'rfc-required' label"
+            echo "❌ Size gate FAIL: large PR without 'size-exception' label"
             exit 1
           fi
 
-          HAS_RFC=$(echo "$LABELS_JSON" | grep -oE '"name":\s*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"' | grep -x "rfc-required" || true)
+          HAS_SIZE_EXCEPTION=$(echo "$LABELS_JSON" | grep -oE '"name":\s*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"' | grep -x "size-exception" || true)
 
-          if [ -n "$HAS_RFC" ]; then
+          if [ -n "$HAS_SIZE_EXCEPTION" ]; then
             echo "result=PASS" >> "$GITHUB_OUTPUT"
-            echo "✅ Size gate PASS: large PR has 'rfc-required' label"
+            echo "✅ Size gate PASS: large PR has reviewed 'size-exception' label"
           else
             echo "result=FAIL" >> "$GITHUB_OUTPUT"
             echo "❌ Size gate FAIL: PR changes ${{ steps.calc_size.outputs.total_lines }} lines"
             echo "   Limit: ${{ steps.calc_size.outputs.size_limit }} lines"
-            echo "   Missing required label: 'rfc-required'"
+            echo "   Missing required label: 'size-exception'"
             exit 1
           fi
 
       - name: Post comment on failure
-        if: failure() && steps.check_rfc_label.outputs.result == 'FAIL'
+        if: failure() && steps.check_size_exception.outputs.result == 'FAIL'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
@@ -401,13 +401,15 @@ jobs:
             **Option A — Split the PR:**
             Break into smaller, focused PRs each under ${sizeLimit} lines.
 
-            **Option B — Request RFC:**
-            1. Open a GitHub Discussion with the RFC template
-            2. Complete the 4 alignment checks (technical review, compatibility audit, performance impact, maintainer consensus)
-            3. Add the \`rfc-required\` label once approved
+            **Option B — Use the governed size exception:**
+            1. Confirm the change is cohesive and aligned with the active roadmap
+            2. Record scope, split rationale, validation evidence, and confirmation that no architecture-controlled boundary changes
+            3. Add \`size-exception\` after maintainer review
 
-            **Option C — Justify exception:**
-            Comment below with justification for maintainer override.
+            **Option C — Architecture change path:**
+            Use \`architecture-change\` with \`rfc-required\` while approval is
+            pending, or replace it with \`rfc-approved\` after authorization.
+            A large architecture implementation also uses \`size-exception\`.
 
             > 📖 **Policy Reference:** docs/governance/architecture-change-control.md
             > "No new language features, compiler subsystems, or public APIs may be introduced without a published RFC."
