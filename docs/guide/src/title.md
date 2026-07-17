@@ -4,7 +4,7 @@
 
 ## Panduan Lengkap Fungsi dan Penggunaan
 
-**Version:** v1.45.0-alpha  
+**Historical guide baseline:** v1.45.0-alpha (non-authoritative)
 **Date:** May 2026  
 **Author:** Mohamad Supardi Abdul (`mymsastudio@gmail.com`)
 
@@ -39,6 +39,6 @@ Panduan ini adalah **manual praktikal** untuk pengguna Logicodex — dari pemula
  |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
              |___/                                    
 ============================================================
-        Functions And Guide — v1.45.0-alpha
+        Historical Guide Snapshot — v1.45.0-alpha
 ============================================================
 ```

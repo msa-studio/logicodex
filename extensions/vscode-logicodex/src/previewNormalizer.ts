@@ -166,7 +166,7 @@ export function normalizeToExpertPreview(source: string, coreMap: CoreMap, optio
   }
 
   const warnings = [
-    'Best-effort preview only: this is token-level normalization from core_map.json; v1.21-alpha compiler-backed control-flow support is authoritative.',
+    'Best-effort preview only: this is token-level normalization from core_map.json; the current single HIR compiler path is authoritative.',
     'Run `logicodex check` or `cargo run -- check` for authoritative syntax and semantic validation.'
   ];
 

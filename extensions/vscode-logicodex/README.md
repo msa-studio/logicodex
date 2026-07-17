@@ -1,6 +1,6 @@
 # Logicodex Side View
 
-**Logicodex Side View** is a VS Code extension MVP for **current Logicodex v1.21-alpha**. It provides `.ldx` syntax highlighting, snippets, and a right-side panel that displays a **best-effort expert canonical shorthand preview** based on `core_map.json`.
+**Logicodex Side View** is a VS Code extension MVP for **current Logicodex v0.46.0-alpha**. It provides `.ldx` syntax highlighting, snippets, and a right-side panel that displays a **best-effort expert canonical shorthand preview** based on `core_map.json`.
 
 > This preview is not the official compiler translator. It only performs token-level normalization based on the dictionary. Use the Logicodex compiler for real validation.
 

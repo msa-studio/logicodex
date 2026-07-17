@@ -68,4 +68,4 @@ Historical documents preserved in `docs/archive/`:
 
 ---
 
-*Logicodex Documentation — v1.45.0-alpha*
+*Logicodex Documentation — v0.46.0-alpha*

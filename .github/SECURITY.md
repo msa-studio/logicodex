@@ -4,7 +4,7 @@
 
 | Version | Status |
 |---------|--------|
-| v1.30.0-alpha (current engine) | ✅ Current — receiving security updates |
+| v0.46.0-alpha (current Cargo release authority) | ✅ Current — best-effort alpha security support |
 | Earlier alpha snapshots | ❌ No longer supported |
 
 > Pre-release alpha: best-effort security support only; not for production use.
