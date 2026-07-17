@@ -1,6 +1,6 @@
 # Logicodex Reflex Engine Examples
 
-This note documents the refreshed `examples/` compatibility set for the current Logicodex compiler baseline. The examples are intentionally limited to syntax that is implemented by the parser and semantic analyzer, so they can be validated by both the default **v1.21-alpha** `check` command and the opt-in **v1.30.0-alpha** dormant subsystem probe through `v130-check`.
+This note documents the refreshed `examples/` compatibility set for the current single HIR compiler path. The `v1.30` CLI value is the canonical compatibility selector, while `v1.21` remains a deprecated compatibility alias to the same engine. The hidden `v130-check` command is retained only as a subsystem self-check name, not as a second compiler pipeline.
 
 | File | Style | Main capability demonstrated | Compatibility note |
 |---|---|---|---|

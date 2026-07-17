@@ -1,6 +1,6 @@
 // =========================================================================
 // Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.45.0-alpha (Deterministic Systems Platform)
+// Version authority: Cargo.toml via CARGO_PKG_VERSION
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
@@ -38,36 +38,46 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const LOGICODEX_LOGO: &str = r#"=========================================================
-  _                 _               _                 
- | |    ___   __ _ (_)  ___  ___   __| |  ___ __  __  
- | |   / _ \ / _` || | / __|/ _ \ / _` | / _ \ \/ /  
- | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
- |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
-             |___/                                    
-             [ LOGICODEX COMPILER v1.30.0-alpha ]
+const LOGICODEX_LOGO: &str = concat!(
+    r#"=========================================================
+  _                 _               _
+ | |    ___   __ _ (_)  ___  ___   __| |  ___ __  __
+ | |   / _ \ / _` || | / __|/ _ \ / _` | / _ \ \/ /
+ | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <
+ |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\
+             |___/
+             [ LOGICODEX COMPILER v"#,
+    env!("CARGO_PKG_VERSION"),
+    r#" ]
              [ DETERMINISTIC SYSTEMS PLATFORM   ]
 =========================================================
-Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)"#;
+Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)"#,
+);
 
-const LOGICODEX_LONG_VERSION: &str = r#"=========================================================
-  _                 _               _                 
- | |    ___   __ _ (_)  ___  ___   __| |  ___ __  __  
- | |   / _ \ / _` || | / __|/ _ \ / _` | / _ \ \/ /  
- | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <   
- |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\  
-             |___/                                    
-             [ LOGICODEX COMPILER v1.30.0-alpha ]
+const LOGICODEX_LONG_VERSION: &str = concat!(
+    r#"=========================================================
+  _                 _               _
+ | |    ___   __ _ (_)  ___  ___   __| |  ___ __  __
+ | |   / _ \ / _` || | / __|/ _ \ / _` | / _ \ \/ /
+ | |__| (_) | (_| || || (__| (_) | (_| ||  __/ >  <
+ |_____\___/ \__, ||_| \___|\___/ \__,_| \___|/_/\_\
+             |___/
+             [ LOGICODEX COMPILER v"#,
+    env!("CARGO_PKG_VERSION"),
+    r#" ]
              [ DETERMINISTIC SYSTEMS PLATFORM   ]
 =========================================================
 Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
-logicodex 1.30.0-alpha
-Security Roadmap: deterministic systems platform with capability fabric"#;
+logicodex "#,
+    env!("CARGO_PKG_VERSION"),
+    r#"
+Security Roadmap: deterministic systems platform with capability fabric"#,
+);
 
 #[derive(Debug, ClapParser)]
 #[command(
     name = "logicodex",
-    version = "1.30.0-alpha",
+    version = env!("CARGO_PKG_VERSION"),
     long_version = LOGICODEX_LONG_VERSION,
     about = "Native compiler for the Logicodex programming language by Mohamad Supardi Abdul",
     before_help = LOGICODEX_LOGO
@@ -151,7 +161,7 @@ enum Commands {
         #[arg(
             long,
             default_value = "v1.30",
-            help = "Select compiler pipeline: v1.30 (default) or v1.21 (legacy)"
+            help = "Compatibility selector: v1.30 (canonical name) or v1.21 (deprecated alias); both use the single HIR engine"
         )]
         pipeline: String,
         #[arg(
@@ -170,14 +180,14 @@ enum Commands {
         #[arg(
             long,
             default_value = "v1.30",
-            help = "Select compiler pipeline: v1.30 (default) or v1.21 (legacy)"
+            help = "Compatibility selector: v1.30 (canonical name) or v1.21 (deprecated alias); both use the single HIR engine"
         )]
         pipeline: String,
     },
     #[command(
         name = "v130-check",
         hide = true,
-        about = "Run v1.30 subsystem self-check (formerly v130-check)"
+        about = "Run the compatibility subsystem self-check (legacy command name: v130-check)"
     )]
     V130Check {
         #[arg(value_name = "FILE")]
@@ -619,7 +629,7 @@ fn semantic_diagnostics_error(
 fn hir_lowering_error(source: &str, mut diagnostics: Vec<span::Diagnostic>) -> anyhow::Error {
     recover_hir_lowering_spans(source, &mut diagnostics);
     anyhow::anyhow!(
-        "v1.30 HIR lowering failed:\n{}",
+        "HIR lowering failed:\n{}",
         format_v130_diagnostics(&diagnostics)
     )
 }
@@ -651,7 +661,7 @@ fn lower_with_modules(
     }
 
     // Multi-module path. Parsing is injected into the loader as a closure so the
-    // loader stays a pure graph/ordering unit; here it runs the real v1.30
+    // loader stays a pure graph/ordering unit; here it runs the canonical HIR
     // lexer+parser against the shared dictionary.
     let dict_owned = dict.to_path_buf();
     let parse = move |source: &str, _path: &Path| -> std::result::Result<ast::Program, String> {
@@ -680,7 +690,7 @@ fn lower_with_modules(
             // Imported module: function-only, mangled, no main-wrap.
             lowering
                 .lower_module_program(&module.name, module.program)
-                .map_err(|diags| anyhow::anyhow!("v1.30 HIR lowering failed: {:?}", diags))?
+                .map_err(|diags| anyhow::anyhow!("HIR lowering failed: {:?}", diags))?
         };
         merged.extend(lowered.items);
     }
@@ -884,7 +894,7 @@ fn write_security_attestation_plan(output_path: &Path) -> Result<()> {
     let module_hash = compute_module_hash(output_path);
 
     let content = format!(
-        "# Logicodex Runtime Memory Integrity Verification Plan\n\nTarget artifact: `{}`\nModule hash (placeholder): `{:x}`\n\nSecurity roadmap: v1.21-alpha specification baseline and practical severity model.\n\nThe `--secure` compilation path computes a module integrity hash and records the security roadmap. v1.38: Basic hash computation via simple folding (placeholder for SHA-256).\n\nMemory integrity plan: `{:?}`\n\n## Verification Steps\n1. Recompile with `--secure` flag\n2. Compare module hash against known-good value\n3. Hash mismatch → fail-stop (hosted: process termination, freestanding: halt)\n",
+        "# Logicodex Runtime Memory Integrity Verification Plan\n\nTarget artifact: `{}`\nModule hash (placeholder): `{:x}`\n\nSecurity roadmap: current Cargo release authority and practical severity model.\n\nThe `--secure` compilation path computes a module integrity hash and records the security roadmap. Historical implementation note: basic hash folding remains a placeholder for SHA-256.\n\nMemory integrity plan: `{:?}`\n\n## Verification Steps\n1. Recompile with `--secure` flag\n2. Compare module hash against known-good value\n3. Hash mismatch → fail-stop (hosted: process termination, freestanding: halt)\n",
         output_path.display(),
         module_hash,
         MemoryIntegrityPlan::hardened_default()
@@ -1097,7 +1107,7 @@ fn v130_check(file: &Path, dict: &Path) -> Result<()> {
     parse_and_analyze(file, dict, CompilerPipeline::V130)?;
     run_v130_subsystem_self_check()?;
     println!(
-        "{}: v1.30 semantic validation and subsystem check succeeded",
+        "{}: single-engine semantic validation and compatibility subsystem check succeeded",
         file.display()
     );
     Ok(())

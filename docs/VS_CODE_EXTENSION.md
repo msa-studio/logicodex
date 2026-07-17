@@ -1,6 +1,6 @@
 # Logicodex VS Code Side View
 
-This document explains how to use **Logicodex Side View** for **current Logicodex v1.21-alpha**. The extension is built as an MVP without changing the Rust compiler. It provides syntax highlighting, snippets, and a right-side panel that displays a **best-effort expert canonical shorthand preview** based on `dict/core_map.json`.
+This document explains how to use **Logicodex Side View** for **current Logicodex v0.46.0-alpha**. The extension is built as an MVP without changing the Rust compiler. It provides syntax highlighting, snippets, and a right-side panel that displays a **best-effort expert canonical shorthand preview** based on `dict/core_map.json`.
 
 > This extension is a **best-effort preview**, not a compiler-backed translator. It normalizes Malay pseudocode and English pseudocode aliases to expert canonical shorthand, while real validation must still be performed through the Logicodex compiler.
 

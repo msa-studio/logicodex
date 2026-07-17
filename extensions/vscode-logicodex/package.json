@@ -1,7 +1,7 @@
 {
   "name": "logicodex-side-view",
   "displayName": "Logicodex Side View",
-  "description": "Best-effort Logicodex pseudo Melayu/English to canonical expert side-view preview for current logicodex v 1.21 alpha.",
+  "description": "Best-effort Logicodex pseudo Melayu/English to canonical expert side-view preview for current Logicodex v0.46.0-alpha.",
   "version": "0.1.0",
   "publisher": "msa-studio",
   "license": "MIT OR Apache-2.0",
