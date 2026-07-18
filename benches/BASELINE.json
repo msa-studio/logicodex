@@ -1,5 +1,5 @@
 {
-  "_comment": "Logicodex v1.45 Gold Standard — Update on each significant merge",
+  "_comment": "Logicodex benchmark reference baseline — Update on each significant merge",
   "version": "1.45.0-alpha",
   "date": "2026-05-25",
   "machine": "qemu-x86_64-smp8-4GB",
