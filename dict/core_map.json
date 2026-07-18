@@ -77,7 +77,7 @@
         "SELAGI",
         "WHILE"
       ],
-      "description": "Executable while-loop statement supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "description": "Historical provenance: Executable while-loop statement supported by parser, semantic analyzer, and code generator in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "executable_control_flow"
     },
     "LOOP": {
@@ -87,7 +87,7 @@
         "ULANG",
         "LOOP"
       ],
-      "description": "Executable unconditional loop statement supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "description": "Historical provenance: Executable unconditional loop statement supported by parser, semantic analyzer, and code generator in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "executable_control_flow"
     },
     "LOOP_BREAK": {
@@ -97,7 +97,7 @@
         "HENTI",
         "BREAK"
       ],
-      "description": "Executable loop-break control flow supported inside while and loop bodies in v1.21-alpha.",
+      "description": "Historical provenance: Executable loop-break control flow supported inside while and loop bodies in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "executable_control_flow"
     },
     "LOOP_CONTINUE": {
@@ -108,7 +108,7 @@
         "LANGKAU",
         "CONTINUE"
       ],
-      "description": "Executable loop-continue control flow supported inside while and loop bodies in v1.21-alpha.",
+      "description": "Historical provenance: Executable loop-continue control flow supported inside while and loop bodies in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "executable_control_flow"
     },
     "PRINT": {
@@ -219,7 +219,7 @@
         "BERISIKO",
         "UNSAFE"
       ],
-      "description": "Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha.",
+      "description": "Historical provenance: Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "critical_policy": {
         "requires_explicit_block": true
       },
@@ -232,7 +232,7 @@
         "LUAR",
         "EXTERN"
       ],
-      "description": "Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha.",
+      "description": "Historical provenance: Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "critical_policy": {
         "requires_explicit_terminator": true
       },
@@ -245,7 +245,7 @@
         "BENTUK",
         "STRUCT"
       ],
-      "description": "Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha.",
+      "description": "Historical provenance: Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "parser_trap_unimplemented"
     },
     "ENUM": {
@@ -255,7 +255,7 @@
         "PILIHAN",
         "ENUM"
       ],
-      "description": "Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha.",
+      "description": "Historical provenance: Recognized vocabulary marker; parser emits an explicit unimplemented diagnostic in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "parser_trap_unimplemented"
     },
     "TRUE": {
@@ -369,7 +369,7 @@
         "DAN",
         "AND"
       ],
-      "description": "Executable logical AND operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "description": "Historical provenance: Executable logical AND operator supported by parser, semantic analyzer, and code generator in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "executable_operator"
     },
     "OR": {
@@ -379,7 +379,7 @@
         "ATAU",
         "OR"
       ],
-      "description": "Executable logical OR operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "description": "Historical provenance: Executable logical OR operator supported by parser, semantic analyzer, and code generator in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "executable_operator"
     },
     "BIT_AND": {
@@ -390,7 +390,7 @@
         "BIT_DAN",
         "BIT_AND"
       ],
-      "description": "Executable bitwise AND operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "description": "Historical provenance: Executable bitwise AND operator supported by parser, semantic analyzer, and code generator in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "critical_policy": {
         "requires_explicit_terminator": true
       },
@@ -404,7 +404,7 @@
         "BIT_ATAU",
         "BIT_OR"
       ],
-      "description": "Executable bitwise OR operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "description": "Historical provenance: Executable bitwise OR operator supported by parser, semantic analyzer, and code generator in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "executable_operator"
     },
     "SHIFT_L": {
@@ -415,7 +415,7 @@
         "SHIFT_L",
         "SHL"
       ],
-      "description": "Executable left shift operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "description": "Historical provenance: Executable left shift operator supported by parser, semantic analyzer, and code generator in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "executable_operator"
     },
     "SHIFT_R": {
@@ -426,7 +426,7 @@
         "SHIFT_R",
         "SHR"
       ],
-      "description": "Executable right shift operator supported by parser, semantic analyzer, and code generator in v1.21-alpha.",
+      "description": "Historical provenance: Executable right shift operator supported by parser, semantic analyzer, and code generator in v1.21-alpha. Current behavior is governed by the active compiler and canonical validation.",
       "compiler_status": "executable_operator"
     },
     "GREATER": {
