@@ -285,7 +285,7 @@ pub fn compile_streaming(
     // Jika ada violations dan mode Pakar, return error
     if !verify_result.valid && matches!(mode, CompileMode::Pakar { .. }) {
         let violations = verify_result.format_violations();
-        eprintln!("logicodex v1.32.0-alpha: Capability topology verification FAILED");
+        eprintln!("logicodex: Capability topology verification FAILED");
         for v in &violations {
             eprintln!("  {}", v);
         }

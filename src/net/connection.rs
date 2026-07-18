@@ -265,7 +265,7 @@ impl Drop for Connection {
     fn drop(&mut self) {
         self.shutdown();
         eprintln!(
-            "logicodex v1.33.0-alpha: Connection fd={} closed (RAII) — service='{}', rx={}B tx={}B age={}ms",
+            "logicodex: Connection fd={} closed (RAII) — service='{}', rx={}B tx={}B age={}ms",
             self.fd, self.service_name, self.bytes_received, self.bytes_sent, self.age_ms()
         );
     }

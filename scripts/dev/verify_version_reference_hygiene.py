@@ -8,6 +8,11 @@ from pathlib import Path
 import re
 import sys
 
+from version_reference_hygiene_runtime import (
+    RuntimeVersionValidationError,
+    validate_active_runtime_labels,
+)
+
 
 PRIMARY_SURFACES = (
     ".github/SECURITY.md",
@@ -64,6 +69,8 @@ class ValidationSummary:
     cargo_version: str
     checked_surfaces: int
     compatibility_selectors: int
+    active_runtime_surfaces: int
+    generated_version_authorities: int
 
 
 def read_text(root: Path, relative: str) -> str:
@@ -101,6 +108,14 @@ def validate_repository(
 ) -> ValidationSummary:
     errors: list[str] = []
     version = cargo_version(root)
+
+    try:
+        runtime_summary = (
+            validate_active_runtime_labels(root)
+        )
+    except RuntimeVersionValidationError as error:
+        errors.extend(error.errors)
+        runtime_summary = None
 
     surfaces: dict[str, str] = {}
 
@@ -266,10 +281,18 @@ def validate_repository(
     if errors:
         raise ValidationError(errors)
 
+    assert runtime_summary is not None
+
     return ValidationSummary(
         cargo_version=version,
         checked_surfaces=len(surfaces),
         compatibility_selectors=3,
+        active_runtime_surfaces=(
+            runtime_summary.checked_surfaces
+        ),
+        generated_version_authorities=(
+            runtime_summary.generated_version_authorities
+        ),
     )
 
 
@@ -303,6 +326,14 @@ def main() -> int:
     print(
         "compatibility_selectors_preserved="
         f"{summary.compatibility_selectors}"
+    )
+    print(
+        "active_runtime_surfaces="
+        f"{summary.active_runtime_surfaces}"
+    )
+    print(
+        "generated_version_authorities="
+        f"{summary.generated_version_authorities}"
     )
 
     return 0

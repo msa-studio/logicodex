@@ -70,7 +70,7 @@ impl ShardInstance {
 
         self.running = true;
         eprintln!(
-            "logicodex v1.39.0-alpha: Shard {} running on core {} ({} services) [thread={:?}]",
+            "logicodex: Shard {} running on core {} ({} services) [thread={:?}]",
             self.shard_id,
             self.core_id,
             self.services.len(),
@@ -89,7 +89,7 @@ impl ShardInstance {
         self.running = false;
         self.reactor.stop();
         eprintln!(
-            "logicodex v1.39.0-alpha: Shard {} stopped (core {})",
+            "logicodex: Shard {} stopped (core {})",
             self.shard_id, self.core_id
         );
     }
@@ -168,7 +168,7 @@ impl ShardedReactor {
 
         self.running = true;
         eprintln!(
-            "logicodex v1.39.0-alpha: ShardedReactor starting ({} shards, {} cores available)",
+            "logicodex: ShardedReactor starting ({} shards, {} cores available)",
             self.shards.len(),
             affinity::num_cpus()
         );
@@ -183,7 +183,7 @@ impl ShardedReactor {
             let handle = std::thread::spawn(move || {
                 if let Err(e) = shard.run() {
                     eprintln!(
-                        "logicodex v1.39: Shard {} affinity error (non-fatal): {}",
+                        "logicodex: Shard {} affinity error (non-fatal): {}",
                         shard.shard_id, e
                     );
                     // Continue even if affinity fails — reactor still runs
@@ -194,7 +194,7 @@ impl ShardedReactor {
                 // return it. The shard's reactor has been consumed.
                 // For stats access, we use a different mechanism.
                 eprintln!(
-                    "logicodex v1.39: Shard {} thread exited",
+                    "logicodex: Shard {} thread exited",
                     shard.shard_id
                 );
             });
@@ -203,7 +203,7 @@ impl ShardedReactor {
         }
 
         eprintln!(
-            "logicodex v1.39.0-alpha: ShardedReactor started ({} threads active)",
+            "logicodex: ShardedReactor started ({} threads active)",
             self.handles.iter().filter(|h| h.is_some()).count()
         );
         Ok(())
@@ -234,13 +234,13 @@ impl ShardedReactor {
         // Join all threads
         for (i, handle) in self.handles.iter_mut().enumerate() {
             if let Some(h) = handle.take() {
-                eprintln!("logicodex v1.39: Joining shard {} thread...", i);
+                eprintln!("logicodex: Joining shard {} thread...", i);
                 // Don't wait forever — use timeout
                 let _ = h.join();
             }
         }
 
-        eprintln!("logicodex v1.39.0-alpha: ShardedReactor stopped");
+        eprintln!("logicodex: ShardedReactor stopped");
     }
 
     /// Dapatkan shard mengikut ID.
@@ -311,7 +311,7 @@ impl ShardedReactor {
                 shard.reactor.shutdown_all();
             }
         }
-        eprintln!("logicodex v1.39.0-alpha: All shards shut down gracefully");
+        eprintln!("logicodex: All shards shut down gracefully");
     }
 }
 

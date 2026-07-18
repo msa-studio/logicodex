@@ -125,23 +125,19 @@ pub mod windows {
     /// CreateFileW → ReadFile/WriteFile → CloseHandle
     /// v1.38 F1: Graceful fallback — returns error instead of panicking.
     pub fn open_file(path: &str, access: u32) -> Result<isize, i32> {
-        eprintln!("logicodex v1.38: Windows open_file({path}, {access}) — Windows syscalls require hosted CallableRegistry FFI");
+        eprintln!("logicodex: Windows open_file({path}, {access}) — Windows syscalls require hosted CallableRegistry FFI");
         Err(-1)
     }
 
     /// v1.38 F1: Windows fallback for sys_recv — not applicable on Windows.
     pub fn win_recv_fallback(_fd: i32, _buf: &mut [u8]) -> Result<usize, i32> {
-        eprintln!(
-            "logicodex v1.38: Windows recv not implemented — use WSARecv via CallableRegistry"
-        );
+        eprintln!("logicodex: Windows recv not implemented — use WSARecv via CallableRegistry");
         Err(-1)
     }
 
     /// v1.38 F1: Windows fallback for sys_send — not applicable on Windows.
     pub fn win_send_fallback(_fd: i32, _buf: &[u8]) -> Result<usize, i32> {
-        eprintln!(
-            "logicodex v1.38: Windows send not implemented — use WSASend via CallableRegistry"
-        );
+        eprintln!("logicodex: Windows send not implemented — use WSASend via CallableRegistry");
         Err(-1)
     }
 }

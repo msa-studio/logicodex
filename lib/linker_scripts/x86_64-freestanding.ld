@@ -1,5 +1,5 @@
 /* =========================================================================
-   Logicodex v1.44 — Linker Script for Freestanding x86_64
+   Logicodex — Linker Script for Freestanding x86_64
    
    Memory layout for bare-metal (no OS) execution:
    
