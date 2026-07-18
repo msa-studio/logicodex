@@ -61,7 +61,7 @@ impl Reactor {
     pub fn new() -> Self {
         let epoll_fd = syscall::epoll_create1(syscall::linux::EPOLL_CLOEXEC);
         if epoll_fd < 0 {
-            eprintln!("logicodex v1.37: WARNING epoll_create1 failed (fd={}), reactor will use stub mode", epoll_fd);
+            eprintln!("logicodex: WARNING epoll_create1 failed (fd={}), reactor will use stub mode", epoll_fd);
         }
         Self {
             connections: HashMap::new(),
@@ -276,7 +276,7 @@ impl Reactor {
     /// v1.37: Uses epoll_wait for real event-driven I/O. Runs continuously.
     pub fn run(&mut self) {
         self.running = true;
-        eprintln!("logicodex v1.37.0-alpha: Reactor started (epoll={}, {} connections)",
+        eprintln!("logicodex: Reactor started (epoll={}, {} connections)",
             self.epoll_fd, self.connections.len());
 
         while self.running {
@@ -289,7 +289,7 @@ impl Reactor {
             }
         }
 
-        eprintln!("logicodex v1.37.0-alpha: Reactor stopped");
+        eprintln!("logicodex: Reactor stopped");
     }
 
     /// Hentikan Reactor.
@@ -391,7 +391,7 @@ impl Reactor {
         for fd in fds {
             self.unregister(fd);
         }
-        eprintln!("logicodex v1.33.0-alpha: All connections closed (graceful shutdown)");
+        eprintln!("logicodex: All connections closed (graceful shutdown)");
     }
 }
 

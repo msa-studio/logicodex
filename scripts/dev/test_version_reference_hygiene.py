@@ -136,6 +136,52 @@ def create_fixture(root: Path) -> None:
         + "\n",
     )
 
+    create_runtime_fixture(root)
+
+
+def create_runtime_fixture(root: Path) -> None:
+    standard_surfaces = (
+        "src/codegen.rs",
+        "src/net/affinity.rs",
+        "src/net/connection.rs",
+        "src/net/reactor.rs",
+        "src/net/sharded_reactor.rs",
+        "src/os/syscall.rs",
+        "src/semantic_gate.rs",
+        "src/tier2/pass.rs",
+    )
+
+    for relative in standard_surfaces:
+        write(
+            root,
+            relative,
+            "// Historical milestone v1.39 is allowed.\n"
+            'eprintln!("logicodex: active runtime text");\n',
+        )
+
+    write(
+        root,
+        "src/tier2/capability_ir.rs",
+        "// Historical milestone v1.35 is allowed.\n"
+        'env!("CARGO_PKG_VERSION");\n'
+        'env!("CARGO_PKG_VERSION");\n',
+    )
+
+    write(
+        root,
+        "src/tier2/ctl_mapper.rs",
+        "// Historical milestone v1.36 is allowed.\n"
+        'env!("CARGO_PKG_VERSION");\n'
+        'env!("CARGO_PKG_VERSION");\n',
+    )
+
+    write(
+        root,
+        "lib/linker_scripts/x86_64-freestanding.ld",
+        "/* Logicodex — Linker Script "
+        "for Freestanding x86_64 */\n",
+    )
+
 
 def expect_failure(
     name: str,
@@ -253,8 +299,113 @@ def run_self_test() -> None:
     )
 
 
+def run_runtime_self_test() -> None:
+    with tempfile.TemporaryDirectory(
+        prefix="logicodex-runtime-version-hygiene-",
+    ) as temp:
+        root = Path(temp)
+        create_fixture(root)
+
+        validate_repository(root)
+        print(
+            "self_test_runtime_valid_fixture=PASS"
+        )
+
+        reactor = root / "src/net/reactor.rs"
+        valid_reactor = reactor.read_text(
+            encoding="utf-8",
+        )
+
+        reactor.write_text(
+            valid_reactor
+            + 'eprintln!("logicodex v1.39: stale");\n',
+            encoding="utf-8",
+        )
+
+        expect_failure(
+            "stale_runtime_label",
+            root,
+            "stale active runtime version label",
+        )
+
+        reactor.write_text(
+            valid_reactor
+            + "// Historical runtime milestone v1.39.\n",
+            encoding="utf-8",
+        )
+
+        validate_repository(root)
+        print(
+            "self_test_runtime_historical_comment_allowed="
+            "PASS"
+        )
+
+        reactor.write_text(
+            valid_reactor,
+            encoding="utf-8",
+        )
+
+        capability = (
+            root / "src/tier2/capability_ir.rs"
+        )
+
+        valid_capability = capability.read_text(
+            encoding="utf-8",
+        )
+
+        capability.write_text(
+            valid_capability.replace(
+                'env!("CARGO_PKG_VERSION")',
+                '"v1.35.0-alpha"',
+                1,
+            ),
+            encoding="utf-8",
+        )
+
+        expect_failure(
+            "generated_header_authority",
+            root,
+            "generated headers must derive from "
+            "CARGO_PKG_VERSION",
+        )
+
+        capability.write_text(
+            valid_capability,
+            encoding="utf-8",
+        )
+
+        linker = (
+            root
+            / "lib/linker_scripts/"
+            "x86_64-freestanding.ld"
+        )
+
+        valid_linker = linker.read_text(
+            encoding="utf-8",
+        )
+
+        linker.write_text(
+            valid_linker.replace(
+                "Logicodex — Linker Script",
+                "Logicodex v1.44 — Linker Script",
+            ),
+            encoding="utf-8",
+        )
+
+        expect_failure(
+            "stale_linker_header",
+            root,
+            "linker header must be version-agnostic",
+        )
+
+    print(
+        "runtime_version_reference_hygiene_self_test=PASS"
+    )
+
+
 def main() -> int:
     run_self_test()
+    run_runtime_self_test()
     return 0
 
 

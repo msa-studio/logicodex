@@ -82,7 +82,7 @@ pub fn set_cpu_affinity(core_id: u32) -> Result<(), AffinityError> {
     // dengan THREAD_AFFINITY_POLICY jika tersedia (10.5+).
     // Fallback: teruskan tanpa affinity — log warning.
     eprintln!(
-        "logicodex v1.39: macOS CPU affinity untuk core {} — "
+        "logicodex: macOS CPU affinity untuk core {} — "
         "thread_policy_set tidak digunakan dalam sandbox (memerlukan framework Mach)",
         core_id
     );
@@ -100,7 +100,7 @@ pub fn set_cpu_affinity(core_id: u32) -> Result<(), AffinityError> {
     // Windows: SetThreadAffinityMask(GetCurrentThread(), 1 << core_id)
     // Dalam sandbox: log diagnostic — memerlukan kernel32 linking.
     eprintln!(
-        "logicodex v1.39: Windows CPU affinity untuk core {} — "
+        "logicodex: Windows CPU affinity untuk core {} — "
         "SetThreadAffinityMask memerlukan kernel32 (gunakan CallableRegistry FFI)",
         core_id
     );

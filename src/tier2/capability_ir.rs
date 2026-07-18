@@ -453,7 +453,10 @@ impl CapabilityGraph {
     /// Generate .cap file (audit manifest) — Fasa A.
     pub fn to_cap(&self) -> Vec<String> {
         let mut lines = Vec::new();
-        lines.push("# Logicodex Capability Graph v1.35.0-alpha".to_string());
+        lines.push(format!(
+            "# Logicodex Capability Graph v{}",
+            env!("CARGO_PKG_VERSION")
+        ));
         lines.push(format!("# Target: {}", self.target.as_str()));
         lines.push("# Project capability model INTO the WASM ecosystem".to_string());
         lines.push(String::new());
@@ -538,7 +541,10 @@ impl CapabilityGraph {
     /// Dalam Fasa B penuh: CTL Mapper akan generate WIT auto dari CapabilityGraph.
     pub fn to_wit_stub(&self) -> String {
         let mut lines = Vec::new();
-        lines.push("// WIT Auto-Generated dari CapabilityGraph (v1.35.0-alpha)".to_string());
+        lines.push(format!(
+            "// WIT Auto-Generated dari CapabilityGraph (Logicodex v{})",
+            env!("CARGO_PKG_VERSION")
+        ));
         lines.push("// Fasa B: CTL Mapper akan generate ini secara auto".to_string());
         lines.push(String::new());
 

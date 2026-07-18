@@ -1556,12 +1556,12 @@ pub fn validate_module(module: &HirModule, types: TypeRegistry) -> Result<(), Ve
 pub fn validate_module_with_reporting(module: &HirModule, types: TypeRegistry) -> bool {
     match validate_module(module, types) {
         Ok(()) => {
-            println!("logicodex v1.38: Semantic gatekeeper validation passed");
+            println!("logicodex: Semantic gatekeeper validation passed");
             true
         }
         Err(diagnostics) => {
             eprintln!(
-                "logicodex v1.38: Semantic gatekeeper found {} issue(s):",
+                "logicodex: Semantic gatekeeper found {} issue(s):",
                 diagnostics.len()
             );
             for d in &diagnostics {

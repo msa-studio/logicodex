@@ -348,7 +348,7 @@ pub fn compile_v130(
     // v1.38 A6: Pre-declare all callable functions so they're available during HIR codegen
     compiler
         .predeclare_callables()
-        .unwrap_or_else(|e| eprintln!("logicodex v1.38: predeclare_callables warning: {}", e));
+        .unwrap_or_else(|e| eprintln!("logicodex: predeclare_callables warning: {}", e));
 
     // v1.38 I1: Run semantic gatekeeper as final validation pass before codegen
     {
@@ -359,7 +359,7 @@ pub fn compile_v130(
             .unwrap_or_else(TypeRegistry::new);
         if let Err(diagnostics) = crate::semantic_gate::validate_module(hir_module, types_clone) {
             eprintln!(
-                "logicodex v1.38: Semantic gatekeeper warnings ({}):",
+                "logicodex: Semantic gatekeeper warnings ({}):",
                 diagnostics.len()
             );
             for d in &diagnostics {
@@ -378,12 +378,10 @@ pub fn compile_v130(
             crate::hir::HirItem::Struct(struct_decl) => {
                 compiler
                     .register_hir_struct(struct_decl)
-                    .unwrap_or_else(|e| {
-                        eprintln!("logicodex v1.30: struct registration warning: {}", e)
-                    });
+                    .unwrap_or_else(|e| eprintln!("logicodex: struct registration warning: {}", e));
             }
             crate::hir::HirItem::Enum(_) => {
-                eprintln!("logicodex v1.30: enum items are processed at semantic time");
+                eprintln!("logicodex: enum items are processed at semantic time");
             }
             crate::hir::HirItem::ExternFunction(extern_fn) => {
                 compiler.emit_v130_extern_function(extern_fn)?;
@@ -394,7 +392,7 @@ pub fn compile_v130(
     compiler
         .module
         .verify()
-        .map_err(|e| anyhow!("LLVM module verification failed (v1.30): {e}"))?;
+        .map_err(|e| anyhow!("LLVM module verification failed: {e}"))?;
 
     let output_kind = if options.target.is_freestanding() {
         OutputKind::FreestandingObject
