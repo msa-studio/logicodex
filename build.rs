@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.42 — Build Script: Raylib Detection + Linking
+// Build script: Raylib detection and linking
 //
 // Detects installed Raylib library and configures linking:
 //   - Linux:   pkg-config → -lraylib, or fallback to common paths

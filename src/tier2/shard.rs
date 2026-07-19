@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.34.0-alpha — Tier 2: Service Topology Sharding
+// Tier 2: Service Topology Sharding
 //
 // "The Sharded Deterministic Reactor Manifesto"
 //

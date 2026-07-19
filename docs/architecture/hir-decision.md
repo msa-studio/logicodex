@@ -1,5 +1,7 @@
 # HIR Decision (Phase 1 / Issue #02): ACTIVATE
 
+> **Status:** Architecture decision record. Version references describe historical provenance; current behavior is governed by the active compiler and canonical validation.
+
 **Decision:** ACTIVATE — the HIR is the compiler's sole execution path.
 **Date:** 2026-06-10  **Phase:** 1 (HARDEN)  **Deliverable:** P1-D6 / P1-A6
 

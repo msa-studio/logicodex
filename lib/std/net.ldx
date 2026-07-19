@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.33.0-alpha — Network Standard Library
+// Network Standard Library
 //
 // Pustaka standard untuk rangkaian deterministik.
 // Semua operasi rangkaian melalui Reactor — tiada raw socket access.

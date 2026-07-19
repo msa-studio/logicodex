@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.39.0-alpha — Network Reactor: CPU Affinity
+// Network Reactor: CPU Affinity
 //
 // Platform abstraction untuk CPU affinity.
 // Linux: sched_setaffinity via direct syscall

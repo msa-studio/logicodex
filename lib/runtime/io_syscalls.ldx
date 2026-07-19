@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Ketuk 4: Syscall Backend Bindings
+// Ketuk 4: Syscall Backend Bindings
 //
 // Low-level syscall wrappers untuk Linux x86_64.
 // Direct syscall — tiada libc overhead.

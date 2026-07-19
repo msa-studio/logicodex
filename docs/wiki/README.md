@@ -1,5 +1,7 @@
 # Logicodex Documentation
 
+> **Classification note:** Versioned entries in this index refer to historical documents, compatibility material or archived evidence.
+
 Logicodex documentation is organized into **4 core documents** and **2 deep wikis**.
 
 ## Core Documents (Start Here)
@@ -48,7 +50,7 @@ Historical documents preserved in `docs/archive/`:
 | `WHITE_PAPER_v121.md` | Original v1.21 baseline — referenced from SPECIFICATION.md |
 | `ROADMAP_v145.md` | Merged into SPECIFICATION.md § 7 |
 | `ARCHITECTURE.md` | Merged into SPECIFICATION.md § 3 |
-| `AUDIT_v141.md` | Stale (v1.41) — CHANGELOG.md has current data |
+| `AUDIT_v141.md` | Historical audit snapshot — CHANGELOG.md has current data |
 | `GETTING_STARTED_v145.md` | Merged into docs/HANDBOOK.md |
 | `v1.30-` to `v1.37-*.md` | Merged into HANDBOOK.md + wikis |
 | `CHANGELOG_ANALYSIS_v145.md` | One-time analysis document |

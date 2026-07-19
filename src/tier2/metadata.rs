@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.31.0-alpha — Tier 2: Persistent Metadata Graph
+// Tier 2: Persistent Metadata Graph
 //
 // The heart of the Streaming Semantic Compiler.
 // Instead of keeping full AST in RAM, we extract only the semantic essence:
@@ -167,7 +167,7 @@ pub struct SemanticSummary {
     pub is_recursive: bool,
     /// Symbols this function calls (for dependency tracking)
     pub callees: Vec<u32>,
-    // v1.32.0-alpha: Static Capability Fabric — Gate contract fields
+    // Static Capability Fabric — Gate contract fields
     /// Gates that this symbol REQUIRES (must be provided by another module)
     pub requires_gates: Vec<GateRef>,
     /// Gates that this symbol PROVIDES (available for other modules to use)

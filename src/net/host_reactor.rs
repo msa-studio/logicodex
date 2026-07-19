@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.41.0-alpha — Host Reactor
+// Host Reactor
 //
 // "Bridge WASM Guest to Host Hardware — HW Gates NEVER Reach Guest"
 //
@@ -7,7 +7,7 @@
 //   WASM Guest (logicodex:host-reactor import) → Host Function Callback
 //   → HostReactor.with_hardware_zone() → HW Implementation
 //
-// v1.41: Guest ↔ Host communication validated end-to-end.
+// Guest ↔ Host communication validated end-to-end.
 // HW gates: GPIO, Timer, DMA — mediated by host, not exposed to guest.
 //
 // Protocol:
@@ -190,7 +190,7 @@ impl HostReactor {
     // ─── HW Gate Implementations ───
 
     /// GPIO control: set pin mode and value.
-    /// v1.41: Guest calls this via logicodex:host-reactor/gpio-control
+    /// Guest calls this via logicodex:host-reactor/gpio-control
     pub fn gpio_control(
         &mut self,
         pin: u32,
@@ -207,7 +207,7 @@ impl HostReactor {
                 });
             }
 
-            // v1.41: Validate pin range
+            // Validate pin range
             if pin > 127 {
                 return Err(HostReactorError::InvalidPin {
                     pin,
@@ -223,7 +223,7 @@ impl HostReactor {
     }
 
     /// Timer set: configure a timer for microsecond delay.
-    /// v1.41: Guest calls this via logicodex:host-reactor/timer-set
+    /// Guest calls this via logicodex:host-reactor/timer-set
     pub fn timer_set(
         &mut self,
         pin: u32,
@@ -247,7 +247,7 @@ impl HostReactor {
     }
 
     /// DMA transfer: move data between addresses.
-    /// v1.41: Guest calls this via logicodex:host-reactor/dma-transfer
+    /// Guest calls this via logicodex:host-reactor/dma-transfer
     pub fn dma_transfer(
         &mut self,
         channel: u32,
@@ -281,7 +281,7 @@ impl HostReactor {
 
     /// Register a host function callback for a WASM guest import.
     /// Returns a host function pointer that the WASM runtime can call.
-    /// v1.41: This bridges the guest import to the host implementation.
+    /// This bridges the guest import to the host implementation.
     pub fn register_host_function(
         &mut self,
         name: &str,
@@ -297,7 +297,7 @@ impl HostReactor {
     }
 
     /// Dispatch a host function call.
-    /// v1.41: Called by the WASM runtime when guest imports are invoked.
+    /// Called by the WASM runtime when guest imports are invoked.
     pub fn dispatch(
         &mut self,
         func: HostFunction,

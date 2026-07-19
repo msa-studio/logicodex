@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Ketuk 3: File Handle ABI
+// Ketuk 3: File Handle ABI
 //
 // Safe wrapper untuk operasi fail. Semua fungsi return Result<T, IoError>.
 // =========================================================================

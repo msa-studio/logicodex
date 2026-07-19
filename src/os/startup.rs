@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.44 — Freestanding Startup Code (crt0)
+// Freestanding Startup Code (crt0)
 //
 // _start: Entry point for freestanding (bare-metal) execution.
 // Runs before main() — initializes the environment that main() expects.

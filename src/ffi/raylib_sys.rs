@@ -318,7 +318,7 @@ impl Color {
 }
 
 // ─── Audio Types ───
-// v1.43: Raylib audio types for sound, music, and streaming.
+// Raylib audio types for sound, music, and streaming.
 
 /// Raw audio data (samples + format info)
 #[repr(C)]
@@ -406,7 +406,7 @@ extern "C" {
     pub fn GetMouseY() -> i32;
     pub fn GetMousePosition() -> Vector2;
 
-    // ─── Audio (v1.43) ───
+    // ─── Audio ───
     // Device
     pub fn InitAudioDevice();
     pub fn CloseAudioDevice();

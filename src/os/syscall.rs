@@ -18,7 +18,7 @@ pub mod linux {
     pub const SYS_EXIT: u64 = 60;
     pub const SYS_FSTAT: u64 = 5;
 
-    // v1.37 Network Runtime syscalls
+    // Network runtime syscalls
     pub const SYS_RECV: u64 = 17; // recvfrom on some arch, but recv=17 on x86_64
     pub const SYS_SEND: u64 = 16; // sendto on some arch, but send=16 on x86_64
     pub const SYS_SOCKET: u64 = 41;
@@ -123,19 +123,19 @@ pub mod windows {
     use std::os::windows::ffi::OsStrExt;
 
     /// CreateFileW → ReadFile/WriteFile → CloseHandle
-    /// v1.38 F1: Graceful fallback — returns error instead of panicking.
+    /// Graceful fallback — returns error instead of panicking.
     pub fn open_file(path: &str, access: u32) -> Result<isize, i32> {
         eprintln!("logicodex: Windows open_file({path}, {access}) — Windows syscalls require hosted CallableRegistry FFI");
         Err(-1)
     }
 
-    /// v1.38 F1: Windows fallback for sys_recv — not applicable on Windows.
+    /// Windows fallback for sys_recv — not applicable on Windows.
     pub fn win_recv_fallback(_fd: i32, _buf: &mut [u8]) -> Result<usize, i32> {
         eprintln!("logicodex: Windows recv not implemented — use WSARecv via CallableRegistry");
         Err(-1)
     }
 
-    /// v1.38 F1: Windows fallback for sys_send — not applicable on Windows.
+    /// Windows fallback for sys_send — not applicable on Windows.
     pub fn win_send_fallback(_fd: i32, _buf: &[u8]) -> Result<usize, i32> {
         eprintln!("logicodex: Windows send not implemented — use WSASend via CallableRegistry");
         Err(-1)
@@ -169,7 +169,7 @@ pub enum FileOp {
 }
 
 // =========================================================================
-// v1.37 Network Runtime: Direct Syscall Wrappers
+// Direct Syscall Wrappers
 // =========================================================================
 
 /// epoll_create1 — create an epoll instance.

@@ -117,7 +117,7 @@ pub enum Stmt {
         index: Expr,
         value: Expr,
     },
-    /// v1.33.0-alpha: Service manifest — deterministic network reactor.
+    /// Service manifest — deterministic network reactor.
     /// Syntax: `service WebServer { port: 443, requires: Net.Admin, handler: WebHandler, policy: Block }`
     Service {
         name: String,

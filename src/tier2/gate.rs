@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.32.0-alpha — Tier 2: Gate / Door Capability System
+// Tier 2: Gate / Door Capability System
 //
 // "Gate menentukan SIAPA boleh bercakap, Door menentukan BAGAIMANA
 //  mereka bercakap."

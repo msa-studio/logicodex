@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.33.0-alpha — Network Reactor: Service Manifest + Registry
+// Network Reactor: Service Manifest + Registry
 //
 // Servis dideklarasikan secara deklaratif dalam kod sumber Logicodex:
 //

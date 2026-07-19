@@ -11,7 +11,7 @@ use inkwell::targets::{
 };
 use inkwell::OptimizationLevel;
 
-/// v1.44: CPU architecture for freestanding targets.
+/// CPU architecture for freestanding targets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TargetArch {
     X86_64,
@@ -30,7 +30,7 @@ impl TargetArch {
 
     pub fn llvm_features(self) -> &'static str {
         match self {
-            // v1.44 G9: x86_64 has SSE2 — no need for soft-float
+            // x86_64 has SSE2 — no need for soft-float
             Self::X86_64 => "+sse2",
             // aarch64: default features include NEON
             Self::Aarch64 => "",
@@ -51,17 +51,17 @@ impl TargetArch {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilationTarget {
     Native,
-    /// v1.44: Freestanding with architecture selection
+    /// Freestanding with architecture selection
     Freestanding {
         arch: TargetArch,
     },
-    /// v1.40: WebAssembly target — generates .wasm via LLVM WASM backend
+    /// WebAssembly target — generates .wasm via LLVM WASM backend
     Wasm,
 }
 
 impl CompilationTarget {
     pub fn parse(value: &str) -> Result<Self> {
-        // v1.44 G8: Support freestanding-<arch> syntax
+        // Support freestanding-<arch> syntax
         if value.starts_with("freestanding-") {
             let arch_str = &value["freestanding-".len()..];
             let arch = match arch_str {
@@ -131,7 +131,7 @@ impl CompilationTarget {
 pub enum OutputKind {
     Object,
     FreestandingObject,
-    /// v1.40: WebAssembly module — .wasm output
+    /// WebAssembly module — .wasm output
     WasmModule,
 }
 
@@ -139,7 +139,7 @@ pub fn build_target_machine(kind: OutputKind) -> Result<TargetMachine> {
     build_target_machine_with_arch(kind, TargetArch::X86_64)
 }
 
-/// v1.44 G8: Build target machine with architecture selection.
+/// Build target machine with architecture selection.
 /// Supports x86_64 (default), aarch64, and riscv64 for freestanding targets.
 pub fn build_target_machine_with_arch(kind: OutputKind, arch: TargetArch) -> Result<TargetMachine> {
     Target::initialize_all(&InitializationConfig::default());
@@ -160,7 +160,7 @@ pub fn build_target_machine_with_arch(kind: OutputKind, arch: TargetArch) -> Res
                 TargetArch::Aarch64 => "generic",
                 TargetArch::Riscv64 => "generic-rv64",
             },
-            // v1.44 G9: Architecture-specific features (not +soft-float for x86_64)
+            // Architecture-specific features (not +soft-float for x86_64)
             arch.llvm_features(),
             RelocMode::Static,
             arch.code_model(),
@@ -169,7 +169,7 @@ pub fn build_target_machine_with_arch(kind: OutputKind, arch: TargetArch) -> Res
         OutputKind::WasmModule => (
             TargetTriple::create("wasm32-unknown-unknown"),
             "generic",
-            // v1.40: WASM features — bulk-memory for memcpy, mutable-globals
+            // WASM features — bulk-memory for memcpy, mutable-globals
             "+bulk-memory,+mutable-globals,+sign-ext",
             RelocMode::Static,
             CodeModel::Default,

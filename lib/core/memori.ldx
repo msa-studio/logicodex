@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Ketuk 1: Core Memory Model (lib/core/memori.ldx)
+// Ketuk 1: Core Memory Model (lib/core/memori.ldx)
 //
 // Primitif memori asas yang selamat untuk penggunaan bare-metal.
 // TIADA alokasi heap — semua primitif menggunakan static allocation

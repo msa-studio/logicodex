@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.33.0-alpha — Network Reactor: RAII Connection
+// Network Reactor: RAII Connection
 //
 // "Killer Feature": Setiap koneksi = objek RAII.
 // Jika koneksi tamat (timeout, terputus, malicious), objek di-drop
@@ -112,7 +112,7 @@ impl Connection {
     }
 
     /// Baca data dari koneksi. Mengembalikan bytes yang dibaca.
-    /// v1.37: Uses SYS_RECV syscall directly (no libc).
+    /// Uses SYS_RECV syscall directly (no libc).
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, ConnectionError> {
         if !self.taint.is_active() {
             return Err(ConnectionError::ConnectionClosed);
@@ -140,7 +140,7 @@ impl Connection {
     }
 
     /// Tulis data ke koneksi.
-    /// v1.37: Uses SYS_SEND syscall directly (no libc).
+    /// Uses SYS_SEND syscall directly (no libc).
     pub fn write(&mut self, buf: &[u8]) -> Result<usize, ConnectionError> {
         if !self.taint.is_active() {
             return Err(ConnectionError::ConnectionClosed);
@@ -230,7 +230,7 @@ impl Connection {
     }
 
     /// Tutup konegsi (manual — biasanya dilakukan oleh Drop).
-    /// v1.37: Uses SYS_CLOSE syscall directly.
+    /// Uses SYS_CLOSE syscall directly.
     pub fn shutdown(&mut self) {
         if !self.closed {
             self.closed = true;
@@ -296,7 +296,7 @@ impl std::fmt::Display for ConnectionError {
 impl std::error::Error for ConnectionError {}
 
 // ─── Helper ───
-/// Current timestamp dalam ms (monotonic — v1.37: guna clock_gettime).
+/// Historical provenance: monotonic timestamp uses clock_gettime since the v1.37 implementation milestone.
 fn now_ms() -> u64 {
     crate::os::syscall::clock_gettime_monotonic_ms()
 }

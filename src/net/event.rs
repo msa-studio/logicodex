@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.33.0-alpha — Network Reactor: Event Types
+// Network Reactor: Event Types
 //
 // Event yang dihasilkan oleh Reactor apabila epoll_wait() mengesan
 // perubahan pada file descriptor. Setiap event diproses secara

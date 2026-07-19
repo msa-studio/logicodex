@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.44 — Freestanding Panic Handler
+// Freestanding Panic Handler
 //
 // When `panic!()` is called in a bare-metal environment (no OS),
 // this handler:

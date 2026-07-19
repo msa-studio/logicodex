@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.32.0-alpha — Tier 2: Capability Topology IR
+// Tier 2: Capability Topology IR
 //
 // The Capability Topology is a compile-time graph that maps:
 //   WHO (which symbol) → CAN DO WHAT (which gate)

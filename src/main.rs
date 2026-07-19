@@ -327,7 +327,7 @@ fn compile(
         return Ok(());
     }
 
-    // v1.40: WASM target — emit .wasm via LLVM wasm32-unknown-unknown backend
+    // WASM target — emit .wasm via LLVM wasm32-unknown-unknown backend
     if target.is_wasm() {
         println!("WASM module written to {}", artifact.object_path.display());
         println!("  Triple: {}", target.llvm_triple()); // wasm32-unknown-unknown
@@ -750,7 +750,7 @@ fn compile_v130_pipeline(
     let mut callables = ffi::CallableRegistry::default();
     ffi::raylib::register_raylib_functions(&mut types, &mut callables, &raylib_type_ids);
 
-    // v1.42 P7: WASM target — Raylib is native-desktop only, block all Raylib functions
+    // WASM target — Raylib is native-desktop only, block all Raylib functions
     if target.is_wasm() {
         let raylib_names: Vec<String> = callables
             .signatures
@@ -822,7 +822,7 @@ fn compile_v130_pipeline(
     )
 }
 
-/// v1.42 P7: Check if a function name is a Raylib function.
+/// Check if a function name is a Raylib function.
 /// Used to filter out Raylib functions when targeting WASM.
 /// True if `b` can appear inside an identifier.
 fn is_ident_byte(b: u8) -> bool {
@@ -889,7 +889,7 @@ fn write_security_attestation_plan(output_path: &Path) -> Result<()> {
     let mut plan_path = output_path.to_path_buf();
     plan_path.set_extension("security.md");
 
-    // v1.38 G1: Compute a simple module integrity hash (placeholder for SHA-256)
+    // Compute a simple module integrity hash (placeholder for SHA-256)
     // In production, this would compute a cryptographic hash of the .text section
     let module_hash = compute_module_hash(output_path);
 
@@ -913,7 +913,7 @@ fn write_security_attestation_plan(output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// v1.38 G1: Compute a simple module integrity hash.
+/// Compute a simple module integrity hash.
 /// Placeholder — production would use SHA-256 over the .text section.
 fn compute_module_hash(path: &Path) -> u64 {
     use std::collections::hash_map::DefaultHasher;
@@ -929,7 +929,7 @@ fn write_freestanding_plan(output_path: &Path) -> Result<()> {
     plan_path.set_extension("freestanding.md");
     let access_plan = PhysicalMemoryAccessPlan::freestanding_default();
 
-    // v1.44 G8: Auto-detect host architecture for freestanding target
+    // Auto-detect host architecture for freestanding target
     let arch = detect_host_arch();
     let target_triple = arch.llvm_triple();
     let features = arch.llvm_features();
@@ -980,7 +980,7 @@ fn write_freestanding_plan(output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// v1.44 G8: Auto-detect the host CPU architecture for freestanding target.
+/// Auto-detect the host CPU architecture for freestanding target.
 fn detect_host_arch() -> logicodex::os::target::TargetArch {
     use logicodex::os::target::TargetArch;
     if cfg!(target_arch = "x86_64") {

@@ -1,10 +1,10 @@
 // =========================================================================
-// Logicodex v1.37.0-alpha — Network Reactor: Deterministic Event Loop
+// Network Reactor: Deterministic Event Loop
 //
 // Reactor LIVE dengan epoll (Linux) — direct syscall, tiada libc.
 // Event-driven, synchronous blocking — tiada async/await, tiada runtime berat.
 //
-// v1.37: Semua stubs diganti dengan implementasi sebenar:
+// Semua stubs diganti dengan implementasi sebenar:
 //   - epoll_create1, epoll_ctl, epoll_wait via direct syscall
 //   - SYS_RECV / SYS_SEND untuk socket I/O
 //   - clock_gettime(CLOCK_MONOTONIC) untuk timestamp
@@ -57,7 +57,7 @@ pub struct Reactor {
 
 impl Reactor {
     /// Cipta Reactor baru.
-    /// v1.37: Creates real epoll instance via epoll_create1 syscall.
+    /// Creates real epoll instance via epoll_create1 syscall.
     pub fn new() -> Self {
         let epoll_fd = syscall::epoll_create1(syscall::linux::EPOLL_CLOEXEC);
         if epoll_fd < 0 {
@@ -81,7 +81,7 @@ impl Reactor {
     }
 
     /// Daftarkan satu Connection ke dalam Reactor.
-    /// v1.37: Registers fd with epoll via EPOLL_CTL_ADD.
+    /// Registers fd with epoll via EPOLL_CTL_ADD.
     pub fn register(&mut self, mut conn: Connection) -> Result<i32, ReactorError> {
         let fd = conn.fd();
 
@@ -96,7 +96,7 @@ impl Reactor {
             return Err(ReactorError::MaxConnectionsReached);
         }
 
-        // v1.37: epoll_ctl(EPOLL_CTL_ADD) — register fd with epoll
+        // epoll_ctl(EPOLL_CTL_ADD) — register fd with epoll
         if self.epoll_fd >= 0 {
             let mut events = syscall::linux::EPOLLIN;
             if conn.taint.is_active() {
@@ -121,9 +121,9 @@ impl Reactor {
     }
 
     /// Buang Connection dari Reactor (RAII: Connection akan di-drop).
-    /// v1.37: Removes fd from epoll via EPOLL_CTL_DEL.
+    /// Removes fd from epoll via EPOLL_CTL_DEL.
     pub fn unregister(&mut self, fd: i32) {
-        // v1.37: epoll_ctl(EPOLL_CTL_DEL) — remove fd from epoll
+        // epoll_ctl(EPOLL_CTL_DEL) — remove fd from epoll
         if self.epoll_fd >= 0 {
             syscall::epoll_ctl(self.epoll_fd, syscall::linux::EPOLL_CTL_DEL, fd, 0);
         }
@@ -134,7 +134,7 @@ impl Reactor {
     }
 
     /// Tukar interest untuk satu fd.
-    /// v1.37: Uses epoll_ctl(EPOLL_CTL_MOD).
+    /// Uses epoll_ctl(EPOLL_CTL_MOD).
     pub fn reregister(&mut self, fd: i32, interest: Interest) -> Result<(), ReactorError> {
         if !self.connections.contains_key(&fd) {
             return Err(ReactorError::UnknownFd(fd));
@@ -163,7 +163,7 @@ impl Reactor {
     }
 
     /// Proses satu event.
-    /// v1.37: Updates last_activity_ms with real monotonic timestamp.
+    /// Updates last_activity_ms with real monotonic timestamp.
     pub fn process_event(&mut self, event: &Event) {
         let fd = event.fd;
 
@@ -178,7 +178,7 @@ impl Reactor {
 
         match action {
             Action::Keep => {
-                // v1.37: Update aktiviti dengan timestamp monotonic sebenar
+                // Update aktiviti dengan timestamp monotonic sebenar
                 conn.last_activity_ms = syscall::clock_gettime_monotonic_ms();
             }
             Action::Close => {
@@ -192,10 +192,10 @@ impl Reactor {
     }
 
     /// Jalankan satu iterasi event loop.
-    /// v1.37: Processes events from epoll_wait if epoll is live, else from vec.
+    /// Processes events from epoll_wait if epoll is live, else from vec.
     pub fn run_once(&mut self, events: &[Event]) -> usize {
         if self.epoll_fd >= 0 {
-            // v1.37: epoll mode — process real epoll events
+            // epoll mode — process real epoll events
             self.process_epoll_events(100) // 100ms timeout
         } else {
             // Stub mode — process events from vec
@@ -210,7 +210,7 @@ impl Reactor {
         }
     }
 
-    /// v1.37: Process events from epoll_wait.
+    /// Process events from epoll_wait.
     fn process_epoll_events(&mut self, timeout_ms: i32) -> usize {
         let mut event_buf = vec![0u8; self.max_events * 12]; // epoll_event = 12 bytes (u32 + u64)
         let n = syscall::epoll_wait(
@@ -273,7 +273,7 @@ impl Reactor {
     }
 
     /// Jalankan event loop (infinite — sehingga stop() dipanggil).
-    /// v1.37: Uses epoll_wait for real event-driven I/O. Runs continuously.
+    /// Uses epoll_wait for real event-driven I/O. Runs continuously.
     pub fn run(&mut self) {
         self.running = true;
         eprintln!("logicodex: Reactor started (epoll={}, {} connections)",
@@ -281,7 +281,7 @@ impl Reactor {
 
         while self.running {
             if self.epoll_fd >= 0 {
-                // v1.37: Real epoll event loop — B1 + B4 + B5
+                // Real epoll event loop — B1 + B4 + B5
                 self.process_epoll_events(-1); // blocking wait
             } else {
                 // Stub mode — fallback
@@ -398,7 +398,7 @@ impl Reactor {
 impl Drop for Reactor {
     fn drop(&mut self) {
         self.shutdown_all();
-        // v1.37: Close epoll fd via sys_close
+        // Close epoll fd via sys_close
         if self.epoll_fd >= 0 {
             syscall::sys_close(self.epoll_fd);
             self.epoll_fd = -1;
@@ -413,7 +413,7 @@ pub enum ReactorError {
     MaxConnectionsReached,
     UnknownFd(i32),
     ServiceNotFound(String),
-    /// v1.37: epoll syscall error
+    /// epoll syscall error
     EpollError(String),
 }
 

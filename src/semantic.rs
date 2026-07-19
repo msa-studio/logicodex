@@ -132,12 +132,12 @@ pub enum SemanticError {
     ChannelFull { name: String },
     #[error("KRITIKAL: Timeout menunggu recv dari Channel `{name}` selepas {timeout_ms}ms / CRITICAL: Timeout waiting for recv from Channel `{name}` after {timeout_ms}ms")]
     RecvTimeout { name: String, timeout_ms: i64 },
-    // v1.32.0-alpha: Static Capability Fabric — Zero Runtime Mediation
+    // Static Capability Fabric — Zero Runtime Mediation
     #[error("KRITIKAL: Pelanggaran Kontrak Keupayaan — '{symbol}' memerlukan Gate '{gate}' tetapi tiada modul yang menyediakannya / CRITICAL: Capability Contract Violation — '{symbol}' requires Gate '{gate}' but no module provides it")]
     CapabilityContractViolation { symbol: String, gate: String },
     #[error("KRITIKAL: Peningkatan Keistimewaan Dikesan — '{symbol}' kini memerlukan Gate '{gate}' (akses sensitif) / CRITICAL: Privilege Escalation Detected — '{symbol}' now requires Gate '{gate}' (sensitive access)")]
     PrivilegeEscalation { symbol: String, gate: String },
-    // ─── v1.42 P6: StrictAudioContext — Hardware-Safe Audio Guards ───
+    // ─── StrictAudioContext — hardware-safe audio guards ───
     #[error("KRITIKAL: AudioViolationIo — '{function}' dilarang dalam audio callback / CRITICAL: '{function}' is forbidden inside an audio callback")]
     AudioViolationIo { function: String },
     #[error("KRITIKAL: AudioViolationRecursion — '{function}' memanggil dir sendiri dalam audio callback / CRITICAL: '{function}' calls itself inside an audio callback")]
@@ -176,7 +176,7 @@ pub struct Analyzer {
     // Zero-Copy Ownership Transfer
     /// Variables moved via Channel hantar() — cannot use after send
     moved_via_channel: HashSet<String>,
-    // v1.42 P6: StrictAudioContext — Audio callback safety tracking
+    // StrictAudioContext — Audio callback safety tracking
     /// Set of function names that are audio callbacks (ISR-like)
     audio_callbacks: HashSet<String>,
     /// Currently analyzing an audio callback?
@@ -485,7 +485,7 @@ impl Analyzer {
                 }
                 result
             }
-            // v1.33.0-alpha: Service manifest validation
+            // Service manifest validation
             Stmt::Service {
                 name,
                 port,
@@ -1168,7 +1168,7 @@ fn integer_fits(value: i64, ty: &Type) -> bool {
 }
 
 // =========================================================================
-// v1.42 P6: StrictAudioContext — Hardware-Safe Audio Guards
+// StrictAudioContext — Hardware-Safe Audio Guards
 //
 // Validates that audio callback functions (ISR-like) do not contain:
 //   1. AudioViolationIo — I/O operations (Print, DrawText, InitWindow)
@@ -1200,7 +1200,7 @@ impl Analyzer {
         self.audio_callbacks.insert(func_name.to_string());
     }
 
-    /// v1.42 P6: Validate all registered audio callbacks for safety violations.
+    /// Validate all registered audio callbacks for safety violations.
     /// Call this after the full program has been analyzed.
     pub fn verify_audio_callbacks(&self, program: &Program) -> Result<(), SemanticError> {
         for callback_name in &self.audio_callbacks {
@@ -1212,7 +1212,7 @@ impl Analyzer {
         Ok(())
     }
 
-    /// v1.42 P6: Validate a single audio callback function body.
+    /// Validate a single audio callback function body.
     /// Walks the AST and checks for all 4 violation types.
     fn verify_audio_safety(&self, func_name: &str, stmts: &[Stmt]) -> Result<(), SemanticError> {
         for stmt in stmts {

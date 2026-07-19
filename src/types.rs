@@ -234,7 +234,7 @@ pub struct TypeRegistry {
     /// Enum name -> ordered variant names (tag = index).
     enum_variants: std::collections::HashMap<String, Vec<String>>,
     /// Cached enum layouts, indexed by EnumLayoutId.0
-    /// v1.38: Added for enum layout computation (E2)
+    /// Added for enum layout computation.
     enum_layouts: Vec<crate::layout::EnumLayout>,
 }
 
@@ -546,14 +546,14 @@ impl TypeRegistry {
         None
     }
 
-    /// v1.38 E2: Register an enum layout, returning its EnumLayoutId.
+    /// Register an enum layout, returning its EnumLayoutId.
     pub fn register_enum_layout(&mut self, layout: crate::layout::EnumLayout) -> EnumLayoutId {
         let id = EnumLayoutId(self.enum_layouts.len() as u32);
         self.enum_layouts.push(layout);
         id
     }
 
-    /// v1.38 E2: Lookup a cached enum layout by its ID.
+    /// Look up a cached enum layout by its ID.
     pub fn get_enum_layout(&self, id: EnumLayoutId) -> Option<&crate::layout::EnumLayout> {
         self.enum_layouts.get(id.0 as usize)
     }

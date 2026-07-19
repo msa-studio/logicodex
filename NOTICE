@@ -8,7 +8,7 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 Logicodex is a deterministic systems programming language with
 compile-time capability security and bilingual (Malay/English) syntax.
 
-Version: v1.45.0-alpha
+Version authority: Cargo.toml [package].version
 License: MPL-2.0
 SPDX-License-Identifier: MPL-2.0
 
