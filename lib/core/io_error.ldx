@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.30 — Ketuk 2: IoError Enum
+// Ketuk 2: IoError Enum
 //
 // Semua error IO menggunakan enum ini.
 // Bilingual: mesej ada dalam Malay + English.

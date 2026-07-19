@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.33.0-alpha — Network Reactor: Backpressure Policies
+// Network Reactor: Backpressure Policies
 //
 // Polisi backpressure yang menentukan tindakan apabila buffer
 // servis penuh. Ini adalah Fasa 2 capability yang dibina dari

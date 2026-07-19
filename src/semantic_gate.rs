@@ -1530,7 +1530,7 @@ mod tests {
 }
 
 // =========================================================================
-// v1.38 I1: Public API for semantic gatekeeper validation
+// Public API for semantic gatekeeper validation
 // =========================================================================
 
 /// Run the semantic gatekeeper as a final validation pass before codegen.

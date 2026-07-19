@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.32.0-alpha — Tier 2: 2-Pass Streaming Engine + Capability Fabric
+// Tier 2: 2-Pass Streaming Engine + Capability Fabric
 //
 // Pass 1: Pre-Declaration (Lightning Scan)
 //   - Scans the entire program in a single fast pass
@@ -38,7 +38,7 @@ pub struct StreamingResult {
     pub estimated_ast_memory_bytes: usize,
     /// Compilation mode used
     pub mode: CompileMode,
-    // v1.32.0-alpha: Capability Fabric results
+    // Capability Fabric results
     /// Capability topology verification result
     pub topology_valid: bool,
     /// Number of gates in the topology
@@ -267,7 +267,7 @@ pub fn compile_streaming(
     // Pass 1: Lightning-fast pre-declaration
     let mut graph = pass1_predeclare(program)?;
 
-    // v1.32.0-alpha: Build Capability Topology from gate contracts
+    // Build Capability Topology from gate contracts
     let topology = build_topology_from_program(program, &graph)?;
 
     // Pass 2: Deep streaming analysis

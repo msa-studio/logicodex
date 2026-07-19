@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.44 — Bump Allocator for Freestanding Targets
+// Bump Allocator for Freestanding Targets
 //
 // A simple bump allocator: allocates by incrementing a pointer.
 // No deallocation (memory grows until exhausted, then panics).

@@ -1,5 +1,7 @@
 # Lxdge Extraction Notes
 
+> **Status:** Historical extraction record. Version references identify provenance and do not define current Logicodex behavior.
+
 This document records what was (and was not) taken from the **Lxdge** project
 during the runtime-profile work, and why. It exists so the provenance and honest
 status of the runtime layer is auditable.

@@ -2329,7 +2329,7 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
                 })
                 .collect(),
         }),
-        // v1.44 G12: hardware zone preserved; codegen emits its memory ops as
+        // hardware zone preserved; codegen emits its memory ops as
         // volatile MMIO (see emit_hardware_zone). Body is lowered like a block.
         Stmt::HardwareZone { body } => StmtAst::HardwareZone(BlockAst {
             statements: body
@@ -2340,7 +2340,7 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
                 })
                 .collect(),
         }),
-        // v1.44 G12 stage 2: hardware register decl binds `name` to a fixed
+        // hardware register decl binds `name` to a fixed
         // MMIO address; codegen resolves it via inttoptr (not an alloca).
         Stmt::HardwareDecl { name, ty, address } => StmtAst::HardwareDecl {
             name,

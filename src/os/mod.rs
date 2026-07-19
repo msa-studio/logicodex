@@ -1,6 +1,6 @@
 // =========================================================================
 // Project: Logicodex Language Engine (Phase 2 Deployment Integration)
-// Version: v1.45.0-alpha (Freestanding Compiler Gaps)
+// Freestanding compiler support
 // Architect & Creator: Mohamad Supardi Abdul (mymsastudio@gmail.com)
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
@@ -8,7 +8,7 @@
 pub mod syscall;
 pub mod target;
 
-// v1.44-v1.45: Freestanding support modules
+// Freestanding support modules
 // These modules are freestanding-only (bare metal / no OS).
 // They are gated with #[cfg(target_os = "none")] so CI
 // does not attempt to compile x86_64 port-I/O code on Linux.

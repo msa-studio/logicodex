@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.44 — UART (Serial Port) Output for Freestanding Targets
+// UART (Serial Port) Output for Freestanding Targets
 //
 // x86_64 port I/O driver for COM1 (0x3F8).
 // Used for debug output in bare-metal environments where there's no OS

@@ -781,4 +781,4 @@ PHASE TRANSITION RESPONSIBILITIES:
 
 **END OF DOCUMENT**
 
-*This policy is enforced as of v1.0.0 (2025-07-17). All contributors are expected to read and comply with this document before submitting changes.*
+*This policy is active. All contributors are expected to read and comply with this document before submitting changes.*

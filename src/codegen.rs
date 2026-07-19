@@ -92,20 +92,20 @@ pub struct LlvmCompiler<'ctx> {
     callables: Option<CallableRegistry>,
     types: Option<TypeRegistry>,
     declared_funcs: HashMap<String, FunctionValue<'ctx>>,
-    // v1.35+: HIR codegen support — local allocations and callable resolution
+    // HIR codegen support — local allocations and callable resolution
     hir_local_allocs: HashMap<u32, PointerValue<'ctx>>,
     // Declared type of each HIR local, for fixed-width wrapping on assignment.
     hir_local_types: HashMap<u32, crate::types::TypeRef>,
     hir_callable_funcs: HashMap<u32, FunctionValue<'ctx>>,
-    // v1.36+: Struct registry — symbol_id → LLVM struct type
+    // Struct registry — symbol_id → LLVM struct type
     hir_struct_types: HashMap<u32, inkwell::types::StructType<'ctx>>,
     hir_struct_names: HashMap<String, u32>, // name → symbol_id
     callable_names: HashMap<u32, String>,   // CallableId.0 → name (call routing)
-    // v1.38 A6: CallableRegistry predeclaration tracking
+    // CallableRegistry predeclaration tracking
     callables_predeclared: bool,
-    // v1.44 G12: Hardware zone depth counter (MMIO volatile semantics)
+    // Hardware zone depth counter (MMIO volatile semantics)
     hw_zone_depth: u32,
-    // v1.44 G12 stage 2: HIR local id -> fixed MMIO address (inttoptr-backed).
+    // HIR local id -> fixed MMIO address (inttoptr-backed).
     hw_decl_addrs: HashMap<u32, i64>,
     // sret: caller-provided return buffer + its LLVM type, for the current
     // struct-returning function (None when the function returns a scalar).
@@ -292,7 +292,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             .expect("alloca in entry block is valid")
     }
 
-    /// v1.42 P3: Create an alloca of a specific type (for struct construction).
+    /// Create an alloca of a specific type (for struct construction).
     fn create_entry_alloca_typed(
         &self,
         function: FunctionValue<'ctx>,
@@ -345,12 +345,12 @@ pub fn compile_v130(
         .with_callables(callables, types)
         .with_callable_names(callable_names);
 
-    // v1.38 A6: Pre-declare all callable functions so they're available during HIR codegen
+    // Pre-declare all callable functions so they're available during HIR codegen
     compiler
         .predeclare_callables()
         .unwrap_or_else(|e| eprintln!("logicodex: predeclare_callables warning: {}", e));
 
-    // v1.38 I1: Run semantic gatekeeper as final validation pass before codegen
+    // Run semantic gatekeeper as final validation pass before codegen
     {
         let types_clone = compiler
             .types
@@ -401,7 +401,7 @@ pub fn compile_v130(
     } else {
         OutputKind::Object
     };
-    // v1.44 G8: Use architecture-specific target machine for freestanding
+    // Use architecture-specific target machine for freestanding
     let target_machine = if let Some(arch) = options.target.arch() {
         build_target_machine_with_arch(output_kind, arch)?
     } else {
@@ -444,7 +444,7 @@ pub fn compile_v130(
 }
 
 // =========================================================================
-// v1.36.0-alpha: HIR Function Codegen — Full LLVM IR Emission (A1 Critical)
+// HIR Function Codegen — Full LLVM IR Emission (A1 Critical)
 //
 // Replaces previous stubs with complete HIR → LLVM lowering for:
 //   - Functions with parameters and return values
@@ -633,7 +633,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         }
     }
 
-    /// v1.44 G12: emit a hardware (MMIO) zone. Increments the zone depth so
+    /// emit a hardware (MMIO) zone. Increments the zone depth so
     /// that memory operations inside the body are emitted as *volatile*
     /// (the optimizer must not elide or reorder MMIO accesses).
     fn emit_hardware_zone(
@@ -647,7 +647,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         r
     }
 
-    /// v1.44 G12: volatile store for MMIO (used when hw_zone_depth > 0).
+    /// volatile store for MMIO (used when hw_zone_depth > 0).
     fn emit_mmio_volatile_write(
         &self,
         ptr: PointerValue<'ctx>,
@@ -663,7 +663,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
-    /// v1.44 G12: volatile load for MMIO (used when hw_zone_depth > 0).
+    /// volatile load for MMIO (used when hw_zone_depth > 0).
     fn emit_mmio_volatile_read(
         &self,
         ty: BasicTypeEnum<'ctx>,
@@ -1937,7 +1937,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             .unwrap_or_else(|| TypeId(6)) // fallback
     }
 
-    // ─── v1.38 A6: CallableRegistry Predeclaration ───
+    // ─── CallableRegistry predeclaration ───
 
     /// Pre-declare all callable functions from the CallableRegistry.
     /// Must be called before codegen if CallableRegistry is attached.
@@ -1959,7 +1959,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
-    // ─── v1.36 A5: Struct Registration ───
+    // ─── Struct registration ───
 
     /// Register a HIR struct declaration, creating its LLVM struct type.
     fn register_hir_struct(&mut self, struct_decl: &crate::hir::HirStructDecl) -> Result<()> {
@@ -1981,7 +1981,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(())
     }
 
-    /// v1.42: Emit a struct constructor call: `StructName(field1, ...)` → struct value.
+    /// Emit a struct constructor call: `StructName(field1, ...)` → struct value.
     /// Supports: Color(r,g,b,a) → packed u32, Vector2(x,y) → 8-byte struct,
     ///           Rectangle(x,y,w,h) → 16-byte struct.
     fn emit_hir_struct_constructor(

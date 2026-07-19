@@ -1,5 +1,7 @@
 # Diagnostics Fail-Fast Inventory
 
+> **Evidence note:** Embedded versioned excerpts are preserved as historical audit evidence and are not current compiler authority.
+
 Status: inventory only.
 
 Goal: identify compiler/codegen paths where unsupported behavior may silently

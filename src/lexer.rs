@@ -84,7 +84,7 @@ pub enum TokenKind {
     TryRecv,
     Yield,
     Sleep,
-    // v1.33.0-alpha: Network Reactor — Service manifest
+    // Network Reactor — Service manifest
     Service,
     Port,
     Policy,

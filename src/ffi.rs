@@ -11,7 +11,7 @@ pub mod math;
 pub mod raylib;
 pub mod raylib_sys;
 
-// v1.42: Re-export Raylib helpers for external use
+// Re-export Raylib helpers for external use
 
 use crate::hir::HirExpr;
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span};
@@ -183,7 +183,7 @@ pub struct FfiGatekeeper<'a> {
 }
 
 impl<'a> FfiGatekeeper<'a> {
-    /// v1.42 P8: Validate an FFI call with coercion support.
+    /// Validate an FFI call with coercion support.
     //
     /// Coercion rules (widening allowed, narrowing rejected):
     /// - I32 ← I64 (widening): allowed
@@ -199,7 +199,7 @@ impl<'a> FfiGatekeeper<'a> {
         context: SafetyContext,
         call_span: Span,
     ) -> Result<(), Diagnostic> {
-        // v1.42 P8: Check unsafe context
+        // Check unsafe context
         if (signature.is_extern || signature.safety == CallableSafety::UnsafeRequired)
             && context != SafetyContext::Unsafe
         {
@@ -216,7 +216,7 @@ impl<'a> FfiGatekeeper<'a> {
             ));
         }
 
-        // v1.42 P8: Check argument count
+        // Check argument count
         if !signature.is_variadic && args.len() != signature.params.len() {
             return Err(ffi_error(
                 call_span,
@@ -251,7 +251,7 @@ impl<'a> FfiGatekeeper<'a> {
             ));
         }
 
-        // v1.42 P8: Type checking with coercion
+        // Type checking with coercion
         for (index, expected) in signature.params.iter().enumerate() {
             let Some(actual) = args.get(index) else {
                 break;
@@ -304,7 +304,7 @@ impl<'a> FfiGatekeeper<'a> {
         Ok(())
     }
 
-    /// v1.42 P8: Check if `actual` type can be coerced to `expected` type.
+    /// Check if `actual` type can be coerced to `expected` type.
     /// Implements the widening coercion matrix for numeric types.
     fn is_compatible_with_coercion(
         &self,
@@ -330,7 +330,7 @@ impl<'a> FfiGatekeeper<'a> {
             _ => return false,
         };
 
-        // v1.42 P8: Widening coercion matrix
+        // Widening coercion matrix
         match (actual_prim, expected_prim) {
             // Legacy IMON exact check (kind only, no widening)
             (PrimitiveType::I32, PrimitiveType::I32) => true,

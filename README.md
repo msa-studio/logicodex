@@ -33,7 +33,7 @@ object/executable.
 |---|---|---|
 | Bilingual lexer (MS/EN) | Working | Malay + English keywords |
 | Parser | Working | Expressions, declarations, functions, types |
-| HIR lowering | Working | The **sole** execution path (v1.21 AST-codegen retired) |
+| HIR lowering | Working | The **sole** execution path (historical provenance: v1.21 AST codegen retired) |
 | Semantic analysis | Working | Name/scope/type checks, FFI-unsafe gate |
 | Type checker | Working | `I32/I64/F32/F64/Bool` + full fixed-width ints `I8/I16/I32/I64/U8/U16/U32/U64` (wrap at every boundary) |
 | LLVM codegen → native | Working | Emits `.ll`/`.o` and links a native executable on x86_64 Linux |

@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.44 — Interrupt Descriptor Table (IDT)
+// Interrupt Descriptor Table (IDT)
 //
 // x86_64 interrupt handling framework for freestanding targets.
 // Sets up:

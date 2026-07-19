@@ -240,7 +240,7 @@ impl TypeChecker<'_> {
                 ));
             }
             // TODO: validate each argument type against field type
-            // v1.38: Struct constructors return a packed value (I64 for Color RGBA)
+            // Struct constructors return a packed value (I64 for Color RGBA)
             // This is intentional — structs are value types packed into integer registers
             return Ok(Type::I64);
         }

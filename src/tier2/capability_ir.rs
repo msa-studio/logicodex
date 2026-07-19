@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.35.0-alpha — Capability Translation Layer: CapabilityGraph IR
+// Capability Translation Layer: CapabilityGraph IR
 //
 // "Single Source of Truth" — language-agnostic capability representation.
 // Project capability model INTO the WASM ecosystem, not borrow from it.
@@ -303,7 +303,7 @@ impl CapabilityGraph {
     }
 
     /// Build dari CapabilityTopology (v1.32) — gate contracts.
-    /// v1.38: Fully implemented — imports all gate contracts as IRGateEdge.
+    /// Fully implemented — imports all gate contracts as IRGateEdge.
     pub fn from_topology(&mut self, topology: &CapabilityTopology) {
         // Create service nodes for each contract's module
         for (idx, contract) in topology.contracts().iter().enumerate() {

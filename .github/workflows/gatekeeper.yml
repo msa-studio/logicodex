@@ -33,7 +33,7 @@ permissions:
   issues: write
 
 env:
-  # Label taxonomy — synchronized with active v0.46 governance
+  # Label taxonomy — synchronized with the active governance authority
   PHASE_LABELS: "phase-1,phase-2,v1.50.x,v2.0-vision,architecture-change,rfc-approved"
   # Architecture-sensitive surfaces requiring focused review
   ARCH_SENSITIVE_FILES: "src/main.rs,src/ast.rs,src/hir.rs,src/semantic.rs,src/semantic_gate.rs,src/codegen.rs,src/types.rs"
@@ -55,7 +55,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Determine current phase from active v0.46 authority
+      - name: Determine current phase from the active governance authority
         id: detect_phase
         run: |
           echo "=== Detecting active Logicodex phase ==="

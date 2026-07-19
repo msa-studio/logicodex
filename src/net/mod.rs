@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.33.0-alpha — Network Reactor Module
+// Network Reactor Module
 //
 // "The Deterministic Network Reactor"
 // No Global Lock, No Hidden State, No Magic.

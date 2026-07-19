@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.44 — Multiboot Header
+// Multiboot Header
 //
 // Multiboot 1 header for booting with GRUB (and compatible bootloaders).
 // Place this at the beginning of the kernel image so GRUB can find it.

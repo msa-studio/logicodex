@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.34.0-alpha — Network Reactor: Shard-Local Memory Pool
+// Network Reactor: Shard-Local Memory Pool
 //
 // Setiap shard mempunyai pool memory sendiri — tiada perkongsian.
 // Budget tracking: acquire() fail jika melebihi quota.

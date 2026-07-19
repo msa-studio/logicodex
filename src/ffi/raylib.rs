@@ -29,7 +29,7 @@ pub struct RaylibTypeIds {
 ///
 /// Must be called *before* `register_raylib_functions()` so that
 /// function signatures can reference struct types.
-/// v1.42: Register Raylib C struct types (Color, Vector2, Rectangle, Texture2D)
+/// Register Raylib C struct types (Color, Vector2, Rectangle, Texture2D)
 /// with the TypeRegistry. Computes layouts via LayoutEngine.
 ///
 /// Must be called *before* `register_raylib_functions()` so that
@@ -181,7 +181,7 @@ pub fn register_raylib_types(registry: &mut TypeRegistry) -> (RaylibTypeIds, Ray
 }
 
 pub use raylib_sys::{
-    // Audio types (v1.43)
+    // Audio types
     AudioCallback,
     AudioStream,
     // Core types
@@ -361,7 +361,7 @@ pub unsafe fn get_mouse_position() -> Vector2 {
     raylib_sys::GetMousePosition()
 }
 
-// ─── Audio (v1.43) ───
+// ─── Audio ───
 // Safe wrappers for Raylib audio functions.
 // All audio functions require the Audio.Main capability gate.
 
@@ -535,7 +535,7 @@ pub fn struct_constructor_arity(name: &str) -> Option<usize> {
 
 // ─── CallableRegistry Integration ───
 
-/// v1.42: Register all Raylib core functions with the Logicodex CallableRegistry.
+/// Register all Raylib core functions with the Logicodex CallableRegistry.
 /// This allows .ldx code to call Raylib functions through the FFI layer.
 ///
 /// Notes:
@@ -587,7 +587,7 @@ pub fn register_raylib_functions(
     register_fn!("GetScreenHeight", &[], ids.i32_);
 
     // ─── Drawing (9 functions) ───
-    // v1.42: Color passed as struct type (struct-by-value), not packed u32
+    // Color passed as struct type (struct-by-value), not packed u32
     register_fn!("BeginDrawing", &[], ids.unit);
     register_fn!("EndDrawing", &[], ids.unit);
     register_fn!("ClearBackground", &[struct_ids.color], ids.unit);
@@ -623,7 +623,7 @@ pub fn register_raylib_functions(
     );
 
     // ─── Textures (3 functions) ───
-    // v1.42: Texture2D passed as struct type
+    // Texture2D passed as struct type
     register_fn!("LoadTexture", &[c_string], struct_ids.texture2d);
     register_fn!(
         "DrawTexture",
@@ -640,7 +640,7 @@ pub fn register_raylib_functions(
     register_fn!("GetMouseX", &[], ids.i32_);
     register_fn!("GetMouseY", &[], ids.i32_);
 
-    // ─── Audio (v1.43: Sound + Music + AudioStream) ───
+    // ─── Audio: Sound + Music + AudioStream ───
     // All audio functions require Audio.Main capability gate.
     // Audio stream callbacks are validated by StrictAudioContext.
     register_fn!("InitAudioDevice", &[], ids.unit);
@@ -669,7 +669,7 @@ pub fn register_raylib_functions(
     register_fn!("StopAudioStream", &[ids.i64_], ids.unit);
     register_fn!("IsAudioStreamPlaying", &[ids.i64_], ids.bool_);
 
-    // ─── Math Utilities (v1.42 P4: safe functions, no unsafe required) ───
+    // ─── Math utilities: safe functions, no unsafe required ───
     register_math_functions(registry, callables);
 }
 
@@ -683,7 +683,7 @@ pub fn register_raylib_functions_compat(
     register_raylib_functions(registry, callables, &type_ids);
 }
 
-/// v1.42: Register math utility functions as safe (no unsafe required).
+/// Register math utility functions as safe (no unsafe required).
 /// These are pure Rust functions that mirror raymath.h operations.
 fn register_math_functions(registry: &mut TypeRegistry, callables: &mut CallableRegistry) {
     let ids = registry.primitive_ids();
@@ -735,7 +735,7 @@ fn register_math_functions(registry: &mut TypeRegistry, callables: &mut Callable
     );
 }
 
-/// v1.42 P4: Math utility implementations exposed as extern-C shims
+/// Math utility implementations exposed as extern-C shims
 /// so they can be called from LLVM-generated code via the CallableRegistry.
 
 #[cfg(test)]

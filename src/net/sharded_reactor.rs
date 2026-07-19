@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.39.0-alpha — Network Reactor: Sharded Multi-Core Reactor
+// Network Reactor: Sharded Multi-Core Reactor
 //
 // "The Sharded Deterministic Reactor — NOW WITH REAL THREADS"
 //
@@ -7,7 +7,7 @@
 //   ShardedReactor { shards: Vec<Option<ShardInstance>>, handles: Vec<JoinHandle> }
 //   ShardInstance { reactor: Reactor, pool: ShardLocalPool, core_id }
 //
-// v1.39: C1-C5 implemented — real thread spawning, parallel execution,
+// C1-C5 implemented — real thread spawning, parallel execution,
 //        CPU affinity via direct syscall (Linux) or platform API.
 //
 // Prinsip:
@@ -30,7 +30,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 /// Satu instance shard — satu Reactor pada satu CPU core.
-/// v1.39: Wrapped in Arc<Mutex<>> for thread-safe access.
+/// Wrapped in Arc<Mutex<>> for thread-safe access.
 pub struct ShardInstance {
     /// Shard ID
     pub shard_id: u32,
@@ -63,9 +63,9 @@ impl ShardInstance {
     }
 
     /// Pin thread ke core dan jalankan reactor.
-    /// v1.39 C1: This is the thread entry point — called after spawn.
+    /// This is the thread entry point — called after spawn.
     pub fn run(&mut self) -> Result<(), AffinityError> {
-        // v1.39 C3-C5: Set CPU affinity
+        // Set CPU affinity
         affinity::set_cpu_affinity(self.core_id)?;
 
         self.running = true;
@@ -77,7 +77,7 @@ impl ShardInstance {
             std::thread::current().id()
         );
 
-        // v1.39 C2: Run the reactor event loop (blocks until stop)
+        // Run the reactor event loop (blocks until stop)
         // In stub mode (epoll_fd < 0), this returns immediately
         self.reactor.run();
 
@@ -120,7 +120,7 @@ pub struct ShardStats {
 
 // ─── ShardedReactor ───
 /// Reactor teragih — satu instance per CPU core.
-/// v1.39 C1-C2: Spawns real OS threads, runs shards in parallel.
+/// Spawns real OS threads, runs shards in parallel.
 pub struct ShardedReactor {
     /// Semua shard instances (Option untuk move ke thread)
     shards: Vec<Option<ShardInstance>>,
@@ -174,7 +174,7 @@ impl ShardedReactor {
         );
         eprintln!("  {}", affinity::affinity_info());
 
-        // v1.39 C1: Spawn one thread per shard
+        // Spawn one thread per shard
         for i in 0..self.shards.len() {
             let mut shard = self.shards[i]
                 .take()
@@ -210,7 +210,7 @@ impl ShardedReactor {
     }
 
     /// Legacy entry point — delegates to start().
-    /// v1.39 C2: All shards run in parallel (not sequential).
+    /// All shards run in parallel (not sequential).
     pub fn run(&mut self) -> Result<(), ShardedReactorError> {
         self.start()
     }
@@ -227,7 +227,7 @@ impl ShardedReactor {
         // We need to stop via a side channel since shards are in threads.
         // For now: we can't easily stop reactors that are in other threads
         // without shared state. This is a design limitation.
-        // v1.39: We use the fact that reactor.run() checks `self.running`
+        // We use the fact that reactor.run() checks `self.running`
         // but since shards are moved into threads, we can't access them.
         // Future: use Arc<AtomicBool> for cross-thread stop signal.
 

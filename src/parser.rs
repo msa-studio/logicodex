@@ -389,7 +389,7 @@ impl Parser {
         Ok(Stmt::Actor { name, params, body })
     }
 
-    // v1.33.0-alpha: Service manifest — deterministic network reactor
+    // Service manifest — deterministic network reactor
     fn service_statement(&mut self) -> Result<Stmt, ParseError> {
         let name = self
             .consume(TokenKind::Identifier, "Service name after 'service'")?

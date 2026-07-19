@@ -15,6 +15,8 @@
 
 # Phase Transition Audit: `{SOURCE_PHASE}` → `{TARGET_PHASE}`
 
+> **Status:** Historical audit template. Version references are retained as non-authoritative provenance.
+
 ---
 
 ## 1. Audit Metadata

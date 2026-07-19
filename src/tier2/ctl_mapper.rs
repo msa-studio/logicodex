@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.36.0-alpha — Capability Translation Layer: CTL Mapper (Fasa B)
+// Capability Translation Layer: CTL Mapper (Fasa B)
 //
 // "Auto-generate WIT from CapabilityGraph — 6 domain mappings."
 //

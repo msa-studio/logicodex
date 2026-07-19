@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.32.0-alpha — Tier 2: Streaming Semantic Compiler + Capability Fabric
+// Tier 2: Streaming Semantic Compiler + Capability Fabric
 //
 // Architecture:
 //   Tier 1 (Parser)    → Full AST per function (temporary, discarded after Pass 2)

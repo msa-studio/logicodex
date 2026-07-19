@@ -1,5 +1,5 @@
 // =========================================================================
-// Logicodex v1.44 — Source Code Provider
+// Source Code Provider
 //
 // Provides source code (.ldx files) to the compiler.
 // Two modes:

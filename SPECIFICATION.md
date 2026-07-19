@@ -220,7 +220,7 @@ The semantic analyzer enforces:
 | **Lexer** | `src/lexer.rs` | Tokenization with `core_map.json` alias normalization |
 | **Parser** | `src/parser.rs` | Recursive-descent → AST |
 | **Semantic** | `src/semantic.rs` | Type check, ownership, capability, audio safety |
-| **HIR** | `src/hir.rs` | High-level IR (v1.36) for structured codegen |
+| **HIR** | `src/hir.rs` | High-level IR for structured codegen (historical provenance: introduced in v1.36) |
 | **CapabilityGraph** | `src/tier2/capability_ir.rs` | Unified IR: service + gate + shard + door nodes |
 | **CTL Mapper** | `src/tier2/ctl_mapper.rs` | Capability → WIT mapping for WASM |
 | **Codegen** | `src/codegen.rs` | AST → LLVM IR → object file |
@@ -460,7 +460,9 @@ Freestanding components:
 
 ## 7. Roadmap
 
-### 7.1 Completed (v1.21 – v1.45)
+### 7.1 Historical completed milestones (v1.21 – v1.45)
+
+> These release references are retained as historical provenance and are not current compiler authority.
 
 | Version | Feature | Evidence |
 |---|---|---|
