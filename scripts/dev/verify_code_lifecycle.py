@@ -69,6 +69,37 @@ IMPL_RE = re.compile(
     r"(?P<name>[A-Za-z_][A-Za-z0-9_:]*)"
 )
 
+CLOSED_ORPHAN_REQUIREMENTS = (
+    (
+        "src/ast.rs::Type::storage_width_bits",
+        "ast.rs",
+        re.compile(r"\bfn\s+storage_width_bits\s*\("),
+        (
+            "- `src/ast.rs::Type::storage_width_bits`: `Delete` — "
+            "canonical layout ownership belongs to `LayoutEngine`."
+        ),
+    ),
+    (
+        "src/types.rs::PrimitiveType::is_signed_int",
+        "types.rs",
+        re.compile(r"\bfn\s+is_signed_int\s*\("),
+        (
+            "- `src/types.rs::PrimitiveType::is_signed_int`: `Delete` — "
+            "integer extension behavior is already closed by `int_bits` "
+            "plus `is_unsigned_int`."
+        ),
+    ),
+)
+
+LOCKED_LEGACY_STATUSES = (
+    (
+        "src/semantic.rs::Analyzer::analyze",
+        "src/semantic.rs",
+        "analyze",
+        "LegacyReferenceOnly",
+    ),
+)
+
 
 class ValidationError(RuntimeError):
     """Raised when lifecycle validation finds one or more errors."""
@@ -594,11 +625,48 @@ def validate_repository(
     inventory_path: Path,
     source_root: Path,
 ) -> ValidationSummary:
-    rows, baseline, _ = parse_inventory(inventory_path)
+    rows, baseline, inventory_text = parse_inventory(inventory_path)
     source_records = scan_source_suppressions(source_root)
 
     total_expected, crate_expected, item_expected = baseline
     errors: list[str] = []
+
+    for artifact, source_path, declaration_re, resolution_record in (
+        CLOSED_ORPHAN_REQUIREMENTS
+    ):
+        if resolution_record not in inventory_text:
+            errors.append(
+                f"closed orphan resolution missing: {artifact}"
+            )
+
+        path = source_root / source_path
+
+        if path.is_file() and declaration_re.search(
+            path.read_text(encoding="utf-8")
+        ):
+            errors.append(
+                f"closed orphan artifact reintroduced: {artifact}"
+            )
+
+    for artifact, path, name, expected_status in LOCKED_LEGACY_STATUSES:
+        matching_rows = [
+            row
+            for row in rows
+            if row.record.path == path and row.record.name == name
+        ]
+
+        actual_status = (
+            matching_rows[0].status
+            if len(matching_rows) == 1
+            else "missing"
+        )
+
+        if actual_status != expected_status:
+            errors.append(
+                "locked legacy status mismatch: "
+                f"{artifact} must remain {expected_status}; "
+                f"found {actual_status}"
+            )
 
     inventory_counter = collections.Counter(
         row.record.key

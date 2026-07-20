@@ -464,22 +464,6 @@ impl Type {
             _ => None,
         }
     }
-
-    #[allow(dead_code)]
-    pub fn storage_width_bits(&self) -> u32 {
-        match self {
-            Type::I32 | Type::U32 => 32,
-            Type::U16 => 16,
-            Type::I8 | Type::U8 => 8,
-            Type::I16 => 16,
-            Type::U64 => 64,
-            Type::I64 | Type::F64 | Type::Pointer(_) | Type::String => 64,
-            Type::Bool => 1,
-            // Slice and Buffer are pointer-sized (fat pointer: ptr + len)
-            Type::Slice { .. } | Type::Buffer { .. } => 128,
-            _ => 64,
-        }
-    }
 }
 
 impl fmt::Display for BinaryOp {

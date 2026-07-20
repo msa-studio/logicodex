@@ -32,14 +32,15 @@ must still be classified explicitly.
 
 ## Audit baseline
 
-The SSM-D2 audit established:
+The original SSM-D2 audit established 15 explicit suppressions. Following the
+evidence-backed SSM-D4 closure below, the current validated baseline is:
 
-- 15 explicit dead-code, unused-variable, or related suppression attributes;
+- 13 explicit dead-code, unused-variable, or related suppression attributes;
 - 7 crate-level suppression attributes;
-- 8 item-level suppression attributes;
+- 6 item-level suppression attributes;
 - 87 warnings visible under warning-enabled `cargo check --all-targets`;
 - no established `OrphanBug`;
-- no source removal authorization.
+- no broad source-removal authorization.
 
 The 87-warning baseline is technical debt for staged follow-up. It is not a
 mandate for broad cleanup during SSM-D2.
@@ -59,9 +60,7 @@ mandate for broad cleanup during SSM-D2.
 | `src/semantic.rs::Analyzer::analyze` | LegacyReferenceOnly | No production caller. The HIR `semantic_gate` is the canonical semantic authority. | Semantic subsystem. Preserve as historical and migration reference only. | Reactivation requires an approved roadmap task or RFC and parity evidence against `semantic_gate`. |
 | `src/types.rs::LegacyType` | FutureReserved | No production caller. Documentation identifies it as translation-front-end mapping infrastructure. | Foreign-type and frontend-adapter subsystem. Preserve. | Activate only with an approved C, COBOL, Fortran, or other frontend-adapter phase. |
 | `src/types.rs::impl LegacyType` | FutureReserved | No production caller; methods map legacy source-language types to canonical native primitives. | Foreign-type and frontend-adapter subsystem. Preserve. | Same activation condition as `LegacyType`. |
-| `src/ast.rs::Type::storage_width_bits` | OrphanCandidate | No exact production or test caller. Introduced with executable v1.21 type work, but current canonical layout authority is not established through this helper. | AST/type-layout ownership review. Do not delete automatically. | Classify as Wire, FutureReserved, LegacyReferenceOnly, Archive, or Delete only after comparison with canonical layout and type representations. |
 | `src/types.rs::PrimitiveType::int_bits` | Active | Called by `codegen.rs` when selecting integer extension behaviour. | Type and codegen subsystem. Retain. | Suppression may be narrowed separately if warning behaviour permits. |
-| `src/types.rs::PrimitiveType::is_signed_int` | OrphanCandidate | No exact production or test caller. Its comment describes signed-extension intent, but current codegen only calls the unsigned counterpart. | Type and codegen ownership review. Do not assume it is redundant. | Determine whether signedness is intentionally represented by the inverse unsigned check, requires explicit wiring, or is future frontend support. |
 | `src/types.rs::PrimitiveType::is_unsigned_int` | Active | Called by `codegen.rs` to select zero-extension versus sign-extension behaviour. | Type and codegen subsystem. Retain. | Suppression may be narrowed separately if warning behaviour permits. |
 
 ## Semantic subsystem reference
@@ -80,8 +79,8 @@ No direct production wiring to the dormant type-checker subsystem was found.
 ## SSM-D2 decisions
 
 1. `codegen_contract.rs` is `FutureReserved`, not `OrphanBug`.
-2. `storage_width_bits` and `is_signed_int` remain `OrphanCandidate` pending
-   ownership and wiring review.
+2. `storage_width_bits` and `is_signed_int` remained `OrphanCandidate` pending
+   ownership and wiring review; SSM-D4 resolves both below.
 3. Active modules with broad suppression remain Active; suppression presence
    does not downgrade their lifecycle status.
 4. Unit tests alone do not establish production activation.
@@ -89,12 +88,45 @@ No direct production wiring to the dormant type-checker subsystem was found.
 6. No `OrphanBug` evidence has been established by this audit.
 7. Source removal is not authorized by SSM-D2.
 
+## SSM-D4 Orphan / Legacy Closure
+
+SSM-D4 performed the ownership and wiring review that SSM-D2 deliberately
+deferred. This is a narrow, evidence-backed closure, not broad dead-code
+cleanup.
+
+- `src/ast.rs::Type::storage_width_bits`: `Delete` — canonical layout ownership belongs to `LayoutEngine`.
+- `src/types.rs::PrimitiveType::is_signed_int`: `Delete` — integer extension behavior is already closed by `int_bits` plus `is_unsigned_int`.
+
+The first helper duplicated target-sensitive layout policy at the AST layer,
+including a catch-all 64-bit fallback. Wiring it would have created a second
+layout authority beside `LayoutEngine`. The second helper was redundant within
+the codegen integer path: `int_bits()` first restricts the domain to integer
+primitives, then `is_unsigned_int()` selects zero extension; the remaining
+integer primitives are exactly the signed extension cases.
+
+Although `ast` and `types` are public library modules, neither helper is a
+documented or contracted API. Logicodex `0.46.0-alpha` explicitly remains
+pre-1.0 with an unstable API, while semver-guaranteed public API and deprecation
+policy are deferred to roadmap P5-D5. The removals therefore close unowned
+alpha surface without changing compiler behaviour; they still require normal
+review before landing.
+
+`src/semantic.rs::Analyzer::analyze` remains `LegacyReferenceOnly`. It is
+retained as historical and migration reference, is not wired into production,
+and may not change lifecycle status without approved parity evidence against
+the canonical HIR `semantic_gate`.
+
+The lifecycle validator fails closed if either deleted helper is reintroduced,
+if either resolution record disappears, or if the legacy analyzer status
+drifts. These exact decisions do not prohibit future legitimate
+`OrphanCandidate` classifications.
+
 ## Follow-up boundary
 
 Later stages may:
 
 - add a lifecycle validator in SSM-D3;
-- review OrphanCandidate wiring and ownership;
+- review any newly discovered OrphanCandidate wiring and ownership;
 - narrow broad suppression attributes incrementally;
 - separate active diagnostic ownership from legacy semantic code;
 - reduce the warning baseline through focused, behaviour-preserving changes.
