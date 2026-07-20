@@ -1,5 +1,7 @@
 # Security Policy
 
+> **Evidence status:** Versioned audit rows in this document are dated historical security snapshots and are not current compiler authority. Current version authority is `Cargo.toml [package].version`.
+
 ## Supported Versions
 
 | Version | Status |

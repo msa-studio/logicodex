@@ -48,6 +48,40 @@ def create_fixture(root: Path) -> None:
         "| ✅ Current — best-effort alpha security support |\n",
     )
 
+    for relative, classification, description in (
+        (
+            "docs/archive/.zone-status.md",
+            "HistoricalProvenance",
+            "This directory is historical and non-authoritative.\n",
+        ),
+        (
+            "scripts/_archive/.zone-status.md",
+            "ArchivedZone",
+            "This directory is not part of the active validation path.\n",
+        ),
+        (
+            "spec/v1.11-alpha/.zone-status.md",
+            "HistoricalProvenance",
+            "This specification is historical and non-authoritative.\n",
+        ),
+        (
+            "spec/v1.21-alpha/.zone-status.md",
+            "HistoricalProvenance",
+            "This specification is historical and non-authoritative.\n",
+        ),
+        (
+            "spec/v1.30.0-alpha/.zone-status.md",
+            "HistoricalProvenance",
+            "This specification is historical and non-authoritative.\n",
+        ),
+    ):
+        write(
+            root,
+            relative,
+            f"Classification: `{classification}`\n\n"
+            + description,
+        )
+
     write(
         root,
         "src/main.rs",
@@ -292,6 +326,34 @@ def run_self_test() -> None:
         validate_repository(root)
         print(
             "self_test_historical_reference_allowed=PASS"
+        )
+
+        archive_status = (
+            root / "docs/archive/.zone-status.md"
+        )
+        valid_archive_status = archive_status.read_text(
+            encoding="utf-8",
+        )
+        archive_status.unlink()
+
+        expect_failure(
+            "historical_zone_marker_missing",
+            root,
+            "historical zone marker missing",
+        )
+
+        archive_status.write_text(
+            valid_archive_status.replace(
+                "HistoricalProvenance",
+                "CurrentAuthority",
+            ),
+            encoding="utf-8",
+        )
+
+        expect_failure(
+            "historical_zone_classification_mismatch",
+            root,
+            "historical zone classification mismatch",
         )
 
     print(
