@@ -29,9 +29,9 @@ Status: Active SSM-D2 lifecycle record
 
 ## Audit baseline
 
-- 3 explicit dead-code, unused-variable, or related suppression attributes;
+- 4 explicit dead-code, unused-variable, or related suppression attributes;
 - 1 crate-level suppression attributes;
-- 2 item-level suppression attributes;
+- 3 item-level suppression attributes;
 
 ## Suppression and lifecycle inventory
 
@@ -40,6 +40,12 @@ Status: Active SSM-D2 lifecycle record
 | `src/a.rs`: crate-level `dead_code` | Active | Active compatibility surface. | Test owner. Retain. | Review with focused tests. |
 | `src/a.rs::FutureHook` | FutureReserved | Dormant hook evidence. | Test owner. Preserve for approved phase. | Activate only during an approved phase. |
 | `src/b.rs::Candidate` | OrphanCandidate | No caller evidence. | Test owner. Do not delete automatically. | Review ownership before any deletion. |
+| `src/semantic.rs::Analyzer::analyze` | LegacyReferenceOnly | Retired analyzer evidence. | Test semantic owner. Preserve as migration reference only. | Reactivation requires approved parity evidence. |
+
+## SSM-D4 Orphan / Legacy Closure
+
+- `src/ast.rs::Type::storage_width_bits`: `Delete` — canonical layout ownership belongs to `LayoutEngine`.
+- `src/types.rs::PrimitiveType::is_signed_int`: `Delete` — integer extension behavior is already closed by `int_bits` plus `is_unsigned_int`.
 
 ## SSM-D2 decisions
 
@@ -98,6 +104,12 @@ def run_self_test() -> None:
             encoding="utf-8",
         )
 
+        (source_root / "semantic.rs").write_text(
+            "#[allow(dead_code)]\n"
+            "pub fn analyze() {}\n",
+            encoding="utf-8",
+        )
+
         inventory_path = root / "inventory.md"
         valid_text = fixture_inventory()
 
@@ -111,12 +123,92 @@ def run_self_test() -> None:
             source_root,
         )
 
-        if summary.inventory_rows != 3:
+        if summary.inventory_rows != 4:
             raise RuntimeError(
                 "valid fixture row count mismatch"
             )
 
         print("self_test_valid_fixture=PASS")
+
+        (source_root / "ast.rs").write_text(
+            "pub fn storage_width_bits() -> u32 { 64 }\n",
+            encoding="utf-8",
+        )
+
+        expect_failure(
+            "closed_orphan_reintroduced",
+            inventory_path,
+            source_root,
+            "closed orphan artifact reintroduced",
+        )
+
+        (source_root / "ast.rs").unlink()
+
+        (source_root / "types.rs").write_text(
+            "pub fn is_signed_int() -> bool { true }\n",
+            encoding="utf-8",
+        )
+
+        expect_failure(
+            "closed_signed_orphan_reintroduced",
+            inventory_path,
+            source_root,
+            "closed orphan artifact reintroduced",
+        )
+
+        (source_root / "types.rs").unlink()
+
+        inventory_path.write_text(
+            valid_text.replace(
+                "- `src/ast.rs::Type::storage_width_bits`: `Delete` — "
+                "canonical layout ownership belongs to `LayoutEngine`.\n",
+                "",
+                1,
+            ),
+            encoding="utf-8",
+        )
+
+        expect_failure(
+            "closed_orphan_resolution_missing",
+            inventory_path,
+            source_root,
+            "closed orphan resolution missing",
+        )
+
+        inventory_path.write_text(
+            valid_text.replace(
+                "- `src/types.rs::PrimitiveType::is_signed_int`: `Delete` — "
+                "integer extension behavior is already closed by `int_bits` "
+                "plus `is_unsigned_int`.\n",
+                "",
+                1,
+            ),
+            encoding="utf-8",
+        )
+
+        expect_failure(
+            "closed_signed_orphan_resolution_missing",
+            inventory_path,
+            source_root,
+            "closed orphan resolution missing",
+        )
+
+        inventory_path.write_text(
+            valid_text.replace(
+                "| `src/semantic.rs::Analyzer::analyze` | "
+                "LegacyReferenceOnly |",
+                "| `src/semantic.rs::Analyzer::analyze` | Active |",
+                1,
+            ),
+            encoding="utf-8",
+        )
+
+        expect_failure(
+            "legacy_status_lock",
+            inventory_path,
+            source_root,
+            "locked legacy status mismatch",
+        )
 
         inventory_path.write_text(
             valid_text.replace(

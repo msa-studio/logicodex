@@ -8,6 +8,13 @@
 - Classified remaining zero-producing codegen paths into allowed, deferred, or
   ABI-policy categories.
 
+### Lifecycle
+
+- Resolved the two reviewed lifecycle orphans by removing the undocumented,
+  duplicate AST `storage_width_bits` layout helper and the redundant primitive
+  `is_signed_int` helper; lifecycle validation now prevents reintroduction and
+  preserves the legacy AST analyzer boundary.
+
 # Logicodex Changelog
 
 All notable changes to the Logicodex compiler are documented in this file.

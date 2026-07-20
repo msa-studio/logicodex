@@ -128,15 +128,6 @@ impl PrimitiveType {
         }
     }
 
-    /// Whether this primitive is a signed integer (drives sext vs zext).
-    #[allow(dead_code)]
-    pub fn is_signed_int(self) -> bool {
-        matches!(
-            self,
-            PrimitiveType::I8 | PrimitiveType::I16 | PrimitiveType::I32 | PrimitiveType::I64
-        )
-    }
-
     /// Whether this primitive is an unsigned integer.
     #[allow(dead_code)]
     pub fn is_unsigned_int(self) -> bool {

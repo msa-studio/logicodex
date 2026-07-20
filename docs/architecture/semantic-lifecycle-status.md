@@ -49,6 +49,21 @@ semantic authority.
 - rename stale helper names such as `parse_and_analyze` only in a separate,
   behaviour-preserving change.
 
+## SSM-D4 Legacy Closure
+
+The orphan/legacy closure revalidated the AST `Analyzer` boundary without
+reactivating, moving, or deleting it:
+
+- `semantic.rs::Analyzer::analyze` remains `LegacyReferenceOnly`;
+- `semantic_gate.rs` remains the only canonical meaning authority;
+- production `main` and codegen paths remain free of `Analyzer` calls;
+- lifecycle validation now fails if the analyzer classification drifts away
+  from `LegacyReferenceOnly`.
+
+Reactivation still requires an approved roadmap task or RFC plus parity
+evidence against the HIR semantic gate. This closure does not authorize broad
+legacy cleanup or extraction of active `SemanticError` ownership.
+
 ## SSM-D2 Future-Reserved Resolution
 
 The SSM-D2 wiring audit found no direct construction or invocation of
