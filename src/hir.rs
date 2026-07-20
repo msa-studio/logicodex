@@ -308,6 +308,44 @@ pub struct HirModule {
     pub items: Vec<Spanned<HirItem>>,
 }
 
+/// Durable language-level callable metadata produced by HIR lowering.
+///
+/// This identity space is independent from the FFI `CallableRegistry`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HirCallableKind {
+    Function,
+    Constructor,
+    Builtin,
+    UserExtern,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HirCallableValueUse {
+    Value,
+    StatementOnly,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HirCallableSignature {
+    pub callable: CallableId,
+    pub name: String,
+    pub kind: HirCallableKind,
+    pub params: Vec<TypeId>,
+    pub param_enums: Vec<Option<String>>,
+    pub return_type: TypeId,
+    pub return_enum: Option<String>,
+    pub is_variadic: bool,
+    pub value_use: HirCallableValueUse,
+}
+
+/// Additive lowering artifact that preserves the existing `HirModule`
+/// contract while carrying language callable metadata beyond lowering.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LoweredModule {
+    pub module: HirModule,
+    pub callable_signatures: HashMap<CallableId, HirCallableSignature>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum HirItem {
     Function(HirFunction),
@@ -539,6 +577,7 @@ pub struct SymbolTable {
     callable_params: HashMap<CallableId, Vec<TypeId>>,
     callable_return_enums: HashMap<CallableId, Option<String>>,
     callable_param_enums: HashMap<CallableId, Vec<Option<String>>>,
+    callable_policies: HashMap<CallableId, (HirCallableKind, bool, HirCallableValueUse)>,
     /// Mangled names of callables declared `public`. A qualified cross-module
     /// call is permitted only if its resolved (mangled) target is in this set.
     public_callables: std::collections::HashSet<String>,
@@ -646,7 +685,95 @@ impl SymbolTable {
     }
 
     pub fn callable_params(&self, id: CallableId) -> Option<&[TypeId]> {
+        // PR 1.1 freezes complete builtin metadata for the richer lowering
+        // artifact, but legacy semantic consumers interpret `Some(params)` as
+        // exact arity. Preserve their pre-artifact behavior for variadic
+        // builtins until PR 1.2 consumes `HirCallableSignature::is_variadic`.
+        if matches!(
+            self.callable_policies.get(&id),
+            Some((HirCallableKind::Builtin, true, _))
+        ) {
+            return None;
+        }
         self.callable_params.get(&id).map(Vec::as_slice)
+    }
+
+    fn set_callable_policy(
+        &mut self,
+        id: CallableId,
+        kind: HirCallableKind,
+        is_variadic: bool,
+        value_use: HirCallableValueUse,
+    ) {
+        self.callable_policies
+            .insert(id, (kind, is_variadic, value_use));
+    }
+
+    fn callable_signatures_snapshot(
+        &self,
+    ) -> Result<HashMap<CallableId, HirCallableSignature>, String> {
+        let mut signatures = HashMap::with_capacity(self.callables.len());
+        for (name, callable) in &self.callables {
+            let missing = |field: &str| {
+                format!(
+                    "incomplete internal callable metadata for `{name}` ({callable:?}): missing {field}"
+                )
+            };
+            let params = self
+                .callable_params
+                .get(callable)
+                .cloned()
+                .ok_or_else(|| missing("parameter types"))?;
+            let param_enums = self
+                .callable_param_enums
+                .get(callable)
+                .cloned()
+                .ok_or_else(|| missing("parameter enum annotations"))?;
+            if params.len() != param_enums.len() {
+                return Err(format!(
+                    "incomplete internal callable metadata for `{name}` ({callable:?}): {} parameter types but {} enum annotations",
+                    params.len(),
+                    param_enums.len()
+                ));
+            }
+            let return_type = self
+                .callable_returns
+                .get(callable)
+                .copied()
+                .ok_or_else(|| missing("return type"))?;
+            let return_enum = self
+                .callable_return_enums
+                .get(callable)
+                .cloned()
+                .ok_or_else(|| missing("return enum annotation"))?;
+            let (kind, is_variadic, value_use) = self
+                .callable_policies
+                .get(callable)
+                .copied()
+                .ok_or_else(|| missing("callable policy"))?;
+            if signatures
+                .insert(
+                    *callable,
+                    HirCallableSignature {
+                        callable: *callable,
+                        name: name.clone(),
+                        kind,
+                        params,
+                        param_enums,
+                        return_type,
+                        return_enum,
+                        is_variadic,
+                        value_use,
+                    },
+                )
+                .is_some()
+            {
+                return Err(format!(
+                    "incomplete internal callable metadata: duplicate identity {callable:?}"
+                ));
+            }
+        }
+        Ok(signatures)
     }
 
     pub fn set_callable_return_enum(&mut self, id: CallableId, enum_name: Option<String>) {
@@ -814,13 +941,38 @@ impl<'a> LoweringContext<'a> {
 impl<'a> LoweringContext<'a> {
     /// Convert an AST Program to HIR ModuleAst and lower it.
     pub fn lower_program(&mut self, program: ast::Program) -> Result<HirModule, Vec<Diagnostic>> {
+        self.lower_program_with_metadata(program)
+            .map(|artifact| artifact.module)
+    }
+
+    pub fn lower_program_with_metadata(
+        &mut self,
+        program: ast::Program,
+    ) -> Result<LoweredModule, Vec<Diagnostic>> {
         use ast::Stmt;
         // Register built-in callables. `print` is always available; the runtime
         // ABI builtins below are backed by the std/runtime profile assembly
         // (logicodex_sleep -> nanosleep, logicodex_yield -> sched_yield).
-        self.symbols.define_callable("print".to_string());
-        self.symbols.define_callable("logicodex_sleep".to_string());
-        self.symbols.define_callable("logicodex_yield".to_string());
+        let unit = self.types.primitive(PrimitiveType::Unit);
+        let i64_type = self.types.primitive(PrimitiveType::I64);
+        for (name, params, is_variadic) in [
+            ("print", Vec::new(), true),
+            ("logicodex_sleep", vec![i64_type], false),
+            ("logicodex_yield", Vec::new(), false),
+        ] {
+            let callable = self.symbols.define_callable(name.to_string());
+            self.symbols.set_callable_params(callable, params.clone());
+            self.symbols
+                .set_callable_param_enums(callable, vec![None; params.len()]);
+            self.symbols.set_callable_return(callable, unit);
+            self.symbols.set_callable_return_enum(callable, None);
+            self.symbols.set_callable_policy(
+                callable,
+                HirCallableKind::Builtin,
+                is_variadic,
+                HirCallableValueUse::StatementOnly,
+            );
+        }
         let mut functions: Vec<Spanned<ItemAst>> = Vec::new();
         let mut top_level_stmts: Vec<Spanned<StmtAst>> = Vec::new();
 
@@ -991,7 +1143,7 @@ impl<'a> LoweringContext<'a> {
             });
         }
 
-        self.lower_module(ModuleAst { items: functions })
+        self.lower_module_with_metadata(ModuleAst { items: functions })
     }
 
     /// Lower an IMPORTED module's AST (a non-root module loaded by the module
@@ -1086,13 +1238,30 @@ impl<'a> LoweringContext<'a> {
         module_name: &str,
         module: ModuleAst,
     ) -> Result<HirModule, Vec<Diagnostic>> {
+        self.lower_module_as_with_metadata(module_name, module)
+            .map(|artifact| artifact.module)
+    }
+
+    pub fn lower_module_as_with_metadata(
+        &mut self,
+        module_name: &str,
+        module: ModuleAst,
+    ) -> Result<LoweredModule, Vec<Diagnostic>> {
         let previous = std::mem::replace(&mut self.current_module, module_name.to_string());
-        let result = self.lower_module(module);
+        let result = self.lower_module_with_metadata(module);
         self.current_module = previous;
         result
     }
 
     pub fn lower_module(&mut self, module: ModuleAst) -> Result<HirModule, Vec<Diagnostic>> {
+        self.lower_module_with_metadata(module)
+            .map(|artifact| artifact.module)
+    }
+
+    pub fn lower_module_with_metadata(
+        &mut self,
+        module: ModuleAst,
+    ) -> Result<LoweredModule, Vec<Diagnostic>> {
         for item in &module.items {
             match &item.node {
                 ItemAst::Function(function) => {
@@ -1196,6 +1365,17 @@ impl<'a> LoweringContext<'a> {
                         self.symbols.set_callable_param_enums(cid, param_enums);
                         self.symbols.set_callable_return(cid, ret);
                         self.symbols.set_callable_return_enum(cid, return_enum);
+                        let value_use = if ret == self.types.primitive(PrimitiveType::Unit) {
+                            HirCallableValueUse::StatementOnly
+                        } else {
+                            HirCallableValueUse::Value
+                        };
+                        self.symbols.set_callable_policy(
+                            cid,
+                            HirCallableKind::Function,
+                            false,
+                            value_use,
+                        );
                     }
                 }
                 ItemAst::Struct(decl) => {
@@ -1206,8 +1386,21 @@ impl<'a> LoweringContext<'a> {
                             .iter()
                             .map(|field| self.lower_type(field.ty.clone()).id)
                             .collect();
+                        let param_enums = decl
+                            .fields
+                            .iter()
+                            .map(|field| self.enum_annotation_name(&field.ty))
+                            .collect();
                         self.symbols.set_callable_params(cid, params);
+                        self.symbols.set_callable_param_enums(cid, param_enums);
                         self.symbols.set_callable_return(cid, ty);
+                        self.symbols.set_callable_return_enum(cid, None);
+                        self.symbols.set_callable_policy(
+                            cid,
+                            HirCallableKind::Constructor,
+                            false,
+                            HirCallableValueUse::Value,
+                        );
                     }
                 }
                 ItemAst::ExternBlock(block) => {
@@ -1229,6 +1422,17 @@ impl<'a> LoweringContext<'a> {
                             self.symbols.set_callable_param_enums(cid, param_enums);
                             self.symbols.set_callable_return(cid, ret);
                             self.symbols.set_callable_return_enum(cid, return_enum);
+                            let value_use = if ret == self.types.primitive(PrimitiveType::Unit) {
+                                HirCallableValueUse::StatementOnly
+                            } else {
+                                HirCallableValueUse::Value
+                            };
+                            self.symbols.set_callable_policy(
+                                cid,
+                                HirCallableKind::UserExtern,
+                                function.is_variadic,
+                                value_use,
+                            );
                         }
                     }
                 }
@@ -1238,16 +1442,52 @@ impl<'a> LoweringContext<'a> {
 
         let mut items = Vec::with_capacity(module.items.len());
         for item in module.items {
-            if let Some(lowered) = self.lower_item(item) {
-                items.push(lowered);
+            let span = item.span;
+            match item.node {
+                ItemAst::ExternBlock(block) => {
+                    for function in block.functions {
+                        let single = Spanned {
+                            node: ItemAst::ExternBlock(ExternBlockAst {
+                                abi: block.abi,
+                                functions: vec![function],
+                            }),
+                            span,
+                        };
+                        if let Some(lowered) = self.lower_item(single) {
+                            items.push(lowered);
+                        }
+                    }
+                }
+                node => {
+                    if let Some(lowered) = self.lower_item(Spanned { node, span }) {
+                        items.push(lowered);
+                    }
+                }
             }
         }
 
-        if self.diagnostics.is_empty() {
-            Ok(HirModule { items })
-        } else {
-            Err(std::mem::take(&mut self.diagnostics))
+        if !self.diagnostics.is_empty() {
+            return Err(std::mem::take(&mut self.diagnostics));
         }
+
+        let callable_signatures = match self.symbols.callable_signatures_snapshot() {
+            Ok(signatures) => signatures,
+            Err(details) => {
+                self.diagnostics.push(Diagnostic {
+                    code: DiagnosticCode::TypeMismatch,
+                    severity: Severity::Error,
+                    message_ms: format!("metadata callable dalaman tidak lengkap: {details}"),
+                    message_en: details,
+                    primary_span: Span::unknown(),
+                    notes: Vec::new(),
+                });
+                return Err(std::mem::take(&mut self.diagnostics));
+            }
+        };
+        Ok(LoweredModule {
+            module: HirModule { items },
+            callable_signatures,
+        })
     }
 
     fn lower_item(&mut self, item: Spanned<ItemAst>) -> Option<Spanned<HirItem>> {
