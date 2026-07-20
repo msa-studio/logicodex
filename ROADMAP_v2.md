@@ -4,9 +4,14 @@
 
 **Document Version:** 2.0  
 **Last Updated:** 2026-07-13
-**Status:** Active baseline — historical freeze exited; v0.46 control active
+**Status:** Active long-horizon baseline — historical freeze exited; not current work-sequence authority
 **Policy Reference:** See `.github/ROADMAP_POLICY.md`, `docs/governance/architecture-freeze-exit-2026-07-13.md`, and `docs/governance/architecture-change-control.md`
 **Maintainer:** Single maintainer (see `CONTRIBUTING.md` for co-maintainer recruitment)
+
+> **Current authority:** Agents and contributors must begin with
+> [`docs/architecture/current-authority.md`](docs/architecture/current-authority.md).
+> This roadmap preserves long-horizon phases, maturity history, and audit
+> context. It does not define a competing near-term execution order.
 
 > **Architecture Freeze exit:** The historical v1.45 freeze was formally
 > concluded on 2026-07-13 after Architect acceptance of the independent

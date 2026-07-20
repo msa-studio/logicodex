@@ -3,7 +3,8 @@
 #
 #   "The police force that blocks PRs violating roadmap policy."
 #
-# This workflow enforces the active governance defined in ROADMAP_v2.md and
+# This workflow enforces the active governance indexed by
+# docs/architecture/current-authority.md and controlled by
 # docs/governance/architecture-change-control.md.
 #
 # Policies Enforced:
@@ -38,14 +39,14 @@ env:
   # Architecture-sensitive surfaces requiring focused review
   ARCH_SENSITIVE_FILES: "src/main.rs,src/ast.rs,src/hir.rs,src/semantic.rs,src/semantic_gate.rs,src/codegen.rs,src/types.rs"
   # Files that count as documentation
-  DOCS_PATHS: "docs/,README.md,SPECIFICATION.md,ROADMAP.md,ROADMAP_v2.md,CHANGELOG.md,CONTRIBUTING.md,.roadmap/"
+  DOCS_PATHS: "docs/,AGENTS.md,README.md,SPECIFICATION.md,ROADMAP.md,ROADMAP_v2.md,CHANGELOG.md,CONTRIBUTING.md,.roadmap/"
   # Maximum lines changed before RFC is required
   SIZE_LIMIT: "500"
 
 jobs:
   # ==========================================================================
   # JOB: check_phase_compliance
-  # Verifies PR labels align with the current active phase in ROADMAP.md.
+  # Verifies PR labels align with the current active phase authority.
   # If PR adds features, its label must match the current phase.
   # ==========================================================================
   check_phase_compliance:
@@ -61,7 +62,7 @@ jobs:
           echo "=== Detecting active Logicodex phase ==="
 
           CURRENT_VERSION=$(grep -m1 '^version[[:space:]]*=' Cargo.toml | sed 's/.*"\([^"]*\)".*/\1/')
-          CURRENT_STATUS=$(grep -m1 '^\*\*Status:\*\*' ROADMAP_v2.md | sed 's/^\*\*Status:\*\*[[:space:]]*//' | xargs)
+          CURRENT_STATUS=$(grep -m1 '^Status:' docs/architecture/current-authority.md | sed 's/^Status:[[:space:]]*//' | xargs)
 
           EXPECTED_LABEL="phase-1"
           PHASE_NAME="Phase 1 (v0.46.x stabilization / CPB)"
@@ -159,7 +160,7 @@ jobs:
             ### Required Actions
 
             1. Add the \`${expectedLabel}\` label to this PR
-            2. Ensure the PR scope aligns with [ROADMAP_v2.md](${{ github.server_url }}/${{ github.repository }}/blob/main/ROADMAP_v2.md)
+            2. Ensure the PR scope aligns with [current-authority.md](${{ github.server_url }}/${{ github.repository }}/blob/main/docs/architecture/current-authority.md)
             3. If you believe this is an exception, request a **maintainer override** with justification
 
             > 📖 **Policy Reference:** docs/governance/architecture-change-control.md
@@ -229,7 +230,7 @@ jobs:
           fi
 
           # Check if any docs files were modified
-          DOCS_CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -iE '^(docs/|README\.md|SPECIFICATION\.md|ROADMAP\.md|CHANGELOG\.md|CONTRIBUTING\.md|\.roadmap/)' | wc -l)
+          DOCS_CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -iE '^(docs/|AGENTS\.md|README\.md|SPECIFICATION\.md|ROADMAP\.md|ROADMAP_v2\.md|CHANGELOG\.md|CONTRIBUTING\.md|\.roadmap/)' | wc -l)
 
           # Also check for test updates as proxy for feature validation
           TESTS_CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -iE '^(tests/|.*_test\.rs|.*\.ldx$)' | wc -l)

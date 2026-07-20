@@ -3,7 +3,9 @@
 Status: architecture direction lock
 Scope: stdlib, framework, FFI/library imports, runtime profiles, language frontends, IL semantic adapters, diagnostics, and agent-facing tooling.
 
-This document defines the general Logicodex pattern for contract-compliant static extensions.
+This subordinate architecture record defines the general Logicodex pattern for
+contract-compliant static extensions. Current cross-project authority and work
+sequence are owned by [`current-authority.md`](current-authority.md).
 
 It complements:
 
@@ -514,9 +516,9 @@ Community should remain production-grade, not a toy, but its contract architectu
 
 ---
 
-## 10. Initial Implementation Order
+## 10. Historical Foundation Order
 
-Recommended order:
+Recorded bootstrap order for this subsystem (not current project work sequence):
 
 ```
 1. stdlib contract docs

@@ -91,6 +91,11 @@ when its pull request records:
 - focused and full-integrity validation evidence;
 - confirmation that no architecture-controlled boundary is being changed.
 
+Documentation updates have no upper line cap. A documentation pull request
+above 500 changed lines uses `size-exception` to record size review; the label
+does not require the documentation to be split and does not make it an
+architecture change.
+
 A large pull request that also changes an architecture-controlled boundary
 must satisfy both controls independently.
 

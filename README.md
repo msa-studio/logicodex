@@ -1,7 +1,7 @@
 # Logicodex
 +------------------------------------------------------------------+
 |  v0.46.0-alpha — Research-grade systems language prototype       |
-|  Not for production. See ROADMAP_v2.md for phase & maturity.     |
+|  Not for production. See current-authority.md before planning.   |
 +------------------------------------------------------------------+
 
 **A deterministic systems programming language with a zero-runtime core,
@@ -94,7 +94,9 @@ Tiers: **FULL** (working, tested) · **PARTIAL** (works for some cases, gaps) ·
 | Freestanding aarch64 / riscv64 | SKELETON |
 | Self-hosting, package manager, LSP | SKELETON |
 
-Full detail and issue links: `ROADMAP_v2.md`.
+Current authority and work sequence:
+`docs/architecture/current-authority.md`. Long-horizon phase detail and
+historical issue links remain in `ROADMAP_v2.md`.
 
 ---
 
@@ -146,6 +148,7 @@ make boot-evidence   # examples/freestanding/minimal.ldx  -> clean boot
 
 | Document | Purpose |
 |---|---|
+| [`docs/architecture/current-authority.md`](docs/architecture/current-authority.md) | Single entry point for current invariants, debt disposition, and work sequence |
 | [`docs/DOCUMENTATION_POLICY.md`](docs/DOCUMENTATION_POLICY.md) | Doc tiers + the documentation phase gate |
 | [`docs/architecture/runtime-doctrine.md`](docs/architecture/runtime-doctrine.md) | Zero-runtime core + optional profiles |
 | [`docs/architecture/hir-decision.md`](docs/architecture/hir-decision.md) | Why HIR is the sole execution path |
@@ -153,7 +156,7 @@ make boot-evidence   # examples/freestanding/minimal.ldx  -> clean boot
 | [`docs/architecture/compiler-subset.md`](docs/architecture/compiler-subset.md) | Minimum compiler subset for self-hosting runway |
 | [`docs/architecture/stdlib-core-design-doctrine.md`](docs/architecture/stdlib-core-design-doctrine.md) | Modern, legacy-aware stdlib/core design doctrine |
 | [`docs/architecture/capability-topology.md`](docs/architecture/capability-topology.md) | What capability checking does / defers |
-| [`ROADMAP_v2.md`](ROADMAP_v2.md) | Phases, maturity matrix |
+| [`ROADMAP_v2.md`](ROADMAP_v2.md) | Long-horizon phases and maturity history; not current work-sequence authority |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |
 | [`examples/`](examples/) | One verified program per feature |
 

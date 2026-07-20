@@ -2,6 +2,10 @@
 
 Status: Active SSM lifecycle record
 
+This is subordinate semantic lifecycle evidence. Current cross-project
+invariants, debt disposition, and work sequence are owned by
+[`current-authority.md`](current-authority.md).
+
 ## Canonical authority
 
 `src/semantic_gate.rs` is the canonical HIR semantic validation authority.
@@ -36,18 +40,20 @@ semantic authority.
 4. Future activation of the dormant type checker requires an RFC or an approved
    roadmap task defining its relationship with the canonical HIR gate.
 5. `SemanticError` ownership may be extracted later, but moving it is not part
-   of this classification-only change.
+   of the SSM-D4 lifecycle closure.
 6. Unit-test coverage alone does not prove that a component is active in the
    production compiler pipeline.
 
-## Debt follow-up
+## Residual semantic debt
 
-- inspect whether `SemanticError` should move to a neutral diagnostics or Tier 2
-  ownership module;
-- classification resolved: the dormant type-checker subsystem is `FutureReserved`, not `OrphanBug`; activation requires an explicit lifecycle update and integration plan for `semantic_gate`.
-- inspect the duplicate semantic validation at the codegen boundary;
-- rename stale helper names such as `parse_and_analyze` only in a separate,
-  behaviour-preserving change.
+| Debt | Owner and review point |
+|---|---|
+| `SemanticError` ownership | Diagnostics/Tier 2; decide before or within `CPB-2 Diagnostic End-to-End` |
+| Defensive semantic validation at codegen | Semantic/codegen boundary; retain until callable and assignment/return parity evidence supports change |
+| Stale helper names such as `parse_and_analyze` | Separate behaviour-preserving cleanup; non-blocking |
+
+This table records debt, not work order. The active sequence and blocking
+disposition are defined only in `current-authority.md`.
 
 ## SSM-D4 Legacy Closure
 

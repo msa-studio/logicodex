@@ -1,17 +1,19 @@
 # Code Lifecycle Inventory
 
-Status: Active SSM-D2 lifecycle record
+Status: Active cross-stage lifecycle evidence record
 
 ## Purpose
 
-This document is the canonical cross-compiler inventory for inactive,
+This document is the detailed cross-compiler inventory for inactive,
 suppressed, legacy, reserved, and potentially orphaned code discovered during
-Semantic Stabilization Milestone Stage D2.
+Semantic Stabilization Milestone Stage D2 and resolved through later lifecycle
+stages. Current decision order is owned by
+[`current-authority.md`](current-authority.md).
 
 SSM-D2 is classification work, not cleanup. It does not authorize deletion,
 automatic rewiring, broad warning removal, or architecture changes.
 
-The subsystem-specific semantic classifications remain authoritative in
+The subsystem-specific semantic classifications are detailed in
 [`semantic-lifecycle-status.md`](semantic-lifecycle-status.md).
 
 ## Lifecycle statuses
@@ -43,7 +45,8 @@ evidence-backed SSM-D4 closure below, the current validated baseline is:
 - no broad source-removal authorization.
 
 The 87-warning baseline is technical debt for staged follow-up. It is not a
-mandate for broad cleanup during SSM-D2.
+mandate for broad cleanup. Its current blocking disposition is defined by
+`current-authority.md`.
 
 ## Suppression and lifecycle inventory
 
@@ -121,14 +124,18 @@ if either resolution record disappears, or if the legacy analyzer status
 drifts. These exact decisions do not prohibit future legitimate
 `OrphanCandidate` classifications.
 
-## Follow-up boundary
+## Residual review boundary
 
-Later stages may:
+The lifecycle validator is active and fail-closed for inventory/source drift,
+the approved orphan closures, and the legacy analyzer status. Remaining work is
+limited to:
 
-- add a lifecycle validator in SSM-D3;
-- review any newly discovered OrphanCandidate wiring and ownership;
-- narrow broad suppression attributes incrementally;
-- separate active diagnostic ownership from legacy semantic code;
-- reduce the warning baseline through focused, behaviour-preserving changes.
+- evidence review for any newly discovered `OrphanCandidate`;
+- incremental narrowing of broad suppressions with owning-subsystem tests;
+- diagnostic ownership separation during diagnostics-owned work;
+- focused, behaviour-preserving warning reduction.
 
-These follow-ups must remain staged and must not become a broad cleanup rewrite.
+These items are residual debt, not an independent execution order. Their
+blocking points and the active CPB sequence are owned by
+[`current-authority.md`](current-authority.md); they must not become a broad
+cleanup rewrite.

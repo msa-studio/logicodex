@@ -15,7 +15,10 @@
 
 # Phase Transition Audit: `{SOURCE_PHASE}` → `{TARGET_PHASE}`
 
-> **Status:** Historical audit template. Version references are retained as non-authoritative provenance.
+> **Status:** Active phase-transition audit template. Resolve current phase and
+> work sequence from [`current-authority.md`](../docs/architecture/current-authority.md);
+> use [`ROADMAP_v2.md`](../ROADMAP_v2.md) only for long-horizon target criteria
+> and history.
 
 ---
 
@@ -24,7 +27,7 @@
 | Field | Value |
 |-------|-------|
 | **Audit Date** | `YYYY-MM-DD` |
-| **Source Phase** | `{SOURCE_PHASE}` (e.g., Phase 1 — v0.46.x Stabilization) |
+| **Source Phase** | `{SOURCE_PHASE}` and version resolved from current authority / `Cargo.toml` |
 | **Target Phase** | `{TARGET_PHASE}` (e.g., next approved roadmap phase) |
 | **Auditor** | `@github-username` |
 | **Auditor Role** | `Core Maintainer / Technical Lead / Release Engineer / External Auditor` |
@@ -48,7 +51,9 @@
 ## 2. Phase Entry Criteria Checklist
 
 <!--
-  Copy the entry criteria from ROADMAP.md for the TARGET phase.
+  Copy the owner-approved entry criteria for the TARGET phase. Resolve active
+  sequence from docs/architecture/current-authority.md and long-horizon target
+  criteria from ROADMAP_v2.md.
   Every criterion MUST have evidence attached.
   Mark each item: [ ] Pending / [~] Partial / [x] Complete / [!] Blocked
 -->
@@ -57,33 +62,31 @@
 
 | # | Criterion | Status | Evidence Link | Notes |
 |---|-----------|--------|---------------|-------|
-| G1 | All CI checks passing for 14 consecutive days | [ ] | CI run link | |
+| G1 | Required CI stability evidence window is green per target criteria | [ ] | CI run link | |
 | G2 | Zero critical security vulnerabilities (dependabot, cargo-audit) | [ ] | Audit report link | |
 | G3 | Architecture change-control compliance: no unauthorized invariant changes | [ ] | Gatekeeper run log | |
 | G4 | RFC process documented and tooling ready | [ ] | CONTRIBUTING.md §RFCs | |
 | G5 | Team capacity confirmed for target phase scope | [ ] | Team capacity doc / comment | |
 
-### 2B. Phase 1 → Phase 2 Specific Criteria
-
-<!-- Applicable when transitioning FROM Phase 1 (v1.45.x) TO Phase 2 (v1.50.x) -->
-
-| # | Criterion (from ROADMAP.md "NOW" items) | Status | Evidence Link | Notes |
-|---|------------------------------------------|--------|---------------|-------|
-| P1 | **Architecture Change Control** — declared architecture changes have approved RFC evidence; locked invariants and Gatekeeper policy pass | [ ] | Gatekeeper logs, diffstat | |
-| P2 | **Validator Hardening** — Validator false-positive rate < 0.5%; ICE crash rate = 0 on fuzzer corpus (100K inputs); all new diagnostics include error codes | [ ] | Fuzzer report, diagnostics audit | |
-| P3 | **Documentation Polish** — Language reference 100% coverage of alpha surface; architecture docs pass tech-writer review; v1.21 → v1.45 migration guide published | [ ] | Docs coverage report, review sign-off | |
-| P4 | **Post-v1.45 Deep Clean Closure** — Deferred item count = 0; closing issue referenced and closed | [ ] | Issue tracker query, closing commit | |
-| P5 | **v1.21 Pipeline Deprecation** — Deprecation notice published; v1.21 CI jobs marked deprecated; EOL date announced | [ ] | Deprecation notice link, CI config | |
-| P6 | **Current Stabilization Readiness** — all applicable integrity gates remain green for the required evidence window | [ ] | CI history link | |
-
-### 2C. Target Phase Readiness (Phase 2 Entry)
+### 2B. Transition-Specific Criteria
 
 | # | Criterion | Status | Evidence Link | Notes |
 |---|-----------|--------|---------------|-------|
-| T1 | At least one pre-approved RFC exists for Phase 2 work | [ ] | RFC discussion link | |
-| T2 | 4 alignment checks template published | [ ] | .github/ALIGNMENT_CHECKS.md | |
-| T3 | Target-phase and architecture-control labels are available | [ ] | Labels page link | |
-| T4 | Experimental pipeline (v1.30) ready for prototyping | [ ] | v1.30 CI status | |
+| P1 | Source-phase exit criteria and owner-locked sequence items are complete | [ ] | Current authority, closing evidence | |
+| P2 | Canonical quick and full-integrity gates pass at the audited commit | [ ] | CI run and local evidence | |
+| P3 | Architecture change control is satisfied; no unapproved invariant change exists | [ ] | Gatekeeper logs, RFC if applicable | |
+| P4 | Documentation, lifecycle, version, and provenance records match live behavior | [ ] | Documentation diff, validators | |
+| P5 | Residual debt is classified with explicit ownership and blocking disposition | [ ] | Current authority, debt records | |
+| P6 | The owner explicitly approves entry into `{TARGET_PHASE}` | [ ] | Approval record | |
+
+### 2C. Target Phase Readiness
+
+| # | Criterion | Status | Evidence Link | Notes |
+|---|-----------|--------|---------------|-------|
+| T1 | Target scope, entry criteria, and exit criteria are documented | [ ] | Approved roadmap/authority record | |
+| T2 | Required labels, validators, and CI gates are available | [ ] | Gatekeeper and CI evidence | |
+| T3 | Any architecture-controlled work has approved RFC evidence before implementation | [ ] | RFC / owner approval | |
+| T4 | Dependencies and owner capacity for the target scope are confirmed | [ ] | Dependency and capacity record | |
 
 ### Criteria Summary
 
@@ -109,8 +112,8 @@
 | 1 | Release binary (`logicodex`) | `target/release/logicodex` / GitHub Release | CI build artifact | `stripped size, file output` | [ ] |
 | 2 | Test suite (all tiers) | `tests/`, `scripts/validators/` | `cargo test` + validator scripts | `NNN/NNN pass` | [ ] |
 | 3 | Example programs | `examples/*.ldx` | Example CI job | `NN examples pass` | [ ] |
-| 4 | Dormant subsystem (v1.30) | `src/` (gated code) | Dormant CI check | `compiles, non-blocking` | [ ] |
-| 5 | Fuzzing corpus | `tests/fuzz/corpus/` | `find | wc -l` | `≥ 100K inputs` | [ ] |
+| 4 | Phase-specific compiler deliverables | `{paths}` | Owning validators | Acceptance criteria met | [ ] |
+| 5 | Stress/fuzz evidence (when required by target criteria) | `{artifact/path}` | Reproducible command | Target-specific threshold met | [ ] |
 
 ### 3B. Documentation Deliverables
 
@@ -120,8 +123,9 @@
 | 2 | Architecture docs | `docs/architecture/` | Coverage report | Peer review | [ ] |
 | 3 | API documentation | `cargo doc --no-deps` output | CI doc build | `rustdoc` clean | [ ] |
 | 4 | Migration guide (previous stable baseline → current baseline) | `docs/migrations/<previous>-to-<current>.md` | Manual inspection | Published | [ ] |
-| 5 | ROADMAP.md updated | `ROADMAP.md` | Git diff | Accurate, dated | [ ] |
-| 6 | CHANGELOG.md | `CHANGELOG.md` | Version diff | All entries accounted | [ ] |
+| 5 | Current authority reconciled | `docs/architecture/current-authority.md` | Authority validator | Accurate, owner-approved | [ ] |
+| 6 | Long-horizon roadmap reconciled when affected | `ROADMAP_v2.md` | Git diff | No competing work sequence | [ ] |
+| 7 | CHANGELOG.md | `CHANGELOG.md` | Version diff | All entries accounted | [ ] |
 
 ### 3C. Process Deliverables
 
@@ -151,32 +155,29 @@
 | Formatting check (`cargo fmt`) | 1 | 1 | 0 | — | [ ] |
 | Lint check (`cargo clippy`) | 1 | 1 | 0 | — | [ ] |
 | Example compilation | NN | NN | 0 | — | [ ] |
-| Dormant v1.30 check | 1 | 1 | 0 | — | [ ] |
+| Target-phase focused gates | NN | NN | 0 | — | [ ] |
 | **TOTAL** | **NNN** | **NNN** | **0** | **0** | **PASS / FAIL** |
 
 ### 4B. CI Stability History
 
 | Window | Required | Actual | Status |
 |--------|----------|--------|--------|
-| 7-day green streak | ✅ Yes | `NN days` | [ ] |
-| 14-day green streak | ✅ Yes (Phase 1→2) | `NN days` | [ ] |
-| 2-week green streak (Phase 1 RC) | ✅ Yes (P6) | `NN days` | [ ] |
+| Required transition evidence window | `{target criterion}` | `NN days` | [ ] |
 
 ### 4C. Fuzzing & Stress Results
 
 | Test Suite | Iterations | Crashes | ICEs | Status |
 |------------|------------|---------|------|--------|
-| Fuzzer corpus | 100,000 | 0 | 0 | [ ] |
-| Validator false-positive rate | — | < 0.5% target | `X.X%` actual | [ ] |
-| ICE crash rate | 100K inputs | 0 target | `X` actual | [ ] |
+| Required fuzz/stress suite | `{iterations}` | `{crashes}` | `{ICEs}` | [ ] |
+| Validator false-positive rate (if required) | `{sample size}` | `{target}` | `{actual}` | [ ] |
 
 ### 4D. Performance Regression
 
 | Benchmark | Baseline | Current | Delta | Threshold | Status |
 |-----------|----------|---------|-------|-----------|--------|
-| Compile time (hello.ldx) | `NN.Ns` | `NN.Ns` | `+X%` | ≤ 5% | [ ] |
-| Binary size (hello.ldx) | `NN KB` | `NN KB` | `+X%` | ≤ 5% | [ ] |
-| Memory usage (check 1KLOC) | `NN MB` | `NN MB` | `+X%` | ≤ 10% | [ ] |
+| Compile time (hello.ldx) | `NN.Ns` | `NN.Ns` | `+X%` | `{target threshold}` | [ ] |
+| Binary size (hello.ldx) | `NN KB` | `NN KB` | `+X%` | `{target threshold}` | [ ] |
+| Memory usage (check 1KLOC) | `NN MB` | `NN MB` | `+X%` | `{target threshold}` | [ ] |
 
 ### 4E. CI Links
 
@@ -195,12 +196,13 @@
 | Document | Updated | Covers Target Phase | Reviewed | Location |
 |----------|---------|---------------------|----------|----------|
 | README.md | [ ] | N/A (general) | [ ] | `/README.md` |
-| ROADMAP.md | [ ] | Yes — target phase items present | [ ] | `/ROADMAP.md` |
-| SPECIFICATION.md | [ ] | Yes — alpha surface documented | [ ] | `/SPECIFICATION.md` |
+| Current authority | [ ] | Yes — phase, sequence, and debt disposition | [ ] | `/docs/architecture/current-authority.md` |
+| ROADMAP_v2.md | [ ] | Long-horizon target criteria/history when affected | [ ] | `/ROADMAP_v2.md` |
+| SPECIFICATION.md | [ ] | Target surface reconciled | [ ] | `/SPECIFICATION.md` |
 | CONTRIBUTING.md | [ ] | N/A | [ ] | `/CONTRIBUTING.md` |
-| Language reference | [ ] | Yes — 100% coverage | [ ] | `/docs/lang-ref/` |
-| Architecture docs | [ ] | Yes — post-cleanup state | [ ] | `/docs/architecture/` |
-| Migration guide | [ ] | v1.21 → v1.45 | [ ] | `/docs/migrations/` |
+| Language reference | [ ] | Approved target coverage criterion | [ ] | `/docs/lang-ref/` |
+| Architecture docs | [ ] | Audited live state | [ ] | `/docs/architecture/` |
+| Migration guide | [ ] | `{previous}` → `{target}` when required | [ ] | `/docs/migrations/` |
 | CHANGELOG.md | [ ] | N/A (historical) | [ ] | `/CHANGELOG.md` |
 | API docs (rustdoc) | [ ] | Yes — `cargo doc` clean | [ ] | CI artifact |
 
@@ -275,26 +277,23 @@
 
 | # | Risk | Impact (1-5) | Probability (1-5) | Score | Mitigation Plan | Owner |
 |---|------|-------------|-------------------|-------|-----------------|-------|
-| 1 | Nominal type system (Phase 2A) introduces breaking changes to existing programs | 5 | 3 | 15 | Gradual opt-in; structural fallback period; migration lint | `@owner` |
-| 2 | LSP engine (Phase 2B) performance degrades on large projects | 4 | 4 | 16 | Incremental compilation integration; benchmark-driven dev | `@owner` |
-| 3 | WebAssembly backend (Phase 2C) binary size bloat exceeds 2× native | 4 | 3 | 12 | Size regression CI gate; early prototyping in v1.30 pipeline | `@owner` |
-| 4 | Self-hosted CI pipeline (v1.30 dormant) fails to activate cleanly | 3 | 3 | 9 | Activation checklist; rollback plan; feature flags | `@owner` |
-| 5 | Validator hardening regressions from new inference boundaries | 4 | 3 | 12 | Exhaustive test suite; gradual rollout; A/B validation | `@owner` |
+| 1 | `{target-specific technical risk}` | N | N | N | `{mitigation and rollback evidence}` | `@owner` |
+| 2 | `{canonical-boundary or compatibility risk}` | N | N | N | `{mitigation and validation}` | `@owner` |
+| 3 | `{toolchain, performance, or diagnostics risk}` | N | N | N | `{mitigation and threshold}` | `@owner` |
 
 ### 7B. Process Risks
 
 | # | Risk | Impact (1-5) | Probability (1-5) | Score | Mitigation Plan | Owner |
 |---|------|-------------|-------------------|-------|-----------------|-------|
-| 1 | RFC process overhead slows development velocity | 3 | 4 | 12 | Streamlined template; async review; time-boxed decisions | `@owner` |
-| 2 | Phase 2 scope creep pulls in v2.0-vision items | 4 | 4 | 16 | Strict labeling; architecture change control; quarterly review | `@owner` |
-| 3 | Team bandwidth insufficient for parallel Phase 2 streams | 4 | 3 | 12 | Prioritize 2A→2B→2C sequentially; external contributions welcome | `@owner` |
+| 1 | `{scope or approval risk}` | N | N | N | `{mitigation}` | `@owner` |
+| 2 | `{capacity or sequencing risk}` | N | N | N | `{mitigation}` | `@owner` |
 
 ### 7C. External Risks
 
 | # | Risk | Impact (1-5) | Probability (1-5) | Score | Mitigation Plan | Owner |
 |---|------|-------------|-------------------|-------|-----------------|-------|
-| 1 | LLVM 15 deprecation forces toolchain migration mid-phase | 3 | 2 | 6 | Pin LLVM version; test LLVM 16 compatibility in CI matrix | `@owner` |
-| 2 | Dependency security vulnerability requires emergency patch | 3 | 2 | 6 | Dependabot alerts; `cargo audit` in CI; patch release process | `@owner` |
+| 1 | `{toolchain or dependency risk}` | N | N | N | `{mitigation}` | `@owner` |
+| 2 | `{security or ecosystem risk}` | N | N | N | `{mitigation}` | `@owner` |
 
 ### Risk Summary
 
@@ -426,5 +425,5 @@ Use this summary during the audit to track overall progress:
 ---
 
 *This audit was generated from the Logicodex Phase Transition Audit Template.*
-*Template version: 1.0.0 — aligned with ROADMAP.md v1.45.0-alpha*
-*Last template update: 2026-01-12*
+*Template version: 2.0.0 — aligned with the single current-authority model*
+*Last template update: 2026-07-20*

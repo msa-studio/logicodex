@@ -1,4 +1,4 @@
-> ⚠️ **NOT UPDATED — will revisit.** This document predates the current syntax/architecture and may contain stale information. Authoritative current references: `README.md`, `examples/`, and `docs/architecture/`. Tracked under `docs/DOCUMENTATION_POLICY.md`.
+> ⚠️ **NOT UPDATED — will revisit.** This document predates the current syntax/architecture and may contain stale information. Start with `docs/architecture/current-authority.md`; use `README.md` and `examples/` as current syntax evidence. Tracked under `docs/DOCUMENTATION_POLICY.md`.
 
 # Experimental Compiler Philosophy and Architecture
 
@@ -19,7 +19,7 @@
 
 Dokumen ini ialah **dokumen eksperimental falsafah dan arkitektur compiler** untuk bahasa pengaturcaraan sistem Logicodex. Ia bukan manual pengguna, bukan rujukan API, dan bukan tutorial — ia adalah **rekod perbincangan dan justifikasi** mengapa setiap keputusan arkitektur dibuat, dari compiler core v1.21 hingga framework benchmark v1.45.
 
-> **Nota:** Dokumen ini merangkumi evolusi arkitektur **v1.21 hingga v1.45**. Untuk spesifikasi asas (baseline) v1.21, rujuklah [`WHITE_PAPER.md`](../../WHITE_PAPER.md) di root repositori — dokumen formal yang menjadi asas kepada semua pembangunan berikutnya.
+> **Nota sejarah:** Dokumen ini merangkumi evolusi arkitektur **v1.21 hingga v1.45** sebagai rekod provenance, bukan authority semasa. Untuk keputusan dan urutan kerja semasa, mulakan dengan [`current-authority.md`](../../architecture/current-authority.md).
 
 Logicodex lahir dari satu keyakinan: **syntax seharusnya menjadi antara muka manusia, dan semantik seharusnya menjadi kontrak mesin**. Dokumen ini merakam:
 
