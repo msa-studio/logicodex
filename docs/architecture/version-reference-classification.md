@@ -37,6 +37,21 @@ Version references within these paths are retained as provenance unless an
 artifact is promoted back into an active surface. Current behavior remains
 governed by the active compiler and canonical validation.
 
+### Zone status markers
+
+SSM-D4 requires an explicit `.zone-status.md` marker at each currently
+classified top-level historical boundary:
+
+- `docs/archive/` — `HistoricalProvenance`;
+- `scripts/_archive/` — `ArchivedZone`;
+- `spec/v1.11-alpha/` — `HistoricalProvenance`;
+- `spec/v1.21-alpha/` — `HistoricalProvenance`;
+- `spec/v1.30.0-alpha/` — `HistoricalProvenance`.
+
+The version-reference hygiene validator enforces marker presence and exact
+classification. A marker does not reactivate archived content or make it
+normative; it records the boundary for readers and automated governance.
+
 ## DisposableDecoration
 
 A version appearing only as a source-file banner, milestone prefix, workflow

@@ -31,6 +31,29 @@ HOOK_FILES = (
     "scripts/dev/verify_full_integrity.sh",
 )
 
+HISTORICAL_ZONE_REQUIREMENTS = (
+    (
+        "docs/archive/.zone-status.md",
+        "HistoricalProvenance",
+    ),
+    (
+        "scripts/_archive/.zone-status.md",
+        "ArchivedZone",
+    ),
+    (
+        "spec/v1.11-alpha/.zone-status.md",
+        "HistoricalProvenance",
+    ),
+    (
+        "spec/v1.21-alpha/.zone-status.md",
+        "HistoricalProvenance",
+    ),
+    (
+        "spec/v1.30.0-alpha/.zone-status.md",
+        "HistoricalProvenance",
+    ),
+)
+
 FORBIDDEN_CURRENT_CLAIMS = (
     re.compile(
         r"current Logicodex v1\.(?:21|30|45)",
@@ -71,6 +94,7 @@ class ValidationSummary:
     compatibility_selectors: int
     active_runtime_surfaces: int
     generated_version_authorities: int
+    historical_zone_markers: int
 
 
 def read_text(root: Path, relative: str) -> str:
@@ -242,6 +266,28 @@ def validate_repository(
             "single HIR compiler path"
         )
 
+    for relative, expected_classification in (
+        HISTORICAL_ZONE_REQUIREMENTS
+    ):
+        try:
+            marker = read_text(root, relative)
+        except ValidationError:
+            errors.append(
+                f"historical zone marker missing: {relative}"
+            )
+            continue
+
+        expected_marker = (
+            "Classification: "
+            f"`{expected_classification}`"
+        )
+
+        if expected_marker not in marker:
+            errors.append(
+                "historical zone classification mismatch: "
+                f"{relative} must contain {expected_marker!r}"
+            )
+
     for relative in HOOK_FILES:
         try:
             hook = read_text(root, relative)
@@ -293,6 +339,9 @@ def validate_repository(
         generated_version_authorities=(
             runtime_summary.generated_version_authorities
         ),
+        historical_zone_markers=len(
+            HISTORICAL_ZONE_REQUIREMENTS
+        ),
     )
 
 
@@ -334,6 +383,10 @@ def main() -> int:
     print(
         "generated_version_authorities="
         f"{summary.generated_version_authorities}"
+    )
+    print(
+        "historical_zone_markers="
+        f"{summary.historical_zone_markers}"
     )
 
     return 0
