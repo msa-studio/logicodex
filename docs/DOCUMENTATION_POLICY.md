@@ -10,30 +10,40 @@ gate**: drift is caught and fixed as part of normal change, not left to rot.
 
 Every documentation file belongs to exactly one tier.
 
-### 1. Authoritative (must always be current)
-These describe how the language/compiler works *today*. A change that affects them
-**must** update them in the same commit. Code samples in them **must** pass
-`logicodex check`.
+### 1. Current authority entry point
 
-- `README.md` — front door
-- `SPECIFICATION.md` — language spec
-- `docs/guide/src/ch01`-`ch06` — core syntax tutorial (variables, types, control
-  flow, functions)
-- `docs/architecture/*` — current architecture decisions (hir-decision,
-  runtime-doctrine, foreign-types, capability-topology)
-- `CHANGELOG.md`, `ROADMAP_v2.md`
+[`architecture/current-authority.md`](architecture/current-authority.md) is the
+single navigation and decision entry point for current invariants, debt
+disposition, and work sequence. It does not override live source and executable
+tests for implemented behavior. No other document may define a competing active
+sequence.
 
-### 2. Reference (kept current best-effort)
+### 2. Scoped current evidence
+
+These must be current within their named scope and updated in the same batch as
+the behavior or decision they describe:
+
+- `README.md` and `examples/` — verified front door and syntax evidence;
+- explicitly linked architecture, governance, lifecycle, and contract records;
+- `CHANGELOG.md` — current change record;
+- `ROADMAP_v2.md` — long-horizon phase baseline and history, not current
+  work-sequence authority.
+
+An entire directory is never authoritative merely because of its path. Code
+samples presented as current must pass `logicodex check`.
+
+### 3. Reference (kept current best-effort)
 Useful, updated when touched, but not release-blocking.
 
-- `docs/HANDBOOK.md`, `CONTRIBUTING.md`
+- `SPECIFICATION.md`, `docs/HANDBOOK.md`, `CONTRIBUTING.md`, and guide material
+  carrying an explicit stale/reference banner;
   (Earlier reference docs — `MANUAL.md`, `GETTING_STARTED.md`, `GRAMMAR_ANALYSIS.md`,
   `SYNTAX_ANALYSIS.md`, `GrammarandDictionary.md`, `ENVIRONMENT_SETUP.md` — were
   archived to `docs/archive/` as they predated the single-engine architecture.)
 - `docs/guide/src/ch07`+ that describe **planned/profile** features must carry a
   status banner (see below).
 
-### 3. Planned / profile (label, don't pretend)
+### 4. Planned / profile (label, don't pretend)
 Docs for features that are not yet built (runtime profiles, actors, channels,
 network reactor, full freestanding, WASM linking, raylib-on-HIR). These MUST begin
 with a banner:
@@ -44,7 +54,7 @@ with a banner:
 Per the runtime doctrine, runtime features are opt-in profiles; their docs are
 planned until the profile ships.
 
-### 4. Historical (frozen, archived)
+### 5. Historical (frozen, archived)
 Snapshots of past versions. Never edited for currency; they are a record.
 
 - `docs/archive/*`, `spec/v1.11-alpha/*`, `spec/v1.21-alpha/*`, version-stamped design notes.

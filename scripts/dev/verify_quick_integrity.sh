@@ -94,6 +94,14 @@ run_gate \
   ./scripts/dev/verify_architecture_change_control.sh
 
 run_gate \
+  authority_docs_self_test \
+  python3 -B scripts/dev/test_authority_docs.py
+
+run_gate \
+  authority_docs \
+  python3 -B scripts/dev/verify_authority_docs.py
+
+run_gate \
   version_reference_hygiene_self_test \
   python3 -B scripts/dev/test_version_reference_hygiene.py
 

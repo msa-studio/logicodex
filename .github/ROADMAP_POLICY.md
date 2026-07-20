@@ -7,7 +7,7 @@
 **Status:** ENFORCED — effective immediately upon merge
 **Last Updated:** 2026-07-13
 
-> **This document defines roadmap-compliance process. Current phase authority is `ROADMAP_v2.md`.**
+> **This document defines roadmap-compliance process. Current work-sequence authority is `docs/architecture/current-authority.md`; `ROADMAP_v2.md` is the long-horizon phase baseline.**
 > **Architecture authority is `docs/governance/architecture-change-control.md`.**
 > **No code change shall bypass these rules.**
 > **Violations require public acknowledgment and corrective action.**
@@ -173,7 +173,7 @@ See Section 7 for the **sole exception** to these rules. Overrides require:
 
 ### 3.3 Phase Definition Template
 
-Each phase in `ROADMAP.md` must include:
+Each phase in `ROADMAP_v2.md` must include:
 
 ```
 ## Phase N: [Name]
@@ -189,18 +189,10 @@ Each phase in `ROADMAP.md` must include:
 
 ### 3.4 Current Phase Tracking
 
-The `ROADMAP.md` file shall contain a **Current Phase** section updated weekly:
-
-```markdown
-## Current Phase Status
-**Active Phase:** Phase 2 — Type System Hardening
-**Phase started:** 2025-06-01
-**Target completion:** 2025-08-15
-**Items completed:** 3/7
-**Items in progress:** 2/7
-**Items blocked:** 2/7
-**Health:** GREEN / YELLOW / RED
-```
+`docs/architecture/current-authority.md` owns the active phase label and
+owner-locked work sequence. `ROADMAP_v2.md` owns long-horizon phase definitions,
+history, and audit context. The sequence must not be copied into this policy or
+the long-horizon roadmap; both link to the current-authority entry point.
 
 ---
 
@@ -269,7 +261,7 @@ Moving from Phase N to Phase N+1 is a **significant event** requiring formal pro
 If a phase transition is approved but later found premature:
 - **Within 7 days:** Direct revert of transition PR.
 - **After 7 days:** New transition PR required to move back.
-- Both cases require public acknowledgment in ROADMAP.md.
+- Both cases require public acknowledgment in ROADMAP_v2.md.
 
 ---
 
@@ -498,7 +490,7 @@ Step 4: Approval required from:
         - At least 1 community reviewer
 Step 5: Implement with expedited review
 Step 6: Post-hoc audit within 14 days
-Step 7: Public report in ROADMAP.md under "Emergency Overrides"
+Step 7: Public report in ROADMAP_v2.md under "Emergency Overrides"
 ```
 
 ### 7.4 Emergency PR Requirements
@@ -556,7 +548,7 @@ jobs:
 /targets/               @msa-studio @logicodex/targets-team
 tooling/                @msa-studio @logicodex/tooling-team
 rfcs/                   @msa-studio @logicodex/rfcs-team
-ROADMAP.md              @msa-studio
+ROADMAP_v2.md              @msa-studio
 ROADMAP_POLICY.md       @msa-studio
 ```
 
@@ -583,8 +575,9 @@ On the **first Monday of each month**, the following audit is conducted:
 
 ### 8.4 Public Transparency
 
-The `ROADMAP.md` file must always reflect:
-- Current phase and its status
+`docs/architecture/current-authority.md` must always reflect the current phase,
+locked invariants, debt disposition, and active sequence. `ROADMAP_v2.md` keeps:
+
 - Phase history (completed phases with dates)
 - Any emergency overrides (with justification)
 - Any policy violations (with corrective action)
@@ -625,7 +618,7 @@ Violating this policy has defined, escalating consequences.
   - Issue created documenting the violation
 - **Tracking:**
   - Added to `#roadmap-violations` tracking issue
-  - Public acknowledgment in ROADMAP.md
+  - Public acknowledgment in ROADMAP_v2.md
   - 30-day improvement plan required
 - **Record:** Permanent in project history
 
@@ -636,7 +629,7 @@ Violating this policy has defined, escalating consequences.
   - Maintainer (@msa-studio) direct intervention
 - **Tracking:**
   - Dedicated incident report
-  - ROADMAP.md updated with full details
+  - ROADMAP_v2.md updated with full details
   - Policy amendment may follow
 - **Repeat:** Contributor may lose merge/push privileges
 
@@ -649,7 +642,7 @@ When a violation requires reversion:
 3. Fast-track review (24h, not 48h)
 4. Merge revert
 5. Notify original PR author
-6. Document in ROADMAP.md under "Reversions"
+6. Document in ROADMAP_v2.md under "Reversions"
 
 ### 9.4 Appeal Process
 
@@ -662,7 +655,7 @@ Contributors may appeal a violation determination:
 
 ### 9.5 Public Acknowledgment Format
 
-All S3 and S4 violations are recorded in ROADMAP.md:
+All S3 and S4 violations are recorded in ROADMAP_v2.md:
 
 ```markdown
 ## Policy Violations Log
@@ -711,7 +704,7 @@ This policy may be amended via:
 
 ```
 BEFORE OPENING A PR:
-  1. Is this in the current phase? → Check ROADMAP.md
+  1. Is this in the current phase and sequence? → Check docs/architecture/current-authority.md
   2. Does this need an RFC? → Check Section 2.2
   3. Is my feature classified correctly? → Check Section 5
   4. Do I have tests + docs? → Check Section 6
@@ -740,7 +733,7 @@ REVIEW CHECKLIST:
 ```
 MONTHLY RESPONSIBILITIES:
   1. Review monthly compliance audit
-  2. Update ROADMAP.md current phase status
+  2. Reconcile current-authority.md and ROADMAP_v2.md without duplicating sequence
   3. Check violation tracking issue
   4. Verify phase transition criteria (if approaching)
 

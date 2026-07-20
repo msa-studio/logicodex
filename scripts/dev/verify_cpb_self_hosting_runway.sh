@@ -10,6 +10,8 @@ echo "---------->>> WHITESPACE"
 git diff --check
 
 echo "---------->>> REQUIRED DOCS"
+test -f AGENTS.md
+test -f docs/architecture/current-authority.md
 test -f docs/architecture/cpb-self-hosting-runway.md
 test -f docs/architecture/compiler-subset.md
 test -f docs/architecture/stdlib-core-design-doctrine.md
@@ -46,11 +48,19 @@ grep -q "bootstrap stdlib slice" docs/architecture/cpb-self-hosting-runway.md
 grep -q "Legacy modules must not be repaired ad hoc" docs/architecture/cpb-self-hosting-runway.md
 echo "OK: required CPB terms present"
 
-echo "---------->>> README POINTER"
+echo "---------->>> AUTHORITY POINTERS"
+grep -q "docs/architecture/current-authority.md" AGENTS.md
+grep -q "current-authority.md" README.md
+grep -q "docs/architecture/current-authority.md" ROADMAP_v2.md
+grep -q "docs/architecture/current-authority.md" .github/ROADMAP_POLICY.md
+grep -q "current-authority.md" docs/architecture/cpb-next-roadmap-blockers.md
+test "$(grep -RIl --include='*.md' '^## Active owner-locked sequence$' docs/architecture | wc -l)" -eq 1
+! grep -Fqi "add a lifecycle validator in SSM-D3" docs/architecture/code-lifecycle-inventory.md
+! grep -Fqi "merge stdlib-core foundation to main" docs/architecture/cpb-next-roadmap-blockers.md
 grep -q "cpb-self-hosting-runway.md" README.md
 grep -q "compiler-subset.md" README.md
 grep -q "stdlib-core-design-doctrine.md" README.md
-echo "OK: README points to CPB runway"
+echo "OK: authority entry point and CPB pointers are coherent"
 
 echo "---------->>> STAGE0 REGRESSION"
 ./scripts/dev/verify_stdlib_stage0.sh

@@ -1,7 +1,10 @@
 # CPB Next Roadmap Blockers
 
-This document records the next blockers after the stdlib-core foundation merge.
-It is not a replacement roadmap. It refines the existing sequence:
+This subordinate record inventories blockers after the stdlib-core foundation
+merge. It does not own current execution order. Agents must read
+[`current-authority.md`](current-authority.md) before using this inventory.
+
+Long-horizon context remains:
 
 1. Compiler Foundation
 2. Stdlib Contract Framework
@@ -183,24 +186,12 @@ Do not prioritize `ldx-pkg` before these are stable enough:
 - diagnostics
 - package metadata reader
 
-## Near-term sprint order
+## Work-sequence boundary
 
-Recommended order:
-
-1. main-readiness docs and CHANGELOG
-2. merge stdlib-core foundation to main
-3. trust-state and roadmap blocker hygiene
-4. diagnostics hardening
-5. type checker hardening
-6. `core.array` Stage 1
-7. `core.text/string` Stage 2
-8. `std.path`
-9. `std.file/std.io`
-10. FFI-C1 libm end-to-end
-11. package metadata reader
-12. `ldx-pkg` MVP
-13. sqlite3
-14. Raylib
+The P0/P1/P2 groupings above express dependency and maturity, not permission to
+select work out of order. The single active sequence is maintained in
+[`current-authority.md`](current-authority.md). This blocker inventory may inform
+scope inside an approved task but must not displace that sequence.
 
 ### P1.4a `std.file` / `std.io` boundary record
 

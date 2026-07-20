@@ -2,6 +2,10 @@
 
 Status: Active architecture and governance policy.
 
+This is subordinate version/provenance evidence. Current cross-project
+authority and work sequence are indexed by
+[`current-authority.md`](current-authority.md).
+
 This document classifies version references by purpose so that historical
 evidence is preserved without allowing old releases to become current
 compiler authority.
@@ -39,8 +43,8 @@ governed by the active compiler and canonical validation.
 
 ### Zone status markers
 
-SSM-D4 requires an explicit `.zone-status.md` marker at each currently
-classified top-level historical boundary:
+SSM-D4 classified each top-level historical boundary and requires the explicit
+`.zone-status.md` markers below to remain present:
 
 - `docs/archive/` — `HistoricalProvenance`;
 - `scripts/_archive/` — `ArchivedZone`;

@@ -14,6 +14,9 @@
   duplicate AST `storage_width_bits` layout helper and the redundant primitive
   `is_signed_int` helper; lifecycle validation now prevents reintroduction and
   preserves the legacy AST analyzer boundary.
+- Consolidated current authority behind one agent-facing entry point, demoted
+  detailed roadmap/lifecycle documents to scoped evidence records, and added a
+  fail-closed authority validator to the canonical integrity gates.
 
 # Logicodex Changelog
 
