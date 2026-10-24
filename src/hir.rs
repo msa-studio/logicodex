@@ -344,6 +344,9 @@ pub struct HirCallableSignature {
 pub struct LoweredModule {
     pub module: HirModule,
     pub callable_signatures: HashMap<CallableId, HirCallableSignature>,
+    /// Lowering-origin identity for canonical builtins. Complete callable
+    /// shape and policy remain authoritative in `callable_signatures`.
+    pub builtin_provenance: HashMap<String, CallableId>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -939,17 +942,7 @@ impl<'a> LoweringContext<'a> {
 }
 
 impl<'a> LoweringContext<'a> {
-    /// Convert an AST Program to HIR ModuleAst and lower it.
-    pub fn lower_program(&mut self, program: ast::Program) -> Result<HirModule, Vec<Diagnostic>> {
-        self.lower_program_with_metadata(program)
-            .map(|artifact| artifact.module)
-    }
-
-    pub fn lower_program_with_metadata(
-        &mut self,
-        program: ast::Program,
-    ) -> Result<LoweredModule, Vec<Diagnostic>> {
-        use ast::Stmt;
+    fn register_builtin_callables(&mut self) {
         // Register built-in callables. `print` is always available; the runtime
         // ABI builtins below are backed by the std/runtime profile assembly
         // (logicodex_sleep -> nanosleep, logicodex_yield -> sched_yield).
@@ -973,6 +966,20 @@ impl<'a> LoweringContext<'a> {
                 HirCallableValueUse::StatementOnly,
             );
         }
+    }
+
+    /// Convert an AST Program to HIR ModuleAst and lower it.
+    pub fn lower_program(&mut self, program: ast::Program) -> Result<HirModule, Vec<Diagnostic>> {
+        self.lower_program_with_metadata(program)
+            .map(|artifact| artifact.module)
+    }
+
+    pub fn lower_program_with_metadata(
+        &mut self,
+        program: ast::Program,
+    ) -> Result<LoweredModule, Vec<Diagnostic>> {
+        use ast::Stmt;
+        self.register_builtin_callables();
         let mut functions: Vec<Spanned<ItemAst>> = Vec::new();
         let mut top_level_stmts: Vec<Spanned<StmtAst>> = Vec::new();
 
@@ -1164,7 +1171,17 @@ impl<'a> LoweringContext<'a> {
         module_name: &str,
         program: ast::Program,
     ) -> Result<HirModule, Vec<Diagnostic>> {
+        self.lower_module_program_with_metadata(module_name, program)
+            .map(|artifact| artifact.module)
+    }
+
+    pub fn lower_module_program_with_metadata(
+        &mut self,
+        module_name: &str,
+        program: ast::Program,
+    ) -> Result<LoweredModule, Vec<Diagnostic>> {
         use ast::Stmt;
+        self.register_builtin_callables();
         let mut functions: Vec<Spanned<ItemAst>> = Vec::new();
         let mut errors: Vec<Diagnostic> = Vec::new();
         for stmt in program.statements {
@@ -1225,7 +1242,7 @@ impl<'a> LoweringContext<'a> {
         if !errors.is_empty() {
             return Err(errors);
         }
-        self.lower_module_as(module_name, ModuleAst { items: functions })
+        self.lower_module_as_with_metadata(module_name, ModuleAst { items: functions })
     }
 
     /// Lower a module's AST under a given module name. The name sets the
@@ -1484,9 +1501,15 @@ impl<'a> LoweringContext<'a> {
                 return Err(std::mem::take(&mut self.diagnostics));
             }
         };
+        let builtin_provenance = callable_signatures
+            .values()
+            .filter(|signature| signature.kind == HirCallableKind::Builtin)
+            .map(|signature| (signature.name.clone(), signature.callable))
+            .collect();
         Ok(LoweredModule {
             module: HirModule { items },
             callable_signatures,
+            builtin_provenance,
         })
     }
 
@@ -2896,5 +2919,86 @@ mod tests {
             .lower_module(module)
             .expect("extern lowering should succeed");
         assert!(matches!(hir.items[0].node, HirItem::ExternFunction(_)));
+    }
+
+    fn callable_table() -> (SymbolTable, CallableId, TypeId) {
+        let mut symbols = SymbolTable::default();
+        let mut types = TypeRegistry::new();
+        let callable = symbols.define_callable("probe");
+        let i64_type = types.primitive(PrimitiveType::I64);
+        symbols.set_callable_params(callable, Vec::new());
+        symbols.set_callable_param_enums(callable, Vec::new());
+        symbols.set_callable_return(callable, i64_type);
+        symbols.set_callable_return_enum(callable, None);
+        symbols.set_callable_policy(
+            callable,
+            HirCallableKind::Function,
+            false,
+            HirCallableValueUse::Value,
+        );
+        (symbols, callable, i64_type)
+    }
+
+    #[test]
+    fn callable_metadata_missing_parameter_types_fails_closed() {
+        let symbols = SymbolTable {
+            callables: HashMap::from([("probe".to_string(), CallableId(0))]),
+            ..SymbolTable::default()
+        };
+        let error = symbols
+            .callable_signatures_snapshot()
+            .expect_err("missing parameter types must fail");
+        assert!(error.contains("parameter types"));
+    }
+
+    #[test]
+    fn callable_metadata_missing_parameter_enum_annotations_fails_closed() {
+        let (mut symbols, callable, _) = callable_table();
+        symbols.callable_param_enums.remove(&callable);
+        let error = symbols
+            .callable_signatures_snapshot()
+            .expect_err("missing parameter enum annotations must fail");
+        assert!(error.contains("parameter enum annotations"));
+    }
+
+    #[test]
+    fn callable_metadata_missing_return_type_fails_closed() {
+        let (mut symbols, callable, _) = callable_table();
+        symbols.callable_returns.remove(&callable);
+        let error = symbols
+            .callable_signatures_snapshot()
+            .expect_err("missing return type must fail");
+        assert!(error.contains("return type"));
+    }
+
+    #[test]
+    fn callable_metadata_missing_return_enum_annotation_fails_closed() {
+        let (mut symbols, callable, _) = callable_table();
+        symbols.callable_return_enums.remove(&callable);
+        let error = symbols
+            .callable_signatures_snapshot()
+            .expect_err("missing return enum annotation must fail");
+        assert!(error.contains("return enum annotation"));
+    }
+
+    #[test]
+    fn callable_metadata_missing_policy_fails_closed() {
+        let (mut symbols, callable, _) = callable_table();
+        symbols.callable_policies.remove(&callable);
+        let error = symbols
+            .callable_signatures_snapshot()
+            .expect_err("missing callable policy must fail");
+        assert!(error.contains("callable policy"));
+    }
+
+    #[test]
+    fn callable_metadata_parameter_annotation_mismatch_fails_closed() {
+        let (mut symbols, callable, i64_type) = callable_table();
+        symbols.set_callable_params(callable, vec![i64_type]);
+        symbols.set_callable_param_enums(callable, Vec::new());
+        let error = symbols
+            .callable_signatures_snapshot()
+            .expect_err("parameter metadata mismatch must fail");
+        assert!(error.contains("1 parameter types but 0 enum annotations"));
     }
 }
