@@ -990,6 +990,7 @@ impl<'a> LoweringContext<'a> {
                     params,
                     return_type,
                     body,
+                    span,
                     is_public,
                 } => {
                     functions.push(Spanned {
@@ -1004,18 +1005,12 @@ impl<'a> LoweringContext<'a> {
                                 .collect(),
                             return_type: return_type.map(lower_type_ast),
                             body: BlockAst {
-                                statements: body
-                                    .into_iter()
-                                    .map(|s| Spanned {
-                                        node: lower_stmt_ast(s),
-                                        span: Span::unknown(),
-                                    })
-                                    .collect(),
+                                statements: body.into_iter().map(lower_spanned_stmt).collect(),
                             },
                             is_unsafe: false,
                             is_public,
                         }),
-                        span: Span::unknown(),
+                        span,
                     });
                 }
                 Stmt::StructDecl { name, fields } => {
@@ -1110,13 +1105,7 @@ impl<'a> LoweringContext<'a> {
                                 .collect(),
                             return_type: Some(TypeAst::Unit),
                             body: BlockAst {
-                                statements: body
-                                    .into_iter()
-                                    .map(|s| Spanned {
-                                        node: lower_stmt_ast(s),
-                                        span: Span::unknown(),
-                                    })
-                                    .collect(),
+                                statements: body.into_iter().map(lower_spanned_stmt).collect(),
                             },
                             is_unsafe: false,
                             is_public: false,
@@ -1191,6 +1180,7 @@ impl<'a> LoweringContext<'a> {
                     params,
                     return_type,
                     body,
+                    span,
                     is_public,
                 } => {
                     functions.push(Spanned {
@@ -1205,18 +1195,12 @@ impl<'a> LoweringContext<'a> {
                                 .collect(),
                             return_type: return_type.map(lower_type_ast),
                             body: BlockAst {
-                                statements: body
-                                    .into_iter()
-                                    .map(|s| Spanned {
-                                        node: lower_stmt_ast(s),
-                                        span: Span::unknown(),
-                                    })
-                                    .collect(),
+                                statements: body.into_iter().map(lower_spanned_stmt).collect(),
                             },
                             is_unsafe: false,
                             is_public,
                         }),
-                        span: Span::unknown(),
+                        span,
                     });
                 }
                 // The loader already walked the import graph; a nested import in
@@ -2379,13 +2363,7 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
 
     fn mk_body_block(body: Vec<ast::Stmt>) -> BlockAst {
         BlockAst {
-            statements: body
-                .into_iter()
-                .map(|s| Spanned {
-                    node: lower_stmt_ast(s),
-                    span: Span::unknown(),
-                })
-                .collect(),
+            statements: body.into_iter().map(lower_spanned_stmt).collect(),
         }
     }
 
@@ -2510,6 +2488,22 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
     }
 }
 
+fn ast_stmt_span(stmt: &ast::Stmt) -> Span {
+    match stmt {
+        ast::Stmt::Function { span, .. }
+        | ast::Stmt::Break { span }
+        | ast::Stmt::Continue { span } => *span,
+        _ => Span::unknown(),
+    }
+}
+
+fn lower_spanned_stmt(stmt: ast::Stmt) -> Spanned<StmtAst> {
+    let span = ast_stmt_span(&stmt);
+    Spanned {
+        node: lower_stmt_ast(stmt),
+        span,
+    }
+}
 fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
     use ast::Stmt;
     match stmt {
@@ -2540,68 +2534,32 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
             condition: lower_expr_ast(condition),
             control_origin: HirControlOrigin::Plain,
             then_branch: BlockAst {
-                statements: then_branch
-                    .into_iter()
-                    .map(|s| Spanned {
-                        node: lower_stmt_ast(s),
-                        span: Span::unknown(),
-                    })
-                    .collect(),
+                statements: then_branch.into_iter().map(lower_spanned_stmt).collect(),
             },
             else_branch: Some(BlockAst {
-                statements: else_branch
-                    .into_iter()
-                    .map(|s| Spanned {
-                        node: lower_stmt_ast(s),
-                        span: Span::unknown(),
-                    })
-                    .collect(),
+                statements: else_branch.into_iter().map(lower_spanned_stmt).collect(),
             }),
         },
         Stmt::While { condition, body } => StmtAst::While {
             condition: lower_expr_ast(condition),
             body: BlockAst {
-                statements: body
-                    .into_iter()
-                    .map(|s| Spanned {
-                        node: lower_stmt_ast(s),
-                        span: Span::unknown(),
-                    })
-                    .collect(),
+                statements: body.into_iter().map(lower_spanned_stmt).collect(),
             },
         },
         Stmt::Loop { body } => StmtAst::Loop {
             body: BlockAst {
-                statements: body
-                    .into_iter()
-                    .map(|s| Spanned {
-                        node: lower_stmt_ast(s),
-                        span: Span::unknown(),
-                    })
-                    .collect(),
+                statements: body.into_iter().map(lower_spanned_stmt).collect(),
             },
         },
-        Stmt::Break => StmtAst::Break,
-        Stmt::Continue => StmtAst::Continue,
+        Stmt::Break { .. } => StmtAst::Break,
+        Stmt::Continue { .. } => StmtAst::Continue,
         Stmt::UnsafeBlock { body } => StmtAst::UnsafeBlock(BlockAst {
-            statements: body
-                .into_iter()
-                .map(|s| Spanned {
-                    node: lower_stmt_ast(s),
-                    span: Span::unknown(),
-                })
-                .collect(),
+            statements: body.into_iter().map(lower_spanned_stmt).collect(),
         }),
         // hardware zone preserved; codegen emits its memory ops as
         // volatile MMIO (see emit_hardware_zone). Body is lowered like a block.
         Stmt::HardwareZone { body } => StmtAst::HardwareZone(BlockAst {
-            statements: body
-                .into_iter()
-                .map(|s| Spanned {
-                    node: lower_stmt_ast(s),
-                    span: Span::unknown(),
-                })
-                .collect(),
+            statements: body.into_iter().map(lower_spanned_stmt).collect(),
         }),
         // hardware register decl binds `name` to a fixed
         // MMIO address; codegen resolves it via inttoptr (not an alloca).

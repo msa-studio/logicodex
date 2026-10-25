@@ -5,6 +5,7 @@
 // Copyright (c) 2026. All Rights Reserved.
 // Licensed under permissive dual-license: MIT & Apache License 2.0
 // =========================================================================
+use crate::span::Span;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,8 +37,8 @@ pub enum Stmt {
         params: Vec<Param>,
         return_type: Option<Type>,
         body: Vec<Stmt>,
-        /// `true` if declared `public` (exported across module boundaries).
-        /// Private by default: an item with no `public` is module-local.
+        /// Source span of the complete function declaration.
+        span: Span,
         is_public: bool,
     },
     Let {
@@ -72,8 +73,12 @@ pub enum Stmt {
         iterable: Expr,
         body: Vec<Stmt>,
     },
-    Break,
-    Continue,
+    Break {
+        span: Span,
+    },
+    Continue {
+        span: Span,
+    },
     /// Block statement: `{ statements }`
     Block(Vec<Stmt>),
     StructDecl {

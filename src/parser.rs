@@ -9,6 +9,7 @@ use crate::ast::{
     BinaryOp, Expr, ExternFnDecl, MatchArm, MatchPattern, Param, Program, Stmt, Type,
 };
 use crate::lexer::{Token, TokenKind};
+use crate::span::Span;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -305,7 +306,28 @@ impl Parser {
         Ok(Stmt::HardwareDecl { name, ty, address })
     }
 
+    fn span_between(start: &Token, end: &Token) -> Span {
+        Span::new(
+            crate::span::FileId(0),
+            start.line as u32,
+            start.column as u32,
+            end.line as u32,
+            if end.kind == crate::lexer::TokenKind::Semicolon {
+                (end.column + 1) as u32
+            } else {
+                (end.column + end.lexeme.chars().count()) as u32
+            },
+        )
+    }
+    fn previous_statement_end(&self) -> Token {
+        let mut index = self.current;
+        while index > 0 && self.tokens[index - 1].kind == TokenKind::Newline {
+            index -= 1;
+        }
+        self.tokens[index - 1].clone()
+    }
     fn function_definition(&mut self, is_public: bool) -> Result<Stmt, ParseError> {
+        let start = self.previous().clone();
         let name = self
             .consume(TokenKind::Identifier, "function name")?
             .lexeme
@@ -335,12 +357,15 @@ impl Parser {
         } else {
             None
         };
+        let header_end = self.peek().clone();
         let body = self.block()?;
+        let end = header_end;
         Ok(Stmt::Function {
             name,
             params,
             return_type,
             body,
+            span: Self::span_between(&start, &end),
             is_public,
         })
     }
@@ -524,13 +549,21 @@ impl Parser {
         } else if self.matches(TokenKind::Service) {
             self.service_statement()?
         } else if self.matches(TokenKind::Break) {
-            let beginner = self.allows_control_flow_line_terminator(&self.previous().lexeme);
+            let start = self.previous().clone();
+            let beginner = self.allows_control_flow_line_terminator(&start.lexeme);
             self.consume_statement_terminator("; after break statement", beginner)?;
-            Stmt::Break
+            let end = self.previous_statement_end();
+            Stmt::Break {
+                span: Self::span_between(&start, &end),
+            }
         } else if self.matches(TokenKind::Continue) {
-            let beginner = self.allows_control_flow_line_terminator(&self.previous().lexeme);
+            let start = self.previous().clone();
+            let beginner = self.allows_control_flow_line_terminator(&start.lexeme);
             self.consume_statement_terminator("; after continue statement", beginner)?;
-            Stmt::Continue
+            let end = self.previous_statement_end();
+            Stmt::Continue {
+                span: Self::span_between(&start, &end),
+            }
         } else if self.check(TokenKind::Identifier) && self.peek_index_assignment() {
             // BUGFIX #2: buf[index] = value assignment syntax
             self.index_assignment_statement()?

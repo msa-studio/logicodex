@@ -1,6 +1,6 @@
 use logicodex::ast::{Expr, Param, Program, Stmt, Type};
 use logicodex::hir::{HirCallableKind, LoweringContext, SymbolTable};
-use logicodex::span::Diagnostic;
+use logicodex::span::{Diagnostic, Span};
 use logicodex::types::{CallableId, TypeRegistry};
 
 fn lower_program_compatibility(
@@ -76,6 +76,7 @@ fn main_program() -> Program {
         body: vec![Stmt::Return {
             value: Expr::Variable("value".to_string()),
         }],
+        span: Span::unknown(),
         is_public: false,
     }])
 }
@@ -91,6 +92,7 @@ fn module_program() -> Program {
         body: vec![Stmt::Return {
             value: Expr::Variable("value".to_string()),
         }],
+        span: Span::unknown(),
         is_public: true,
     }])
 }
@@ -103,6 +105,7 @@ fn invalid_program() -> Program {
         body: vec![Stmt::ExprStmt {
             value: Expr::Variable("missing".to_string()),
         }],
+        span: Span::unknown(),
         is_public: false,
     }])
 }
