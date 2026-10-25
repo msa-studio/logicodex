@@ -320,7 +320,7 @@ fn backend_artifacts(root: &Path) -> Vec<PathBuf> {
     found
 }
 
-fn cli_fixture(source: &str, expected_code: &str, expected_message: &str) {
+fn cli_fixture(source: &str, expected_code: &str, expected_message: &str, expected_span: &str) {
     static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
     let temp = std::env::temp_dir().join(format!(
         "logicodex_cpb2d_cli_{}_{}",
@@ -355,14 +355,14 @@ fn cli_fixture(source: &str, expected_code: &str, expected_message: &str) {
     );
     assert!(rendered.contains(&format!("Error: code: {expected_code}")));
     assert!(rendered.contains(expected_message));
-    assert!(rendered.contains("span: file 0:0:0-0:0"));
+    assert!(rendered.contains(expected_span));
     assert!(backend_artifacts(&temp).is_empty());
     let _ = std::fs::remove_dir_all(&temp);
 }
 
 #[test]
 fn duplicate_function_cli_rejects_before_codegen() {
-    cli_fixture("function duplicate_target() -> I64 begin\n    return 1;\nend\nfunction duplicate_target() -> I64 begin\n    return 2;\nend\n", "DuplicateDefinition", "Ralat: Fungsi 'duplicate_target' ditakrif lebih daripada sekali / Error: Function 'duplicate_target' is defined more than once");
+    cli_fixture("function duplicate_target() -> I64 begin\n    return 1;\nend\nfunction duplicate_target() -> I64 begin\n    return 2;\nend\n", "DuplicateDefinition", "Ralat: Fungsi 'duplicate_target' ditakrif lebih daripada sekali / Error: Function 'duplicate_target' is defined more than once", "span: file 0:4:1-4:41");
 }
 
 #[test]
@@ -371,5 +371,6 @@ fn break_outside_loop_cli_rejects_before_codegen() {
         "function main() -> Unit begin\n    break;\nend\n",
         "UnsafeBoundaryViolation",
         "Ralat: Kawalan gelung digunakan di luar gelung / Error: Loop control used outside a loop",
+        "span: file 0:2:5-2:11",
     );
 }

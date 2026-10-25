@@ -440,14 +440,14 @@ impl Analyzer {
                 self.loop_depth -= 1;
                 result
             }
-            Stmt::Break => {
+            Stmt::Break { .. } => {
                 if self.loop_depth == 0 {
                     Err(SemanticError::BreakOutsideLoop)
                 } else {
                     Ok(())
                 }
             }
-            Stmt::Continue => {
+            Stmt::Continue { .. } => {
                 if self.loop_depth == 0 {
                     Err(SemanticError::ContinueOutsideLoop)
                 } else {
