@@ -1307,20 +1307,29 @@ impl Parser {
             }
             // Check if followed by '(' → function or struct constructor call
             if self.check(TokenKind::LeftParen) {
+                let call_start = self.previous().clone();
                 self.advance(); // consume '('
                 let mut args = Vec::new();
+                let mut arg_spans = Vec::new();
                 if !self.check(TokenKind::RightParen) {
                     loop {
+                        let arg_start = self.peek().clone();
                         args.push(self.expression()?);
+                        let arg_end = self.previous().clone();
+                        arg_spans.push(Self::span_between(&arg_start, &arg_end));
                         if !self.matches(TokenKind::Comma) {
                             break;
                         }
                     }
                 }
-                self.consume(TokenKind::RightParen, "')' selepas argumen")?;
+                let close = self
+                    .consume(TokenKind::RightParen, "')' selepas argumen")?
+                    .clone();
                 return Ok(Expr::Call {
                     callee: Box::new(Expr::Variable(name)),
                     args,
+                    span: Self::span_between(&call_start, &close),
+                    arg_spans,
                 });
             }
             // Ketuk 1: Check if followed by '[' → buffer/slice indexing
