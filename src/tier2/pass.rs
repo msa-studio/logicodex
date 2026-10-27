@@ -454,7 +454,7 @@ fn infer_expr_gates(expr: &Expr, contract: &mut GateContract) {
                 infer_expr_gates(arg, contract);
             }
         }
-        Expr::Call { callee, args } => {
+        Expr::Call { callee, args, .. } => {
             if let Expr::Variable(name) = callee.as_ref() {
                 match name.as_str() {
                     "open" | "fopen" => contract.require(GateDomain::storage_read()),
@@ -574,7 +574,7 @@ fn collect_callees_in_stmt(stmt: &Stmt, out: &mut Vec<String>) {
 
 fn collect_callees_in_expr(expr: &Expr, out: &mut Vec<String>) {
     match expr {
-        Expr::Call { callee, args } => {
+        Expr::Call { callee, args, .. } => {
             if let Expr::Variable(name) = callee.as_ref() {
                 out.push(name.clone());
             }
@@ -776,7 +776,7 @@ fn infer_expr_capabilities(expr: &Expr, caps: &mut Capability) {
                 infer_expr_capabilities(arg, caps);
             }
         }
-        Expr::Call { callee, args } => {
+        Expr::Call { callee, args, .. } => {
             if let Expr::Variable(name) = callee.as_ref() {
                 if name == "open" || name == "read" || name == "write" || name == "print" {
                     caps.insert(Capability::IO);

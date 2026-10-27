@@ -107,6 +107,8 @@ pub enum ExprAst {
     Call {
         callee: Box<ExprAst>,
         args: Vec<ExprAst>,
+        span: Span,
+        arg_spans: Vec<Span>,
     },
     /// A module-qualified call, e.g. `math.add(2, 3)`. Kept distinct from Call
     /// rather than pre-resolved into a Variable callee, so the target module
@@ -1783,18 +1785,26 @@ impl<'a> LoweringContext<'a> {
                     span,
                 }
             }
-            ExprAst::Call { callee, args } => {
+            ExprAst::Call {
+                callee,
+                args,
+                span: call_span,
+                arg_spans,
+            } => {
                 let raw_args = args.clone();
                 let lowered_args: Vec<_> = args
                     .into_iter()
-                    .map(|arg| self.lower_expr(arg, span))
+                    .enumerate()
+                    .map(|(index, arg)| {
+                        self.lower_expr(arg, arg_spans.get(index).copied().unwrap_or(call_span))
+                    })
                     .collect();
                 let callee_id = match *callee {
                     ExprAst::Variable(name) => {
                         self.resolve_unqualified_callable(&name).unwrap_or_else(|| {
                             self.push_lowering_diagnostic(
                                 DiagnosticCode::UnknownFunction,
-                                span,
+                                call_span,
                                 format!("Ralat: Fungsi '{name}' tidak ditemui"),
                                 format!("Error: Function '{name}' was not found"),
                             );
@@ -1802,16 +1812,16 @@ impl<'a> LoweringContext<'a> {
                         })
                     }
                     other => {
-                        let _ = self.lower_expr(other, span);
+                        let _ = self.lower_expr(other, call_span);
                         self.push_lowering_error(
-                            span,
+                            call_span,
                             "Ralat: Ekspresi callee dinamik belum disokong".to_string(),
                             "Error: Dynamic callee expressions are not supported yet".to_string(),
                         );
                         CallableId(u32::MAX)
                     }
                 };
-                self.check_call_argument_enum_qualifiers(callee_id, &raw_args, span);
+                self.check_call_argument_enum_qualifiers(callee_id, &raw_args, call_span);
                 HirExpr {
                     kind: HirExprKind::Call {
                         callee: callee_id,
@@ -1822,7 +1832,7 @@ impl<'a> LoweringContext<'a> {
                         .callable_return(callee_id)
                         .map(|id| TypeRef { id })
                         .unwrap_or_else(|| unknown_ref(self.types)),
-                    span,
+                    span: call_span,
                 }
             }
             ExprAst::QualifiedCall {
@@ -2519,6 +2529,8 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
         Stmt::Print { value } => StmtAst::Expr(ExprAst::Call {
             callee: Box::new(ExprAst::Variable("print".to_string())),
             args: vec![lower_expr_ast(value)],
+            span: Span::unknown(),
+            arg_spans: vec![Span::unknown()],
         }),
         Stmt::Return { value } => StmtAst::Return(Some(lower_expr_ast(value))),
         Stmt::ExprStmt { value } => StmtAst::Expr(lower_expr_ast(value)),
@@ -2594,9 +2606,16 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
         ast::Expr::StringLiteral(s) => ExprAst::Literal(LiteralAst::String(s)),
         ast::Expr::Variable(name) => ExprAst::Variable(name),
         ast::Expr::AddressOfLiteral(v) => ExprAst::Literal(LiteralAst::Integer(v)),
-        ast::Expr::Call { callee, args } => ExprAst::Call {
+        ast::Expr::Call {
+            callee,
+            args,
+            span,
+            arg_spans,
+        } => ExprAst::Call {
             callee: Box::new(lower_expr_ast(*callee)),
             args: args.into_iter().map(lower_expr_ast).collect(),
+            span,
+            arg_spans,
         },
         ast::Expr::QualifiedCall {
             module,
@@ -2649,12 +2668,16 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
         ast::Expr::Yield => ExprAst::Call {
             callee: Box::new(ExprAst::Variable("logicodex_yield".to_string())),
             args: vec![],
+            span: Span::unknown(),
+            arg_spans: vec![],
         },
         ast::Expr::Sleep { duration_ms } => {
             let dur = lower_expr_ast(*duration_ms);
             ExprAst::Call {
                 callee: Box::new(ExprAst::Variable("logicodex_sleep".to_string())),
                 args: vec![dur],
+                span: Span::unknown(),
+                arg_spans: vec![Span::unknown()],
             }
         }
         ast::Expr::TimeoutRecv {
@@ -2665,6 +2688,8 @@ fn lower_expr_ast(expr: ast::Expr) -> ExprAst {
             ExprAst::Call {
                 callee: Box::new(ExprAst::Variable("logicodex_timeout_recv".to_string())),
                 args: vec![ExprAst::Literal(LiteralAst::String(channel_name)), to],
+                span: Span::unknown(),
+                arg_spans: vec![Span::unknown(), Span::unknown()],
             }
         }
         ast::Expr::FieldAccess { base, field } => ExprAst::Field {

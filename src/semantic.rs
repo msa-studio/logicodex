@@ -314,7 +314,7 @@ impl Analyzer {
                     if type_name == "FileHandle" {
                         // Detect mode from value — default to ReadWrite if not clear
                         let mode = match value {
-                            Expr::Call { callee, args } => {
+                            Expr::Call { callee, args, .. } => {
                                 if let Expr::Variable(fn_name) = callee.as_ref() {
                                     if fn_name == "open" && args.len() >= 2 {
                                         if let Expr::Variable(mode) = &args[1] {
@@ -1001,7 +1001,7 @@ impl Analyzer {
                     }),
                 })
             }
-            Expr::Call { callee, args } => {
+            Expr::Call { callee, args, .. } => {
                 // Sprint 2.5: Function/struct constructor call
                 // Resolve the callee name, then validate arguments
                 let callee_name = match callee.as_ref() {

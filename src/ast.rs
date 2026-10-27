@@ -192,6 +192,8 @@ pub enum Expr {
     Call {
         callee: Box<Expr>, // usually Expr::Variable(name)
         args: Vec<Expr>,
+        span: Span,
+        arg_spans: Vec<Span>,
     },
     /// Module-qualified call: `module.function(args)`.
     /// A dedicated node, not a field access followed by a call: the call carries

@@ -351,6 +351,8 @@ fn forward_and_recursive_calls_use_the_frozen_callable_identities() {
         logicodex::hir::ExprAst::Call {
             callee: Box::new(logicodex::hir::ExprAst::Variable(name.to_string())),
             args: Vec::new(),
+            span: logicodex::span::Span::unknown(),
+            arg_spans: Vec::new(),
         }
     }
 
