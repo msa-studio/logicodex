@@ -161,7 +161,7 @@ fn ffi_argument_type_span_targets_bad_argument() {
         SafetyContext::Safe,
         Span::new(logicodex::span::FileId(0), 6, 5, 6, 22),
     );
-    assert_record(&d,DiagnosticCode::FfiBoundaryViolation,arg,"Ralat: Argumen 1 untuk fungsi 'typed' mempunyai jenis yang tidak sepadan (diperlukan: , diterima: )","Error: Argument 1 for function 'typed' has an incompatible type (expected: , got: )");
+    assert_record(&d,DiagnosticCode::FfiBoundaryViolation,arg,"Ralat: Argumen 1 untuk fungsi 'typed' mempunyai jenis yang tidak sepadan (diperlukan: Primitive(I64), diterima: Primitive(Unit))","Error: Argument 1 for function 'typed' has an incompatible type (expected: Primitive(I64), got: Primitive(Unit))");
 }
 #[test]
 fn ffi_policy_span_targets_call() {

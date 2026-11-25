@@ -29,14 +29,25 @@ The ten tests in `tests/cpb2_diagnostic_boundary_matrix.rs` assert one exact rec
 - `FfiBoundaryViolation`: unsafe context, fixed arity, variadic minimum arity, argument type, and capability policy.
 - CLI rejection: duplicate function and break outside loop.
 
-The public direct FFI type-name path currently renders empty type labels for the `typed` mismatch fixture:
+At CPB-02D-A, the public direct FFI type-name path rendered empty type labels for the `typed` mismatch fixture:
 
 ```text
 Ralat: Argumen 1 untuk fungsi 'typed' mempunyai jenis yang tidak sepadan (diperlukan: , diterima: )
 Error: Argument 1 for function 'typed' has an incompatible type (expected: , got: )
 ```
 
-This is locked as observed behavior; this cycle does not repair production message formatting.
+CPB-02D-A locked this as observed behavior and did not repair production message formatting.
+
+**Resolved (CPB-2 FFI type label).** `TypeRegistry::type_name` now renders the `{:?}` label of a registered `TypeKind`, matching `semantic_gate` type labels, and returns `None` for an unregistered ID. The fixture now renders:
+
+```text
+Ralat: Argumen 1 untuk fungsi 'typed' mempunyai jenis yang tidak sepadan (diperlukan: Primitive(I64), diterima: Primitive(Unit))
+Error: Argument 1 for function 'typed' has an incompatible type (expected: Primitive(I64), got: Primitive(Unit))
+```
+
+Code, severity, span, and record count are unchanged. CLI `check` output for user-declared externs is unchanged: those calls take the capability-only branch in `semantic_gate`, and their argument-type mismatches are reported as `TypeMismatch`, so the CLI does not reach this FFI message.
+
+- Evidence: `/home/msastudio/.hermes/cache/scratch/claude-logicodex/evidence-update1/`
 
 ## Current CLI behavior
 

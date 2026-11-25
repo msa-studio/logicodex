@@ -7,6 +7,9 @@
 - Added regression coverage for unsupported direct array literal expressions.
 - Classified remaining zero-producing codegen paths into allowed, deferred, or
   ABI-policy categories.
+- Filled the empty expected/received type labels in the FFI argument-type
+  mismatch diagnostic by implementing `TypeRegistry::type_name` with the
+  `semantic_gate` Debug label format.
 
 ### Lifecycle
 
