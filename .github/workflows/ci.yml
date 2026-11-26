@@ -162,12 +162,12 @@ jobs:
             os: ubuntu-24.04
             llvm: "23"
             rust: stable
-            inkwell: "0.10.0"
+            inkwell: "0.11.0"
           - row: ubuntu-26.04-llvm23-rust-candidate
             os: ubuntu-26.04
             llvm: "23"
             rust: stable
-            inkwell: "0.10.0"
+            inkwell: "0.11.0"
     steps:
       - uses: actions/checkout@v5
       - name: Capture runner provenance
@@ -217,7 +217,7 @@ jobs:
           from pathlib import Path
           p = Path('Cargo.toml')
           s = p.read_text()
-          s = s.replace('inkwell = { version = "0.4.0", features = ["llvm15-0"] }', 'inkwell = { version = "0.10.0", features = ["llvm23-1"] }')
+          s = s.replace('inkwell = { version = "0.4.0", features = ["llvm15-0"] }', 'inkwell = { version = "0.11.0", features = ["llvm23-1"] }')
           p.write_text(s)
           PY
             cargo update -p inkwell --precise "$INKWELL_VERSION" 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-update.log"
