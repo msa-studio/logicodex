@@ -1,0 +1,244 @@
+# ============================================================================
+# Logicodex CI — single-engine (HIR) era.
+#
+# Guards what actually protects the code today:
+#   check        — formatting + clippy + cargo check
+#   test         — cargo build + full cargo test suite (includes the shipped-
+#                  examples semantic-check gate) — the real drift-resistant QA
+#   freestanding — x86_64 QEMU boot proof (make boot-evidence) + the one live
+#                  freestanding validator
+#
+# NOTE: the v1.21-v1.45 sprint/pipeline validators were archived under
+# scripts/validators/_archive_pre_hir/ — they structurally test a retired
+# architecture and are not run here. See that folder's README.
+# ============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  LLVM_SYS_150_PREFIX: /usr/lib/llvm-15
+  RUSTFLAGS: "-L/usr/lib/llvm-15/lib"
+  RAYLIB_NO_LINK: "1"
+
+jobs:
+  check:
+    name: Check (fmt + clippy + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify stdlib contracts
+        run: python3 tools/verify_stdlib_contracts.py
+      - name: Verify integrity runner contracts
+        run: |
+          bash -n scripts/dev/verify_full_integrity.sh
+          bash -n scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'cargo check --all-targets' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'cargo test --quiet --lib' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'FOCUSED_TEST' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'cargo test --quiet' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'cargo build --release' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'make boot-evidence' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'make boot-e2e' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'validate_v144_freestanding.py' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'verify_stdlib_stage0.sh' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'verify_cpb_self_hosting_runway.sh' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'verify_architecture_change_control.sh' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'test_version_reference_hygiene.py' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'verify_version_reference_hygiene.py' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'test_version_reference_hygiene.py' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'verify_version_reference_hygiene.py' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'test_code_lifecycle.py' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'verify_code_lifecycle.py' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'test_code_lifecycle.py' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'verify_code_lifecycle.py' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'test_authority_docs.py' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'verify_authority_docs.py' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'test_authority_docs.py' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'verify_authority_docs.py' scripts/dev/verify_full_integrity.sh
+      - name: Install LLVM 15
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
+      - uses: dtolnay/rust-toolchain@1.75.0
+        with:
+          components: rustfmt, clippy
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Format check
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --all-targets
+      - name: cargo check
+        run: cargo check --all-targets
+
+  test:
+    name: Test (full suite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install LLVM 15
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
+      - uses: dtolnay/rust-toolchain@1.75.0
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build
+        run: cargo build --release
+      - name: Run stdlib contract cases
+        run: python3 tools/verify_stdlib_contracts.py --run-cases --bin target/release/logicodex
+      - name: Run full test suite
+        run: cargo test 2>&1 | tee test-output.log
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-output-log
+          path: test-output.log
+
+  freestanding:
+    name: Freestanding x86_64 QEMU boot
+    runs-on: ubuntu-latest
+    env:
+      LLVM_SYS_150_PREFIX: /usr/lib/llvm-15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@1.75.0
+        with:
+          targets: x86_64-unknown-none
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install LLVM 15 + QEMU + binutils
+        # LLVM is needed because boot-e2e builds the compiler (cargo run) to
+        # compile showcase.ldx; QEMU + binutils boot/link the kernel.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config qemu-system-x86 binutils
+      - name: Boot evidence (multiboot -> long-mode -> serial 'Logicodex' -> clean exit 33)
+        # build.sh unsets RUSTFLAGS internally so the inherited LLVM -L flag does
+        # not override the freestanding target's relocation-model/linker rustflags.
+        run: make boot-evidence
+      - name: End-to-end .ldx -> kernel boot (#4)
+        # Compiles examples/freestanding/showcase.ldx, links it into the kernel,
+        # boots in QEMU, asserts the program's own output (10 20 55 17 36).
+        run: make boot-e2e
+      - name: Freestanding capability validator
+        run: python3 scripts/validators/tier_c_stress/validate_v144_freestanding.py
+
+  r2-compatibility-matrix:
+    name: R2 ${{ matrix.row }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - row: ubuntu-24.04-llvm15-rust175-control
+            os: ubuntu-24.04
+            llvm: "15"
+            rust: "1.75.0"
+            inkwell: "0.4.0"
+          - row: ubuntu-24.04-llvm23-rust-candidate
+            os: ubuntu-24.04
+            llvm: "23"
+            rust: stable
+            inkwell: "0.11.0"
+          - row: ubuntu-26.04-llvm23-rust-candidate
+            os: ubuntu-26.04
+            llvm: "23"
+            rust: stable
+            inkwell: "0.11.0"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Capture runner provenance
+        run: |
+          set -euxo pipefail
+          mkdir -p r2-evidence
+          date --iso-8601=seconds | tee r2-evidence/started-at.txt
+          uname -a | tee r2-evidence/uname.txt
+          cat /etc/os-release | tee r2-evidence/os-release.txt
+          env | sort | grep -E '^(RUNNER|Image|ImageVersion|AGENT)' | tee r2-evidence/runner-env.txt || true
+      - name: Install LLVM and dependencies
+        shell: bash
+        env:
+          LLVM_MAJOR: ${{ matrix.llvm }}
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl gnupg lsb-release pkg-config python3 xz-utils jq binutils
+          if [ "$LLVM_MAJOR" = "15" ]; then
+            sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev clang-15 lld-15
+          else
+            . /etc/os-release
+            echo "deb http://apt.llvm.org/$VERSION_CODENAME llvm-toolchain-$VERSION_CODENAME-23 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+            curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/llvm-snapshot.gpg
+            sudo apt-get update
+            sudo apt-get install -y llvm-23-dev libclang-23-dev libpolly-23-dev clang-23 lld-23
+          fi
+          dpkg-query -W -f='${Package}\t${Version}\n' | sort | grep -E '^(llvm|libclang|libpolly|clang|lld)' | tee r2-evidence/packages.txt
+          llvm-config-${LLVM_MAJOR} --version | tee r2-evidence/llvm-config-version.txt
+          llvm-config-${LLVM_MAJOR} --prefix | tee r2-evidence/llvm-prefix.txt
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+      - name: Resolve and test in temporary candidate copy
+        shell: bash
+        env:
+          LLVM_MAJOR: ${{ matrix.llvm }}
+          INKWELL_VERSION: ${{ matrix.inkwell }}
+        run: |
+          set -uo pipefail
+          rm -rf "$RUNNER_TEMP/logicodex-r2"
+          cp -a . "$RUNNER_TEMP/logicodex-r2"
+          cd "$RUNNER_TEMP/logicodex-r2"
+          if [ "$LLVM_MAJOR" != "15" ]; then
+            rm -f rust-toolchain.toml
+            export RUSTUP_TOOLCHAIN=stable
+            python3 - <<'PY'
+          from pathlib import Path
+          p = Path('Cargo.toml')
+          s = p.read_text()
+          s = s.replace('inkwell = { version = "0.4.0", features = ["llvm15-0"] }', 'inkwell = { version = "0.11.0", features = ["llvm23-1"] }')
+          p.write_text(s)
+          PY
+            cargo update -p inkwell --precise "$INKWELL_VERSION" 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-update.log"
+          fi
+          cp Cargo.lock "$GITHUB_WORKSPACE/r2-evidence/Cargo.lock.after-resolution"
+          export LLVM_SYS_${LLVM_MAJOR}0_PREFIX="/usr/lib/llvm-${LLVM_MAJOR}"
+          export RUSTFLAGS="-L/usr/lib/llvm-${LLVM_MAJOR}/lib"
+          rustc -Vv | tee "$GITHUB_WORKSPACE/r2-evidence/rustc.txt"
+          cargo -V | tee "$GITHUB_WORKSPACE/r2-evidence/cargo.txt"
+          sha256sum Cargo.lock | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-lock.sha256"
+          cargo metadata --format-version 1 --no-deps > "$GITHUB_WORKSPACE/r2-evidence/metadata.json" 2> "$GITHUB_WORKSPACE/r2-evidence/metadata.err"; meta_rc=$?
+          cargo check --all-targets 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-check.log"; check_rc=${PIPESTATUS[0]}
+          cargo build --release 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-build-release.log"; build_rc=${PIPESTATUS[0]}
+          cargo test --quiet 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-test.log"; test_rc=${PIPESTATUS[0]}
+          printf 'metadata_rc=%s\ncheck_rc=%s\nbuild_rc=%s\ntest_rc=%s\n' "$meta_rc" "$check_rc" "$build_rc" "$test_rc" | tee "$GITHUB_WORKSPACE/r2-evidence/result.txt"
+      - name: Upload R2 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: r2-${{ matrix.row }}
+          path: r2-evidence/
+          if-no-files-found: warn
