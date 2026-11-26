@@ -11,6 +11,31 @@ use inkwell::targets::{
 };
 use inkwell::OptimizationLevel;
 
+/// Owner-approved LLVM 23 target contract.
+///
+/// Declaration and selection only: these are the frozen values LLVM 23
+/// derives for the target machines selected below. Nothing here computes or
+/// overrides layout; target-sensitive size, alignment, and offset decisions
+/// remain owned by `LayoutEngine`.
+pub mod llvm23_contract {
+    /// Data layout LLVM 23 derives for x86_64 (native and freestanding).
+    pub const X86_64_DATA_LAYOUT: &str =
+        "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128";
+
+    /// Data layout LLVM 23 derives for `wasm32-unknown-unknown`.
+    pub const WASM32_DATA_LAYOUT: &str =
+        "e-m:e-p:32:32-p10:8:8-p20:8:8-i64:64-i128:128-n32:64-S128-ni:1:10:20";
+
+    /// Feature request passed to the WASM target machine.
+    pub const WASM32_REQUESTED_FEATURES: &str = "+bulk-memory,+mutable-globals,+sign-ext";
+
+    /// `target-features` attribute LLVM 23 emits for `WASM32_REQUESTED_FEATURES`.
+    pub const WASM32_TARGET_FEATURES: &str = "-atomics,+bulk-memory,+bulk-memory-opt,\
++call-indirect-overlong,-exception-handling,-extended-const,-fp16,-gc,-multimemory,\
++multivalue,+mutable-globals,+nontrapping-fptoint,+reference-types,-relaxed-atomics,\
+-relaxed-simd,+sign-ext,-simd128,-tail-call,-wide-arithmetic";
+}
+
 /// CPU architecture for freestanding targets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TargetArch {
@@ -170,7 +195,7 @@ pub fn build_target_machine_with_arch(kind: OutputKind, arch: TargetArch) -> Res
             TargetTriple::create("wasm32-unknown-unknown"),
             "generic",
             // WASM features — bulk-memory for memcpy, mutable-globals
-            "+bulk-memory,+mutable-globals,+sign-ext",
+            llvm23_contract::WASM32_REQUESTED_FEATURES,
             RelocMode::Static,
             CodeModel::Default,
             OptimizationLevel::Default,

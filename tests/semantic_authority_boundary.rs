@@ -95,3 +95,83 @@ fn future_reserved_semantic_subsystem_stays_outside_production_wiring() {
         }
     }
 }
+
+fn production_rust_sources() -> Vec<(std::path::PathBuf, String)> {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    fn collect_rust_files(directory: &Path, files: &mut Vec<PathBuf>) {
+        for entry in fs::read_dir(directory).expect("read source directory") {
+            let path = entry.expect("read source entry").path();
+
+            if path.is_dir() {
+                collect_rust_files(&path, files);
+            } else if path.extension().and_then(|value| value.to_str()) == Some("rs") {
+                files.push(path);
+            }
+        }
+    }
+
+    let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut files = Vec::new();
+    collect_rust_files(&source_root, &mut files);
+    files
+        .into_iter()
+        .map(|path| {
+            let source = fs::read_to_string(&path).expect("read Rust source file");
+            (path, source)
+        })
+        .collect()
+}
+
+fn non_comment_lines(source: &str) -> impl Iterator<Item = &str> {
+    source
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.starts_with("//"))
+}
+
+#[test]
+fn community_paths_do_not_depend_on_enterprise_semantics() {
+    for (path, source) in production_rust_sources() {
+        for line in non_comment_lines(&source) {
+            assert!(
+                !line.to_ascii_lowercase().contains("enterprise"),
+                "community compiler path depends on Enterprise surface in {}: `{line}`",
+                path.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn dormant_future_reserved_surfaces_are_not_activated() {
+    let inventory = include_str!("../docs/architecture/code-lifecycle-inventory.md");
+    assert!(
+        inventory.contains("`src/codegen_contract.rs`: crate-level `dead_code` | FutureReserved")
+            && inventory.contains("`src/types.rs::LegacyType` | FutureReserved"),
+        "FutureReserved lifecycle classification record is incomplete"
+    );
+
+    let dormant: [(&str, &[&str]); 2] = [
+        ("src/codegen_contract.rs", &["codegen_contract::"]),
+        ("src/types.rs", &["LegacyType"]),
+    ];
+
+    for (path, source) in production_rust_sources() {
+        for (owner, symbols) in dormant {
+            if path.ends_with(owner) {
+                continue;
+            }
+            for line in non_comment_lines(&source) {
+                for symbol in symbols {
+                    assert!(
+                        !line.contains(symbol),
+                        "FutureReserved surface `{symbol}` is activated in {}",
+                        path.display()
+                    );
+                }
+            }
+        }
+    }
+}
