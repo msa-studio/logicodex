@@ -319,23 +319,49 @@ impl<'ctx> LlvmCompiler<'ctx> {
         param_types: &[BasicTypeEnum<'ctx>],
         is_variadic: bool,
     ) -> Result<inkwell::types::FunctionType<'ctx>> {
-        let meta_params: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> =
-            param_types.iter().map(|t| (*t).into()).collect();
-        match ret_type {
-            BasicTypeEnum::IntType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
-            BasicTypeEnum::FloatType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
-            BasicTypeEnum::PointerType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
-            BasicTypeEnum::StructType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
-            BasicTypeEnum::ArrayType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
-            BasicTypeEnum::VectorType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
-            // Logicodex has no scalable-vector type semantics; this arm exists
-            // only because Inkwell 0.11 made the enum match exhaustive. Fail
-            // closed so no function (and no object) is emitted for it.
-            BasicTypeEnum::ScalableVectorType(_) => Err(anyhow!(
-                "unsupported codegen path: scalable vector types are not supported"
-            )),
-        }
+        basic_type_fn_type(ret_type, param_types, is_variadic)
     }
+}
+
+/// Build an LLVM function type for a basic return type.
+///
+/// Public only so LLVM API compatibility regressions can exercise it; it
+/// declares no function and adds no Logicodex type semantics.
+pub fn basic_type_fn_type<'ctx>(
+    ret_type: BasicTypeEnum<'ctx>,
+    param_types: &[BasicTypeEnum<'ctx>],
+    is_variadic: bool,
+) -> Result<inkwell::types::FunctionType<'ctx>> {
+    let meta_params: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> =
+        param_types.iter().map(|t| (*t).into()).collect();
+    match ret_type {
+        BasicTypeEnum::IntType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+        BasicTypeEnum::FloatType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+        BasicTypeEnum::PointerType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+        BasicTypeEnum::StructType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+        BasicTypeEnum::ArrayType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+        BasicTypeEnum::VectorType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+        // Logicodex has no scalable-vector type semantics; this arm exists
+        // only because Inkwell 0.11 made the enum match exhaustive. Fail
+        // closed so no function (and no object) is emitted for it.
+        BasicTypeEnum::ScalableVectorType(_) => Err(anyhow!(
+            "unsupported codegen path: scalable vector types are not supported"
+        )),
+    }
+}
+
+/// Resolve the narrow LLVM integer type used by fixed-width wrapping.
+///
+/// Public only so LLVM API compatibility regressions can exercise it. A zero
+/// or over-limit width fails closed with a deterministic diagnostic.
+pub fn wrap_width_int_type(context: &Context, bits: u32) -> Result<IntType<'_>> {
+    std::num::NonZeroU32::new(bits)
+        .ok_or_else(|| anyhow!("wrap_to_width: invalid integer bit width 0"))
+        .and_then(|nz| {
+            context
+                .custom_width_int_type(nz)
+                .map_err(|e| anyhow!("wrap_to_width: invalid integer bit width {}: {}", bits, e))
+        })
 }
 
 /// Entry point for HIR-to-object compilation (.ldx -> object file).
@@ -930,13 +956,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             Some(b) if b < 64 => b,
             _ => return Ok(value),
         };
-        let narrow_ty = std::num::NonZeroU32::new(bits)
-            .ok_or_else(|| anyhow!("wrap_to_width: invalid integer bit width 0"))
-            .and_then(|nz| {
-                self.context.custom_width_int_type(nz).map_err(|e| {
-                    anyhow!("wrap_to_width: invalid integer bit width {}: {}", bits, e)
-                })
-            })?;
+        let narrow_ty = wrap_width_int_type(self.context, bits)?;
         let truncated = self
             .builder
             .build_int_truncate(value, narrow_ty, "wrap_trunc")
