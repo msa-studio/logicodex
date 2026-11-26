@@ -33,6 +33,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Full history so the version hygiene guard can resolve BASE_SHA
+          # and prove it is an ancestor of HEAD.
+          fetch-depth: 0
       - name: Verify stdlib contracts
         run: python3 tools/verify_stdlib_contracts.py
       - name: Verify integrity runner contracts
@@ -62,6 +66,22 @@ jobs:
           grep -Fq 'verify_authority_docs.py' scripts/dev/verify_quick_integrity.sh
           grep -Fq 'test_authority_docs.py' scripts/dev/verify_full_integrity.sh
           grep -Fq 'verify_authority_docs.py' scripts/dev/verify_full_integrity.sh
+          grep -Fq 'BASE_SHA="${BASE_SHA:-}"' scripts/dev/verify_quick_integrity.sh
+          grep -Fq 'BASE_SHA="${BASE_SHA:-}"' scripts/dev/verify_full_integrity.sh
+      - name: Verify version reference hygiene (baseline-aware)
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if ! grep -Eqx '[0-9a-f]{40}' <<<"$BASE_SHA" \
+            || [ "$BASE_SHA" = 0000000000000000000000000000000000000000 ]; then
+            echo "BASE_SHA is not a valid full commit id: '${BASE_SHA}'" >&2
+            exit 1
+          fi
+          git cat-file -e "${BASE_SHA}^{commit}"
+          echo "BASE_SHA=${BASE_SHA}"
+          python3 -B scripts/dev/test_version_reference_hygiene.py
+          python3 -B scripts/dev/verify_version_reference_hygiene.py
       - name: Install LLVM 23
         run: |
           set -euo pipefail

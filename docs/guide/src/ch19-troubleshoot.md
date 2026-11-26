@@ -227,7 +227,7 @@ wasm-strip output.wasm
 |---|---|---|
 | `error while loading shared libraries` | Library tidak di dalam LD_LIBRARY_PATH | `export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH` |
 | `cannot find -lraylib` | Raylib tidak terpasang | Pasang Raylib atau `RAYLIB_NO_LINK=1` |
-| `LLVM not found` | LLVM tidak di PATH | `export LLVM_SYS_150_PREFIX=/usr/lib/llvm-15` |
+| `LLVM not found` | LLVM tidak di PATH | `export LLVM_SYS_231_PREFIX=/usr/lib/llvm-23` |
 | `panicked at 'called Option::unwrap()'` | Bug dalam Logicodex | Laporkan issue dengan backtrace |
 | Program berhenti tiba-tiba | `assert` gagal | Semak condition assert |
 | Audio tidak keluar | Audio device sibuk | Tutup aplikasi audio lain |

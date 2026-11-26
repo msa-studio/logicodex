@@ -10,8 +10,8 @@ Panduan ini membantu anda memasang Logicodex dan menyediakan persekitaran pemban
 
 | Komponen | Versi | Keterangan |
 |---|---|---|
-| **Rust** | 1.75+ | Compiler Logicodex ditulis dalam Rust |
-| **LLVM** | 15 | Backend code generation |
+| **Rust** | 1.100.0 | Dipin oleh `rust-toolchain.toml` |
+| **LLVM** | 23 | Backend code generation (inkwell `llvm23-1`) |
 | **OS** | Linux x86_64 | Platform utama yang disokong |
 | **RAM** | 4GB | Untuk kompilasi |
 | **Storage** | 2GB | Untuk source dan build artifacts |
@@ -20,8 +20,8 @@ Panduan ini membantu anda memasang Logicodex dan menyediakan persekitaran pemban
 
 | Komponen | Versi | Keterangan |
 |---|---|---|
-| **Rust** | 1.78+ | Versi terkini |
-| **LLVM** | 17 | Optimizer terkini |
+| **Rust** | 1.100.0 | Sama seperti CI |
+| **LLVM** | 23.1.6 | Versi tepat yang digunakan CI Linux |
 | **OS** | Linux x86_64 atau macOS | Kedua-dua disokong penuh |
 | **RAM** | 8GB | Untuk kompilasi pantas |
 | **Raylib** | 5.0+ | Untuk grafik dan audio (pilihan) |
@@ -46,22 +46,28 @@ Panduan ini membantu anda memasang Logicodex dan menyediakan persekitaran pemban
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 
-# Pastikan versi Rust >= 1.75
+# rust-toolchain.toml memasang Rust 1.100.0 secara automatik
 rustc --version
 ```
 
 ### 2. Pasang LLVM
 
 ```bash
-# Ubuntu/Debian
+# Ubuntu 24.04 (apt.llvm.org, LLVM 23)
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/llvm-snapshot.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' \
+  | sudo tee /etc/apt/sources.list.d/llvm23.list
 sudo apt-get update
-sudo apt-get install llvm-15 llvm-15-dev libclang-15-dev
+sudo apt-get install -y llvm-23-dev libclang-23-dev libpolly-23-dev libzstd-dev pkg-config
 
-# macOS
-brew install llvm@15
+# macOS (garis major LLVM 23; patch tidak dijamin sama dengan Linux)
+brew install llvm
+export LLVM_SYS_231_PREFIX="$(brew --prefix llvm)"
 
-# Arch Linux
-sudo pacman -S llvm15
+# Arch Linux (pastikan `llvm-config --version` bermula dengan 23)
+sudo pacman -S llvm
 ```
 
 ### 3. Pasang Raylib (Pilihan)
@@ -85,7 +91,8 @@ git clone https://github.com/mymsa/logicodex.git
 cd logicodex
 
 # Bina
-RUSTFLAGS="-L/usr/lib/llvm-15/lib" cargo build --release
+export LLVM_SYS_231_PREFIX=/usr/lib/llvm-23
+RUSTFLAGS="-L/usr/lib/llvm-23/lib" cargo build --release --locked
 
 # Hasil binary di:
 ./target/release/logicodex --version

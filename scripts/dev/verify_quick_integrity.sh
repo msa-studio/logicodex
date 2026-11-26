@@ -107,6 +107,7 @@ run_gate \
 
 run_gate \
   version_reference_hygiene \
+  env BASE_SHA="${BASE_SHA:-}" \
   python3 -B scripts/dev/verify_version_reference_hygiene.py
 
 run_gate \

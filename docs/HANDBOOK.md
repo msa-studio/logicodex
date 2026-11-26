@@ -34,8 +34,8 @@ Scope: This document teaches you how to use Logicodex. For the language specific
 
 | Component | Minimum | Recommended |
 |---|---|---|
-| Rust | 1.75+ | 1.78+ |
-| LLVM | 15 | 17 |
+| Rust | 1.100.0 (pinned by `rust-toolchain.toml`) | 1.100.0 |
+| LLVM | 23 | 23.1.6 |
 | OS | Linux x86_64 | Linux x86_64 or macOS |
 | RAM | 4GB | 8GB |
 | Raylib (optional) | — | 5.0+ |
@@ -46,8 +46,14 @@ Scope: This document teaches you how to use Logicodex. For the language specific
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Install LLVM (Ubuntu)
-sudo apt-get install llvm-15-dev libclang-15-dev
+# Install LLVM 23 (Ubuntu 24.04, via apt.llvm.org)
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/llvm-snapshot.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' \
+  | sudo tee /etc/apt/sources.list.d/llvm23.list
+sudo apt-get update
+sudo apt-get install -y llvm-23-dev libclang-23-dev libpolly-23-dev libzstd-dev pkg-config
 
 # Install Raylib (optional, for graphics/audio)
 sudo apt-get install libraylib-dev
@@ -55,7 +61,8 @@ sudo apt-get install libraylib-dev
 # Clone and build
 git clone https://github.com/msa-studio/logicodex.git
 cd logicodex
-RUSTFLAGS="-L/usr/lib/llvm-15/lib" cargo build --release
+export LLVM_SYS_231_PREFIX=/usr/lib/llvm-23
+RUSTFLAGS="-L/usr/lib/llvm-23/lib" cargo build --release --locked
 
 # Verify
 ./target/release/logicodex --version
@@ -611,7 +618,7 @@ program game {
 
 | Error | Fix |
 |---|---|
-| `LLVM not found` | `export LLVM_SYS_150_PREFIX=/usr/lib/llvm-15` |
+| `LLVM not found` | `export LLVM_SYS_231_PREFIX=/usr/lib/llvm-23` |
 | `cannot find -lraylib` | Install Raylib or `RAYLIB_NO_LINK=1` |
 | `unwrap on None` | This is a Logicodex bug — please report with backtrace |
 

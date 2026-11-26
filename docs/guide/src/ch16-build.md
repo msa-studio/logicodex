@@ -74,7 +74,7 @@ edition = "2021"
 build = "build.rs"
 
 [dependencies]
-inkwell = { version = "0.4", features = ["llvm15-0"] }
+inkwell = { version = "=0.11.0", features = ["llvm23-1"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 libc = "0.2"
@@ -99,11 +99,18 @@ path = "src/main.rs"
 ### Linux
 
 ```bash
-# Install dependencies
-sudo apt-get install llvm-15-dev libclang-15-dev
+# Install dependencies (Ubuntu 24.04, apt.llvm.org LLVM 23)
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/llvm-snapshot.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' \
+  | sudo tee /etc/apt/sources.list.d/llvm23.list
+sudo apt-get update
+sudo apt-get install -y llvm-23-dev libclang-23-dev libpolly-23-dev libzstd-dev pkg-config
 
 # Build
-RUSTFLAGS="-L/usr/lib/llvm-15/lib" cargo build --release
+export LLVM_SYS_231_PREFIX=/usr/lib/llvm-23
+RUSTFLAGS="-L/usr/lib/llvm-23/lib" cargo build --release --locked
 
 # Verify
 cargo test --locked
@@ -113,11 +120,13 @@ cargo test --locked
 
 ```bash
 # Install dependencies
-brew install llvm@15 raylib
+# Homebrew `llvm` = garis major LLVM 23 (patch tidak dijamin 23.1.6)
+brew install llvm raylib
 
 # Build
-export RUSTFLAGS="-L$(brew --prefix llvm@15)/lib"
-cargo build --release
+export LLVM_SYS_231_PREFIX="$(brew --prefix llvm)"
+export RUSTFLAGS="-L$(brew --prefix llvm)/lib"
+cargo build --release --locked
 
 # Verify
 cargo test --locked
