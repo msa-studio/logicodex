@@ -213,6 +213,8 @@ jobs:
           cp -a . "$RUNNER_TEMP/logicodex-r2"
           cd "$RUNNER_TEMP/logicodex-r2"
           if [ "$LLVM_MAJOR" != "15" ]; then
+            rm -f rust-toolchain.toml
+            export RUSTUP_TOOLCHAIN=stable
             python3 - <<'PY'
           from pathlib import Path
           p = Path('Cargo.toml')
