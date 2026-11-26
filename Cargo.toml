@@ -22,7 +22,7 @@ path = "src/main.rs"
 anyhow = "1.0"
 clap = { version = "=4.4.18", features = ["derive"] }
 clap_lex = "=0.6.0"
-inkwell = { version = "0.4.0", features = ["llvm15-0"] }
+inkwell = { version = "=0.11.0", features = ["llvm23-1"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
@@ -53,7 +53,7 @@ language_name = "Logicodex"
 phase = "v0.46.0-alpha"
 source_extension = "ldx"
 public_release_label = "v0.46.0-alpha"
-rust_channel = "1.75.0"
-llvm_feature = "llvm15-0"
+rust_channel = "1.100.0"
+llvm_feature = "llvm23-1"
 
 [workspace]

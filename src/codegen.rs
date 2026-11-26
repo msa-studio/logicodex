@@ -219,7 +219,8 @@ impl<'ctx> LlvmCompiler<'ctx> {
             llvm_param_types.push(self.type_id_to_llvm(*param_id)?);
         }
         let ret_type = self.type_id_to_llvm(signature.return_type)?;
-        let fn_type = self.basic_type_fn_type(ret_type, &llvm_param_types, signature.is_variadic);
+        let fn_type =
+            self.basic_type_fn_type(ret_type, &llvm_param_types, signature.is_variadic)?;
         let func =
             self.module
                 .add_function(name, fn_type, Some(inkwell::module::Linkage::External));
@@ -317,16 +318,22 @@ impl<'ctx> LlvmCompiler<'ctx> {
         ret_type: BasicTypeEnum<'ctx>,
         param_types: &[BasicTypeEnum<'ctx>],
         is_variadic: bool,
-    ) -> inkwell::types::FunctionType<'ctx> {
+    ) -> Result<inkwell::types::FunctionType<'ctx>> {
         let meta_params: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> =
             param_types.iter().map(|t| (*t).into()).collect();
         match ret_type {
-            BasicTypeEnum::IntType(t) => t.fn_type(&meta_params, is_variadic),
-            BasicTypeEnum::FloatType(t) => t.fn_type(&meta_params, is_variadic),
-            BasicTypeEnum::PointerType(t) => t.fn_type(&meta_params, is_variadic),
-            BasicTypeEnum::StructType(t) => t.fn_type(&meta_params, is_variadic),
-            BasicTypeEnum::ArrayType(t) => t.fn_type(&meta_params, is_variadic),
-            BasicTypeEnum::VectorType(t) => t.fn_type(&meta_params, is_variadic),
+            BasicTypeEnum::IntType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+            BasicTypeEnum::FloatType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+            BasicTypeEnum::PointerType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+            BasicTypeEnum::StructType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+            BasicTypeEnum::ArrayType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+            BasicTypeEnum::VectorType(t) => Ok(t.fn_type(&meta_params, is_variadic)),
+            // Logicodex has no scalable-vector type semantics; this arm exists
+            // only because Inkwell 0.11 made the enum match exhaustive. Fail
+            // closed so no function (and no object) is emitted for it.
+            BasicTypeEnum::ScalableVectorType(_) => Err(anyhow!(
+                "unsupported codegen path: scalable vector types are not supported"
+            )),
         }
     }
 }
@@ -509,7 +516,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             self.context.void_type().fn_type(&meta_params, false)
         } else {
             let ret_type = self.hir_type_to_llvm(function.return_type)?;
-            self.basic_type_fn_type(ret_type, &param_types, false)
+            self.basic_type_fn_type(ret_type, &param_types, false)?
         };
 
         // 3. Create LLVM function
@@ -923,7 +930,13 @@ impl<'ctx> LlvmCompiler<'ctx> {
             Some(b) if b < 64 => b,
             _ => return Ok(value),
         };
-        let narrow_ty = self.context.custom_width_int_type(bits);
+        let narrow_ty = std::num::NonZeroU32::new(bits)
+            .ok_or_else(|| anyhow!("wrap_to_width: invalid integer bit width 0"))
+            .and_then(|nz| {
+                self.context.custom_width_int_type(nz).map_err(|e| {
+                    anyhow!("wrap_to_width: invalid integer bit width {}: {}", bits, e)
+                })
+            })?;
         let truncated = self
             .builder
             .build_int_truncate(value, narrow_ty, "wrap_trunc")
@@ -1156,7 +1169,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     let entry_ptr = actor_fn.as_global_value().as_pointer_value();
                     let entry_i8 = self
                         .builder
-                        .build_bitcast(entry_ptr, i8ptr, "actor_entry_i8")
+                        .build_bit_cast(entry_ptr, i8ptr, "actor_entry_i8")
                         .context("bitcast actor entry to i8*")?;
                     self.builder
                         .build_call(spawn_fn, &[entry_i8.into()], "spawn_call")
@@ -1210,7 +1223,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                             let ctx_param = wf.get_nth_param(0).unwrap().into_pointer_value();
                             let arr_ptr = self
                                 .builder
-                                .build_bitcast(
+                                .build_bit_cast(
                                     ctx_param,
                                     arr_ty.ptr_type(AddressSpace::default()),
                                     "ctx_as_arr",
@@ -1259,7 +1272,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     );
                     let wrapper_i8 = self
                         .builder
-                        .build_bitcast(
+                        .build_bit_cast(
                             wrapper_fn.as_global_value().as_pointer_value(),
                             i8ptr,
                             "wrapper_i8",
@@ -1267,7 +1280,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         .context("bitcast wrapper to i8*")?;
                     let ctx_i8 = self
                         .builder
-                        .build_bitcast(ctx_alloca, i8ptr, "ctx_i8")
+                        .build_bit_cast(ctx_alloca, i8ptr, "ctx_i8")
                         .context("bitcast ctx to i8*")?;
                     self.builder
                         .build_call(
@@ -1277,7 +1290,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         )
                         .context("spawn_ctx call")?
                 };
-                let handle = match call_site.try_as_basic_value().left() {
+                let handle = match call_site.try_as_basic_value().basic() {
                     Some(BasicValueEnum::IntValue(iv)) => iv,
                     _ => self.i64_type.const_int(0, false),
                 };
@@ -1325,7 +1338,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .builder
                     .build_call(join_fn, &[handle.into()], "join_call")
                     .context("join call")?;
-                match call_site.try_as_basic_value().left() {
+                match call_site.try_as_basic_value().basic() {
                     Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
                     _ => Ok(self.i64_type.const_int(0, false)),
                 }
@@ -1344,7 +1357,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .builder
                     .build_call(create_fn, &[cap.into()], "channel_create_call")
                     .context("channel create call")?;
-                match call_site.try_as_basic_value().left() {
+                match call_site.try_as_basic_value().basic() {
                     Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
                     _ => Ok(self.i64_type.const_int(0, false)),
                 }
@@ -1364,7 +1377,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .builder
                     .build_call(send_fn, &[handle.into(), val.into()], "send_call")
                     .context("send call")?;
-                match call_site.try_as_basic_value().left() {
+                match call_site.try_as_basic_value().basic() {
                     Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
                     _ => Ok(self.i64_type.const_int(0, false)),
                 }
@@ -1426,7 +1439,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .builder
                     .build_call(send_fn, &[name_ptr.into(), val.into()], "trysend_call")
                     .context("trysend call")?;
-                match call_site.try_as_basic_value().left() {
+                match call_site.try_as_basic_value().basic() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(1, false)), // default: true (success)
@@ -1455,7 +1468,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .builder
                     .build_call(recv_fn, &[name_ptr.into()], "tryrecv_call")
                     .context("tryrecv call")?;
-                match call_site.try_as_basic_value().left() {
+                match call_site.try_as_basic_value().basic() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)), // default: 0 (None)
@@ -1470,7 +1483,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .builder
                     .build_call(yield_fn, &[], "yield_call")
                     .context("yield call")?;
-                match call_site.try_as_basic_value().left() {
+                match call_site.try_as_basic_value().basic() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
@@ -1488,7 +1501,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .builder
                     .build_call(sleep_fn, &[dur.into()], "sleep_call")
                     .context("sleep call")?;
-                match call_site.try_as_basic_value().left() {
+                match call_site.try_as_basic_value().basic() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
@@ -1523,7 +1536,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .builder
                     .build_call(recv_fn, &[name_ptr.into(), to.into()], "torecv_call")
                     .context("timeout_recv call")?;
-                match call_site.try_as_basic_value().left() {
+                match call_site.try_as_basic_value().basic() {
                     Some(val) => match val {
                         BasicValueEnum::IntValue(iv) => Ok(iv),
                         _ => Ok(self.i64_type.const_int(0, false)),
@@ -1582,7 +1595,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 .builder
                 .build_call(sleep_fn, &[arg_val.into()], "sleep_call")
                 .context("failed to build logicodex_sleep call")?;
-            return match call_site.try_as_basic_value().left() {
+            return match call_site.try_as_basic_value().basic() {
                 Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
                 _ => Ok(self.i64_type.const_int(0, false)),
             };
@@ -1594,7 +1607,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 .builder
                 .build_call(yield_fn, &[], "yield_call")
                 .context("failed to build logicodex_yield call")?;
-            return match call_site.try_as_basic_value().left() {
+            return match call_site.try_as_basic_value().basic() {
                 Some(BasicValueEnum::IntValue(iv)) => Ok(iv),
                 _ => Ok(self.i64_type.const_int(0, false)),
             };
@@ -1663,7 +1676,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             )
             .with_context(|| format!("failed to build call to '{}'", label))?;
 
-        match call_site.try_as_basic_value().left() {
+        match call_site.try_as_basic_value().basic() {
             Some(BasicValueEnum::IntValue(iv)) => self.wrap_to_width(iv, ret_ty),
             _ => Ok(self.i64_type.const_int(0, false)),
         }
@@ -2040,7 +2053,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         .unwrap_or(val);
                     let f32_val = self
                         .builder
-                        .build_bitcast(i32_val, self.context.f32_type(), &format!("vec2_f32_{}", i))
+                        .build_bit_cast(
+                            i32_val,
+                            self.context.f32_type(),
+                            &format!("vec2_f32_{}", i),
+                        )
                         .context("Vector2 i32→f32 bitcast")?;
                     let field_ptr = unsafe {
                         self.builder
@@ -2089,7 +2106,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
                         .unwrap_or(val);
                     let f32_val = self
                         .builder
-                        .build_bitcast(i32_val, self.context.f32_type(), &format!("rect_f32_{}", i))
+                        .build_bit_cast(
+                            i32_val,
+                            self.context.f32_type(),
+                            &format!("rect_f32_{}", i),
+                        )
                         .context("Rectangle i32→f32 bitcast")?;
                     let field_ptr = unsafe {
                         self.builder
@@ -2164,6 +2185,53 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     .context("struct ptr to int")?;
                 Ok(ptr_as_int)
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Inkwell 0.11 added `BasicTypeEnum::ScalableVectorType`. Logicodex has no
+    // scalable-vector semantics, so the compatibility arm must fail closed with
+    // a deterministic diagnostic and must not declare any function.
+    #[test]
+    fn scalable_vector_fn_type_fails_closed() {
+        let context = Context::create();
+        let compiler = LlvmCompiler::new(&context, "scalable_vector_fail_closed");
+        let functions_before = compiler.module.get_functions().count();
+        let scalable: BasicTypeEnum = context.i64_type().scalable_vec_type(2).into();
+        let params = [compiler.i64_type.as_basic_type_enum()];
+
+        let first = compiler
+            .basic_type_fn_type(scalable, &params, false)
+            .expect_err("scalable vector return type must be rejected");
+        let second = compiler
+            .basic_type_fn_type(scalable, &params, false)
+            .expect_err("scalable vector return type must be rejected");
+
+        let expected = "unsupported codegen path: scalable vector types are not supported";
+        assert_eq!(first.to_string(), expected);
+        assert_eq!(second.to_string(), expected);
+        assert_eq!(compiler.module.get_functions().count(), functions_before);
+    }
+
+    #[test]
+    fn supported_fn_return_types_still_lower() {
+        let context = Context::create();
+        let compiler = LlvmCompiler::new(&context, "supported_fn_return_types");
+        let params = [compiler.i64_type.as_basic_type_enum()];
+        let supported: [BasicTypeEnum; 3] = [
+            compiler.i64_type.into(),
+            context.f64_type().into(),
+            context.i64_type().vec_type(2).into(),
+        ];
+        for ret in supported {
+            let fn_type = compiler
+                .basic_type_fn_type(ret, &params, false)
+                .expect("supported return type must lower");
+            assert_eq!(fn_type.get_return_type(), Some(ret));
         }
     }
 }
