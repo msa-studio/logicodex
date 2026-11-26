@@ -549,9 +549,10 @@ impl TypeRegistry {
         self.enum_layouts.get(id.0 as usize)
     }
 
-    /// Look up a type by name (placeholder)
-    pub fn type_name(&self, _id: TypeId) -> Option<String> {
-        None // TODO: implement reverse lookup
+    /// Render a diagnostic label for a type ID, using the same Debug format as
+    /// `semantic_gate` type labels. Returns `None` for an unregistered ID.
+    pub fn type_name(&self, id: TypeId) -> Option<String> {
+        self.get(id).map(|kind| format!("{kind:?}"))
     }
 
     /// Find a callable by name (placeholder)
@@ -754,5 +755,16 @@ mod tests {
         let registry = TypeRegistry::new();
         assert_eq!(registry.get(TypeId(999)), None);
         assert!(!registry.is_equivalent(TypeId(999), TypeId(999)));
+    }
+
+    #[test]
+    fn type_name_renders_registered_ids_only() {
+        let registry = TypeRegistry::new();
+        let ids = registry.primitive_ids();
+        assert_eq!(
+            registry.type_name(ids.i64_).as_deref(),
+            Some("Primitive(I64)")
+        );
+        assert_eq!(registry.type_name(TypeId(999)), None);
     }
 }

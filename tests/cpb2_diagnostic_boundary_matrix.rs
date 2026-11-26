@@ -283,7 +283,7 @@ fn ffi_argument_type_direct_record_is_exact() {
         vec![expr_unit(&types, Span::unknown())],
         SafetyContext::Safe,
     );
-    assert_record(&diagnostic, DiagnosticCode::FfiBoundaryViolation, "Ralat: Argumen 1 untuk fungsi 'typed' mempunyai jenis yang tidak sepadan (diperlukan: , diterima: )", "Error: Argument 1 for function 'typed' has an incompatible type (expected: , got: )", Span::unknown());
+    assert_record(&diagnostic, DiagnosticCode::FfiBoundaryViolation, "Ralat: Argumen 1 untuk fungsi 'typed' mempunyai jenis yang tidak sepadan (diperlukan: Primitive(I64), diterima: Primitive(Unit))", "Error: Argument 1 for function 'typed' has an incompatible type (expected: Primitive(I64), got: Primitive(Unit))", Span::unknown());
 }
 
 #[test]
