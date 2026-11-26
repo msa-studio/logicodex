@@ -1,0 +1,145 @@
+name: R2 Compatibility Matrix (research only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    name: ${{ matrix.row }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - row: ubuntu-24.04-llvm15-rust175-control
+            os: ubuntu-24.04
+            llvm: "15"
+            rust: "1.75.0"
+            inkwell: "0.4.0"
+            feature: llvm15-0
+          - row: ubuntu-24.04-llvm23-rust185-candidate
+            os: ubuntu-24.04
+            llvm: "23"
+            rust: stable
+            inkwell: "0.10.0"
+            feature: llvm23-1
+          - row: ubuntu-26.04-llvm23-rust185-candidate
+            os: ubuntu-26.04
+            llvm: "23"
+            rust: stable
+            inkwell: "0.10.0"
+            feature: llvm23-1
+
+    steps:
+      - name: Checkout immutable baseline
+        uses: actions/checkout@v5
+
+      - name: Capture runner provenance
+        run: |
+          mkdir -p r2-evidence
+          date --iso-8601=seconds | tee r2-evidence/started-at.txt
+          uname -a | tee r2-evidence/uname.txt
+          cat /etc/os-release | tee r2-evidence/os-release.txt
+          env | sort | grep -E '^(RUNNER|Image|ImageVersion|AGENT)' | tee r2-evidence/runner-env.txt || true
+          if [ -f /imagegeneration/images/linux/Ubuntu2204-Readme.md ]; then
+            cat /imagegeneration/images/linux/*Readme.md > r2-evidence/image-readme.txt || true
+          fi
+
+      - name: Install system dependencies
+        shell: bash
+        env:
+          LLVM_MAJOR: ${{ matrix.llvm }}
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl gnupg lsb-release pkg-config python3 xz-utils jq binutils
+          if [ "$LLVM_MAJOR" = "15" ]; then
+            sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev clang-15 lld-15
+          else
+            sudo bash -c "echo 'deb http://apt.llvm.org/$(. /etc/os-release && echo $VERSION_CODENAME) llvm-toolchain-$(. /etc/os-release && echo $VERSION_CODENAME)-23 main' > /etc/apt/sources.list.d/llvm.list"
+            curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/llvm-snapshot.gpg
+            sudo apt-get update
+            sudo apt-get install -y llvm-23-dev libclang-23-dev libpolly-23-dev clang-23 lld-23
+          fi
+          dpkg-query -W -f='${Package}\t${Version}\n' | sort | grep -E '^(llvm|libclang|libpolly|clang|lld)' | tee r2-evidence/packages.txt
+          llvm-config-${LLVM_MAJOR} --version | tee r2-evidence/llvm-config-version.txt
+          llvm-config-${LLVM_MAJOR} --prefix | tee r2-evidence/llvm-prefix.txt
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Capture toolchain and dependency provenance
+        shell: bash
+        env:
+          LLVM_MAJOR: ${{ matrix.llvm }}
+        run: |
+          set -euxo pipefail
+          rustc -Vv | tee r2-evidence/rustc.txt
+          cargo -V | tee r2-evidence/cargo.txt
+          rustup show active-toolchain | tee r2-evidence/rustup-toolchain.txt
+          git rev-parse HEAD | tee r2-evidence/source-sha.txt
+          sha256sum Cargo.lock | tee r2-evidence/cargo-lock.sha256
+          printf 'row=%s\nos=%s\nllvm=%s\nrust=%s\ninkwell=%s\nfeature=%s\n' \
+            '${{ matrix.row }}' '${{ matrix.os }}' '${{ matrix.llvm }}' '${{ matrix.rust }}' '${{ matrix.inkwell }}' '${{ matrix.feature }}' \
+            | tee r2-evidence/row.txt
+
+      - name: Build immutable baseline control or candidate in temp copy
+        shell: bash
+        env:
+          LLVM_MAJOR: ${{ matrix.llvm }}
+          INKWELL_VERSION: ${{ matrix.inkwell }}
+          INKWELL_FEATURE: ${{ matrix.feature }}
+        run: |
+          set -uo pipefail
+          rm -rf "$RUNNER_TEMP/logicodex-r2"
+          cp -a . "$RUNNER_TEMP/logicodex-r2"
+          cd "$RUNNER_TEMP/logicodex-r2"
+          if [ "$LLVM_MAJOR" != "15" ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          p = Path('Cargo.toml')
+          s = p.read_text()
+          s = s.replace('inkwell = { version = "0.4.0", features = ["llvm15-0"] }', 'inkwell = { version = "0.10.0", features = ["llvm23-1"] }')
+          p.write_text(s)
+          PY
+            cargo update -p inkwell --precise "$INKWELL_VERSION" 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-update.log"
+          fi
+          cp Cargo.lock "$GITHUB_WORKSPACE/r2-evidence/Cargo.lock.after-resolution"
+          export LLVM_SYS_${LLVM_MAJOR}0_PREFIX="/usr/lib/llvm-${LLVM_MAJOR}"
+          export RUSTFLAGS="-L/usr/lib/llvm-${LLVM_MAJOR}/lib"
+          cargo metadata --format-version 1 --no-deps > "$GITHUB_WORKSPACE/r2-evidence/metadata.json" 2> "$GITHUB_WORKSPACE/r2-evidence/metadata.err"; meta_rc=$?
+          cargo check --all-targets 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-check.log"; check_rc=${PIPESTATUS[0]}
+          cargo build --release 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-build-release.log"; build_rc=${PIPESTATUS[0]}
+          printf 'metadata_rc=%s\ncheck_rc=%s\nbuild_rc=%s\n' "$meta_rc" "$check_rc" "$build_rc" | tee "$GITHUB_WORKSPACE/r2-evidence/result.txt"
+          exit 0
+
+      - name: Collect artifacts and parity probes
+        if: always()
+        shell: bash
+        env:
+          LLVM_MAJOR: ${{ matrix.llvm }}
+        run: |
+          set +e
+          cd "$RUNNER_TEMP/logicodex-r2"
+          export LLVM_SYS_${LLVM_MAJOR}0_PREFIX="/usr/lib/llvm-${LLVM_MAJOR}"
+          export RUSTFLAGS="-L/usr/lib/llvm-${LLVM_MAJOR}/lib"
+          cargo test --quiet 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-test.log"
+          find target -type f \( -name '*.ll' -o -name '*.o' -o -perm -111 \) -printf '%p\n' 2>/dev/null | sort | head -200 | tee "$GITHUB_WORKSPACE/r2-evidence/produced-files.txt"
+          if [ -f target/release/logicodex ]; then
+            target/release/logicodex --help > "$GITHUB_WORKSPACE/r2-evidence/help.txt" 2>&1
+          fi
+          sha256sum "$GITHUB_WORKSPACE"/r2-evidence/* 2>/dev/null | sort > "$GITHUB_WORKSPACE/r2-evidence/sha256sums.txt"
+
+      - name: Upload R2 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: r2-${{ matrix.row }}
+          path: r2-evidence/
+          if-no-files-found: warn
