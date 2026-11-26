@@ -22,14 +22,15 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  LLVM_SYS_150_PREFIX: /usr/lib/llvm-15
-  RUSTFLAGS: "-L/usr/lib/llvm-15/lib"
+  LLVM_SYS_231_PREFIX: /usr/lib/llvm-23
+  LLVM_CONFIG_PATH: /usr/lib/llvm-23/bin/llvm-config
+  RUSTFLAGS: "-L/usr/lib/llvm-23/lib"
   RAYLIB_NO_LINK: "1"
 
 jobs:
   check:
     name: Check (fmt + clippy + build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - name: Verify stdlib contracts
@@ -61,20 +62,42 @@ jobs:
           grep -Fq 'verify_authority_docs.py' scripts/dev/verify_quick_integrity.sh
           grep -Fq 'test_authority_docs.py' scripts/dev/verify_full_integrity.sh
           grep -Fq 'verify_authority_docs.py' scripts/dev/verify_full_integrity.sh
-      - name: Install LLVM 15
+      - name: Install LLVM 23
         run: |
+          set -euo pipefail
+          sudo install -d -m 0755 /etc/apt/keyrings
+          curl --fail --silent --show-error --location https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/llvm-snapshot.gpg
+          actual=$(gpg --show-keys --with-colons /etc/apt/keyrings/llvm-snapshot.gpg \
+            | awk -F: '$1 == "fpr" {print $10}')
+          grep -Fxq 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421 <<<"$actual"
+          grep -Fxq 56E1477F57BAB5ECF37818045B3D8846AF9463CE <<<"$actual"
+          printf '%s\n' 'deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' \
+            | sudo tee /etc/apt/sources.list.d/llvm23.list > /dev/null
           sudo apt-get update
-          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
-      - uses: dtolnay/rust-toolchain@1.75.0
+          sudo apt-get install -y llvm-23-dev libclang-23-dev libpolly-23-dev libzstd-dev pkg-config
+          for package in llvm-23-dev libclang-23-dev libpolly-23-dev; do
+            version=$(dpkg-query -W -f='${Version}' "$package")
+            [[ "$version" =~ ^1:23\.1\.6~ ]]
+            printf '%s=%s\n' "$package" "$version"
+          done
+          [[ "$(/usr/lib/llvm-23/bin/llvm-config --version)" == '23.1.6' ]]
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           components: rustfmt, clippy
+      - name: Verify LLVM 23 + Rust 1.100.0
+        run: |
+          set -euo pipefail
+          [[ "$(rustc --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(cargo --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(/usr/lib/llvm-23/bin/llvm-config --version)" == '23.1.6' ]]
       - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-ubuntu24.04-llvm23.1.6-rust1.100.0-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Format check
         run: cargo fmt --all -- --check
       - name: Clippy
@@ -84,21 +107,43 @@ jobs:
 
   test:
     name: Test (full suite)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
-      - name: Install LLVM 15
+      - name: Install LLVM 23
         run: |
+          set -euo pipefail
+          sudo install -d -m 0755 /etc/apt/keyrings
+          curl --fail --silent --show-error --location https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/llvm-snapshot.gpg
+          actual=$(gpg --show-keys --with-colons /etc/apt/keyrings/llvm-snapshot.gpg \
+            | awk -F: '$1 == "fpr" {print $10}')
+          grep -Fxq 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421 <<<"$actual"
+          grep -Fxq 56E1477F57BAB5ECF37818045B3D8846AF9463CE <<<"$actual"
+          printf '%s\n' 'deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' \
+            | sudo tee /etc/apt/sources.list.d/llvm23.list > /dev/null
           sudo apt-get update
-          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config
-      - uses: dtolnay/rust-toolchain@1.75.0
+          sudo apt-get install -y llvm-23-dev libclang-23-dev libpolly-23-dev libzstd-dev pkg-config
+          for package in llvm-23-dev libclang-23-dev libpolly-23-dev; do
+            version=$(dpkg-query -W -f='${Version}' "$package")
+            [[ "$version" =~ ^1:23\.1\.6~ ]]
+            printf '%s=%s\n' "$package" "$version"
+          done
+          [[ "$(/usr/lib/llvm-23/bin/llvm-config --version)" == '23.1.6' ]]
+      - uses: dtolnay/rust-toolchain@1.100.0
+      - name: Verify LLVM 23 + Rust 1.100.0
+        run: |
+          set -euo pipefail
+          [[ "$(rustc --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(cargo --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(/usr/lib/llvm-23/bin/llvm-config --version)" == '23.1.6' ]]
       - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-ubuntu24.04-llvm23.1.6-rust1.100.0-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Build
         run: cargo build --release
       - name: Run stdlib contract cases
@@ -114,27 +159,47 @@ jobs:
 
   freestanding:
     name: Freestanding x86_64 QEMU boot
-    runs-on: ubuntu-latest
-    env:
-      LLVM_SYS_150_PREFIX: /usr/lib/llvm-15
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@1.75.0
+      - name: Install LLVM 23 + QEMU + binutils
+        # LLVM is needed because boot-e2e builds the compiler (cargo run) to
+        # compile showcase.ldx; QEMU + binutils boot/link the kernel.
+        run: |
+          set -euo pipefail
+          sudo install -d -m 0755 /etc/apt/keyrings
+          curl --fail --silent --show-error --location https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/llvm-snapshot.gpg
+          actual=$(gpg --show-keys --with-colons /etc/apt/keyrings/llvm-snapshot.gpg \
+            | awk -F: '$1 == "fpr" {print $10}')
+          grep -Fxq 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421 <<<"$actual"
+          grep -Fxq 56E1477F57BAB5ECF37818045B3D8846AF9463CE <<<"$actual"
+          printf '%s\n' 'deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' \
+            | sudo tee /etc/apt/sources.list.d/llvm23.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y llvm-23-dev libclang-23-dev libpolly-23-dev libzstd-dev pkg-config qemu-system-x86 binutils
+          for package in llvm-23-dev libclang-23-dev libpolly-23-dev; do
+            version=$(dpkg-query -W -f='${Version}' "$package")
+            [[ "$version" =~ ^1:23\.1\.6~ ]]
+            printf '%s=%s\n' "$package" "$version"
+          done
+          [[ "$(/usr/lib/llvm-23/bin/llvm-config --version)" == '23.1.6' ]]
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: x86_64-unknown-none
+      - name: Verify LLVM 23 + Rust 1.100.0
+        run: |
+          set -euo pipefail
+          [[ "$(rustc --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(cargo --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(/usr/lib/llvm-23/bin/llvm-config --version)" == '23.1.6' ]]
       - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install LLVM 15 + QEMU + binutils
-        # LLVM is needed because boot-e2e builds the compiler (cargo run) to
-        # compile showcase.ldx; QEMU + binutils boot/link the kernel.
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y llvm-15-dev libclang-15-dev libpolly-15-dev pkg-config qemu-system-x86 binutils
+          key: ${{ runner.os }}-ubuntu24.04-llvm23.1.6-rust1.100.0-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Boot evidence (multiboot -> long-mode -> serial 'Logicodex' -> clean exit 33)
         # build.sh unsets RUSTFLAGS internally so the inherited LLVM -L flag does
         # not override the freestanding target's relocation-model/linker rustflags.
