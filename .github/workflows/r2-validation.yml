@@ -6,7 +6,8 @@
 #
 # Each row installs a real LLVM toolchain, runs cargo check / build / test in
 # a temporary copy of the checkout, uploads all evidence, and then fails the
-# job if any of check/build/test returned nonzero.
+# job if any of check/build/test returned nonzero. Candidate rows additionally
+# run `make quick` and `make integrity` in that copy and enforce both.
 # ============================================================================
 name: R2 LLVM23 validation (temporary)
 
@@ -121,6 +122,48 @@ jobs:
           cargo build --release 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-build-release.log"; build_rc=${PIPESTATUS[0]}
           cargo test --quiet 2>&1 | tee "$GITHUB_WORKSPACE/r2-evidence/cargo-test.log"; test_rc=${PIPESTATUS[0]}
           printf 'metadata_rc=%s\ncheck_rc=%s\nbuild_rc=%s\ntest_rc=%s\n' "$meta_rc" "$check_rc" "$build_rc" "$test_rc" | tee "$GITHUB_WORKSPACE/r2-evidence/result.txt"
+      - name: Install candidate integrity prerequisites
+        if: matrix.llvm != '15'
+        shell: bash
+        env:
+          RUST_TOOLCHAIN: ${{ matrix.rust }}
+        run: |
+          set -euxo pipefail
+          # make integrity needs PyYAML (workflow_yaml gate), QEMU (boot gates)
+          # and the freestanding kernel target.
+          sudo apt-get install -y python3-yaml qemu-system-x86
+          rustup target add x86_64-unknown-none --toolchain "$RUST_TOOLCHAIN"
+      - name: Run repository quick and integrity gates in candidate copy
+        if: matrix.llvm != '15'
+        shell: bash
+        env:
+          LLVM_MAJOR: ${{ matrix.llvm }}
+          LLVM_SYS_MAJOR: ${{ matrix.llvm_sys }}
+          RUST_TOOLCHAIN: ${{ matrix.rust }}
+        run: |
+          set -uo pipefail
+          ev="$GITHUB_WORKSPACE/r2-evidence"
+          cd "$RUNNER_TEMP/logicodex-r2"
+          export RUSTUP_TOOLCHAIN="$RUST_TOOLCHAIN"
+          export "LLVM_SYS_${LLVM_SYS_MAJOR}_PREFIX=/usr/lib/llvm-${LLVM_MAJOR}"
+          # Both integrity runners unset RUSTFLAGS internally; exported for parity
+          # with the cargo rows above and recorded so the evidence states it.
+          export RUSTFLAGS="-L/usr/lib/llvm-${LLVM_MAJOR}/lib"
+          env | sort | grep -E '^(LLVM_SYS_|RUSTFLAGS|RUSTUP_TOOLCHAIN)' | tee "$ev/gates-env.txt"
+          echo "note=verify_quick_integrity.sh and verify_full_integrity.sh run 'unset RUSTFLAGS'" | tee -a "$ev/gates-env.txt"
+          git status --porcelain | tee "$ev/candidate-git-status.txt"
+          LOG_DIR="$ev/quick-integrity-gates" make quick 2>&1 | tee "$ev/make-quick.log"; quick_rc=${PIPESTATUS[0]}
+          echo "quick_rc=$quick_rc" | tee "$ev/make-quick.rc"
+          LOG_DIR="$ev/full-integrity-gates" make integrity 2>&1 | tee "$ev/make-integrity.log"; integrity_rc=${PIPESTATUS[0]}
+          echo "integrity_rc=$integrity_rc" | tee "$ev/make-integrity.rc"
+          for f in /tmp/logicodex-boot.log /tmp/logicodex-e2e.log; do
+            [ -f "$f" ] && cp "$f" "$ev/" || true
+          done
+          printf 'quick_rc=%s\nintegrity_rc=%s\n' "$quick_rc" "$integrity_rc" | tee "$ev/gates-result.txt"
+          {
+            echo "parity_status=PENDING"
+            echo "reason=no golden/parity command is exposed by Makefile or scripts/dev; no parity claim is made by this run"
+          } | tee "$ev/parity-status.txt"
       - name: Upload R2 evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -147,4 +190,19 @@ jobs:
               failed=1
             fi
           done
+          if [ "${{ matrix.llvm }}" != "15" ]; then
+            gates=r2-evidence/gates-result.txt
+            if [ ! -f "$gates" ]; then
+              echo "::error::$gates missing; candidate gate step did not complete"
+              exit 1
+            fi
+            cat "$gates"
+            for key in quick_rc integrity_rc; do
+              rc=$(grep -E "^${key}=" "$gates" | cut -d= -f2)
+              if [ -z "$rc" ] || [ "$rc" != "0" ]; then
+                echo "::error::${{ matrix.row }}: ${key}=${rc:-missing}"
+                failed=1
+              fi
+            done
+          fi
           exit "$failed"
