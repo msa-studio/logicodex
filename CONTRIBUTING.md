@@ -4,24 +4,31 @@ Thank you for your interest in **Logicodex** (engine `v0.46.0-alpha`), a researc
 
 ## Development Environment
 
-Logicodex is implemented in Rust and uses LLVM through the `inkwell` crate. The repository metadata pins the public CI channel to **Rust 1.75.0** and the LLVM feature family to **LLVM 15**. Local development should match that environment as closely as practical.
+Logicodex is implemented in Rust and uses LLVM through the `inkwell` crate. `rust-toolchain.toml` pins **Rust 1.100.0**, and `Cargo.toml` selects the inkwell `llvm23-1` feature, so CI and releases build against **LLVM 23.1.6** on Ubuntu 24.04 (apt.llvm.org). Local development should match that environment as closely as practical.
 
 ```bash
-rustup toolchain install 1.75.0
-rustup component add rustfmt --toolchain 1.75.0
+rustup toolchain install 1.100.0 --component rustfmt,clippy
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/llvm-snapshot.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' \
+  | sudo tee /etc/apt/sources.list.d/llvm23.list
 sudo apt-get update
-sudo apt-get install -y llvm-15 llvm-15-dev clang-15 lld-15
-cargo +1.75.0 check
-cargo +1.75.0 test
+sudo apt-get install -y llvm-23-dev libclang-23-dev libpolly-23-dev libzstd-dev pkg-config
+cargo check --locked
+cargo test --locked
 ```
 
-If your system uses a non-standard LLVM installation path, set `LLVM_SYS_150_PREFIX` before running Cargo.
+`llvm-sys` locates LLVM through `LLVM_SYS_231_PREFIX`. Set it, together with the linker search path, before running Cargo.
 
 ```bash
-export LLVM_SYS_150_PREFIX=/usr/lib/llvm-15
+export LLVM_SYS_231_PREFIX=/usr/lib/llvm-23
+export RUSTFLAGS="-L/usr/lib/llvm-23/lib"
 cargo check
 cargo test
 ```
+
+On macOS, `brew install llvm` provides the LLVM 23 major line; set `LLVM_SYS_231_PREFIX="$(brew --prefix llvm)"`. Homebrew does not guarantee the exact 23.1.6 patch release used on Linux.
 
 ## Repository Integrity Rules
 

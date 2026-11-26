@@ -1,5 +1,21 @@
 ## Unreleased
 
+### Toolchain
+
+- Aligned the release workflow, Makefile, and active contributor/guide docs
+  with LLVM 23.1.6 + Rust 1.100.0: Linux releases build on Ubuntu 24.04 with
+  the pinned apt.llvm.org LLVM 23.1.6, macOS releases (`macos-15-intel`,
+  `macos-14`) use Homebrew `llvm` with a major-23 assertion only, and manual
+  dispatch publishes only with explicit `publish=true`; version-reference
+  hygiene now fails closed on any LLVM major other than 23 and any Rust 1.x
+  release other than 1.100 in toolchain context (`llvm-N`, `llvm@N`,
+  `LLVM_SYS_N`, `clang/lld/polly-N`, `rust`/`rustc`/`rustup`/`toolchain`
+  version, `+1.N`, `channel = "1.N"`) outside committed historical-zone
+  content and exact exceptions; historical-zone worktree, staged, and
+  `BASE_SHA`-relative HEAD/index additions are rejected; and the release
+  workflow contract is checked on parsed job/step structure with YAML and
+  shell comments ignored.
+
 ### Diagnostics
 
 - Converted the clearest unsupported codegen fallback-zero paths into fail-fast

@@ -3,7 +3,7 @@
 
 .PHONY: all build test test-all fmt lint bench clean install quick integrity boot boot-evidence boot-e2e
 
-LLVM_DIR ?= /usr/lib/llvm-15
+LLVM_DIR ?= /usr/lib/llvm-23
 RUSTFLAGS ?= -L$(LLVM_DIR)/lib
 export RUSTFLAGS
 
@@ -44,9 +44,11 @@ install:
 
 dev-setup:
 	@echo "Installing development dependencies..."
-	@echo "Ubuntu/Debian: sudo apt-get install llvm-15-dev libclang-15-dev pkg-config"
-	@echo "macOS: brew install llvm@15"
-	@echo "Set env: export RUSTFLAGS=\"-L/usr/lib/llvm-15/lib\""
+	@echo "Toolchain: Rust 1.100.0 (rust-toolchain.toml) + LLVM 23.1.6"
+	@echo "Ubuntu 24.04: add apt.llvm.org llvm-toolchain-noble-23, then"
+	@echo "  sudo apt-get install llvm-23-dev libclang-23-dev libpolly-23-dev libzstd-dev pkg-config"
+	@echo "macOS: brew install llvm (LLVM 23 major line; export LLVM_SYS_231_PREFIX=\$$(brew --prefix llvm))"
+	@echo "Set env: export LLVM_SYS_231_PREFIX=/usr/lib/llvm-23 RUSTFLAGS=\"-L/usr/lib/llvm-23/lib\""
 
 validate:
 	@echo "=== Format check ==="

@@ -5,10 +5,27 @@
 # macOS aarch64 (Apple Silicon), then publishes them as a GitHub
 # Release with auto-generated release notes.
 #
+# Toolchain
+# ---------
+# - Linux: Ubuntu 24.04 + apt.llvm.org LLVM 23.1.6 (exact patch, same
+#   setup as ci.yml) + Rust 1.100.0.
+# - macOS: Homebrew `llvm` (alias `llvm@23`) + Rust 1.100.0. Homebrew
+#   only guarantees the LLVM 23 major line; it does not prove patch
+#   parity with the Linux 23.1.6 build.
+#
+# Publication gate
+# ----------------
+# - Tag pushes (refs/tags/v*) publish.
+# - Manual dispatch always builds every platform but publishes only
+#   when `publish` is explicitly true. With `publish=false` the whole
+#   release job is skipped, so its environment, `contents: write`
+#   token, and release action are never reached.
+#
 # Security
 # --------
-# - All third-party actions are pinned to immutable SHA digests
-#   (tag comments are kept for readability).
+# - Third-party actions are pinned to immutable SHA digests (tag
+#   comments are kept for readability), except the Rust toolchain
+#   action, which uses the `1.100.0` toolchain ref exactly as ci.yml.
 # - Global read-only permissions; write access is granted ONLY to
 #   the release job via a dedicated `permissions` block.
 # - The release job runs in an `alpha-releases` environment for gate-keeping.
@@ -26,15 +43,18 @@ on:
         description: 'Tag to build release for'
         required: true
         type: string
+      publish:
+        description: 'Publish a GitHub Release (false = build only)'
+        required: true
+        type: boolean
+        default: false
 
 # ------------------------------------------------------------------
-# Global environment variables
+# Global environment variables (platform LLVM settings are per job)
 # ------------------------------------------------------------------
 env:
   CARGO_TERM_COLOR: always
-  LLVM_SYS_150_PREFIX: /usr/lib/llvm-15
   RAYLIB_NO_LINK: "1"
-  RUSTFLAGS: "-L/usr/lib/llvm-15/lib"
 
 # ------------------------------------------------------------------
 # Default permissions — read-only everywhere
@@ -48,15 +68,23 @@ jobs:
   # ================================================================
   build-linux:
     name: Build (Linux x86_64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    env:
+      LLVM_SYS_231_PREFIX: /usr/lib/llvm-23
+      LLVM_CONFIG_PATH: /usr/lib/llvm-23/bin/llvm-config
+      RUSTFLAGS: "-L/usr/lib/llvm-23/lib"
     steps:
       - name: Resolve tag ref
         id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "REF=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "REF=$INPUT_TAG" >> "$GITHUB_OUTPUT"
           else
-            echo "REF=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "REF=$REF_NAME" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout source at tag
@@ -65,19 +93,37 @@ jobs:
           ref: ${{ steps.vars.outputs.REF }}
           fetch-depth: 0
 
-      - name: Install LLVM 15 dependencies
+      - name: Install LLVM 23
         run: |
+          set -euo pipefail
+          sudo install -d -m 0755 /etc/apt/keyrings
+          curl --fail --silent --show-error --location https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/llvm-snapshot.gpg
+          actual=$(gpg --show-keys --with-colons /etc/apt/keyrings/llvm-snapshot.gpg \
+            | awk -F: '$1 == "fpr" {print $10}')
+          grep -Fxq 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421 <<<"$actual"
+          grep -Fxq 56E1477F57BAB5ECF37818045B3D8846AF9463CE <<<"$actual"
+          printf '%s\n' 'deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' \
+            | sudo tee /etc/apt/sources.list.d/llvm23.list > /dev/null
           sudo apt-get update
-          sudo apt-get install -y \
-            llvm-15-dev \
-            libclang-15-dev \
-            libpolly-15-dev \
-            pkg-config
+          sudo apt-get install -y llvm-23-dev libclang-23-dev libpolly-23-dev libzstd-dev pkg-config
+          for package in llvm-23-dev libclang-23-dev libpolly-23-dev; do
+            version=$(dpkg-query -W -f='${Version}' "$package")
+            [[ "$version" =~ ^1:23\.1\.6~ ]]
+            printf '%s=%s\n' "$package" "$version"
+          done
+          [[ "$(/usr/lib/llvm-23/bin/llvm-config --version)" == '23.1.6' ]]
 
-      - name: Install Rust 1.75.0
-        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7 # stable
-        with:
-          toolchain: "1.75.0"
+      - name: Install Rust 1.100.0
+        uses: dtolnay/rust-toolchain@1.100.0
+
+      - name: Verify LLVM 23 + Rust 1.100.0
+        run: |
+          set -euo pipefail
+          [[ "$(rustc --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(cargo --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(rustc -vV | awk '$1 == "host:" {print $2}')" == 'x86_64-unknown-linux-gnu' ]]
+          [[ "$(/usr/lib/llvm-23/bin/llvm-config --version)" == '23.1.6' ]]
 
       - name: Cache Cargo registry & build
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.2.0
@@ -86,21 +132,24 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ubuntu24.04-llvm23.1.6-rust1.100.0-cargo-release-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-cargo-release-
+            ${{ runner.os }}-${{ runner.arch }}-ubuntu24.04-llvm23.1.6-rust1.100.0-cargo-release-
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release --locked
 
       - name: Verify binary
         run: |
+          set -euo pipefail
           file target/release/logicodex
           ls -lh target/release/logicodex
+          file target/release/logicodex | grep -Fq 'x86-64'
 
       - name: Package binary
+        env:
+          VERSION: ${{ steps.vars.outputs.REF }}
         run: |
-          VERSION="${{ steps.vars.outputs.REF }}"
           tar czf "logicodex-${VERSION}-linux-x86_64.tar.gz" \
             -C target/release logicodex
 
@@ -116,15 +165,19 @@ jobs:
   # ================================================================
   build-macos-x86:
     name: Build (macOS x86_64)
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     steps:
       - name: Resolve tag ref
         id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "REF=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "REF=$INPUT_TAG" >> "$GITHUB_OUTPUT"
           else
-            echo "REF=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "REF=$REF_NAME" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout source at tag
@@ -133,19 +186,32 @@ jobs:
           ref: ${{ steps.vars.outputs.REF }}
           fetch-depth: 0
 
-      - name: Install LLVM 15 (Homebrew)
-        run: brew install llvm@15
+      # Homebrew `llvm` tracks the LLVM 23 major line (alias `llvm@23`).
+      # This proves major-line compatibility only, not 23.1.6 patch parity.
+      - name: Install LLVM 23 (Homebrew)
+        run: brew install llvm
 
       - name: Set LLVM environment (macOS)
         run: |
-          echo "LLVM_SYS_150_PREFIX=$(brew --prefix llvm@15)" >> "$GITHUB_ENV"
-          echo "LDFLAGS=-L$(brew --prefix llvm@15)/lib"       >> "$GITHUB_ENV"
-          echo "CPPFLAGS=-I$(brew --prefix llvm@15)/include"  >> "$GITHUB_ENV"
+          set -euo pipefail
+          prefix="$(brew --prefix llvm)"
+          echo "LLVM_SYS_231_PREFIX=$prefix" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$prefix/lib"       >> "$GITHUB_ENV"
+          echo "CPPFLAGS=-I$prefix/include"  >> "$GITHUB_ENV"
+          echo "$prefix/bin"                 >> "$GITHUB_PATH"
 
-      - name: Install Rust 1.75.0
-        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7 # stable
-        with:
-          toolchain: "1.75.0"
+      - name: Install Rust 1.100.0
+        uses: dtolnay/rust-toolchain@1.100.0
+
+      - name: Verify LLVM 23 + Rust 1.100.0
+        run: |
+          set -euo pipefail
+          llvm_version="$(llvm-config --version)"
+          printf 'llvm-config=%s\n' "$llvm_version"
+          [[ "${llvm_version%%.*}" == '23' ]]
+          [[ "$(rustc --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(cargo --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(rustc -vV | awk '$1 == "host:" {print $2}')" == 'x86_64-apple-darwin' ]]
 
       - name: Cache Cargo registry & build
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.2.0
@@ -154,21 +220,24 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-llvm23-rust1.100.0-cargo-release-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-cargo-release-
+            ${{ runner.os }}-${{ runner.arch }}-llvm23-rust1.100.0-cargo-release-
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release --locked
 
       - name: Verify binary
         run: |
+          set -euo pipefail
           file target/release/logicodex
           ls -lh target/release/logicodex
+          file target/release/logicodex | grep -Fq 'x86_64'
 
       - name: Package binary
+        env:
+          VERSION: ${{ steps.vars.outputs.REF }}
         run: |
-          VERSION="${{ steps.vars.outputs.REF }}"
           tar czf "logicodex-${VERSION}-macos-x86_64.tar.gz" \
             -C target/release logicodex
 
@@ -188,11 +257,15 @@ jobs:
     steps:
       - name: Resolve tag ref
         id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "REF=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "REF=$INPUT_TAG" >> "$GITHUB_OUTPUT"
           else
-            echo "REF=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "REF=$REF_NAME" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout source at tag
@@ -201,19 +274,32 @@ jobs:
           ref: ${{ steps.vars.outputs.REF }}
           fetch-depth: 0
 
-      - name: Install LLVM 15 (Homebrew)
-        run: brew install llvm@15
+      # Homebrew `llvm` tracks the LLVM 23 major line (alias `llvm@23`).
+      # This proves major-line compatibility only, not 23.1.6 patch parity.
+      - name: Install LLVM 23 (Homebrew)
+        run: brew install llvm
 
       - name: Set LLVM environment (macOS)
         run: |
-          echo "LLVM_SYS_150_PREFIX=$(brew --prefix llvm@15)" >> "$GITHUB_ENV"
-          echo "LDFLAGS=-L$(brew --prefix llvm@15)/lib"       >> "$GITHUB_ENV"
-          echo "CPPFLAGS=-I$(brew --prefix llvm@15)/include"  >> "$GITHUB_ENV"
+          set -euo pipefail
+          prefix="$(brew --prefix llvm)"
+          echo "LLVM_SYS_231_PREFIX=$prefix" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$prefix/lib"       >> "$GITHUB_ENV"
+          echo "CPPFLAGS=-I$prefix/include"  >> "$GITHUB_ENV"
+          echo "$prefix/bin"                 >> "$GITHUB_PATH"
 
-      - name: Install Rust 1.75.0
-        uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7 # stable
-        with:
-          toolchain: "1.75.0"
+      - name: Install Rust 1.100.0
+        uses: dtolnay/rust-toolchain@1.100.0
+
+      - name: Verify LLVM 23 + Rust 1.100.0
+        run: |
+          set -euo pipefail
+          llvm_version="$(llvm-config --version)"
+          printf 'llvm-config=%s\n' "$llvm_version"
+          [[ "${llvm_version%%.*}" == '23' ]]
+          [[ "$(rustc --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(cargo --version | awk '{print $2}')" == '1.100.0' ]]
+          [[ "$(rustc -vV | awk '$1 == "host:" {print $2}')" == 'aarch64-apple-darwin' ]]
 
       - name: Cache Cargo registry & build
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.2.0
@@ -222,21 +308,24 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-llvm23-rust1.100.0-cargo-release-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-cargo-release-
+            ${{ runner.os }}-${{ runner.arch }}-llvm23-rust1.100.0-cargo-release-
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release --locked
 
       - name: Verify binary
         run: |
+          set -euo pipefail
           file target/release/logicodex
           ls -lh target/release/logicodex
+          file target/release/logicodex | grep -Fq 'arm64'
 
       - name: Package binary
+        env:
+          VERSION: ${{ steps.vars.outputs.REF }}
         run: |
-          VERSION="${{ steps.vars.outputs.REF }}"
           tar czf "logicodex-${VERSION}-macos-aarch64.tar.gz" \
             -C target/release logicodex
 
@@ -256,7 +345,9 @@ jobs:
       - build-linux
       - build-macos-x86
       - build-macos-aarch64
-    runs-on: ubuntu-latest
+    # Fail-closed publication gate: tag push, or dispatch with publish=true.
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
+    runs-on: ubuntu-24.04
 
     # Dedicated environment for release gate-keeping (alpha — not production)
     environment: alpha-releases
@@ -268,11 +359,15 @@ jobs:
     steps:
       - name: Resolve tag ref
         id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "REF=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "REF=$INPUT_TAG" >> "$GITHUB_OUTPUT"
           else
-            echo "REF=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "REF=$REF_NAME" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout source at tag
