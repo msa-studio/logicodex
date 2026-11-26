@@ -180,6 +180,11 @@ jobs:
           CONTROL_LLVM: "15"
         run: |
           set -uo pipefail
+          # `shell: bash` runs with -e; every rc below is captured explicitly and
+          # expected comparison mismatches (cmp/diff exit 1) must not abort the
+          # probe before parity-result.txt and parity.rc are written. Setup and
+          # build failures are still recorded via rec/block and fail closed.
+          set +e
           # Probe only: never edits the candidate copy or earlier evidence. All
           # output lands in r2-evidence/parity/ and r2-evidence/parity-result.txt.
           ev="$GITHUB_WORKSPACE/r2-evidence"
@@ -414,7 +419,10 @@ jobs:
                   else
                     n_bin_diff=$((n_bin_diff + 1)); n_norm_diff=$((n_norm_diff + 1))
                     mkdir -p "$pe/diffs/raw/$(dirname "$rel")"
-                    { cmp "$c" "$k"; cmp -l "$c" "$k" | head -200; } > "$pe/diffs/raw/$rel.cmp" 2>&1
+                    {
+                      if ! cmp "$c" "$k"; then :; fi
+                      if ! cmp -l "$c" "$k" | head -200; then :; fi
+                    } > "$pe/diffs/raw/$rel.cmp" 2>&1
                     printf '%s\tDIFF\tDIFF\n' "$rel" >> "$table"
                   fi
                   continue ;;
@@ -424,16 +432,19 @@ jobs:
               else
                 raw=DIFF
                 mkdir -p "$pe/diffs/raw/$(dirname "$rel")"
-                diff -u --label "control/$rel" --label "candidate/$rel" "$c" "$k" > "$pe/diffs/raw/$rel.diff"
+                if ! diff -u --label "control/$rel" --label "candidate/$rel" "$c" "$k" > "$pe/diffs/raw/$rel.diff" 2>&1; then :; fi
               fi
-              python3 -I "$tools/normalize.py" "$c" "$pe/normalized/control/$rel"
-              python3 -I "$tools/normalize.py" "$k" "$pe/normalized/candidate/$rel"
-              if cmp -s "$pe/normalized/control/$rel" "$pe/normalized/candidate/$rel"; then
+              norm_ok=1
+              python3 -I "$tools/normalize.py" "$c" "$pe/normalized/control/$rel" || norm_ok=0
+              python3 -I "$tools/normalize.py" "$k" "$pe/normalized/candidate/$rel" || norm_ok=0
+              # A normalizer failure is never a match: force DIFF (fail closed).
+              if [ "$norm_ok" = "1" ] && cmp -s "$pe/normalized/control/$rel" "$pe/normalized/candidate/$rel"; then
                 norm=SAME
               else
                 norm=DIFF
                 mkdir -p "$pe/diffs/normalized/$(dirname "$rel")"
-                diff -u --label "control/$rel" --label "candidate/$rel" "$pe/normalized/control/$rel" "$pe/normalized/candidate/$rel" > "$pe/diffs/normalized/$rel.diff"
+                [ "$norm_ok" = "1" ] || echo "normalize.py failed for $rel" >> "$pe/normalize-errors.txt"
+                if ! diff -u --label "control/$rel" --label "candidate/$rel" "$pe/normalized/control/$rel" "$pe/normalized/candidate/$rel" > "$pe/diffs/normalized/$rel.diff" 2>&1; then :; fi
               fi
               printf '%s\t%s\t%s\n' "$rel" "$raw" "$norm" >> "$table"
               if [ "$norm" = "DIFF" ]; then n_norm_diff=$((n_norm_diff + 1))
