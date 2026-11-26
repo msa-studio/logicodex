@@ -7,7 +7,10 @@
 # Each row installs a real LLVM toolchain, runs cargo check / build / test in
 # a temporary copy of the checkout, uploads all evidence, and then fails the
 # job if any of check/build/test returned nonzero. Candidate rows additionally
-# run `make quick` and `make integrity` in that copy and enforce both.
+# run `make quick` and `make integrity` in that copy and enforce both, then a
+# parity probe that rebuilds commit c3a8700 with LLVM 15 / Rust 1.75 / Inkwell
+# 0.4 as a control and compares IR, objects, dumps and native runs against the
+# candidate; any unexplained difference fails the row after upload.
 # ============================================================================
 name: R2 LLVM23 validation (temporary)
 
@@ -164,6 +167,366 @@ jobs:
             echo "parity_status=PENDING"
             echo "reason=no golden/parity command is exposed by Makefile or scripts/dev; no parity claim is made by this run"
           } | tee "$ev/parity-status.txt"
+      - name: LLVM 15 control vs LLVM 23 candidate parity probe
+        if: matrix.llvm != '15'
+        shell: bash
+        env:
+          LLVM_MAJOR: ${{ matrix.llvm }}
+          LLVM_SYS_MAJOR: ${{ matrix.llvm_sys }}
+          RUST_TOOLCHAIN: ${{ matrix.rust }}
+          ROW: ${{ matrix.row }}
+          CONTROL_SHA: c3a87006c7f90523269279ad21d05ba62db7647e
+          CONTROL_RUST: "1.75.0"
+          CONTROL_LLVM: "15"
+        run: |
+          set -uo pipefail
+          # Probe only: never edits the candidate copy or earlier evidence. All
+          # output lands in r2-evidence/parity/ and r2-evidence/parity-result.txt.
+          ev="$GITHUB_WORKSPACE/r2-evidence"
+          pe="$ev/parity"
+          rcd="$pe/rc"
+          cand_root="$RUNNER_TEMP/logicodex-r2"
+          ctrl_root="$RUNNER_TEMP/logicodex-control"
+          stage="$RUNNER_TEMP/r2-parity-stage"
+          tools="$RUNNER_TEMP/r2-parity-tools"
+          examples="00_sanity 01b_arithmetic 03a_functions 04a_struct"
+          targets="native wasm freestanding"
+          rm -rf "$pe" "$ctrl_root" "$tools"
+          mkdir -p "$rcd" "$tools/bin" "$pe/raw" "$pe/normalized" "$pe/diffs/raw" "$pe/diffs/normalized"
+          rec() { printf '%s=%s\n' "$1" "$2" | tee "$rcd/$1.rc"; }
+          blocked=""
+          block() { blocked="${blocked:+$blocked; }$1"; echo "::warning::parity setup blocked: $1"; }
+
+          # ---- candidate: reuse the already-built LLVM 23 binary (no-op rebuild) ----
+          (
+            cd "$cand_root" || exit 97
+            export RUSTUP_TOOLCHAIN="$RUST_TOOLCHAIN"
+            export "LLVM_SYS_${LLVM_SYS_MAJOR}_PREFIX=/usr/lib/llvm-${LLVM_MAJOR}"
+            export RUSTFLAGS="-L/usr/lib/llvm-${LLVM_MAJOR}/lib"
+            rustc -V; cargo -V
+            grep -A1 '^name = "inkwell"$' Cargo.lock
+            cargo build --release
+          ) > "$pe/candidate-build.log" 2>&1
+          rec candidate_build_rc $?
+          if [ -x "$cand_root/target/release/logicodex" ]; then
+            cp "$cand_root/target/release/logicodex" "$tools/bin/logicodex-candidate"
+          else
+            block "candidate binary missing"
+          fi
+
+          # ---- control: LLVM 15 toolchain ----
+          ctrl_llvm_prefix="/usr/lib/llvm-${CONTROL_LLVM}"
+          sudo apt-get install -y "llvm-${CONTROL_LLVM}-dev" "libclang-${CONTROL_LLVM}-dev" "libpolly-${CONTROL_LLVM}-dev" "clang-${CONTROL_LLVM}" "lld-${CONTROL_LLVM}" > "$pe/control-llvm-apt.log" 2>&1
+          apt_rc=$?
+          rec control_llvm_apt_rc "$apt_rc"
+          if [ "$apt_rc" = "0" ]; then
+            echo "control_llvm_source=apt" | tee "$pe/control-llvm-source.txt"
+          else
+            # Ubuntu releases without llvm-15 packages: official LLVM 15.0.7 release build.
+            ctrl_llvm_prefix="$RUNNER_TEMP/llvm-${CONTROL_LLVM}"
+            tarball="clang+llvm-15.0.7-x86_64-linux-gnu-ubuntu-18.04.tar.xz"
+            mkdir -p "$RUNNER_TEMP/llvm15-dl" "$ctrl_llvm_prefix"
+            {
+              curl -fsSL -o "$RUNNER_TEMP/llvm15-dl/$tarball" "https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.7/$tarball" &&
+              sha256sum "$RUNNER_TEMP/llvm15-dl/$tarball" &&
+              tar -xJf "$RUNNER_TEMP/llvm15-dl/$tarball" -C "$ctrl_llvm_prefix" --strip-components=1 &&
+              { sudo apt-get install -y libtinfo-dev libxml2-dev zlib1g-dev libzstd-dev || true; }
+            } > "$pe/control-llvm-tarball.log" 2>&1
+            rec control_llvm_tarball_rc $?
+            echo "control_llvm_source=llvm-release-tarball:$tarball" | tee "$pe/control-llvm-source.txt"
+          fi
+          "$ctrl_llvm_prefix/bin/llvm-config" --version > "$pe/control-llvm-config-version.txt" 2>&1
+          llvm_cfg_rc=$?
+          rec control_llvm_config_rc "$llvm_cfg_rc"
+          [ "$llvm_cfg_rc" = "0" ] || block "LLVM ${CONTROL_LLVM} not installable on this runner"
+          case "$(cat "$pe/control-llvm-config-version.txt")" in
+            "${CONTROL_LLVM}."*) ;;
+            *) block "control llvm-config is not LLVM ${CONTROL_LLVM}" ;;
+          esac
+
+          # ---- control: source copy of the pinned LLVM 15 commit ----
+          git -C "$GITHUB_WORKSPACE" fetch --no-tags --depth=1 origin "$CONTROL_SHA" > "$pe/control-fetch.log" 2>&1
+          rec control_fetch_rc $?
+          mkdir -p "$ctrl_root"
+          git -C "$GITHUB_WORKSPACE" archive --format=tar "$CONTROL_SHA" | tar -x -C "$ctrl_root"
+          archive_rc=$?
+          rec control_archive_rc "$archive_rc"
+          [ "$archive_rc" = "0" ] || block "control commit $CONTROL_SHA not extractable"
+          echo "$CONTROL_SHA" > "$pe/control-commit.txt"
+          {
+            echo "rust_toolchain_toml=$(grep -E '^channel' "$ctrl_root/rust-toolchain.toml" 2>/dev/null)"
+            echo "cargo_toml_inkwell=$(grep -E '^inkwell' "$ctrl_root/Cargo.toml" 2>/dev/null)"
+            echo "cargo_lock_inkwell=$(grep -A1 '^name = "inkwell"$' "$ctrl_root/Cargo.lock" 2>/dev/null | tr '\n' ' ')"
+          } | tee "$pe/control-pins.txt"
+          grep -q "channel = \"${CONTROL_RUST}\"" "$ctrl_root/rust-toolchain.toml" 2>/dev/null || block "control rust-toolchain.toml is not ${CONTROL_RUST}"
+          grep -q 'version = "0.4.0", features = \["llvm15-0"\]' "$ctrl_root/Cargo.toml" 2>/dev/null || block "control Cargo.toml is not inkwell 0.4.0/llvm15-0"
+
+          # ---- control: Rust 1.75 + Inkwell 0.4 build ----
+          rustup toolchain install "$CONTROL_RUST" --profile minimal > "$pe/control-rustup.log" 2>&1
+          rec control_rustup_rc $?
+          (
+            cd "$ctrl_root" || exit 97
+            unset "LLVM_SYS_${LLVM_SYS_MAJOR}_PREFIX"
+            export RUSTUP_TOOLCHAIN="$CONTROL_RUST"
+            export LLVM_SYS_150_PREFIX="$ctrl_llvm_prefix"
+            export RUSTFLAGS="-L$ctrl_llvm_prefix/lib"
+            env | sort | grep -E '^(LLVM_SYS_|RUSTFLAGS|RUSTUP_TOOLCHAIN)'
+            rustc -V; cargo -V
+            cargo build --release --locked
+          ) > "$pe/control-build.log" 2>&1
+          ctrl_build_rc=$?
+          rec control_build_rc "$ctrl_build_rc"
+          if [ "$ctrl_build_rc" = "0" ] && [ -x "$ctrl_root/target/release/logicodex" ]; then
+            cp "$ctrl_root/target/release/logicodex" "$tools/bin/logicodex-control"
+          else
+            block "control build failed (rc=$ctrl_build_rc)"
+          fi
+          sha256sum "$tools/bin/"* > "$pe/compiler-binaries.sha256" 2>&1 || true
+
+          # ---- artifact generation (identical staging paths for both sides) ----
+          wasm_dump="llvm-objdump-${LLVM_MAJOR}"
+          echo "elf_dump_tools=readelf objdump (binutils $(readelf --version | head -1))" | tee "$pe/dump-tools.txt"
+          echo "wasm_dump_tool=$wasm_dump (same binary for both sides; binutils has no wasm reader)" | tee -a "$pe/dump-tools.txt"
+          dump_elf() {
+            ( cd "$1" && {
+              readelf -h -W "$2" > elf-header.txt 2>&1; echo "elf_header_rc=$?"
+              readelf -S -W "$2" > sections.txt 2>&1; echo "sections_rc=$?"
+              readelf -s -W "$2" > symbols.txt 2>&1; echo "symbols_rc=$?"
+              readelf -r -W "$2" > relocations.txt 2>&1; echo "relocations_rc=$?"
+              objdump -d -r -w "$2" > disassembly.txt 2>&1; echo "disassembly_rc=$?"
+              objdump -s "$2" > section-contents.txt 2>&1; echo "section_contents_rc=$?"
+            } > dump.rc )
+          }
+          dump_wasm() {
+            ( cd "$1" && {
+              "$wasm_dump" -h "$2" > sections.txt 2>&1; echo "sections_rc=$?"
+              "$wasm_dump" -t "$2" > symbols.txt 2>&1; echo "symbols_rc=$?"
+              "$wasm_dump" -r "$2" > relocations.txt 2>&1; echo "relocations_rc=$?"
+              "$wasm_dump" -d "$2" > disassembly.txt 2>&1; echo "disassembly_rc=$?"
+              "$wasm_dump" -s "$2" > section-contents.txt 2>&1; echo "section_contents_rc=$?"
+            } > dump.rc )
+          }
+          gen_side() {
+            local side=$1 bin=$2 root=$3 ex tgt d
+            for tgt in $targets; do
+              for ex in $examples; do
+                d="$pe/raw/$side/$tgt/$ex"
+                mkdir -p "$d"
+                rm -rf "$stage"
+                mkdir -p "$stage/src" "$stage/out"
+                cp "$root/examples/$ex.ldx" "$stage/src/$ex.ldx"
+                if [ "$tgt" = "native" ]; then
+                  ( cd "$root" && "$bin" compile "$stage/src/$ex.ldx" -o "$stage/out/$ex" --emit-ir ) > "$d/compile.stdout" 2> "$d/compile.stderr"
+                else
+                  ( cd "$root" && "$bin" compile "$stage/src/$ex.ldx" -o "$stage/out/$ex.o" --emit-ir --object-only --target "$tgt" ) > "$d/compile.stdout" 2> "$d/compile.stderr"
+                fi
+                echo "compile_rc=$?" > "$d/compile.rc"
+                for f in "$ex.ll" "$ex.o" "$ex.runtime.s" "$ex.freestanding.md"; do
+                  [ -f "$stage/out/$f" ] && cp "$stage/out/$f" "$d/$f"
+                done
+                if [ -f "$d/$ex.o" ]; then
+                  if [ "$tgt" = "wasm" ]; then dump_wasm "$d" "$ex.o"; else dump_elf "$d" "$ex.o"; fi
+                fi
+                if [ "$tgt" = "native" ] && [ -x "$stage/out/$ex" ]; then
+                  cp "$stage/out/$ex" "$d/$ex.exe"
+                  ( cd "$stage/out" && timeout 30 "./$ex" ) > "$d/run.stdout" 2> "$d/run.stderr"
+                  echo "run_exit_status=$?" > "$d/run.status"
+                fi
+              done
+            done
+            rm -rf "$stage"
+          }
+          if [ -z "$blocked" ]; then
+            gen_side candidate "$tools/bin/logicodex-candidate" "$cand_root"
+            gen_side control "$tools/bin/logicodex-control" "$ctrl_root"
+          fi
+
+          # ---- normalization: paths, build IDs/timestamps, producer strings, temp names only ----
+          cat > "$tools/normalize.py" <<'PY'
+          import os, re, sys
+          src, dst = sys.argv[1], sys.argv[2]
+          roots = [
+              (os.environ["P_STAGE"], "<ABS:stage>"),
+              (os.environ["P_CTRL"], "<ABS:repo>"),
+              (os.environ["P_CAND"], "<ABS:repo>"),
+              (os.environ["P_PE"], "<ABS:evidence>"),
+              (os.environ["GITHUB_WORKSPACE"], "<ABS:workspace>"),
+              (os.environ["RUNNER_TEMP"], "<ABS:runner-temp>"),
+              (os.environ["HOME"], "<ABS:home>"),
+          ]
+          roots.sort(key=lambda r: len(r[0]), reverse=True)
+          rules = [
+              (re.compile(r"(Build ID:\s*)[0-9a-fA-F]+"), r"\1<BUILD-ID>"),
+              (re.compile(r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?"), "<TIMESTAMP>"),
+              (re.compile(r'(producer:\s*)"[^"]*"'), r'\1"<PRODUCER>"'),
+              (re.compile(r'^(!\d+ = !\{!)"[^"]*\b(LLVM|clang|rustc)\b[^"]*version[^"]*"(\})$'), r'\1"<PRODUCER>"\3'),
+              (re.compile(r"\btmp\.[A-Za-z0-9]{6,}\b"), "<TMPFILE>"),
+              (re.compile(r"/tmp/cc[A-Za-z0-9]{6}\.(o|s|c)\b"), "<TMPFILE>"),
+          ]
+          with open(src, "r", encoding="utf-8", errors="surrogateescape") as fh:
+              lines = fh.read().splitlines(keepends=True)
+          out = []
+          for line in lines:
+              for root, tag in roots:
+                  if root:
+                      line = line.replace(root, tag)
+              for rx, rep in rules:
+                  line = rx.sub(rep, line)
+              out.append(line)
+          os.makedirs(os.path.dirname(dst), exist_ok=True)
+          with open(dst, "w", encoding="utf-8", errors="surrogateescape") as fh:
+              fh.writelines(out)
+          PY
+          cat > "$pe/normalization-rules.txt" <<'TXT'
+          Normalization removes only:
+          - absolute roots (staging dir, control/candidate repo copies, evidence dir, GITHUB_WORKSPACE, RUNNER_TEMP, HOME) -> <ABS:*>
+          - "Build ID: <hex>" -> <BUILD-ID>; ISO-8601 timestamps -> <TIMESTAMP>
+          - LLVM/clang/rustc producer strings (DICompileUnit producer:, !llvm.ident-style version metadata) -> <PRODUCER>
+          - temporary filenames (tmp.XXXXXX, /tmp/ccXXXXXX.{o,s,c}) -> <TMPFILE>
+          Target triple, data layout, instruction order/types/constants, symbols,
+          linkage, relocations and section contents are compared verbatim.
+          Binary .o/.exe files are compared raw only and must be byte-identical; the
+          text dumps next to them localize any difference. Native execution parity
+          is run.stdout + run.status.
+          TXT
+
+          # ---- comparison ----
+          table="$pe/artifact-comparison.tsv"
+          printf 'artifact\traw\tnormalized\n' > "$table"
+          n_total=0; n_raw_same=0; n_norm_only=0; n_norm_diff=0; n_missing=0; n_bin_diff=0
+          if [ -z "$blocked" ]; then
+            export P_STAGE="$stage" P_CTRL="$ctrl_root" P_CAND="$cand_root" P_PE="$pe"
+            list=$( { cd "$pe/raw/control" && find . -type f; cd "$pe/raw/candidate" && find . -type f; } | sed 's#^\./##' | sort -u )
+            for rel in $list; do
+              n_total=$((n_total + 1))
+              c="$pe/raw/control/$rel"; k="$pe/raw/candidate/$rel"
+              if [ ! -f "$c" ] || [ ! -f "$k" ]; then
+                n_missing=$((n_missing + 1))
+                printf '%s\tMISSING(control=%s,candidate=%s)\tMISSING\n' "$rel" "$([ -f "$c" ] && echo y || echo n)" "$([ -f "$k" ] && echo y || echo n)" >> "$table"
+                continue
+              fi
+              case "$rel" in
+                *.o|*.exe)
+                  # No normalization rule applies to object/executable bytes:
+                  # a raw binary difference is an unexplained difference.
+                  if cmp -s "$c" "$k"; then
+                    n_raw_same=$((n_raw_same + 1)); printf '%s\tSAME\tSAME\n' "$rel" >> "$table"
+                  else
+                    n_bin_diff=$((n_bin_diff + 1)); n_norm_diff=$((n_norm_diff + 1))
+                    mkdir -p "$pe/diffs/raw/$(dirname "$rel")"
+                    { cmp "$c" "$k"; cmp -l "$c" "$k" | head -200; } > "$pe/diffs/raw/$rel.cmp" 2>&1
+                    printf '%s\tDIFF\tDIFF\n' "$rel" >> "$table"
+                  fi
+                  continue ;;
+              esac
+              if cmp -s "$c" "$k"; then
+                raw=SAME
+              else
+                raw=DIFF
+                mkdir -p "$pe/diffs/raw/$(dirname "$rel")"
+                diff -u --label "control/$rel" --label "candidate/$rel" "$c" "$k" > "$pe/diffs/raw/$rel.diff"
+              fi
+              python3 -I "$tools/normalize.py" "$c" "$pe/normalized/control/$rel"
+              python3 -I "$tools/normalize.py" "$k" "$pe/normalized/candidate/$rel"
+              if cmp -s "$pe/normalized/control/$rel" "$pe/normalized/candidate/$rel"; then
+                norm=SAME
+              else
+                norm=DIFF
+                mkdir -p "$pe/diffs/normalized/$(dirname "$rel")"
+                diff -u --label "control/$rel" --label "candidate/$rel" "$pe/normalized/control/$rel" "$pe/normalized/candidate/$rel" > "$pe/diffs/normalized/$rel.diff"
+              fi
+              printf '%s\t%s\t%s\n' "$rel" "$raw" "$norm" >> "$table"
+              if [ "$norm" = "DIFF" ]; then n_norm_diff=$((n_norm_diff + 1))
+              elif [ "$raw" = "DIFF" ]; then n_norm_only=$((n_norm_only + 1))
+              else n_raw_same=$((n_raw_same + 1)); fi
+            done
+          fi
+
+          # Per-target verdict over that target's artifacts.
+          n_examples=$(echo $examples | wc -w)
+          compile_failures() {
+            local n=0 f
+            for f in "$pe/raw/$1/$2"/*/compile.rc; do
+              [ -f "$f" ] && ! grep -qx 'compile_rc=0' "$f" && n=$((n + 1))
+            done
+            echo "$n"
+          }
+          target_verdict() {
+            local t=$1 fc fk
+            if [ -n "$blocked" ]; then echo BLOCKED; return; fi
+            fc=$(compile_failures control "$t"); fk=$(compile_failures candidate "$t")
+            # wasm/freestanding: if neither toolchain can compile any fixture, the
+            # target is unsupported here; record it pending, never as a match.
+            if [ "$t" != "native" ] && [ "$fc" = "$n_examples" ] && [ "$fk" = "$n_examples" ]; then echo UNSUPPORTED_PENDING; return; fi
+            if [ "$fc" != "0" ] || [ "$fk" != "0" ]; then echo COMPILE_FAILED; return; fi
+            if ! awk -F'\t' -v t="$t/" 'NR>1 && index($1,t)==1 && $1 ~ /\.o$/ {f=1} END {exit !f}' "$table"; then echo NO_OBJECTS; return; fi
+            if awk -F'\t' -v t="$t/" 'NR>1 && index($1,t)==1 && ($2 ~ /^MISSING/ || $3=="DIFF") {f=1} END {exit !f}' "$table"; then echo DIFF
+            elif awk -F'\t' -v t="$t/" 'NR>1 && index($1,t)==1 && $2=="DIFF" {f=1} END {exit !f}' "$table"; then echo MATCH_NORMALIZED
+            else echo MATCH; fi
+          }
+          native_exec="MATCH"
+          if [ -n "$blocked" ]; then native_exec=BLOCKED
+          elif awk -F'\t' 'NR>1 && $1 ~ /^native\/.*\/run\.(stdout|status)$/ && ($2 ~ /^MISSING/ || $3=="DIFF") {f=1} END {exit !f}' "$table"; then native_exec=MISMATCH
+          elif [ "$(grep -cE '^native/[^/]+/run\.status' "$table")" != "$n_examples" ]; then native_exec=NOT_RUN; fi
+          v_native=$(target_verdict native)
+          v_wasm=$(target_verdict wasm)
+          v_free=$(target_verdict freestanding)
+
+          # No overall PASS is claimed: wasm/freestanding execution parity has no
+          # repository command, so the best outcome is a scoped PARTIAL.
+          bad=""
+          for v in "native:$v_native" "wasm:$v_wasm" "freestanding:$v_free"; do
+            case "${v#*:}" in
+              MATCH|MATCH_NORMALIZED|UNSUPPORTED_PENDING) ;;
+              *) bad="${bad:+$bad,}$v" ;;
+            esac
+          done
+          [ "$native_exec" = "MATCH" ] || bad="${bad:+$bad,}native_exec:$native_exec"
+          if [ -n "$blocked" ]; then
+            status=BLOCKED; parity_rc=1
+          elif [ -n "$bad" ]; then
+            status=FAIL; parity_rc=1
+          else
+            # Every compared artifact is identical or differs only by the
+            # normalization rules above; execution parity outside native pending.
+            status=PARTIAL_WASM_FREESTANDING_PENDING; parity_rc=0
+          fi
+          {
+            echo "parity_schema=1"
+            echo "row=$ROW"
+            echo "control_commit=$CONTROL_SHA"
+            echo "control_toolchain=rust-${CONTROL_RUST} inkwell-0.4.0 llvm-$(cat "$pe/control-llvm-config-version.txt" 2>/dev/null | head -1)"
+            echo "candidate_toolchain=rust-${RUST_TOOLCHAIN} inkwell-0.11.0 llvm-$(llvm-config-${LLVM_MAJOR} --version 2>/dev/null)"
+            echo "examples=$examples"
+            echo "targets=$targets"
+            echo "setup_blocked=${blocked:-none}"
+            echo "artifacts_total=$n_total"
+            echo "artifacts_raw_identical=$n_raw_same"
+            echo "artifacts_raw_diff_normalized_identical=$n_norm_only"
+            echo "artifacts_normalized_diff=$n_norm_diff"
+            echo "artifacts_missing_one_side=$n_missing"
+            echo "binary_objects_or_exes_raw_diff=$n_bin_diff"
+            for t in $targets; do
+              echo "${t}_compile_failures_control=$(compile_failures control "$t")"
+              echo "${t}_compile_failures_candidate=$(compile_failures candidate "$t")"
+            done
+            echo "native_compile_parity=$v_native"
+            echo "native_execution_parity=$native_exec"
+            echo "wasm_compile_parity=$v_wasm"
+            echo "wasm_execution_parity=PENDING"
+            echo "wasm_execution_pending_reason=no repository command executes the wasm32-unknown-unknown module (CLI only suggests wasm-ld; no runtime or harness in Makefile/scripts)"
+            echo "freestanding_compile_parity=$v_free"
+            echo "freestanding_execution_parity=PENDING"
+            echo "freestanding_execution_pending_reason=no repository command boots these example objects; QEMU boot gates in make integrity run only for the candidate tree"
+            echo "failing_verdicts=${bad:-none}"
+            echo "supersedes=parity-status.txt (written by the gates step before this probe)"
+            echo "parity_status=$status"
+            echo "parity_rc=$parity_rc"
+          } | tee "$ev/parity-result.txt"
+          echo "parity_rc=$parity_rc" > "$ev/parity.rc"
+          if [ "$status" = "FAIL" ]; then
+            echo "::error::$ROW: unexplained LLVM15/LLVM23 artifact differences; see r2-evidence/parity/diffs/normalized"
+          fi
       - name: Upload R2 evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -204,5 +567,17 @@ jobs:
                 failed=1
               fi
             done
+            parity=r2-evidence/parity-result.txt
+            if [ ! -f "$parity" ]; then
+              echo "::error::$parity missing; parity probe step did not complete"
+              exit 1
+            fi
+            cat "$parity"
+            rc=$(grep -E '^parity_rc=' "$parity" | cut -d= -f2)
+            status=$(grep -E '^parity_status=' "$parity" | cut -d= -f2)
+            if [ -z "$rc" ] || [ "$rc" != "0" ]; then
+              echo "::error::${{ matrix.row }}: parity_status=${status:-missing} parity_rc=${rc:-missing}"
+              failed=1
+            fi
           fi
           exit "$failed"
