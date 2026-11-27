@@ -18,12 +18,25 @@ When sources disagree, use this order:
 3. `Cargo.toml` defines release version authority; approved governance policy,
    RFCs, and maintainer decisions define change authority.
 4. Subordinate architecture and lifecycle records provide scoped evidence.
-5. `ROADMAP_v2.md` and other planning documents provide long-horizon context,
-   not an alternative current sequence.
+5. [`master-roadmap.md`](master-roadmap.md) is the sole owner-approved
+   long-term roadmap: it defines direction and stage placement (Stages A–H),
+   not an alternative current sequence. Detailed CPB and blocker records keep
+   subordinate technical requirements; `ROADMAP_v2.md` is a historical phase
+   baseline kept for provenance only.
 6. Archived or versioned historical zones preserve provenance only.
 
 A lower item may not override a higher item. If live behavior conflicts with
 this record, stop, report the drift, and reconcile both in one scoped change.
+
+## Long-term direction
+
+[`master-roadmap.md`](master-roadmap.md) is the only document that defines
+Logicodex long-term direction and stage placement. Placement in that roadmap is
+not authorization: a stage starts only when this file names it and its RFC is
+approved, and a stage closes only under the roadmap's milestone-closure rules
+with owner authorization recorded here and in `CHANGELOG.md`. The adoption
+traceability record is
+[`master-roadmap-adoption-report.md`](master-roadmap-adoption-report.md).
 
 ## Change-size and architecture boundary
 
@@ -43,8 +56,9 @@ this record, stop, report the drift, and reconcile both in one scoped change.
 - `LayoutEngine` owns target-sensitive layout. AST helpers must not create a
   second layout authority.
 - `semantic.rs::Analyzer` is `LegacyReferenceOnly` and has no production role.
-- LLVM is the sole production backend until an approved roadmap phase or RFC
-  changes that boundary.
+- LLVM is the sole production backend until Stage H of
+  [`master-roadmap.md`](master-roadmap.md) is separately authorized through an
+  approved RFC.
 - Community compiler semantics remain separate from future Enterprise assurance
   policy, which may consume but must not redefine meaning.
 - Current version claims must resolve from `Cargo.toml`; historical milestone
@@ -72,6 +86,10 @@ single sequence below.
 2. `CPB-2 Assignment and Return Compatibility`
 3. `CPB-2 Diagnostic End-to-End`
 
+These three items are CPB-2S (Semantic Closure) in Stage A of
+[`master-roadmap.md`](master-roadmap.md). The runway's bootstrap stdlib slice is
+CPB-2L (Stage B) and is not part of this sequence.
+
 Do not replace this sequence with audit-backlog priority, old sprint order,
 issue numbering, or broad type-checker/diagnostics cleanup. A sequence change
 requires explicit maintainer approval and an update to this file.
@@ -94,14 +112,16 @@ blocks its stated semantic contract or is directly touched by its implementation
 
 | Record | Scope |
 |---|---|
+| [`master-roadmap.md`](master-roadmap.md) | Sole long-term roadmap: direction and stage placement only; not an execution sequence |
+| [`master-roadmap-adoption-report.md`](master-roadmap-adoption-report.md) | Adoption traceability, retained requirements, and recorded conflicts; not a roadmap |
 | [`code-lifecycle-inventory.md`](code-lifecycle-inventory.md) | Suppressions, lifecycle status, orphan and legacy evidence |
 | [`semantic-lifecycle-status.md`](semantic-lifecycle-status.md) | Meaning Authority and semantic component lifecycle |
 | [`version-reference-classification.md`](version-reference-classification.md) | Current, historical, fixture, and archived version references |
-| [`cpb-self-hosting-runway.md`](cpb-self-hosting-runway.md) | Long-run CPB capability runway and entry/exit gates |
-| [`cpb-next-roadmap-blockers.md`](cpb-next-roadmap-blockers.md) | Blocker inventory only; it does not own execution order |
+| [`cpb-self-hosting-runway.md`](cpb-self-hosting-runway.md) | Detailed CPB capability requirements and entry/exit gates; stage placement comes from the master roadmap |
+| [`cpb-next-roadmap-blockers.md`](cpb-next-roadmap-blockers.md) | P0–P2 blocker inventory only; it owns neither execution order nor stage placement |
 | [`CONTRACT_EXTENSION_ARCHITECTURE.md`](CONTRACT_EXTENSION_ARCHITECTURE.md) | Contract-extension pattern; its foundation order is historical only |
 | [`../governance/architecture-change-control.md`](../governance/architecture-change-control.md) | RFC boundaries, locked invariants, and validation tiers |
-| [`../../ROADMAP_v2.md`](../../ROADMAP_v2.md) | Long-horizon phase baseline and maturity history |
+| [`../../ROADMAP_v2.md`](../../ROADMAP_v2.md) | Historical phase baseline and maturity history, provenance only |
 
 Archived documents and `.zone-status.md` historical boundaries are never current
 compiler authority.

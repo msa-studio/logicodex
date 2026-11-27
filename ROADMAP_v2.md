@@ -3,8 +3,8 @@
 ## Phase-Gated Development Plan
 
 **Document Version:** 2.0  
-**Last Updated:** 2026-07-13
-**Status:** Active long-horizon baseline — historical freeze exited; not current work-sequence authority
+**Last Updated:** 2026-11-27
+**Status:** Historical phase baseline, provenance only — historical freeze exited; superseded for direction and stage placement by docs/architecture/master-roadmap.md; not current work-sequence authority
 **Policy Reference:** See `.github/ROADMAP_POLICY.md`, `docs/governance/architecture-freeze-exit-2026-07-13.md`, and `docs/governance/architecture-change-control.md`
 **Maintainer:** Single maintainer (see `CONTRIBUTING.md` for co-maintainer recruitment)
 
@@ -12,6 +12,23 @@
 > [`docs/architecture/current-authority.md`](docs/architecture/current-authority.md).
 > This roadmap preserves long-horizon phases, maturity history, and audit
 > context. It does not define a competing near-term execution order.
+
+> **Superseded roadmap authority (2026-11-27):** The sole long-term roadmap is
+> [`docs/architecture/master-roadmap.md`](docs/architecture/master-roadmap.md).
+> Its stage placement (Stages A–H) wins over every phase in this document.
+> This file is retained unchanged below as a historical phase baseline and
+> provenance record; its technical requirements are traced in
+> [`docs/architecture/master-roadmap-adoption-report.md`](docs/architecture/master-roadmap-adoption-report.md).
+>
+> - Phase version targets in this file (phase completion tags, `v2.0.x`, and
+>   the `v2.0.0` stable release) are obsolete as normative targets. Release
+>   version authority is `Cargo.toml`; version conventions follow the master
+>   roadmap stage table.
+> - P4-D6 (no emscripten dependency) is superseded: the owner-approved Stage E
+>   WASM/Browser profile uses Emscripten.
+> - Requirements below that call for public acknowledgment, overrides, or
+>   reversions to be recorded in this file now record them in `CHANGELOG.md`
+>   and `docs/architecture/current-authority.md`.
 
 > **Architecture Freeze exit:** The historical v1.45 freeze was formally
 > concluded on 2026-07-13 after Architect acceptance of the independent
@@ -491,6 +508,7 @@ If a regression is detected during a phase:
 |---------|------|--------|
 | 1.0 | 2024 | Original aspirational roadmap (superseded) |
 | 2.0 | 2025-07-15 | Phase-gated rewrite based on audit findings; honest maturity matrix; strict entry/exit criteria |
+| 2.0 (notice) | 2026-11-27 | Roadmap authority superseded by `docs/architecture/master-roadmap.md`; retained as historical phase baseline, provenance only; phase content unchanged |
 
 ---
 

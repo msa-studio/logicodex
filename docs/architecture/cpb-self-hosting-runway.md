@@ -1,8 +1,18 @@
 # CPB Self-Hosting Runway
 
-Status: Active planning document
+Status: Subordinate CPB capability requirements record
 Scope: Logicodex Community foundation
 Depends on: Stdlib Stage 0 contract discipline
+
+> **Roadmap authority:** Long-term direction and stage placement are defined
+> only by [`master-roadmap.md`](master-roadmap.md); the active execution
+> sequence lives only in [`current-authority.md`](current-authority.md). This
+> record keeps detailed CPB capability requirements. Where the phase order
+> below disagrees with the master roadmap on stage placement, the master
+> roadmap wins. Stage placement: CPB-2L and CPB-3 are Stage B, CPB-4 is
+> Stage C, CPB-5 is Stage D (D1). CPB-0 and CPB-1 have no explicit stage
+> placement in the master roadmap; see
+> [`master-roadmap-adoption-report.md`](master-roadmap-adoption-report.md).
 
 ## Purpose
 
@@ -78,6 +88,10 @@ Deliverables:
 No implementation may claim CPB-1 unless the subset is documented and gated.
 
 ### CPB-2: Bootstrap Stdlib Slice
+
+Identifier: this runway phase is **CPB-2L — Library Closure** (master roadmap
+Stage B). It is distinct from CPB-2S, the three Stage A items in the
+`current-authority.md` sequence.
 
 Goal: implement only the stdlib modules required for compiler-like programs.
 

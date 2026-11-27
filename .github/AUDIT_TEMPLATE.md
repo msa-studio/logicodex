@@ -17,8 +17,9 @@
 
 > **Status:** Active phase-transition audit template. Resolve current phase and
 > work sequence from [`current-authority.md`](../docs/architecture/current-authority.md);
-> use [`ROADMAP_v2.md`](../ROADMAP_v2.md) only for long-horizon target criteria
-> and history.
+> resolve stage placement, entry gates, exit proofs, and closure criteria from
+> [`master-roadmap.md`](../docs/architecture/master-roadmap.md) and the approved
+> stage RFC. [`ROADMAP_v2.md`](../ROADMAP_v2.md) is historical provenance only.
 
 ---
 
@@ -52,8 +53,8 @@
 
 <!--
   Copy the owner-approved entry criteria for the TARGET phase. Resolve active
-  sequence from docs/architecture/current-authority.md and long-horizon target
-  criteria from ROADMAP_v2.md.
+  sequence from docs/architecture/current-authority.md and stage entry/exit
+  criteria from docs/architecture/master-roadmap.md plus the approved stage RFC.
   Every criterion MUST have evidence attached.
   Mark each item: [ ] Pending / [~] Partial / [x] Complete / [!] Blocked
 -->
@@ -124,7 +125,7 @@
 | 3 | API documentation | `cargo doc --no-deps` output | CI doc build | `rustdoc` clean | [ ] |
 | 4 | Migration guide (previous stable baseline → current baseline) | `docs/migrations/<previous>-to-<current>.md` | Manual inspection | Published | [ ] |
 | 5 | Current authority reconciled | `docs/architecture/current-authority.md` | Authority validator | Accurate, owner-approved | [ ] |
-| 6 | Long-horizon roadmap reconciled when affected | `ROADMAP_v2.md` | Git diff | No competing work sequence | [ ] |
+| 6 | Master roadmap reconciled when stage placement is affected | `docs/architecture/master-roadmap.md` | Git diff | Owner-approved; no competing work sequence | [ ] |
 | 7 | CHANGELOG.md | `CHANGELOG.md` | Version diff | All entries accounted | [ ] |
 
 ### 3C. Process Deliverables
@@ -197,7 +198,8 @@
 |----------|---------|---------------------|----------|----------|
 | README.md | [ ] | N/A (general) | [ ] | `/README.md` |
 | Current authority | [ ] | Yes — phase, sequence, and debt disposition | [ ] | `/docs/architecture/current-authority.md` |
-| ROADMAP_v2.md | [ ] | Long-horizon target criteria/history when affected | [ ] | `/ROADMAP_v2.md` |
+| Master roadmap | [ ] | Stage placement and closure criteria when affected | [ ] | `/docs/architecture/master-roadmap.md` |
+| ROADMAP_v2.md | [ ] | Historical provenance only; not updated for currency | [ ] | `/ROADMAP_v2.md` |
 | SPECIFICATION.md | [ ] | Target surface reconciled | [ ] | `/SPECIFICATION.md` |
 | CONTRIBUTING.md | [ ] | N/A | [ ] | `/CONTRIBUTING.md` |
 | Language reference | [ ] | Approved target coverage criterion | [ ] | `/docs/lang-ref/` |
