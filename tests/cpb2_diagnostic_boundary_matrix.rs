@@ -13,7 +13,7 @@ use logicodex::hir::{
 };
 use logicodex::semantic_gate::SemanticContext;
 use logicodex::span::{DiagnosticCode, Severity, Span, Spanned};
-use logicodex::types::{TypeId, TypeRef, TypeRegistry};
+use logicodex::types::{CallableId, TypeId, TypeRef, TypeRegistry};
 
 fn spanned<T>(node: T) -> Spanned<T> {
     Spanned {
@@ -93,6 +93,7 @@ fn unsafe_break_direct_record_is_exact() {
     let mut ctx = direct_context();
     let module = HirModule {
         items: vec![spanned(HirItem::Function(HirFunction {
+            callable: CallableId(0),
             name: "test".to_string(),
             symbol: SymbolId(0),
             params: Vec::new(),
@@ -103,6 +104,8 @@ fn unsafe_break_direct_record_is_exact() {
                 statements: vec![spanned(HirStmt::Break { target_depth: 0 })],
             },
             safety: SafetyContext::Safe,
+            declaration_param_enums: Vec::new(),
+            declaration_return_enum: None,
         }))],
     };
     let diagnostics = ctx.check_module(&module).expect_err("break must fail");
@@ -121,6 +124,7 @@ fn unsafe_continue_direct_record_is_exact() {
     let mut ctx = direct_context();
     let module = HirModule {
         items: vec![spanned(HirItem::Function(HirFunction {
+            callable: CallableId(0),
             name: "test".to_string(),
             symbol: SymbolId(0),
             params: Vec::new(),
@@ -131,6 +135,8 @@ fn unsafe_continue_direct_record_is_exact() {
                 statements: vec![spanned(HirStmt::Continue { target_depth: 0 })],
             },
             safety: SafetyContext::Safe,
+            declaration_param_enums: Vec::new(),
+            declaration_return_enum: None,
         }))],
     };
     let diagnostics = ctx.check_module(&module).expect_err("continue must fail");
@@ -149,6 +155,7 @@ fn duplicate_function_direct_record_is_exact() {
     let mut ctx = direct_context();
     let function = |symbol| {
         HirItem::Function(HirFunction {
+            callable: CallableId(0),
             name: "duplicate_target".to_string(),
             symbol,
             params: Vec::new(),
@@ -163,6 +170,8 @@ fn duplicate_function_direct_record_is_exact() {
                 ))))],
             },
             safety: SafetyContext::Safe,
+            declaration_param_enums: Vec::new(),
+            declaration_return_enum: None,
         })
     };
     let module = HirModule {
@@ -372,5 +381,90 @@ fn break_outside_loop_cli_rejects_before_codegen() {
         "UnsafeBoundaryViolation",
         "Ralat: Kawalan gelung digunakan di luar gelung / Error: Loop control used outside a loop",
         "span: file 0:2:5-2:11",
+    );
+}
+
+/// Lower `source` to the canonical artifact (with the lowering's TypeRegistry).
+fn lower_artifact(source: &str) -> (logicodex::hir::LoweredModule, TypeRegistry) {
+    let dict = Path::new(env!("CARGO_MANIFEST_DIR")).join("dict/core_map.json");
+    let lexicon = logicodex::lexer::Lexicon::from_path(&dict).expect("load dictionary");
+    let tokens = logicodex::lexer::Lexer::new(source, &lexicon)
+        .tokenize()
+        .expect("tokenize");
+    let program = logicodex::parser::Parser::new(tokens)
+        .with_pipeline(logicodex::parser::CompilerPipeline::V130)
+        .parse()
+        .expect("parse");
+    let mut symbols = SymbolTable::default();
+    let mut types = TypeRegistry::new();
+    let lowered = logicodex::hir::LoweringContext {
+        symbols: &mut symbols,
+        types: &mut types,
+        diagnostics: Vec::new(),
+        current_module: String::new(),
+        current_return_enum: None,
+    }
+    .lower_program_with_metadata(program)
+    .expect("lower with metadata");
+    (lowered, types)
+}
+
+#[test]
+fn stale_enum_metadata_direct_records_are_exact() {
+    let source = "PILIHAN Status MULA\n    Aktif;\nTAMAT\nBENTUK Rekod MULA\n    s: Status;\nTAMAT\nfunction f(s: Status) -> Status begin\n    return s;\nend\nfunction main() -> I64 begin\n    return 0;\nend\n";
+    let (base, types) = lower_artifact(source);
+    let id_of = |lowered: &logicodex::hir::LoweredModule, name: &str| {
+        lowered
+            .callable_signatures
+            .values()
+            .find(|signature| signature.name == name)
+            .expect("frozen signature")
+            .callable
+    };
+    let mut lowered = base.clone();
+    let f = id_of(&lowered, "f");
+    let rekod = id_of(&lowered, "Rekod");
+    let sig = lowered.callable_signatures.get_mut(&f).unwrap();
+    sig.param_enums = vec![None];
+    sig.return_enum = None;
+    let sig = lowered.callable_signatures.get_mut(&rekod).unwrap();
+    sig.param_enums = vec![None];
+    sig.return_enum = Some("Status".to_string());
+
+    let mut ctx = direct_context();
+    ctx.types = types;
+    let diagnostics = ctx
+        .check_lowered_module(&lowered)
+        .expect_err("stale enum metadata must fail");
+    // Source order: struct `Rekod` is declared before function `f`; within each
+    // declaration the parameter/field record precedes the return record.
+    assert_eq!(diagnostics.len(), 4, "{diagnostics:?}");
+    assert_record(
+        &diagnostics[0],
+        DiagnosticCode::CallableMetadataIntegrity,
+        "Ralat: metadata callable untuk konstruktor 'Rekod' mempunyai anotasi enum medan yang tidak konsisten dengan deklarasi struct",
+        "Error: callable metadata for constructor 'Rekod' has field enum annotations inconsistent with the struct declaration",
+        Span::unknown(),
+    );
+    assert_record(
+        &diagnostics[1],
+        DiagnosticCode::CallableMetadataIntegrity,
+        "Ralat: metadata callable untuk konstruktor 'Rekod' mempunyai anotasi enum pulangan yang tidak konsisten dengan deklarasi struct",
+        "Error: callable metadata for constructor 'Rekod' has an enum return annotation inconsistent with the struct declaration",
+        Span::unknown(),
+    );
+    assert_record(
+        &diagnostics[2],
+        DiagnosticCode::CallableMetadataIntegrity,
+        "Ralat: metadata callable untuk fungsi 'f' mempunyai anotasi enum parameter yang tidak konsisten dengan deklarasi",
+        "Error: callable metadata for function 'f' has parameter enum annotations inconsistent with the declaration",
+        Span::unknown(),
+    );
+    assert_record(
+        &diagnostics[3],
+        DiagnosticCode::CallableMetadataIntegrity,
+        "Ralat: metadata callable untuk fungsi 'f' mempunyai anotasi enum pulangan yang tidak konsisten dengan deklarasi",
+        "Error: callable metadata for function 'f' has return enum annotation inconsistent with the declaration",
+        Span::unknown(),
     );
 }

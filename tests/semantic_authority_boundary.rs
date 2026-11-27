@@ -10,8 +10,19 @@ fn canonical_semantic_authority_is_explicit() {
         "main compiler paths must use the canonical HIR semantic gate"
     );
     assert!(
-        codegen_source.contains("crate::semantic_gate::validate_module"),
+        codegen_source.contains("crate::semantic_gate::validate_lowered_module"),
         "codegen must retain its defensive semantic boundary"
+    );
+    assert!(
+        main_source.contains("codegen::compile_v130_lowered")
+            && main_source.contains(".check_lowered_module(&lowered)")
+            && !main_source.contains("codegen::compile_v130("),
+        "production codegen must route through the frozen lowered artifact"
+    );
+    assert!(
+        codegen_source.contains("Err(anyhow!(PLAIN_HIR_CODEGEN_RETIRED))")
+            && !codegen_source.contains("Non-fatal: continue codegen"),
+        "retired plain-HIR codegen must fail closed and gate failures must be fatal"
     );
     assert!(
         gate_source.contains("ACTIVE / CANONICAL MEANING AUTHORITY"),

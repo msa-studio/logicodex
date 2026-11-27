@@ -39,7 +39,7 @@ mod tests {
     use crate::hir::{HirBlock, HirFunction, HirItem, HirModule, SymbolId};
     use crate::layout::LayoutRegistry;
     use crate::span::{Span, Spanned};
-    use crate::types::{TypeRef, TypeRegistry};
+    use crate::types::{CallableId, TypeRef, TypeRegistry};
 
     #[derive(Default)]
     struct MockBackend {
@@ -95,6 +95,7 @@ mod tests {
         let hir = HirModule {
             items: vec![Spanned {
                 node: HirItem::Function(HirFunction {
+                    callable: CallableId(0),
                     name: "main".to_string(),
                     symbol: SymbolId(0),
                     params: Vec::new(),
@@ -103,6 +104,8 @@ mod tests {
                         statements: Vec::new(),
                     },
                     safety: crate::ffi::SafetyContext::Safe,
+                    declaration_param_enums: Vec::new(),
+                    declaration_return_enum: None,
                 }),
                 span: Span::unknown(),
             }],

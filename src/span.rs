@@ -84,6 +84,8 @@ pub enum DiagnosticCode {
     LayoutError,
     DuplicateDefinition,
     DivisionByZero,
+    /// Frozen HIR callable metadata is missing, inconsistent, or corrupt.
+    CallableMetadataIntegrity,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

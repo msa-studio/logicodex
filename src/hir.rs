@@ -361,12 +361,24 @@ pub enum HirItem {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HirFunction {
+    /// Exact language callable identity assigned by `SymbolTable::define_callable`
+    /// in the lowering pre-pass; equal to the key of this function's entry in
+    /// `LoweredModule::callable_signatures`.
+    pub callable: CallableId,
     pub name: String,
     pub symbol: SymbolId,
     pub params: Vec<HirParam>,
     pub return_type: TypeRef,
     pub body: HirBlock,
     pub safety: SafetyContext,
+    /// Declared enum annotation of each parameter (`None` for non-enum
+    /// types), read directly from the declaration's `TypeAst` before enum
+    /// erasure in `lower_type`. Observational metadata for `semantic_gate`
+    /// integrity only; never copied from frozen callable metadata and never
+    /// consulted for typing, ABI, layout, or codegen.
+    pub declaration_param_enums: Vec<Option<String>>,
+    /// Declared enum annotation of the return type, read the same way.
+    pub declaration_return_enum: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -380,6 +392,10 @@ pub struct HirStructDecl {
     pub name: String,
     pub symbol: SymbolId,
     pub fields: Vec<HirField>,
+    /// Declared enum annotation of each field (`None` for non-enum types),
+    /// read directly from the declaration's `TypeAst` before enum erasure.
+    /// Observational metadata for `semantic_gate` integrity only.
+    pub declaration_field_enums: Vec<Option<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -528,6 +544,9 @@ pub enum HirExprKind {
     /// Spawn an actor instance: `spawn ActorName(args)`
     Spawn {
         actor_name: String,
+        /// Exact callable identity of the lowered actor function, copied from
+        /// the lowering-time `SymbolTable` entry assigned in the pre-pass.
+        actor_callable: CallableId,
         args: Vec<HirExpr>,
     },
     /// Wait for actor completion: `join ActorName`
@@ -1503,9 +1522,31 @@ impl<'a> LoweringContext<'a> {
         let span = item.span;
         let node = match item.node {
             ItemAst::Function(function) => {
+                // Copy the exact CallableId the pre-pass assigned to this
+                // function's module-mangled name; never allocate one here.
+                let name = self.module_fn_name(&function.name);
+                let callable = self.symbols.lookup_callable(&name).unwrap_or_else(|| {
+                    self.push_lowering_diagnostic(
+                        DiagnosticCode::CallableMetadataIntegrity,
+                        span,
+                        format!("Ralat: fungsi `{name}` tiada identiti callable pra-laluan"),
+                        format!("Error: function `{name}` has no pre-pass callable identity"),
+                    );
+                    CallableId(u32::MAX)
+                });
                 let symbol = self.symbols.define_symbol(function.name.clone());
                 self.symbols.enter_scope();
                 let return_type_ast = function.return_type.clone();
+                // Declaration-side enum annotations, read straight from the AST
+                // before `lower_type` erases enums.
+                let declaration_param_enums: Vec<Option<String>> = function
+                    .params
+                    .iter()
+                    .map(|param| self.enum_annotation_name(&param.ty))
+                    .collect();
+                let declaration_return_enum = return_type_ast
+                    .as_ref()
+                    .and_then(|ty| self.enum_annotation_name(ty));
                 let params = function
                     .params
                     .into_iter()
@@ -1523,7 +1564,8 @@ impl<'a> LoweringContext<'a> {
                 self.current_return_enum = previous_return_enum;
                 self.symbols.exit_scope();
                 HirItem::Function(HirFunction {
-                    name: self.module_fn_name(&function.name),
+                    callable,
+                    name,
                     symbol,
                     params,
                     return_type: return_type_ast
@@ -1535,20 +1577,32 @@ impl<'a> LoweringContext<'a> {
                     } else {
                         SafetyContext::Safe
                     },
+                    declaration_param_enums,
+                    declaration_return_enum,
                 })
             }
-            ItemAst::Struct(decl) => HirItem::Struct(HirStructDecl {
-                name: decl.name.clone(),
-                symbol: self.symbols.define_symbol(decl.name),
-                fields: decl
+            ItemAst::Struct(decl) => {
+                // Declaration-side enum annotations, read straight from the
+                // AST before `lower_type` erases enums.
+                let declaration_field_enums: Vec<Option<String>> = decl
                     .fields
-                    .into_iter()
-                    .map(|field| HirField {
-                        name: field.name,
-                        ty: self.lower_type(field.ty),
-                    })
-                    .collect(),
-            }),
+                    .iter()
+                    .map(|field| self.enum_annotation_name(&field.ty))
+                    .collect();
+                HirItem::Struct(HirStructDecl {
+                    name: decl.name.clone(),
+                    symbol: self.symbols.define_symbol(decl.name),
+                    fields: decl
+                        .fields
+                        .into_iter()
+                        .map(|field| HirField {
+                            name: field.name,
+                            ty: self.lower_type(field.ty),
+                        })
+                        .collect(),
+                    declaration_field_enums,
+                })
+            }
             ItemAst::Enum(decl) => HirItem::Enum(HirEnumDecl {
                 symbol: self.symbols.define_symbol(decl.name),
                 variants: decl
@@ -2039,6 +2093,20 @@ impl<'a> LoweringContext<'a> {
             }
             // ─── Threading (A3) — lowered to HIR ───
             ExprAst::Spawn { actor_name, args } => {
+                // Copy the exact CallableId the pre-pass assigned to the actor's
+                // lowered function `__actor_<name>`; never allocate one here.
+                let actor_symbol = format!("__actor_{actor_name}");
+                let actor_callable = self
+                    .resolve_unqualified_callable(&actor_symbol)
+                    .unwrap_or_else(|| {
+                        self.push_lowering_diagnostic(
+                            DiagnosticCode::UnknownFunction,
+                            span,
+                            format!("Ralat: Actor `{actor_name}` tidak ditakrifkan"),
+                            format!("Error: Actor `{actor_name}` is not defined"),
+                        );
+                        CallableId(u32::MAX)
+                    });
                 let lowered_args: Vec<_> = args
                     .into_iter()
                     .map(|arg| self.lower_expr(arg, span))
@@ -2046,6 +2114,7 @@ impl<'a> LoweringContext<'a> {
                 HirExpr {
                     kind: HirExprKind::Spawn {
                         actor_name,
+                        actor_callable,
                         args: lowered_args,
                     },
                     ty: unit_ref(self.types),
