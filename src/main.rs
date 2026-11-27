@@ -635,28 +635,29 @@ fn hir_lowering_error(source: &str, mut diagnostics: Vec<span::Diagnostic>) -> a
 }
 
 /// HIR compilation pipeline with CallableRegistry + Raylib FFI.
-/// Lower a (possibly multi-module) program to a single merged HirModule on one
-/// shared LoweringContext. If the root program has no `import` statements this
-/// is exactly `lower_program(root)` -- the single-file path is unchanged, byte
-/// for byte. When imports are present, the module loader resolves the graph
-/// (filesystem-relative, dot = directory, cycles rejected), each imported
-/// module is lowered in topological order (dependencies before dependents, so a
-/// module's mangled symbols exist before a later module's qualified call
-/// resolves them) under its own module name, the root is lowered last with its
-/// `main`-wrap, and all items are concatenated into one HirModule fed to the
-/// rest of the pipeline. One shared SymbolTable means cross-module qualified
-/// calls resolve against the same id-space -- no duplicate CallableIds.
+/// Lower a (possibly multi-module) program to a single merged `LoweredModule`
+/// on one shared LoweringContext. If the root program has no `import`
+/// statements this is exactly `lower_program_with_metadata(root)`. When imports
+/// are present, the module loader resolves the graph (filesystem-relative,
+/// dot = directory, cycles rejected), each imported module is lowered in
+/// topological order (dependencies before dependents, so a module's mangled
+/// symbols exist before a later module's qualified call resolves them) under
+/// its own module name, the root is lowered last with its `main`-wrap, and all
+/// items are concatenated in that order. One shared SymbolTable means
+/// cross-module qualified calls resolve against the same id-space -- no
+/// duplicate CallableIds. Every frozen callable snapshot is merged by exact
+/// `CallableId`; an identity may repeat only with an identical signature.
 fn lower_with_modules(
     lowering: &mut hir::LoweringContext,
     file: &Path,
     dict: &Path,
     root_source: &str,
     root_program: ast::Program,
-) -> Result<hir::HirModule> {
-    // Fast path: no imports -> behave exactly like before (single file).
+) -> Result<hir::LoweredModule> {
+    // Fast path: no imports -> the single-file canonical lowering artifact.
     if module_loader::imports_of(&root_program).is_empty() {
         return lowering
-            .lower_program(root_program)
+            .lower_program_with_metadata(root_program)
             .map_err(|diags| hir_lowering_error(root_source, diags));
     }
 
@@ -680,21 +681,45 @@ fn lower_with_modules(
     // The loader emits dependencies first and the root ("") last, which is the
     // exact lowering order we want.
     let mut merged: Vec<span::Spanned<hir::HirItem>> = Vec::new();
+    let mut callable_signatures = std::collections::HashMap::new();
+    let mut builtin_provenance = std::collections::HashMap::new();
     for module in graph.modules {
         let lowered = if module.name.is_empty() {
             // Root: keep the main-wrap so top-level statements run.
             lowering
-                .lower_program(module.program)
+                .lower_program_with_metadata(module.program)
                 .map_err(|diags| hir_lowering_error(root_source, diags))?
         } else {
             // Imported module: function-only, mangled, no main-wrap.
             lowering
-                .lower_module_program(&module.name, module.program)
+                .lower_module_program_with_metadata(&module.name, module.program)
                 .map_err(|diags| anyhow::anyhow!("HIR lowering failed: {:?}", diags))?
         };
-        merged.extend(lowered.items);
+        merged.extend(lowered.module.items);
+        for (callable, signature) in lowered.callable_signatures {
+            if let Some(previous) = callable_signatures.insert(callable, signature.clone()) {
+                if previous != signature {
+                    return Err(anyhow::anyhow!(
+                        "HIR lowering failed: conflicting frozen callable metadata for {callable:?}"
+                    ));
+                }
+            }
+        }
+        for (name, callable) in lowered.builtin_provenance {
+            if let Some(previous) = builtin_provenance.insert(name.clone(), callable) {
+                if previous != callable {
+                    return Err(anyhow::anyhow!(
+                        "HIR lowering failed: conflicting builtin provenance for `{name}`"
+                    ));
+                }
+            }
+        }
     }
-    Ok(hir::HirModule { items: merged })
+    Ok(hir::LoweredModule {
+        module: hir::HirModule { items: merged },
+        callable_signatures,
+        builtin_provenance,
+    })
 }
 
 fn compile_v130_pipeline(
@@ -721,7 +746,7 @@ fn compile_v130_pipeline(
 
     // Step 3: Lower AST → HIR
     let mut symbols = hir::SymbolTable::default();
-    let module_ast = {
+    let lowered = {
         let mut lowering = hir::LoweringContext {
             symbols: &mut symbols,
             types: &mut types,
@@ -739,7 +764,7 @@ fn compile_v130_pipeline(
     // actionable message instead. `check` does NOT run this — the program is
     // syntactically and semantically valid; only its runtime is missing.
     if profile != Profile::Actor {
-        if let Some(op) = first_pending_actor_op(&module_ast) {
+        if let Some(op) = first_pending_actor_op(&lowered.module) {
             return Err(anyhow::anyhow!(
             "actor/channel runtime not available yet: this program uses `{op}`,              which is parsed and code-generated but has no runtime backend in              this build (reserved for Phase B, pthread-based). It type-checks              (`check` passes), but cannot be linked into a runnable executable.                  See docs/runtime/PROFILES.md (actor profile: runtime-pending)."
             ));
@@ -775,9 +800,6 @@ fn compile_v130_pipeline(
             .retain(|sig| !is_raylib_function(&sig.name));
     }
 
-    // Build id->name map for codegen call routing before `symbols` is moved.
-    let callable_names = symbols.callables_map();
-
     // Step 5: Semantic check.
     // lod Stage 0: if a logicodex.toml sits next to the source, its [ffi].allow
     // and [dependencies.c.*].allow symbols are added to the capability policy so
@@ -803,12 +825,13 @@ fn compile_v130_pipeline(
         extern_symbols: std::collections::HashSet::new(),
     };
     semantic
-        .check_module(&module_ast)
+        .check_lowered_module(&lowered)
         .map_err(|diagnostics| semantic_diagnostics_error(&source, diagnostics))?;
+    let codegen_policy = semantic.policy.clone();
 
-    // Step 6: HIR → LLVM object via compile_v130 with registries
-    codegen::compile_v130(
-        &module_ast,
+    // Step 6: frozen HIR artifact → LLVM object with defensive revalidation
+    codegen::compile_v130_lowered(
+        &lowered,
         object_path,
         &CodegenOptions {
             module_name: module_name(file),
@@ -818,7 +841,7 @@ fn compile_v130_pipeline(
         },
         callables,
         semantic.types,
-        callable_names,
+        codegen_policy,
     )
 }
 
@@ -1062,7 +1085,7 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
     let (raylib_type_ids, _raylib_struct_ids) = ffi::raylib::register_raylib_types(&mut types);
 
     let mut symbols = hir::SymbolTable::default();
-    let module_ast = {
+    let lowered = {
         let mut lowering = hir::LoweringContext {
             symbols: &mut symbols,
             types: &mut types,
@@ -1098,7 +1121,7 @@ fn v130_validate_file(file: &Path, dict: &Path) -> Result<()> {
         extern_symbols: std::collections::HashSet::new(),
     };
     semantic
-        .check_module(&module_ast)
+        .check_lowered_module(&lowered)
         .map_err(|diagnostics| semantic_diagnostics_error(&source, diagnostics))?;
     Ok(())
 }
@@ -1181,8 +1204,8 @@ fn run_v130_subsystem_self_check() -> Result<()> {
         current_module: String::new(),
         current_return_enum: None,
     };
-    let hir_module = lowering
-        .lower_module(module_ast)
+    let lowered = lowering
+        .lower_module_with_metadata(module_ast)
         .map_err(|diagnostics| anyhow::anyhow!(format_v130_diagnostics(&diagnostics)))?;
 
     let mut semantic = semantic_gate::SemanticContext {
@@ -1197,7 +1220,7 @@ fn run_v130_subsystem_self_check() -> Result<()> {
         extern_symbols: std::collections::HashSet::new(),
     };
     semantic
-        .check_module(&hir_module)
+        .check_lowered_module(&lowered)
         .map_err(|diagnostics| anyhow::anyhow!(format_v130_diagnostics(&diagnostics)))?;
 
     Ok(())

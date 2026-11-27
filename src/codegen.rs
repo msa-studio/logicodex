@@ -100,7 +100,9 @@ pub struct LlvmCompiler<'ctx> {
     // Struct registry — symbol_id → LLVM struct type
     hir_struct_types: HashMap<u32, inkwell::types::StructType<'ctx>>,
     hir_struct_names: HashMap<String, u32>, // name → symbol_id
-    callable_names: HashMap<u32, String>,   // CallableId.0 → name (call routing)
+    /// Frozen language-level callable authority (call routing). The FFI
+    /// registry remains a separate binding domain and never replaces it.
+    callable_signatures: HashMap<crate::types::CallableId, crate::hir::HirCallableSignature>,
     // CallableRegistry predeclaration tracking
     callables_predeclared: bool,
     // Hardware zone depth counter (MMIO volatile semantics)
@@ -155,7 +157,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
             hir_callable_funcs: HashMap::new(),
             hir_struct_types: HashMap::new(),
             hir_struct_names: HashMap::new(),
-            callable_names: HashMap::new(),
+            callable_signatures: HashMap::new(),
             callables_predeclared: false,
             hw_zone_depth: 0,
             hw_decl_addrs: HashMap::new(),
@@ -172,9 +174,12 @@ impl<'ctx> LlvmCompiler<'ctx> {
         self
     }
 
-    /// Attach the id->name map for callables (used to route HIR calls by name).
-    pub fn with_callable_names(mut self, names: HashMap<u32, String>) -> Self {
-        self.callable_names = names;
+    /// Attach the frozen callable metadata carried by `LoweredModule`.
+    pub fn with_callable_signatures(
+        mut self,
+        signatures: HashMap<crate::types::CallableId, crate::hir::HirCallableSignature>,
+    ) -> Self {
+        self.callable_signatures = signatures;
         self
     }
 
@@ -364,61 +369,102 @@ pub fn wrap_width_int_type(context: &Context, bits: u32) -> Result<IntType<'_>> 
         })
 }
 
-/// Entry point for HIR-to-object compilation (.ldx -> object file).
+/// Stable rejection for the retired plain-HIR codegen entry point.
+pub const PLAIN_HIR_CODEGEN_RETIRED: &str = "plain-HIR codegen entry `compile_v130` is retired: \
+     callable-bearing HIR requires frozen callable metadata; lower with \
+     `*_with_metadata` and call `compile_v130_lowered` with the `LoweredModule` artifact";
+
+/// Retired plain-HIR entry point. A bare `HirModule` carries no frozen
+/// callable metadata, so it is rejected before any LLVM construction instead
+/// of being compiled against an empty or reconstructed metadata map.
 pub fn compile_v130(
-    hir_module: &crate::hir::HirModule,
+    _hir_module: &crate::hir::HirModule,
+    _object_path: &Path,
+    _options: &CodegenOptions,
+    _callables: CallableRegistry,
+    _types: TypeRegistry,
+    _callable_names: HashMap<u32, String>,
+) -> Result<CodegenArtifact> {
+    Err(anyhow!(PLAIN_HIR_CODEGEN_RETIRED))
+}
+
+/// Canonical entry point for HIR-to-object compilation (.ldx -> object file).
+/// The frozen callable metadata, FFI registry, and capability policy are
+/// revalidated by `semantic_gate` immediately before LLVM construction; any
+/// semantic failure is fatal. LLVM call, spawn, constructor, and user-extern
+/// emission then consume the same frozen artifact.
+pub fn compile_v130_lowered(
+    lowered: &crate::hir::LoweredModule,
     object_path: &Path,
     options: &CodegenOptions,
     callables: CallableRegistry,
     types: TypeRegistry,
-    callable_names: HashMap<u32, String>,
+    policy: crate::ffi::CapabilityPolicy,
 ) -> Result<CodegenArtifact> {
+    crate::semantic_gate::validate_lowered_module(
+        lowered,
+        types.clone(),
+        callables.clone(),
+        policy,
+    )
+    .map_err(|diagnostics| {
+        anyhow!(
+            "semantic gate rejected lowered codegen input:\n{}",
+            diagnostics
+                .iter()
+                .map(|d| format!("[{:?}] {}", d.code, d.message_en))
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    })?;
+    let hir_module = &lowered.module;
+
     let context = Context::create();
     let mut compiler = LlvmCompiler::new(&context, &options.module_name)
         .with_callables(callables, types)
-        .with_callable_names(callable_names);
+        .with_callable_signatures(lowered.callable_signatures.clone());
 
-    // Pre-declare all callable functions so they're available during HIR codegen
-    compiler
-        .predeclare_callables()
-        .unwrap_or_else(|e| eprintln!("logicodex: predeclare_callables warning: {}", e));
-
-    // Run semantic gatekeeper as final validation pass before codegen
-    {
-        let types_clone = compiler
-            .types
-            .as_ref()
-            .map(|t| t.clone())
-            .unwrap_or_else(TypeRegistry::new);
-        if let Err(diagnostics) = crate::semantic_gate::validate_module(hir_module, types_clone) {
-            eprintln!(
-                "logicodex: Semantic gatekeeper warnings ({}):",
-                diagnostics.len()
-            );
-            for d in &diagnostics {
-                eprintln!("  [{:?}] {}", d.code, d.message_en);
-            }
-            // Non-fatal: continue codegen even if gatekeeper has warnings
+    // Phase 1: register every HIR struct type before any callable
+    // predeclaration or declaration, so struct-bearing parameters/returns
+    // never depend on source order. Struct layouts come from the TypeRegistry
+    // produced upstream; codegen computes no layout of its own. A failed
+    // registration is fatal.
+    for item in &hir_module.items {
+        if let crate::hir::HirItem::Struct(struct_decl) = &item.node {
+            compiler.register_hir_struct(struct_decl)?;
         }
     }
 
-    // Codegen consumes HIR items
+    // Pre-declare all callable functions so they're available during HIR
+    // codegen. A predeclaration failure is fatal, never a warning.
+    compiler.predeclare_callables()?;
+
+    // Phase 2: declare every user function and user extern (in source order)
+    // under its exact frozen identity before emitting bodies, so forward calls
+    // resolve.
+    for item in &hir_module.items {
+        match &item.node {
+            crate::hir::HirItem::Function(function) => {
+                compiler.declare_v130_function(function)?;
+            }
+            crate::hir::HirItem::ExternFunction(extern_fn) => {
+                compiler.emit_v130_extern_function(extern_fn)?;
+            }
+            crate::hir::HirItem::Struct(_) | crate::hir::HirItem::Enum(_) => {}
+        }
+    }
+
+    // Phase 3: emit function bodies.
     for item in &hir_module.items {
         match &item.node {
             crate::hir::HirItem::Function(function) => {
                 compiler.emit_v130_function(function, options.target)?;
             }
-            crate::hir::HirItem::Struct(struct_decl) => {
-                compiler
-                    .register_hir_struct(struct_decl)
-                    .unwrap_or_else(|e| eprintln!("logicodex: struct registration warning: {}", e));
-            }
             crate::hir::HirItem::Enum(_) => {
                 eprintln!("logicodex: enum items are processed at semantic time");
             }
-            crate::hir::HirItem::ExternFunction(extern_fn) => {
-                compiler.emit_v130_extern_function(extern_fn)?;
-            }
+            // Registered in phase 1 / declared in phase 2.
+            crate::hir::HirItem::Struct(_) | crate::hir::HirItem::ExternFunction(_) => {}
         }
     }
 
@@ -511,12 +557,57 @@ impl<'ctx> LlvmCompiler<'ctx> {
         Ok(Some(self.context.struct_type(&field_llvm, false)))
     }
 
-    fn emit_v130_function(
+    /// Fail-closed defensive check that the frozen signature indexed by a
+    /// carried CallableId is the expected Function of the expected name and
+    /// shape. `semantic_gate` has already enforced this; codegen only refuses
+    /// to emit if the invariant is broken.
+    fn expect_frozen_function(
+        &self,
+        callable: crate::types::CallableId,
+        name: &str,
+        params: Option<&[TypeId]>,
+        return_type: TypeId,
+    ) -> Result<()> {
+        let matches = self
+            .callable_signatures
+            .get(&callable)
+            .is_some_and(|signature| {
+                signature.callable == callable
+                    && signature.kind == crate::hir::HirCallableKind::Function
+                    && signature.name == name
+                    && params.is_none_or(|params| signature.params == params)
+                    && signature.return_type == return_type
+                    && !signature.is_variadic
+            });
+        if matches {
+            Ok(())
+        } else {
+            Err(anyhow!(
+                "[CallableMetadataIntegrity] `{name}`: frozen metadata for exact CallableId {} \
+                 is missing or inconsistent at LLVM entry",
+                callable.0
+            ))
+        }
+    }
+
+    /// Declare a HIR function's LLVM signature and bind it to the exact frozen
+    /// CallableId it carries, so forward and recursive calls resolve before
+    /// any body is emitted.
+    fn declare_v130_function(
         &mut self,
         function: &crate::hir::HirFunction,
-        _target: CompilationTarget,
-    ) -> Result<()> {
-        use crate::hir::HirParam;
+    ) -> Result<FunctionValue<'ctx>> {
+        let callable = function.callable;
+        let params: Vec<TypeId> = function.params.iter().map(|param| param.ty.id).collect();
+        self.expect_frozen_function(
+            callable,
+            &function.name,
+            Some(&params),
+            function.return_type.id,
+        )?;
+        if let Some(func) = self.hir_callable_funcs.get(&callable.0) {
+            return Ok(*func);
+        }
 
         // 1. Determine LLVM parameter types
         let mut param_types: Vec<BasicTypeEnum<'ctx>> = Vec::new();
@@ -545,17 +636,22 @@ impl<'ctx> LlvmCompiler<'ctx> {
             self.basic_type_fn_type(ret_type, &param_types, false)?
         };
 
-        // 3. Create LLVM function
+        // 3. Create LLVM function and register it under its frozen identity so
+        // calls to it (incl. forward and recursive calls) resolve to it.
         let func = self.module.add_function(&function.name, fn_type, None);
-        // Register so calls to this function (incl. recursion) resolve to it.
-        let this_callable_id = self
-            .callable_names
-            .iter()
-            .find(|(_, n)| n.as_str() == function.name)
-            .map(|(id, _)| *id);
-        if let Some(id) = this_callable_id {
-            self.hir_callable_funcs.insert(id, func);
-        }
+        self.hir_callable_funcs.insert(callable.0, func);
+        Ok(func)
+    }
+
+    fn emit_v130_function(
+        &mut self,
+        function: &crate::hir::HirFunction,
+        _target: CompilationTarget,
+    ) -> Result<()> {
+        use crate::hir::HirParam;
+
+        let func = self.declare_v130_function(function)?;
+        let sret_struct = self.resolve_struct_llvm(function.return_type)?;
         let entry = self.context.append_basic_block(func, "entry");
         self.builder.position_at_end(entry);
 
@@ -1069,7 +1165,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 })?;
                 self.wrap_to_width(result, expr.ty)
             }
-            HirExprKind::Call { callee, args } => self.emit_hir_call(*callee, args, func, expr.ty),
+            HirExprKind::Call { callee, args } => self.emit_hir_call(*callee, args, func),
             HirExprKind::ResultOk { value } => {
                 let payload = self.emit_hir_expr(value, func)?;
                 let one = self.i64_type.const_int(1, false);
@@ -1157,7 +1253,11 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 self.emit_hir_expr(expr, func)
             }
             // ─── Threading expressions — LLVM codegen ───
-            HirExprKind::Spawn { actor_name, args } => {
+            HirExprKind::Spawn {
+                actor_name,
+                actor_callable,
+                args,
+            } => {
                 // ABI-1: logicodex_spawn takes a *function pointer* (not a name),
                 // so the runtime can pthread_create it directly with no name
                 // lookup/table — minimal C, smallest attack surface (zero-trust).
@@ -1170,15 +1270,26 @@ impl<'ctx> LlvmCompiler<'ctx> {
                     "logicodex_spawn",
                     self.i64_type.fn_type(&[i8ptr.into()], false),
                 );
-                // Resolve the actor's lowered function `__actor_<name>` and take
-                // its address. The body was lowered to a real HIR function
-                // upstream, so it exists as an LLVM function here.
+                // Route to the actor's lowered function by the exact CallableId
+                // the spawn node carries and take its address. The body was
+                // lowered to a real HIR function and predeclared under that id.
                 let actor_sym = format!("__actor_{actor_name}");
-                let actor_fn = self.module.get_function(&actor_sym).ok_or_else(|| {
-                    anyhow!(
-                        "actor entry `{actor_sym}` not found in module (actor body                          was not lowered to a function)"
-                    )
-                })?;
+                self.expect_frozen_function(
+                    *actor_callable,
+                    &actor_sym,
+                    None,
+                    self.unit_type_id(),
+                )?;
+                let actor_fn = self
+                    .hir_callable_funcs
+                    .get(&actor_callable.0)
+                    .copied()
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "actor entry `{actor_sym}` (CallableId {}) has no LLVM declaration",
+                            actor_callable.0
+                        )
+                    })?;
                 // B.1b capture: an actor with arguments captures channel
                 // handle(s). We build a ctx buffer holding the i64 handles, a
                 // small ctx-unpacking wrapper `__actor_<name>__ctx(i8* ctx)`
@@ -1576,15 +1687,30 @@ impl<'ctx> LlvmCompiler<'ctx> {
         callee: crate::types::CallableId,
         args: &[crate::hir::HirExpr],
         func: FunctionValue<'ctx>,
-        ret_ty: crate::types::TypeRef,
     ) -> Result<IntValue<'ctx>> {
-        // Resolve the callee by NAME (the HIR Call.callee is a SymbolTable id,
-        // independent of the FFI registry), avoiding aliasing a builtin like
-        // `print` onto an unrelated extern (e.g. InitWindow).
-        let name = self.callable_names.get(&callee.0).cloned();
+        use crate::hir::HirCallableKind;
+
+        // Resolve the callee by its exact frozen CallableId. The language
+        // id-space is independent of the FFI registry, and the registry is
+        // never consulted as a semantic fallback here.
+        let signature = self
+            .callable_signatures
+            .get(&callee)
+            .cloned()
+            .ok_or_else(|| {
+                anyhow!(
+                    "HIR call: frozen callable metadata missing at LLVM entry for CallableId {}",
+                    callee.0
+                )
+            })?;
+        let ret_ty = crate::types::TypeRef {
+            id: signature.return_type,
+        };
+        let builtin = signature.kind == HirCallableKind::Builtin;
+        let name = Some(signature.name.clone());
 
         // Builtin: `print` lowers to a Call here — route to the runtime print fn.
-        if name.as_deref() == Some("print") {
+        if builtin && name.as_deref() == Some("print") {
             let mut last = self.i64_type.const_int(0, false);
             for arg in args {
                 let val = self.emit_hir_expr(arg, func)?;
@@ -1599,7 +1725,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
         // Runtime ABI builtins (std/runtime profile), provided by the linked
         // runtime assembly: logicodex_sleep(ms:i64)->i64 (nanosleep) and
         // logicodex_yield()->i64 (sched_yield). Declared on demand, called direct.
-        if name.as_deref() == Some("logicodex_sleep") {
+        if builtin && name.as_deref() == Some("logicodex_sleep") {
             let sleep_fn = self.declare_runtime_func(
                 "logicodex_sleep",
                 self.i64_type.fn_type(&[self.i64_type.into()], false),
@@ -1620,7 +1746,7 @@ impl<'ctx> LlvmCompiler<'ctx> {
                 _ => Ok(self.i64_type.const_int(0, false)),
             };
         }
-        if name.as_deref() == Some("logicodex_yield") {
+        if builtin && name.as_deref() == Some("logicodex_yield") {
             let yield_fn =
                 self.declare_runtime_func("logicodex_yield", self.i64_type.fn_type(&[], false));
             let call_site = self
@@ -1633,39 +1759,21 @@ impl<'ctx> LlvmCompiler<'ctx> {
             };
         }
 
-        // Struct constructor (detected by name via the type registry).
-        if let Some(ref n) = name {
-            let is_struct = self
-                .types
-                .as_ref()
-                .map(|t| t.find_struct_by_name(n).is_some())
-                .unwrap_or(false);
-            if is_struct || self.hir_struct_names.contains_key(n) {
-                return self.emit_hir_struct_constructor(n, args, func);
-            }
+        // Struct constructor routing is authorized by the frozen callable kind.
+        if signature.kind == HirCallableKind::Constructor {
+            return self.emit_hir_struct_constructor(&signature.name, args, func);
         }
 
-        // Resolve the LLVM function: cached HIR/user function first, else a
-        // genuine FFI extern resolved by name.
-        let llvm_func = if let Some(f) = self.hir_callable_funcs.get(&callee.0) {
-            *f
-        } else {
-            let signature = name
-                .as_deref()
-                .and_then(|n| {
-                    self.callables
-                        .as_ref()
-                        .and_then(|c| c.find_by_name(n).map(|(_, s)| s.clone()))
-                })
-                .ok_or_else(|| {
-                    anyhow!(
-                        "HIR call: callee '{}' (CallableId {}) not resolvable",
-                        name.as_deref().unwrap_or("?"),
-                        callee.0
-                    )
-                })?;
-            self.declare_extern_func(&signature)?
-        };
+        // Resolve the LLVM function declared for this exact frozen identity
+        // (user functions and user externs are predeclared before any body).
+        let llvm_func = *self.hir_callable_funcs.get(&callee.0).ok_or_else(|| {
+            anyhow!(
+                "HIR call: frozen callee '{}' (CallableId {}, kind {:?}) has no LLVM declaration",
+                signature.name,
+                callee.0,
+                signature.kind
+            )
+        })?;
 
         // Struct-return ABI: if the callee returns a struct, allocate the result
         // buffer in the caller frame and pass it as the hidden sret argument.

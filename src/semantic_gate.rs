@@ -11,11 +11,15 @@
 
 use crate::ffi::{CallableRegistry, FfiGatekeeper, SafetyContext};
 use crate::hir::{
-    BinaryOpAst, HirBlock, HirExpr, HirExprKind, HirItem, HirModule, HirStmt, LiteralAst,
-    SymbolTable,
+    BinaryOpAst, HirBlock, HirCallableKind, HirCallableSignature, HirCallableValueUse, HirExpr,
+    HirExprKind, HirItem, HirModule, HirStmt, LiteralAst, LoweredModule, SymbolTable,
 };
 use crate::span::{Diagnostic, DiagnosticCode, Severity, Span, Spanned};
-use crate::types::TypeRegistry;
+use crate::types::{CallableId, TypeId, TypeRegistry};
+use std::collections::HashMap;
+
+/// Frozen language-level callable metadata carried by `LoweredModule`.
+type CallableSignatures = HashMap<CallableId, HirCallableSignature>;
 
 pub struct SemanticContext {
     pub types: TypeRegistry,
@@ -31,15 +35,51 @@ pub struct SemanticContext {
     /// gate passes this to the FfiGatekeeper so denied externs fail at check.
     pub policy: crate::ffi::CapabilityPolicy,
     /// Names of user-declared `extern "C"` functions (collected from the HIR
-    /// module's ExternFunction items at check start). These live in the
-    /// SymbolTable, not the FFI CallableRegistry, so the capability gate checks
-    /// them here directly — a Call to one of these names is a foreign call and
-    /// must satisfy the CapabilityPolicy.
+    /// module's ExternFunction items at check start). Their language identity
+    /// comes from frozen callable metadata, not the FFI CallableRegistry, so the
+    /// capability gate checks them here directly — a Call to one of these names
+    /// is a foreign call and must satisfy the CapabilityPolicy.
     pub extern_symbols: std::collections::HashSet<String>,
 }
 
 impl SemanticContext {
+    /// Plain-HIR validation. A bare `HirModule` carries no frozen callable
+    /// metadata, so every call or spawn in it fails closed with
+    /// `CallableMetadataIntegrity`. Callable-bearing HIR must be validated
+    /// through `check_lowered_module`.
     pub fn check_module(&mut self, module: &HirModule) -> Result<(), Vec<Diagnostic>> {
+        self.reset_run_state();
+        self.check_module_with_signatures(module, &HashMap::new())
+    }
+
+    /// Validate the canonical lowering artifact. Callable semantics are read
+    /// only from the frozen table carried by `LoweredModule`; the lowering-time
+    /// `SymbolTable` and the FFI `CallableRegistry` never substitute for it.
+    pub fn check_lowered_module(&mut self, lowered: &LoweredModule) -> Result<(), Vec<Diagnostic>> {
+        self.reset_run_state();
+        self.check_callable_metadata_integrity(lowered);
+        if !self.diagnostics.is_empty() {
+            return Err(self.diagnostics.clone());
+        }
+        self.check_module_with_signatures(&lowered.module, &lowered.callable_signatures)
+    }
+
+    /// Clear all per-run state so a context reused after a failed (or
+    /// successful) run starts clean. Configuration (types, callables, policy)
+    /// is preserved.
+    fn reset_run_state(&mut self) {
+        self.diagnostics.clear();
+        self.extern_symbols.clear();
+        self.loop_depth = 0;
+        self.safety_context = SafetyContext::Safe;
+        self.current_return_type = None;
+    }
+
+    fn check_module_with_signatures(
+        &mut self,
+        module: &HirModule,
+        signatures: &CallableSignatures,
+    ) -> Result<(), Vec<Diagnostic>> {
         // Duplicate function definitions (ported from the legacy analyzer).
         let mut seen_fns = std::collections::HashSet::new();
         for item in &module.items {
@@ -55,17 +95,15 @@ impl SemanticContext {
             }
         }
         // Collect user-declared extern symbol names so the capability gate can
-        // recognise foreign calls (these are in the SymbolTable, not the FFI
-        // CallableRegistry which only holds compiler-registered FFI like Raylib).
+        // recognise foreign calls. The name travels with the HIR node; it is
+        // never recovered from the lowering-time SymbolTable.
         for item in &module.items {
             if let HirItem::ExternFunction(ext) = &item.node {
-                if let Some(name) = self.symbols.callable_name(ext.callable) {
-                    self.extern_symbols.insert(name.to_string());
-                }
+                self.extern_symbols.insert(ext.name.clone());
             }
         }
         for item in &module.items {
-            self.check_item(item);
+            self.check_item(item, signatures);
         }
 
         if self.diagnostics.is_empty() {
@@ -75,14 +113,554 @@ impl SemanticContext {
         }
     }
 
-    fn check_item(&mut self, item: &Spanned<HirItem>) {
+    /// Fail closed on missing, duplicate, stale, inconsistent, or
+    /// provenance-invalid frozen callable metadata before any other semantic
+    /// check (and therefore before any LLVM construction) runs.
+    fn check_callable_metadata_integrity(&mut self, lowered: &LoweredModule) {
+        let signatures = &lowered.callable_signatures;
+
+        let mut declarations: HashMap<&str, Vec<HirCallableKind>> = HashMap::new();
+        for item in &lowered.module.items {
+            let declared = match &item.node {
+                HirItem::Function(function) => {
+                    Some((function.name.as_str(), HirCallableKind::Function))
+                }
+                HirItem::Struct(decl) => Some((decl.name.as_str(), HirCallableKind::Constructor)),
+                HirItem::ExternFunction(ext) => {
+                    Some((ext.name.as_str(), HirCallableKind::UserExtern))
+                }
+                HirItem::Enum(_) => None,
+            };
+            if let Some((name, kind)) = declared {
+                declarations.entry(name).or_default().push(kind);
+            }
+        }
+
+        // Table-level integrity: exact identity keys, unique names, coherent
+        // shapes, canonical builtins, and no metadata without a declaration.
+        let mut by_name: HashMap<&str, CallableId> = HashMap::new();
+        let mut keys: Vec<&CallableId> = signatures.keys().collect();
+        keys.sort_by_key(|id| id.0);
+        for key in keys {
+            let signature = &signatures[key];
+            if *key != signature.callable {
+                self.push_callable_metadata_error(
+                    Span::unknown(),
+                    format!(
+                        "Ralat: metadata callable rosak: kekunci {key:?} tidak sepadan dengan identiti {:?}",
+                        signature.callable
+                    ),
+                    format!(
+                        "Error: corrupt callable metadata: key {key:?} does not match identity {:?}",
+                        signature.callable
+                    ),
+                );
+            }
+            if signature.params.len() != signature.param_enums.len() {
+                self.push_callable_metadata_error(
+                    Span::unknown(),
+                    format!(
+                        "Ralat: metadata callable `{}` rosak: {} jenis parameter tetapi {} anotasi enum",
+                        signature.name,
+                        signature.params.len(),
+                        signature.param_enums.len()
+                    ),
+                    format!(
+                        "Error: corrupt callable metadata for `{}`: {} parameter types but {} enum annotations",
+                        signature.name,
+                        signature.params.len(),
+                        signature.param_enums.len()
+                    ),
+                );
+            }
+            if let Some(previous) = by_name.insert(signature.name.as_str(), *key) {
+                if previous != *key {
+                    self.push_callable_metadata_error(
+                        Span::unknown(),
+                        format!(
+                            "Ralat: metadata callable rosak: nama `{}` mempunyai identiti berganda",
+                            signature.name
+                        ),
+                        format!(
+                            "Error: corrupt callable metadata: name `{}` has duplicate identities",
+                            signature.name
+                        ),
+                    );
+                }
+            }
+            if signature.kind == HirCallableKind::Builtin {
+                let provenance_matches = lowered
+                    .builtin_provenance
+                    .get(&signature.name)
+                    .is_some_and(|callable| callable == key);
+                if !provenance_matches || !self.is_canonical_builtin_signature(signature) {
+                    self.push_callable_metadata_error(
+                        Span::unknown(),
+                        format!(
+                            "Ralat: provenance atau bentuk builtin `{}` tidak sah",
+                            signature.name
+                        ),
+                        format!(
+                            "Error: builtin `{}` has invalid provenance or canonical shape",
+                            signature.name
+                        ),
+                    );
+                }
+            } else if !declarations
+                .get(signature.name.as_str())
+                .is_some_and(|kinds| kinds.contains(&signature.kind))
+            {
+                self.push_callable_metadata_error(
+                    Span::unknown(),
+                    format!(
+                        "Ralat: metadata callable `{}` tiada deklarasi HIR yang sepadan",
+                        signature.name
+                    ),
+                    format!(
+                        "Error: callable metadata `{}` has no matching HIR declaration",
+                        signature.name
+                    ),
+                );
+            }
+        }
+        let mut provenance: Vec<(&String, &CallableId)> =
+            lowered.builtin_provenance.iter().collect();
+        provenance.sort_by_key(|(name, _)| *name);
+        for (name, callable) in provenance {
+            if !matches!(
+                signatures.get(callable),
+                Some(signature)
+                    if signature.kind == HirCallableKind::Builtin && signature.name == *name
+            ) {
+                self.push_callable_metadata_error(
+                    Span::unknown(),
+                    format!("Ralat: provenance builtin `{name}` tidak sah"),
+                    format!("Error: builtin provenance `{name}` is invalid"),
+                );
+            }
+        }
+
+        // Declaration-level integrity: every callable declaration is bound to
+        // exactly one frozen signature of the same kind, name, and shape.
+        // Functions and user externs carry their exact CallableId and are
+        // indexed by it; struct declarations carry none, so their constructor
+        // is verified through the unique-name table established above. Names
+        // that are declared more than once are reported as DuplicateDefinition.
+        for item in &lowered.module.items {
+            let (name, kind, exact_id) = match &item.node {
+                HirItem::Function(function) => (
+                    function.name.as_str(),
+                    HirCallableKind::Function,
+                    Some(function.callable),
+                ),
+                HirItem::Struct(decl) => (decl.name.as_str(), HirCallableKind::Constructor, None),
+                HirItem::ExternFunction(ext) => (
+                    ext.name.as_str(),
+                    HirCallableKind::UserExtern,
+                    Some(ext.callable),
+                ),
+                HirItem::Enum(_) => continue,
+            };
+            let indexed = match exact_id {
+                Some(callable) => signatures.get(&callable),
+                None => by_name
+                    .get(name)
+                    .and_then(|callable| signatures.get(callable)),
+            };
+            let signature = indexed.filter(|signature| {
+                signature.kind == kind
+                    && signature.name == name
+                    && exact_id.is_none_or(|id| id == signature.callable)
+            });
+            let Some(signature) = signature else {
+                self.push_callable_metadata_error(
+                    item.span,
+                    format!(
+                        "Ralat: metadata callable hilang atau tidak sepadan untuk deklarasi `{name}`"
+                    ),
+                    format!(
+                        "Error: callable metadata is missing or inconsistent for declaration `{name}`"
+                    ),
+                );
+                continue;
+            };
+            if declarations.get(name).is_some_and(|kinds| kinds.len() > 1) {
+                continue;
+            }
+            // Frozen enum annotations must equal the declaration-side
+            // annotations carried by HIR (read from the AST, independently of
+            // the frozen metadata). Parameters/fields are compared before the
+            // return; both precede the shape check below.
+            match &item.node {
+                HirItem::Function(function) => {
+                    if signature.param_enums != function.declaration_param_enums {
+                        self.push_callable_metadata_error(
+                            Span::unknown(),
+                            format!(
+                                "Ralat: metadata callable untuk fungsi '{name}' mempunyai anotasi enum parameter yang tidak konsisten dengan deklarasi"
+                            ),
+                            format!(
+                                "Error: callable metadata for function '{name}' has parameter enum annotations inconsistent with the declaration"
+                            ),
+                        );
+                    }
+                    if signature.return_enum != function.declaration_return_enum {
+                        self.push_callable_metadata_error(
+                            Span::unknown(),
+                            format!(
+                                "Ralat: metadata callable untuk fungsi '{name}' mempunyai anotasi enum pulangan yang tidak konsisten dengan deklarasi"
+                            ),
+                            format!(
+                                "Error: callable metadata for function '{name}' has return enum annotation inconsistent with the declaration"
+                            ),
+                        );
+                    }
+                }
+                HirItem::Struct(decl) => {
+                    if signature.param_enums != decl.declaration_field_enums {
+                        self.push_callable_metadata_error(
+                            Span::unknown(),
+                            format!(
+                                "Ralat: metadata callable untuk konstruktor '{name}' mempunyai anotasi enum medan yang tidak konsisten dengan deklarasi struct"
+                            ),
+                            format!(
+                                "Error: callable metadata for constructor '{name}' has field enum annotations inconsistent with the struct declaration"
+                            ),
+                        );
+                    }
+                    // A constructor returns its struct, never an enum.
+                    if signature.return_enum.is_some() {
+                        self.push_callable_metadata_error(
+                            Span::unknown(),
+                            format!(
+                                "Ralat: metadata callable untuk konstruktor '{name}' mempunyai anotasi enum pulangan yang tidak konsisten dengan deklarasi struct"
+                            ),
+                            format!(
+                                "Error: callable metadata for constructor '{name}' has an enum return annotation inconsistent with the struct declaration"
+                            ),
+                        );
+                    }
+                }
+                HirItem::ExternFunction(_) | HirItem::Enum(_) => {}
+            }
+            let expected_value_use = |return_type| {
+                if self.is_unit_type(return_type) {
+                    HirCallableValueUse::StatementOnly
+                } else {
+                    HirCallableValueUse::Value
+                }
+            };
+            let shape_matches = match &item.node {
+                HirItem::Function(function) => {
+                    signature.params
+                        == function
+                            .params
+                            .iter()
+                            .map(|param| param.ty.id)
+                            .collect::<Vec<_>>()
+                        && signature.return_type == function.return_type.id
+                        && !signature.is_variadic
+                        && signature.value_use == expected_value_use(function.return_type.id)
+                }
+                HirItem::Struct(decl) => {
+                    signature.params
+                        == decl
+                            .fields
+                            .iter()
+                            .map(|field| field.ty.id)
+                            .collect::<Vec<_>>()
+                        && self.is_canonical_constructor_return(&decl.name, signature.return_type)
+                        && !signature.is_variadic
+                        && signature.value_use == HirCallableValueUse::Value
+                }
+                HirItem::ExternFunction(ext) => {
+                    signature.params == ext.params
+                        && signature.return_type == ext.return_type
+                        && signature.is_variadic == ext.is_variadic
+                        && signature.value_use == expected_value_use(ext.return_type)
+                }
+                HirItem::Enum(_) => true,
+            };
+            if !shape_matches {
+                self.push_callable_metadata_error(
+                    item.span,
+                    format!(
+                        "Ralat: bentuk metadata callable `{name}` tidak sepadan dengan deklarasi HIR"
+                    ),
+                    format!(
+                        "Error: callable metadata shape for `{name}` does not match its HIR declaration"
+                    ),
+                );
+            }
+            // Struct-by-value FFI signatures have no supported foreign ABI;
+            // reject them here rather than failing inside LLVM construction.
+            if signature.kind == HirCallableKind::UserExtern {
+                let struct_typed = signature
+                    .params
+                    .iter()
+                    .chain(std::iter::once(&signature.return_type))
+                    .any(|ty| {
+                        matches!(self.types.get(*ty), Some(crate::types::TypeKind::Struct(_)))
+                    });
+                if struct_typed {
+                    self.push_error(
+                        DiagnosticCode::FfiBoundaryViolation,
+                        item.span,
+                        format!(
+                            "Ralat: extern `{name}` menggunakan jenis struct mengikut nilai, yang tidak disokong oleh sempadan FFI"
+                        ),
+                        format!(
+                            "Error: extern `{name}` uses a struct type by value, which the FFI boundary does not support"
+                        ),
+                    );
+                }
+            }
+        }
+
+        // Reference-level integrity: every call and spawn target resolves to
+        // frozen metadata, and call result stamps are not stale.
+        for item in &lowered.module.items {
+            if let HirItem::Function(function) = &item.node {
+                self.check_callable_references_in_block(&function.body, signatures);
+            }
+        }
+    }
+
+    /// A struct constructor returns exactly the struct type of its own
+    /// declaration: the interned `Struct` kind of the layout registered under
+    /// that name (the identity lowering assigned). Unknown or out-of-range
+    /// type ids never match.
+    fn is_canonical_constructor_return(&self, struct_name: &str, return_type: TypeId) -> bool {
+        let Some((layout, _)) = self.types.find_struct_by_name(struct_name) else {
+            return false;
+        };
+        matches!(
+            self.types.get(return_type),
+            Some(crate::types::TypeKind::Struct(id)) if *id == layout
+        )
+    }
+
+    fn is_canonical_builtin_signature(&self, signature: &HirCallableSignature) -> bool {
+        let ids = self.types.primitive_ids();
+        let common = signature.return_type == ids.unit
+            && signature.return_enum.is_none()
+            && signature.value_use == HirCallableValueUse::StatementOnly
+            && signature.param_enums.iter().all(Option::is_none);
+        common
+            && match signature.name.as_str() {
+                "print" => signature.params.is_empty() && signature.is_variadic,
+                "logicodex_sleep" => signature.params == [ids.i64_] && !signature.is_variadic,
+                "logicodex_yield" => signature.params.is_empty() && !signature.is_variadic,
+                _ => false,
+            }
+    }
+
+    fn check_callable_references_in_block(
+        &mut self,
+        block: &HirBlock,
+        signatures: &CallableSignatures,
+    ) {
+        for stmt in &block.statements {
+            match &stmt.node {
+                HirStmt::Let { value, .. } => {
+                    if let Some(value) = value {
+                        self.check_callable_references_in_expr(value, signatures);
+                    }
+                }
+                HirStmt::Assign { target, value } => {
+                    self.check_callable_references_in_expr(target, signatures);
+                    self.check_callable_references_in_expr(value, signatures);
+                }
+                HirStmt::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    self.check_callable_references_in_expr(condition, signatures);
+                    self.check_callable_references_in_block(then_branch, signatures);
+                    if let Some(else_branch) = else_branch {
+                        self.check_callable_references_in_block(else_branch, signatures);
+                    }
+                }
+                HirStmt::While { condition, body } => {
+                    self.check_callable_references_in_expr(condition, signatures);
+                    self.check_callable_references_in_block(body, signatures);
+                }
+                HirStmt::Loop { body }
+                | HirStmt::UnsafeBlock(body)
+                | HirStmt::HardwareZone(body) => {
+                    self.check_callable_references_in_block(body, signatures);
+                }
+                HirStmt::Expr(expr) | HirStmt::Return(Some(expr)) => {
+                    self.check_callable_references_in_expr(expr, signatures);
+                }
+                HirStmt::Break { .. }
+                | HirStmt::Continue { .. }
+                | HirStmt::HardwareDecl { .. }
+                | HirStmt::Return(None) => {}
+            }
+        }
+    }
+
+    fn check_callable_references_in_expr(
+        &mut self,
+        expr: &HirExpr,
+        signatures: &CallableSignatures,
+    ) {
+        match &expr.kind {
+            HirExprKind::Call { callee, args } => {
+                match signatures.get(callee) {
+                    None => self.push_missing_callable_metadata(*callee, expr.span),
+                    Some(signature) if expr.ty.id != signature.return_type => {
+                        let name = signature.name.clone();
+                        self.push_callable_metadata_error(
+                            expr.span,
+                            format!(
+                                "Ralat: cap jenis hasil panggilan `{name}` tidak sepadan dengan metadata beku"
+                            ),
+                            format!(
+                                "Error: call result type stamp for `{name}` does not match frozen metadata"
+                            ),
+                        );
+                    }
+                    Some(_) => {}
+                }
+                for arg in args {
+                    self.check_callable_references_in_expr(arg, signatures);
+                }
+            }
+            HirExprKind::Spawn {
+                actor_name,
+                actor_callable,
+                args,
+            } => {
+                self.check_spawn_target(actor_name, *actor_callable, args, expr.span, signatures);
+                for arg in args {
+                    self.check_callable_references_in_expr(arg, signatures);
+                }
+            }
+            HirExprKind::Binary { left, right, .. } => {
+                self.check_callable_references_in_expr(left, signatures);
+                self.check_callable_references_in_expr(right, signatures);
+            }
+            HirExprKind::Unary { expr: inner, .. }
+            | HirExprKind::Cast { expr: inner, .. }
+            | HirExprKind::Field { base: inner, .. }
+            | HirExprKind::ResultOk { value: inner }
+            | HirExprKind::ResultErr { value: inner }
+            | HirExprKind::OptionSome { value: inner }
+            | HirExprKind::ChannelCreate { capacity: inner }
+            | HirExprKind::ChannelRecv { channel: inner }
+            | HirExprKind::ChannelTrySend {
+                channel_name: _,
+                value: inner,
+            }
+            | HirExprKind::Sleep { duration_ms: inner }
+            | HirExprKind::ChannelTimeoutRecv {
+                channel_name: _,
+                timeout_ms: inner,
+            } => self.check_callable_references_in_expr(inner, signatures),
+            HirExprKind::Index { base, index } => {
+                self.check_callable_references_in_expr(base, signatures);
+                self.check_callable_references_in_expr(index, signatures);
+            }
+            HirExprKind::ArrayLiteral { elements } => {
+                for element in elements {
+                    self.check_callable_references_in_expr(element, signatures);
+                }
+            }
+            HirExprKind::ChannelSend { channel, value } => {
+                self.check_callable_references_in_expr(channel, signatures);
+                self.check_callable_references_in_expr(value, signatures);
+            }
+            HirExprKind::Literal(_)
+            | HirExprKind::Local(_)
+            | HirExprKind::Global(_)
+            // No expression-bearing fields: every field is bound explicitly
+            // so a future expression operand fails to compile until covered.
+            | HirExprKind::OptionNone
+            | HirExprKind::Join { actor_name: _ }
+            | HirExprKind::ChannelTryRecv { channel_name: _ }
+            | HirExprKind::Yield => {}
+        }
+    }
+
+    /// A spawn resolves only through the exact actor CallableId it carries,
+    /// which must index the frozen Function `__actor_<name>` whose shape
+    /// accepts the spawn arguments and returns Unit.
+    fn check_spawn_target(
+        &mut self,
+        actor_name: &str,
+        actor_callable: CallableId,
+        args: &[HirExpr],
+        span: Span,
+        signatures: &CallableSignatures,
+    ) {
+        let actor_symbol = format!("__actor_{actor_name}");
+        let Some(signature) = signatures.get(&actor_callable) else {
+            self.push_callable_metadata_error(
+                span,
+                format!(
+                    "Ralat: metadata callable actor {actor_callable:?} hilang untuk spawn `{actor_name}`"
+                ),
+                format!(
+                    "Error: frozen actor callable {actor_callable:?} is missing for spawn `{actor_name}`"
+                ),
+            );
+            return;
+        };
+        let unit = self.types.primitive_ids().unit;
+        let shape_matches = signature.callable == actor_callable
+            && signature.kind == HirCallableKind::Function
+            && signature.name == actor_symbol
+            && signature.params.len() == args.len()
+            && signature
+                .params
+                .iter()
+                .zip(args)
+                .all(|(expected, actual)| *expected == actual.ty.id)
+            && signature.return_type == unit
+            && !signature.is_variadic
+            && signature.value_use == HirCallableValueUse::StatementOnly;
+        if !shape_matches {
+            self.push_callable_metadata_error(
+                span,
+                format!(
+                    "Ralat: spawn `{actor_name}` tidak sepadan dengan callable actor beku {actor_callable:?}"
+                ),
+                format!(
+                    "Error: spawn `{actor_name}` does not match its frozen actor callable {actor_callable:?}"
+                ),
+            );
+        }
+    }
+
+    fn push_missing_callable_metadata(&mut self, callee: CallableId, span: Span) {
+        self.push_callable_metadata_error(
+            span,
+            format!("Ralat: metadata callable hilang untuk rujukan {callee:?}"),
+            format!("Error: callable metadata is missing for reference {callee:?}"),
+        );
+    }
+
+    fn push_callable_metadata_error(&mut self, span: Span, message_ms: String, message_en: String) {
+        self.push_error(
+            DiagnosticCode::CallableMetadataIntegrity,
+            span,
+            message_ms,
+            message_en,
+        );
+    }
+
+    fn check_item(&mut self, item: &Spanned<HirItem>, signatures: &CallableSignatures) {
         match &item.node {
             HirItem::Function(function) => {
                 let previous_safety = self.safety_context;
                 let previous_return_type = self.current_return_type;
                 self.safety_context = function.safety;
                 self.current_return_type = Some(function.return_type.id);
-                self.check_block(&function.body);
+                self.check_block(&function.body, signatures);
                 self.check_missing_return(function.return_type.id, &function.body, item.span);
                 self.current_return_type = previous_return_type;
                 self.safety_context = previous_safety;
@@ -256,19 +834,21 @@ impl SemanticContext {
         self.types_compatible(expected, self.expression_effective_type(expr))
     }
 
-    fn check_block(&mut self, block: &HirBlock) {
+    fn check_block(&mut self, block: &HirBlock, signatures: &CallableSignatures) {
         for stmt in &block.statements {
-            self.check_statement(stmt);
+            self.check_statement(stmt, signatures);
         }
     }
 
-    fn check_statement(&mut self, stmt: &Spanned<HirStmt>) {
+    fn check_statement(&mut self, stmt: &Spanned<HirStmt>, signatures: &CallableSignatures) {
         match &stmt.node {
             HirStmt::Let { ty, value, .. } => {
                 if let Some(value) = value {
-                    self.check_expression(value);
+                    self.check_expression(value, signatures);
                     if !self.is_unit_type(ty.id) {
-                        self.check_call_result_used_as_value(value, stmt.span, "binding");
+                        self.check_call_result_used_as_value(
+                            value, stmt.span, "binding", signatures,
+                        );
                     }
                     let actual = self.expression_effective_type(value);
                     if !self.types_compatible(ty.id, actual) {
@@ -290,8 +870,8 @@ impl SemanticContext {
                 }
             }
             HirStmt::Assign { target, value } => {
-                self.check_expression(target);
-                self.check_expression(value);
+                self.check_expression(target, signatures);
+                self.check_expression(value, signatures);
                 self.check_assignment_target(target, stmt.span);
                 if !self.types_compatible(target.ty.id, value.ty.id) {
                     self.push_error(
@@ -316,23 +896,23 @@ impl SemanticContext {
                 else_branch,
                 ..
             } => {
-                self.check_expression(condition);
+                self.check_expression(condition, signatures);
                 self.check_condition_type(condition, stmt.span, "if");
-                self.check_block(then_branch);
+                self.check_block(then_branch, signatures);
                 if let Some(else_branch) = else_branch {
-                    self.check_block(else_branch);
+                    self.check_block(else_branch, signatures);
                 }
             }
             HirStmt::While { condition, body } => {
-                self.check_expression(condition);
+                self.check_expression(condition, signatures);
                 self.check_condition_type(condition, stmt.span, "while");
                 self.loop_depth += 1;
-                self.check_block(body);
+                self.check_block(body, signatures);
                 self.loop_depth -= 1;
             }
             HirStmt::Loop { body } => {
                 self.loop_depth += 1;
-                self.check_block(body);
+                self.check_block(body, signatures);
                 self.loop_depth -= 1;
             }
             HirStmt::Break { .. } | HirStmt::Continue { .. } if self.loop_depth == 0 => {
@@ -347,26 +927,28 @@ impl SemanticContext {
             HirStmt::UnsafeBlock(block) => {
                 let previous = self.safety_context;
                 self.safety_context = SafetyContext::Unsafe;
-                self.check_block(block);
+                self.check_block(block, signatures);
                 self.safety_context = previous;
             }
             HirStmt::HardwareZone(block) => {
                 // MMIO zone: inherently unsafe context (volatile hardware access).
                 let previous = self.safety_context;
                 self.safety_context = SafetyContext::Unsafe;
-                self.check_block(block);
+                self.check_block(block, signatures);
                 self.safety_context = previous;
             }
             HirStmt::HardwareDecl { .. } => {
                 // Hardware register declaration: no sub-expressions to check.
             }
-            HirStmt::Expr(expr) => self.check_expression(expr),
+            HirStmt::Expr(expr) => self.check_expression(expr, signatures),
             HirStmt::Return(expr) => match expr {
                 Some(expr) => {
-                    self.check_expression(expr);
+                    self.check_expression(expr, signatures);
                     if let Some(expected) = self.current_return_type {
                         if !self.is_unit_type(expected) {
-                            self.check_call_result_used_as_value(expr, stmt.span, "return");
+                            self.check_call_result_used_as_value(
+                                expr, stmt.span, "return", signatures,
+                            );
                         }
                         let actual = self.expression_effective_type(expr);
 
@@ -434,178 +1016,247 @@ impl SemanticContext {
         }
     }
 
-    fn check_expression(&mut self, expr: &HirExpr) {
+    fn check_expression(&mut self, expr: &HirExpr, signatures: &CallableSignatures) {
         match &expr.kind {
             HirExprKind::Literal(_) | HirExprKind::Local(_) | HirExprKind::Global(_) => {}
             HirExprKind::Binary { left, op, right } => {
-                self.check_expression(left);
-                self.check_expression(right);
+                self.check_expression(left, signatures);
+                self.check_expression(right, signatures);
                 self.check_binary_operator(op, left, right, expr.span);
             }
             HirExprKind::Unary { op, expr: operand } => {
-                self.check_expression(operand);
+                self.check_expression(operand, signatures);
                 self.check_unary_operator(op, operand, expr.span);
             }
             HirExprKind::Field {
                 base, field_name, ..
             } => {
-                self.check_expression(base);
+                self.check_expression(base, signatures);
                 self.check_field_access(base, field_name, expr.span);
             }
             HirExprKind::Cast {
                 expr: operand,
                 target,
             } => {
-                self.check_expression(operand);
+                self.check_expression(operand, signatures);
                 self.check_cast_expression(operand, *target, expr.span);
             }
             HirExprKind::Index { base, index } => {
-                self.check_expression(base);
-                self.check_expression(index);
+                self.check_expression(base, signatures);
+                self.check_expression(index, signatures);
                 self.check_index_expression(base, index, expr.span);
             }
             HirExprKind::ArrayLiteral { elements } => {
                 for element in elements {
-                    self.check_expression(element);
+                    self.check_expression(element, signatures);
                 }
                 self.check_array_literal_elements(elements, expr.span);
             }
             HirExprKind::Call { callee, args } => {
                 for arg in args {
-                    self.check_expression(arg);
+                    self.check_expression(arg, signatures);
                 }
 
-                let expected_params = self.symbols.callable_params(*callee).map(|p| p.to_vec());
-                if let Some(expected_params) = expected_params {
-                    let name = self
-                        .symbols
-                        .callable_name(*callee)
-                        .unwrap_or("<unknown>")
-                        .to_string();
-
-                    if expected_params.len() != args.len() {
-                        self.push_error(
-                            DiagnosticCode::TypeMismatch,
-                            expr.span,
-                            format!(
-                                "Ralat: Bilangan argumen fungsi `{name}` tidak sepadan: dijangka {}, diterima {}",
-                                expected_params.len(),
-                                args.len()
-                            ),
-                            format!(
-                                "Error: Function `{name}` argument count mismatch: expected {}, got {}",
-                                expected_params.len(),
-                                args.len()
-                            ),
-                        );
+                // Callable semantics come only from frozen metadata. A plain
+                // HirModule has none, so its calls fail closed here.
+                let Some(callable) = signatures.get(callee).cloned() else {
+                    self.push_missing_callable_metadata(*callee, expr.span);
+                    return;
+                };
+                // Arity follows the frozen signature: a variadic callable
+                // requires at least its fixed prefix and permits trailing
+                // arguments; any other callable requires exact arity. Every
+                // fixed-prefix argument is type-checked.
+                let expected_params = callable.params.clone();
+                let name = callable.name.clone();
+                let wrong_arity = if callable.is_variadic {
+                    args.len() < expected_params.len()
+                } else {
+                    args.len() != expected_params.len()
+                };
+                if wrong_arity {
+                    let (expected_ms, expected_en) = if callable.is_variadic {
+                        (
+                            format!("sekurang-kurangnya {}", expected_params.len()),
+                            format!("at least {}", expected_params.len()),
+                        )
                     } else {
-                        for (idx, (expected, actual)) in
-                            expected_params.iter().copied().zip(args.iter()).enumerate()
-                        {
-                            if !self.is_unit_type(expected) {
-                                self.check_call_result_used_as_value(
-                                    actual,
-                                    actual.span,
-                                    "argument",
-                                );
-                            }
-                            let actual_ty = self.expression_effective_type(actual);
-                            if !self.types_compatible(expected, actual_ty) {
-                                self.push_error(
-                                    DiagnosticCode::TypeMismatch,
-                                    actual.span,
-                                    format!(
-                                        "Ralat: Jenis argumen fungsi `{name}` tidak sepadan pada argumen {}: dijangka {}, diterima {}",
-                                        idx + 1,
-                                        self.type_label(expected),
-                                        self.type_label(actual_ty)
-                                    ),
-                                    format!(
-                                        "Error: Function `{name}` argument {} type mismatch: expected {}, got {}",
-                                        idx + 1,
-                                        self.type_label(expected),
-                                        self.type_label(actual_ty)
-                                    ),
-                                );
-                            }
+                        (
+                            expected_params.len().to_string(),
+                            expected_params.len().to_string(),
+                        )
+                    };
+                    self.push_error(
+                        DiagnosticCode::TypeMismatch,
+                        expr.span,
+                        format!(
+                            "Ralat: Bilangan argumen fungsi `{name}` tidak sepadan: dijangka {expected_ms}, diterima {}",
+                            args.len()
+                        ),
+                        format!(
+                            "Error: Function `{name}` argument count mismatch: expected {expected_en}, got {}",
+                            args.len()
+                        ),
+                    );
+                } else {
+                    for (idx, (expected, actual)) in
+                        expected_params.iter().copied().zip(args.iter()).enumerate()
+                    {
+                        if !self.is_unit_type(expected) {
+                            self.check_call_result_used_as_value(
+                                actual,
+                                actual.span,
+                                "argument",
+                                signatures,
+                            );
+                        }
+                        let actual_ty = self.expression_effective_type(actual);
+                        if !self.types_compatible(expected, actual_ty) {
+                            self.push_error(
+                                DiagnosticCode::TypeMismatch,
+                                actual.span,
+                                format!(
+                                    "Ralat: Jenis argumen fungsi `{name}` tidak sepadan pada argumen {}: dijangka {}, diterima {}",
+                                    idx + 1,
+                                    self.type_label(expected),
+                                    self.type_label(actual_ty)
+                                ),
+                                format!(
+                                    "Error: Function `{name}` argument {} type mismatch: expected {}, got {}",
+                                    idx + 1,
+                                    self.type_label(expected),
+                                    self.type_label(actual_ty)
+                                ),
+                            );
                         }
                     }
                 }
 
-                // Resolve the callee by NAME against the FFI registry. The HIR
-                // Call.callee is a SymbolTable id (builtins/user fns) whose id-space
-                // is independent of the FFI CallableRegistry, so a raw .get(id) can
-                // alias an unrelated extern (e.g. print -> InitWindow). Name-based
-                // lookup only validates genuine FFI functions; builtins resolve to
-                // None here and are correctly skipped.
-                let ffi_sig = self
-                    .symbols
-                    .callable_name(*callee)
-                    .and_then(|name| self.callables.find_by_name(name));
-                if let Some((_, signature)) = ffi_sig {
-                    let gate = FfiGatekeeper {
-                        types: &self.types,
-                        callables: Some(&self.callables),
-                        policy: Some(&self.policy),
-                    };
-                    let result =
-                        gate.validate_call(signature, args, self.safety_context, expr.span);
-                    if let Err(diagnostic) = result {
-                        self.diagnostics.push(diagnostic);
-                    }
-                } else if let Some(name) = self.symbols.callable_name(*callee) {
-                    // User-declared extern (in the SymbolTable, not the FFI
-                    // registry). It is a foreign call, so it must pass the
-                    // capability gate: default-deny unless explicitly allowed.
-                    // (unsafe/arity/type for these are handled elsewhere; here we
-                    // enforce ONLY the capability layer.)
-                    if self.extern_symbols.contains(name) && !self.policy.is_symbol_allowed(name) {
-                        self.diagnostics.push(crate::span::Diagnostic {
-                            code: DiagnosticCode::FfiBoundaryViolation,
-                            severity: Severity::Error,
-                            message_ms: format!(
-                                "Ralat: panggilan extern '{name}' ditolak oleh polisi \
-                                 keupayaan FFI. Isytiharkannya dalam ffi.allow sebelum guna."
-                            ),
-                            message_en: format!(
-                                "Error: extern call '{name}' denied by FFI capability \
-                                 policy. Declare it in ffi.allow before use."
-                            ),
-                            primary_span: expr.span,
-                            notes: Vec::new(),
-                        });
-                    }
+                // Only a frozen UserExtern has foreign-call provenance. Function,
+                // Constructor, and Builtin callables are language callables and
+                // never become FFI calls, even when their name collides with a
+                // CallableRegistry entry.
+                if callable.kind == HirCallableKind::UserExtern {
+                    self.check_frozen_extern_call(&callable, args, expr.span);
                 }
             }
-            _ => {}
-        }
-    }
-
-    fn expression_effective_type(&self, expr: &HirExpr) -> crate::types::TypeId {
-        match &expr.kind {
-            HirExprKind::Call { callee, .. } => {
-                self.symbols.callable_return(*callee).unwrap_or(expr.ty.id)
+            HirExprKind::Spawn {
+                actor_name,
+                actor_callable,
+                args,
+            } => {
+                for arg in args {
+                    self.check_expression(arg, signatures);
+                }
+                self.check_spawn_target(actor_name, *actor_callable, args, expr.span, signatures);
             }
-            _ => expr.ty.id,
+            HirExprKind::ResultOk { value }
+            | HirExprKind::ResultErr { value }
+            | HirExprKind::OptionSome { value }
+            | HirExprKind::ChannelTrySend {
+                channel_name: _,
+                value,
+            } => self.check_expression(value, signatures),
+            HirExprKind::ChannelCreate { capacity } => self.check_expression(capacity, signatures),
+            HirExprKind::ChannelRecv { channel } => self.check_expression(channel, signatures),
+            HirExprKind::ChannelSend { channel, value } => {
+                self.check_expression(channel, signatures);
+                self.check_expression(value, signatures);
+            }
+            HirExprKind::Sleep { duration_ms } => self.check_expression(duration_ms, signatures),
+            HirExprKind::ChannelTimeoutRecv {
+                channel_name: _,
+                timeout_ms,
+            } => self.check_expression(timeout_ms, signatures),
+            // No expression-bearing fields (bound explicitly, see above).
+            HirExprKind::OptionNone
+            | HirExprKind::Join { actor_name: _ }
+            | HirExprKind::ChannelTryRecv { channel_name: _ }
+            | HirExprKind::Yield => {}
         }
     }
 
-    fn check_call_result_used_as_value(&mut self, expr: &HirExpr, span: Span, context: &str) {
+    /// Apply the frozen UserExtern policy to a foreign call. Frozen language
+    /// metadata is authoritative for safety (UnsafeRequired), arity, argument
+    /// types, and capability. A same-named FFI registry entry is binding
+    /// information only: it must agree with the frozen declaration or the call
+    /// is rejected, and its own safety/arity/policy never replaces the frozen
+    /// policy.
+    fn check_frozen_extern_call(
+        &mut self,
+        callable: &HirCallableSignature,
+        args: &[HirExpr],
+        span: Span,
+    ) {
+        let name = callable.name.as_str();
+        let frozen = crate::ffi::CallableSignature {
+            name: callable.name.clone(),
+            params: callable.params.clone(),
+            return_type: callable.return_type,
+            abi: crate::ffi::CallingConvention::C,
+            safety: crate::ffi::CallableSafety::UnsafeRequired,
+            is_extern: true,
+            is_variadic: callable.is_variadic,
+        };
+        // The HIR Call.callee is a language CallableId whose id-space is
+        // independent of the FFI CallableRegistry, so the registry is consulted
+        // by the frozen extern's NAME only, and only to validate the binding.
+        if let Some((_, binding)) = self.callables.find_by_name(name) {
+            let compatible = binding.is_extern
+                && binding.params == frozen.params
+                && binding.return_type == frozen.return_type
+                && binding.is_variadic == frozen.is_variadic
+                && binding.abi == frozen.abi;
+            if !compatible {
+                self.diagnostics.push(Diagnostic {
+                    code: DiagnosticCode::FfiBoundaryViolation,
+                    severity: Severity::Error,
+                    message_ms: format!(
+                        "Ralat: binding FFI '{name}' tidak serasi dengan deklarasi extern beku"
+                    ),
+                    message_en: format!(
+                        "Error: FFI binding '{name}' is incompatible with its frozen extern declaration"
+                    ),
+                    primary_span: span,
+                    notes: Vec::new(),
+                });
+                return;
+            }
+        }
+        let gate = FfiGatekeeper {
+            types: &self.types,
+            callables: Some(&self.callables),
+            policy: Some(&self.policy),
+        };
+        if let Err(diagnostic) = gate.validate_call(&frozen, args, self.safety_context, span) {
+            self.diagnostics.push(diagnostic);
+        }
+    }
+
+    /// Call result stamps equal the frozen callable return type: lowering
+    /// stamps them from the frozen table, and `check_lowered_module` rejects a
+    /// stale stamp before this is consulted.
+    fn expression_effective_type(&self, expr: &HirExpr) -> crate::types::TypeId {
+        expr.ty.id
+    }
+
+    fn check_call_result_used_as_value(
+        &mut self,
+        expr: &HirExpr,
+        span: Span,
+        context: &str,
+        signatures: &CallableSignatures,
+    ) {
         let HirExprKind::Call { callee, .. } = &expr.kind else {
             return;
         };
-
-        let name = self
-            .symbols
-            .callable_name(*callee)
-            .unwrap_or("<unknown>")
-            .to_string();
-
-        // HIR lowering already stamped call expressions with the effective
-        // callable return type. Compile-time semantic revalidation may not have
-        // the original lowering SymbolTable/CallableId metadata, so fall back to
-        // the HIR expression type instead of treating a known call as Unknown.
-        let return_type = self.symbols.callable_return(*callee).unwrap_or(expr.ty.id);
+        let frozen = signatures.get(callee);
+        let name = frozen
+            .map(|signature| signature.name.clone())
+            .unwrap_or_else(|| "<unknown>".to_string());
+        let return_type = frozen
+            .map(|signature| signature.return_type)
+            .unwrap_or(expr.ty.id);
 
         if self.is_unit_type(return_type) {
             self.push_error(
@@ -619,7 +1270,7 @@ impl SemanticContext {
                 ),
             );
         } else if self.is_unknown_type(return_type) {
-            let metadata_missing = self.symbols.callable_return(*callee).is_none();
+            let metadata_missing = frozen.is_none();
 
             self.push_error(
                 DiagnosticCode::TypeMismatch,
@@ -1174,6 +1825,7 @@ mod tests {
         let mut ctx = base_context();
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                callable: CallableId(8),
                 name: "bad_if".to_string(),
                 symbol: SymbolId(0),
                 params: vec![],
@@ -1189,6 +1841,8 @@ mod tests {
                     })],
                 },
                 safety: SafetyContext::Safe,
+                declaration_param_enums: Vec::new(),
+                declaration_return_enum: None,
             }))],
         };
 
@@ -1214,6 +1868,7 @@ mod tests {
         let mut ctx = base_context();
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                callable: CallableId(8),
                 name: "bad_while".to_string(),
                 symbol: SymbolId(0),
                 params: vec![],
@@ -1227,6 +1882,8 @@ mod tests {
                     })],
                 },
                 safety: SafetyContext::Safe,
+                declaration_param_enums: Vec::new(),
+                declaration_return_enum: None,
             }))],
         };
 
@@ -1253,6 +1910,7 @@ mod tests {
         let mut ctx = base_context();
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                callable: CallableId(8),
                 name: "good_conditions".to_string(),
                 symbol: SymbolId(0),
                 params: vec![],
@@ -1274,6 +1932,8 @@ mod tests {
                     ],
                 },
                 safety: SafetyContext::Safe,
+                declaration_param_enums: Vec::new(),
+                declaration_return_enum: None,
             }))],
         };
 
@@ -1286,6 +1946,7 @@ mod tests {
         let mut ctx = base_context();
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                callable: CallableId(8),
                 name: "bad".to_string(),
                 symbol: SymbolId(0),
                 params: vec![],
@@ -1296,6 +1957,8 @@ mod tests {
                     statements: vec![spanned(HirStmt::Return(None))],
                 },
                 safety: SafetyContext::Safe,
+                declaration_param_enums: Vec::new(),
+                declaration_return_enum: None,
             }))],
         };
 
@@ -1321,6 +1984,7 @@ mod tests {
         let mut ctx = base_context();
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                callable: CallableId(8),
                 name: "test".to_string(),
                 symbol: SymbolId(0),
                 params: Vec::new(),
@@ -1331,6 +1995,8 @@ mod tests {
                     statements: vec![spanned(HirStmt::Break { target_depth: 0 })],
                 },
                 safety: SafetyContext::Safe,
+                declaration_param_enums: Vec::new(),
+                declaration_return_enum: None,
             }))],
         };
 
@@ -1345,6 +2011,7 @@ mod tests {
         let mut ctx = base_context();
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                callable: CallableId(8),
                 name: "test".to_string(),
                 symbol: SymbolId(0),
                 params: Vec::new(),
@@ -1359,6 +2026,8 @@ mod tests {
                     })],
                 },
                 safety: SafetyContext::Safe,
+                declaration_param_enums: Vec::new(),
+                declaration_return_enum: None,
             }))],
         };
 
@@ -1378,9 +2047,9 @@ mod tests {
             is_extern: true,
             is_variadic: false,
         });
-        // The semantic gate resolves FFI callees by NAME via the symbol table,
-        // so the call must reference a symbol id whose name matches the registry.
-        let callee = ctx.symbols.define_callable("puts");
+        // The language CallableId is independent of the FFI registry identity;
+        // the gate routes the frozen callee name to the registry binding.
+        let callee = CallableId(7);
         let call = HirExpr {
             kind: HirExprKind::Call {
                 callee,
@@ -1391,6 +2060,7 @@ mod tests {
         };
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                callable: CallableId(8),
                 name: "test".to_string(),
                 symbol: SymbolId(0),
                 params: Vec::new(),
@@ -1399,11 +2069,14 @@ mod tests {
                     statements: vec![spanned(HirStmt::Expr(call))],
                 },
                 safety: SafetyContext::Safe,
+                declaration_param_enums: Vec::new(),
+                declaration_return_enum: None,
             }))],
         };
 
+        let artifact = ffi_test_artifact(module, callee, ids);
         let diagnostics = ctx
-            .check_module(&module)
+            .check_lowered_module(&artifact)
             .expect_err("unsafe ffi call must fail");
         assert_eq!(diagnostics[0].code, DiagnosticCode::FfiBoundaryViolation);
     }
@@ -1412,7 +2085,7 @@ mod tests {
     fn ffi_call_inside_unsafe_block_succeeds() {
         let mut ctx = base_context();
         let ids = ctx.types.primitive_ids();
-        let callable = ctx.callables.register(crate::ffi::CallableSignature {
+        let _ffi_callable = ctx.callables.register(crate::ffi::CallableSignature {
             name: "puts".to_string(),
             params: vec![ids.i64_],
             return_type: ids.i32_,
@@ -1423,7 +2096,7 @@ mod tests {
         });
         let call = HirExpr {
             kind: HirExprKind::Call {
-                callee: callable,
+                callee: CallableId(7),
                 args: vec![expr_i64(&ctx.types, 1)],
             },
             ty: TypeRef { id: ids.i32_ },
@@ -1431,6 +2104,7 @@ mod tests {
         };
         let module = HirModule {
             items: vec![spanned(HirItem::Function(HirFunction {
+                callable: CallableId(8),
                 name: "test".to_string(),
                 symbol: SymbolId(0),
                 params: Vec::new(),
@@ -1441,10 +2115,77 @@ mod tests {
                     }))],
                 },
                 safety: SafetyContext::Safe,
+                declaration_param_enums: Vec::new(),
+                declaration_return_enum: None,
             }))],
         };
 
-        assert!(ctx.check_module(&module).is_ok());
+        // A declared user extern must also pass the capability policy.
+        ctx.policy.allow_symbol("puts");
+        let artifact = ffi_test_artifact(module, CallableId(7), ids);
+        let result = ctx.check_lowered_module(&artifact);
+        assert!(result.is_ok(), "unexpected diagnostics: {result:?}");
+    }
+
+    /// Wrap a single unit `test` function calling extern `puts` in a canonical
+    /// lowering artifact with exact frozen metadata for both callables.
+    fn ffi_test_artifact(
+        mut module: HirModule,
+        puts: CallableId,
+        ids: crate::types::PrimitiveTypeIds,
+    ) -> LoweredModule {
+        module.items.insert(
+            0,
+            spanned(HirItem::ExternFunction(crate::hir::HirExternFunction {
+                callable: puts,
+                name: "puts".to_string(),
+                params: vec![ids.i64_],
+                return_type: ids.i32_,
+                is_variadic: false,
+            })),
+        );
+        let test = CallableId(8);
+        let signature = |callable, name: &str, kind, params: Vec<_>, return_type, value_use| {
+            HirCallableSignature {
+                callable,
+                name: name.to_string(),
+                kind,
+                param_enums: vec![None; params.len()],
+                params,
+                return_type,
+                return_enum: None,
+                is_variadic: false,
+                value_use,
+            }
+        };
+        LoweredModule {
+            module,
+            callable_signatures: HashMap::from([
+                (
+                    puts,
+                    signature(
+                        puts,
+                        "puts",
+                        HirCallableKind::UserExtern,
+                        vec![ids.i64_],
+                        ids.i32_,
+                        HirCallableValueUse::Value,
+                    ),
+                ),
+                (
+                    test,
+                    signature(
+                        test,
+                        "test",
+                        HirCallableKind::Function,
+                        Vec::new(),
+                        ids.unit,
+                        HirCallableValueUse::StatementOnly,
+                    ),
+                ),
+            ]),
+            builtin_provenance: HashMap::new(),
+        }
     }
 
     fn hir_function_returning_i64(
@@ -1454,6 +2195,7 @@ mod tests {
         crate::hir::HirModule {
             items: vec![spanned(crate::hir::HirItem::Function(
                 crate::hir::HirFunction {
+                    callable: CallableId(8),
                     name: "cast_test".to_string(),
                     symbol: crate::hir::SymbolId(0),
                     params: vec![],
@@ -1464,6 +2206,8 @@ mod tests {
                         statements: vec![spanned(crate::hir::HirStmt::Return(Some(expr)))],
                     },
                     safety: SafetyContext::Safe,
+                    declaration_param_enums: Vec::new(),
+                    declaration_return_enum: None,
                 },
             ))],
         }
@@ -1549,6 +2293,30 @@ pub fn validate_module(module: &HirModule, types: TypeRegistry) -> Result<(), Ve
         extern_symbols: std::collections::HashSet::new(),
     };
     ctx.check_module(module)
+}
+
+/// Defensive revalidation of the canonical lowering artifact with the same
+/// FFI registry and capability policy used by the production semantic check.
+/// Codegen calls this immediately before LLVM construction; it does not create
+/// a second Meaning Authority.
+pub fn validate_lowered_module(
+    lowered: &LoweredModule,
+    types: TypeRegistry,
+    callables: CallableRegistry,
+    policy: crate::ffi::CapabilityPolicy,
+) -> Result<(), Vec<Diagnostic>> {
+    let mut ctx = SemanticContext {
+        types,
+        symbols: SymbolTable::default(),
+        callables,
+        diagnostics: Vec::new(),
+        loop_depth: 0,
+        safety_context: SafetyContext::Safe,
+        current_return_type: None,
+        policy,
+        extern_symbols: std::collections::HashSet::new(),
+    };
+    ctx.check_lowered_module(lowered)
 }
 
 /// Run the semantic gatekeeper and print any diagnostics.
