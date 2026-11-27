@@ -951,8 +951,13 @@ impl SemanticContext {
                             );
                         }
                         let actual = self.expression_effective_type(expr);
+                        // A Unit function returning a value owns one
+                        // Unit-specific diagnostic; the generic mismatch below
+                        // would only duplicate it.
+                        let unit_return_value =
+                            self.is_unit_type(expected) && !self.is_unit_type(actual);
 
-                        if self.is_unit_type(expected) && !self.is_unit_type(actual) {
+                        if unit_return_value {
                             self.push_error(
                                 DiagnosticCode::TypeMismatch,
                                 stmt.span,
@@ -976,7 +981,7 @@ impl SemanticContext {
                             );
                         }
 
-                        if !self.types_compatible(expected, actual) {
+                        if !unit_return_value && !self.types_compatible(expected, actual) {
                             self.push_error(
                                 DiagnosticCode::TypeMismatch,
                                 stmt.span,
