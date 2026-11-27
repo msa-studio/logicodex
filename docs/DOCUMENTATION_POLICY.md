@@ -18,6 +18,11 @@ disposition, and work sequence. It does not override live source and executable
 tests for implemented behavior. No other document may define a competing active
 sequence.
 
+[`architecture/master-roadmap.md`](architecture/master-roadmap.md) is the sole
+long-term roadmap. It defines direction and stage placement only; it is not an
+execution sequence and does not authorize future-stage work. No other document
+may define competing long-term direction or stage placement.
+
 ### 2. Scoped current evidence
 
 These must be current within their named scope and updated in the same batch as
@@ -26,8 +31,11 @@ the behavior or decision they describe:
 - `README.md` and `examples/` — verified front door and syntax evidence;
 - explicitly linked architecture, governance, lifecycle, and contract records;
 - `CHANGELOG.md` — current change record;
-- `ROADMAP_v2.md` — long-horizon phase baseline and history, not current
-  work-sequence authority.
+- `docs/architecture/cpb-self-hosting-runway.md` and
+  `docs/architecture/cpb-next-roadmap-blockers.md` — subordinate technical
+  requirements; stage placement comes from the master roadmap;
+- `ROADMAP_v2.md` — historical phase baseline, provenance only; retained in
+  place, with no direction, stage-placement, or work-sequence authority.
 
 An entire directory is never authoritative merely because of its path. Code
 samples presented as current must pass `logicodex check`.

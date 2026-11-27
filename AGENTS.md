@@ -7,11 +7,20 @@ Before planning, editing, reviewing, or proposing work, read:
 That file is the single entry point for current authority and work sequence.
 Live source plus executable tests remain primary truth for implemented behavior.
 
+Long-term direction and stage placement (Stages A–H) are defined only by
+[`docs/architecture/master-roadmap.md`](docs/architecture/master-roadmap.md).
+Placement there is not authorization: do not start, implement, or declare
+closed any stage or sub-milestone unless `current-authority.md` names it, its
+RFC is approved, and the roadmap's closure rules are met. Do not edit the
+master roadmap without explicit owner approval.
+
 Do not infer current authority from:
 
 - version numbers in historical documents;
 - `docs/archive/**`, `scripts/_archive/**`, or `spec/v*/**`;
 - unchecked roadmap issue labels or old sprint lists;
+- `ROADMAP_v2.md` phase order or version targets, or the phase order in
+  subordinate CPB and blocker records;
 - dormant, legacy, or `FutureReserved` code.
 
 Preserve canonical HIR and `semantic_gate` Meaning Authority. Do not reactivate

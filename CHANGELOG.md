@@ -1,5 +1,26 @@
 ## Unreleased
 
+### Governance
+
+- Adopted the owner-supplied `docs/architecture/master-roadmap.md` (verbatim,
+  SHA-256 `1256ce4441eb2ee07376bad8eb0da18a0a505fd3d617c6f1a4ab490c9ad1deb4`)
+  as the sole long-term roadmap defining direction and stage placement
+  (Stages A–H). `docs/architecture/current-authority.md` remains the sole
+  active execution authority; its owner-locked sequence is unchanged and is
+  identified as Stage A CPB-2S.
+- Demoted `ROADMAP_v2.md` to a historical phase baseline kept for provenance;
+  its phase version targets are obsolete as normative targets, and its P4-D6
+  no-Emscripten statement is superseded by the Stage E WASM/Browser profile.
+  CPB runway and P0–P2 blocker records are subordinate technical requirements
+  with stage placement from the master roadmap; the runway's CPB-2 is CPB-2L.
+- Redirected emergency-override, violation, and reversion records from
+  `ROADMAP_v2.md` to `CHANGELOG.md` and current authority (roadmap policy
+  1.2.0), and aligned README, documentation policy, audit template, and agent
+  instructions.
+- Added `docs/architecture/master-roadmap-adoption-report.md` with capability
+  traceability and recorded gaps and conflicts. Documentation only: no source,
+  test, Cargo, version, release, or milestone-status change.
+
 ### Toolchain
 
 - Aligned the release workflow, Makefile, and active contributor/guide docs

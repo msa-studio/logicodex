@@ -4,7 +4,14 @@ This subordinate record inventories blockers after the stdlib-core foundation
 merge. It does not own current execution order. Agents must read
 [`current-authority.md`](current-authority.md) before using this inventory.
 
-Long-horizon context remains:
+Long-term direction and stage placement are defined only by
+[`master-roadmap.md`](master-roadmap.md). Stage placement of this inventory:
+P0 is a cross-stage track (Stage A covers the active pipeline only; later
+stages add numeric/string/array, pointer/FFI/layout, and generics/traits/
+ownership scope); P1.1–P1.4 are Stage B; P2.1–P2.6 are Stage C.
+
+Historical long-horizon context (superseded for direction by the master
+roadmap; retained for provenance):
 
 1. Compiler Foundation
 2. Stdlib Contract Framework
