@@ -366,7 +366,7 @@ fn assignment_mismatch_preserves_exact_record() {
         "fn main() -> I64 begin\n    let x: I64 = 1;\n    x = true;\n    return 0;\nend\n",
         &[mismatch(
             "TypeMismatch",
-            "file 0:2:5-2:20",
+            "file 0:3:5-3:14",
             "Ralat: Jenis tugasan tidak sepadan: dijangka Primitive(I64), diterima Primitive(Bool)",
             "Error: Assignment type mismatch: expected Primitive(I64), got Primitive(Bool)",
         )],
@@ -423,7 +423,7 @@ fn rejected_fixture_emits_no_backend_artifacts() {
         "fn main() -> I64 begin\n    let x: I64 = 1;\n    x = true;\n    return 0;\nend\n",
         &[mismatch(
             "TypeMismatch",
-            "file 0:2:5-2:20",
+            "file 0:3:5-3:14",
             "Ralat: Jenis tugasan tidak sepadan: dijangka Primitive(I64), diterima Primitive(Bool)",
             "Error: Assignment type mismatch: expected Primitive(I64), got Primitive(Bool)",
         )],

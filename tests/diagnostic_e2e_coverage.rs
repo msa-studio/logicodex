@@ -197,3 +197,81 @@ fn valid_function_call_still_passes() {
         "function add(a: I64, b: I64) -> I64 begin\n    return a + b;\nend\n\nfunction main() -> I64 begin\n    return add(10, 20);\nend\n",
     );
 }
+
+#[test]
+fn let_mismatch_emits_coded_malay_and_english_diagnostic() {
+    let output =
+        check_fail("function f() -> I64 begin\n    let x: I64 = true;\n    return 1;\nend\n");
+    assert_exact_code(&output, "TypeMismatch");
+    assert!(
+        output.contains(
+            "Ralat: Jenis ikatan tidak sepadan: dijangka Primitive(I64), diterima Primitive(Bool)"
+        ),
+        "{output}"
+    );
+    assert!(
+        output
+            .contains("Error: Binding type mismatch: expected Primitive(I64), got Primitive(Bool)"),
+        "{output}"
+    );
+    assert_nonzero_span(&output, 2);
+}
+
+#[test]
+fn assign_mismatch_fails_closed_without_backend_artifacts() {
+    let proj = Tmp::new("assign_closed");
+    let root = proj.file(
+        "main.ldx",
+        "function f() -> I64 begin\n    let x: I64 = 1;\n    x = true;\n    return 1;\nend\n",
+    );
+    let out = Command::new(bin())
+        .env(
+            "LOGICODEX_STD",
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("lib"),
+        )
+        .arg("check")
+        .arg(&root)
+        .output()
+        .expect("spawn check");
+    assert!(!out.status.success());
+    let output = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_exact_code(&output, "TypeMismatch");
+    assert_nonzero_span(&output, 3);
+    let mut stack = vec![proj.dir.clone()];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).expect("read_dir").flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else {
+                assert!(
+                    !matches!(
+                        path.extension().and_then(|x| x.to_str()),
+                        Some("ll" | "bc" | "o" | "obj" | "exe" | "ir")
+                    ) && path.file_name().and_then(|x| x.to_str()) != Some("main"),
+                    "rejected fixture produced backend artifact: {path:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn return_mismatch_emits_coded_malay_and_english_diagnostic() {
+    let output = check_fail("function f() -> I64 begin\n    return true;\nend\n");
+    assert_exact_code(&output, "TypeMismatch");
+    assert!(
+        output.contains("Ralat: Jenis pulangan tidak sepadan: dijangka Primitive(I64), diterima Primitive(Bool)"),
+        "{output}"
+    );
+    assert!(
+        output
+            .contains("Error: Return type mismatch: expected Primitive(I64), got Primitive(Bool)"),
+        "{output}"
+    );
+    assert_nonzero_span(&output, 2);
+}

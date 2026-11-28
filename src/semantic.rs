@@ -297,6 +297,7 @@ impl Analyzer {
                 name,
                 declared_type,
                 value,
+                ..
             } => {
                 let inferred = self.expression(value)?;
                 let ty = declared_type.clone().unwrap_or(inferred.clone());
@@ -348,7 +349,7 @@ impl Analyzer {
                 }
                 self.define(name, ty)
             }
-            Stmt::Assign { target, value } => {
+            Stmt::Assign { target, value, .. } => {
                 let val_ty = self.expression(value)?;
                 match target {
                     Expr::Index { base, index } => {
@@ -396,7 +397,7 @@ impl Analyzer {
                 self.expression(value)?;
                 Ok(())
             }
-            Stmt::Return { value } => {
+            Stmt::Return { value, .. } => {
                 let actual = self.expression(value)?;
                 let Some((function_name, expected)) = &self.current_function else {
                     return Err(SemanticError::ReturnOutsideFunction);

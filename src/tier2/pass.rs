@@ -359,7 +359,7 @@ fn infer_stmt_gates(stmt: &Stmt, contract: &mut GateContract) {
         }
         Stmt::ExprStmt { value }
         | Stmt::Let { value, .. }
-        | Stmt::Return { value }
+        | Stmt::Return { value, .. }
         | Stmt::Assign { value, .. } => {
             infer_expr_gates(value, contract);
         }
@@ -518,7 +518,7 @@ fn collect_callees_in_stmt(stmt: &Stmt, out: &mut Vec<String>) {
         Stmt::Let { value, .. } => {
             collect_callees_in_expr(value, out);
         }
-        Stmt::Return { value } => {
+        Stmt::Return { value, .. } => {
             collect_callees_in_expr(value, out);
         }
         Stmt::If {
@@ -614,7 +614,7 @@ fn collect_callees_in_expr(expr: &Expr, out: &mut Vec<String>) {
 fn stmt_calls_name(stmt: &Stmt, name: &str) -> bool {
     match stmt {
         Stmt::ExprStmt { value } | Stmt::Print { value } => expr_calls_name(value, name),
-        Stmt::Let { value, .. } | Stmt::Return { value } | Stmt::Assign { value, .. } => {
+        Stmt::Let { value, .. } | Stmt::Return { value, .. } | Stmt::Assign { value, .. } => {
             expr_calls_name(value, name)
         }
         Stmt::If {
@@ -705,7 +705,7 @@ fn infer_stmt_capabilities(stmt: &Stmt, caps: &mut Capability) {
         Stmt::HardwareZone { .. } | Stmt::HardwareDecl { .. } => caps.insert(Capability::HARDWARE),
         Stmt::ExprStmt { value }
         | Stmt::Let { value, .. }
-        | Stmt::Return { value }
+        | Stmt::Return { value, .. }
         | Stmt::Assign { value, .. } => {
             infer_expr_capabilities(value, caps);
         }

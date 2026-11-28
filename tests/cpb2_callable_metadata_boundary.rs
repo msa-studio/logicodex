@@ -75,6 +75,7 @@ fn main_program() -> Program {
         return_type: Some(Type::I64),
         body: vec![Stmt::Return {
             value: Expr::Variable("value".to_string()),
+            span: Span::unknown(),
         }],
         span: Span::unknown(),
         is_public: false,
@@ -91,6 +92,7 @@ fn module_program() -> Program {
         return_type: Some(Type::I64),
         body: vec![Stmt::Return {
             value: Expr::Variable("value".to_string()),
+            span: Span::unknown(),
         }],
         span: Span::unknown(),
         is_public: true,

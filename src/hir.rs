@@ -2570,6 +2570,9 @@ fn lower_match_to_if(value: ast::Expr, arms: Vec<ast::MatchArm>) -> StmtAst {
 fn ast_stmt_span(stmt: &ast::Stmt) -> Span {
     match stmt {
         ast::Stmt::Function { span, .. }
+        | ast::Stmt::Let { span, .. }
+        | ast::Stmt::Assign { span, .. }
+        | ast::Stmt::Return { span, .. }
         | ast::Stmt::Break { span }
         | ast::Stmt::Continue { span } => *span,
         _ => Span::unknown(),
@@ -2590,6 +2593,7 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
             name,
             declared_type,
             value,
+            ..
         } => StmtAst::Let {
             name,
             ty: declared_type.map(lower_type_ast),
@@ -2601,9 +2605,9 @@ fn lower_stmt_ast(stmt: ast::Stmt) -> StmtAst {
             span: Span::unknown(),
             arg_spans: vec![Span::unknown()],
         }),
-        Stmt::Return { value } => StmtAst::Return(Some(lower_expr_ast(value))),
+        Stmt::Return { value, .. } => StmtAst::Return(Some(lower_expr_ast(value))),
         Stmt::ExprStmt { value } => StmtAst::Expr(lower_expr_ast(value)),
-        Stmt::Assign { target, value } => StmtAst::Assign {
+        Stmt::Assign { target, value, .. } => StmtAst::Assign {
             target: lower_expr_ast(target),
             value: lower_expr_ast(value),
         },
