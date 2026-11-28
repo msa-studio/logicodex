@@ -483,6 +483,7 @@ impl Parser {
 
     /// BUGFIX #2: Parse `buf[index] = value` as Stmt::Assign
     fn index_assignment_statement(&mut self) -> Result<Stmt, ParseError> {
+        let start = self.peek().clone();
         let name = self
             .consume(TokenKind::Identifier, "buffer name")?
             .lexeme
@@ -493,12 +494,14 @@ impl Parser {
         self.consume(TokenKind::Assign, "'=' after index expression")?;
         let value = self.expression()?;
         self.consume_statement_terminator("; after assignment", false)?;
+        let end = self.previous_statement_end();
         Ok(Stmt::Assign {
             target: Expr::Index {
                 base: Box::new(Expr::Variable(name)),
                 index: Box::new(index),
             },
             value,
+            span: Self::span_between(&start, &end),
         })
     }
 
@@ -513,6 +516,7 @@ impl Parser {
 
     /// Parse `name = value` as Stmt::Assign with a Variable target.
     fn variable_assignment_statement(&mut self) -> Result<Stmt, ParseError> {
+        let start = self.peek().clone();
         let name = self
             .consume(TokenKind::Identifier, "variable name")?
             .lexeme
@@ -520,22 +524,26 @@ impl Parser {
         self.consume(TokenKind::Assign, "'=' after variable name")?;
         let value = self.expression()?;
         self.consume_statement_terminator("; after assignment", false)?;
+        let end = self.previous_statement_end();
         Ok(Stmt::Assign {
             target: Expr::Variable(name),
             value,
+            span: Self::span_between(&start, &end),
         })
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
         let stmt = if self.matches(TokenKind::Let) {
-            let beginner = self.allows_beginner_line_terminator(&self.previous().lexeme);
-            self.let_statement(beginner)?
+            let start = self.previous().clone();
+            let beginner = self.allows_beginner_line_terminator(&start.lexeme);
+            self.let_statement(beginner, start)?
         } else if self.matches(TokenKind::Print) {
             let beginner = self.allows_beginner_line_terminator(&self.previous().lexeme);
             self.print_statement(beginner)?
         } else if self.matches(TokenKind::Return) {
-            let beginner = self.allows_beginner_line_terminator(&self.previous().lexeme);
-            self.return_statement(beginner)?
+            let start = self.previous().clone();
+            let beginner = self.allows_beginner_line_terminator(&start.lexeme);
+            self.return_statement(beginner, start)?
         } else if self.matches(TokenKind::If) {
             self.if_statement()?
         } else if self.matches(TokenKind::While) {
@@ -571,13 +579,16 @@ impl Parser {
             // Plain variable assignment: name = value
             self.variable_assignment_statement()?
         } else {
+            let start = self.peek().clone();
             let expr = self.expression()?;
             if self.matches(TokenKind::Assign) {
                 let value = self.expression()?;
                 self.consume_statement_terminator("; after assignment", false)?;
+                let end = self.previous_statement_end();
                 Stmt::Assign {
                     target: expr,
                     value,
+                    span: Self::span_between(&start, &end),
                 }
             } else {
                 self.consume_statement_terminator("; after expression", false)?;
@@ -676,7 +687,7 @@ impl Parser {
         Ok(MatchArm { pattern, body })
     }
 
-    fn let_statement(&mut self, beginner: bool) -> Result<Stmt, ParseError> {
+    fn let_statement(&mut self, beginner: bool, start: Token) -> Result<Stmt, ParseError> {
         let name = self
             .consume(TokenKind::Identifier, "variable name")?
             .lexeme
@@ -689,10 +700,12 @@ impl Parser {
         self.consume(TokenKind::Assign, "=")?;
         let value = self.expression()?;
         self.consume_statement_terminator("; after let statement", beginner)?;
+        let end = self.previous_statement_end();
         Ok(Stmt::Let {
             name,
             declared_type,
             value,
+            span: Self::span_between(&start, &end),
         })
     }
 
@@ -702,10 +715,14 @@ impl Parser {
         Ok(Stmt::Print { value })
     }
 
-    fn return_statement(&mut self, beginner: bool) -> Result<Stmt, ParseError> {
+    fn return_statement(&mut self, beginner: bool, start: Token) -> Result<Stmt, ParseError> {
         let value = self.expression()?;
         self.consume_statement_terminator("; after return statement", beginner)?;
-        Ok(Stmt::Return { value })
+        let end = self.previous_statement_end();
+        Ok(Stmt::Return {
+            value,
+            span: Self::span_between(&start, &end),
+        })
     }
 
     fn if_statement(&mut self) -> Result<Stmt, ParseError> {

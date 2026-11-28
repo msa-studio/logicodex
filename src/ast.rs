@@ -45,12 +45,16 @@ pub enum Stmt {
         name: String,
         declared_type: Option<Type>,
         value: Expr,
+        /// Source span of the complete `let` statement.
+        span: Span,
     },
     Print {
         value: Expr,
     },
     Return {
         value: Expr,
+        /// Source span of the complete `return` statement.
+        span: Span,
     },
     ExprStmt {
         value: Expr,
@@ -115,6 +119,8 @@ pub enum Stmt {
     Assign {
         target: Expr,
         value: Expr,
+        /// Source span of the complete assignment statement.
+        span: Span,
     },
     /// Buffer index assignment: buf[index] = value
     IndexAssign {
